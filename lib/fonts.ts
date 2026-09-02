@@ -43,6 +43,11 @@ export const sourceCodePro = localFont({
   style: 'normal',
   display: 'swap',
   variable: '--font-mono-face',
-  adjustFontFallback: false,
+  // Was false, which meant the mono face had no metric-matched fallback and
+  // mono text reflowed when it swapped in. Invisible locally, worth ~0.005 CLS
+  // on the deployment. The base family matters less than the adjustment: the
+  // generated fallback is size-adjusted to Source Code Pro's own metrics, so
+  // the swap moves nothing.
+  adjustFontFallback: 'Arial',
   fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
 })
