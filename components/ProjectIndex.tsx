@@ -23,7 +23,7 @@ export function ProjectIndex() {
                 <span className="text-body block group-hover:underline group-hover:decoration-rule">
                   {p.name}
                 </span>
-                <span className="text-note mt-1 block max-w-[58ch] text-graphite">{p.what}</span>
+                <span className="text-note mt-1 block max-w-[37.9rem] text-graphite">{p.what}</span>
                 <span className="text-meta mt-1.5 block font-mono text-graphite">{p.status}</span>
               </a>
             </li>

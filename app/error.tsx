@@ -8,7 +8,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
       <div className="pt-16 lg:pt-24">
         <Row rail="Error">
           <h1 className="text-h2">Something broke</h1>
-          <p className="mt-4 max-w-[52ch] text-graphite">
+          <p className="mt-4 max-w-[34rem] text-graphite">
             Not the impression I was going for. You can retry, or use the links in the footer.
           </p>
           <button

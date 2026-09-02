@@ -85,7 +85,7 @@ export function Figure({
           )
         })}
 
-        <figcaption className="text-note mt-5 max-w-[60ch] text-graphite">{caption}</figcaption>
+        <figcaption className="text-note mt-5 max-w-[39.2rem] text-graphite">{caption}</figcaption>
 
         {table ? <div className="sr-only">{table}</div> : null}
       </Row>

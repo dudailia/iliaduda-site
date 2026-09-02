@@ -43,7 +43,7 @@ export default function Home() {
       <header className="pt-16 lg:pt-24">
         <Row rail="Boston, MA">
           <h1 className="text-h1">Ilia Duda</h1>
-          <p className="mt-4 max-w-[52ch]">
+          <p className="mt-4 max-w-[34rem]">
             Mathematics and Business Administration at Northeastern University, class of 2028. I
             work on quantitative finance and the systems around it — research stacks, market
             tooling, and applied LLM infrastructure.

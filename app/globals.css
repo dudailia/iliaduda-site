@@ -47,7 +47,17 @@
   --text-h1: 2.75rem; /* 44px */
   --text-h1--line-height: 1.12;
 
-  --measure: 68ch;
+  /* Deliberately NOT `ch`.
+     The ch unit is the advance width of "0" in the FONT CURRENTLY IN USE, so a
+     measure expressed in ch changes the instant a webfont swaps in — and this
+     value feeds the page's max-width, so the whole layout reflowed
+     horizontally. Locally that never showed, because the font loads before
+     first paint; on the deployment it produced CLS 0.035 in two runs of three.
+     A metric-adjusted fallback does not fix it: size-adjust scales the glyphs,
+     but the measure has to stop depending on which font is loaded at all.
+     44.375rem = 710px = 68 x the 10.44px "0" advance of Source Serif 4 at 19px,
+     so the line length is unchanged once the font is in. */
+  --measure: 44.375rem;
   --rail: 15rem;
   --gutter: 2rem;
 }

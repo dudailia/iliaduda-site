@@ -27,7 +27,7 @@ export function CaseStudyTitle({
   return (
     <Row rail={slug} className="pt-10 lg:pt-16">
       <Heading className={level === 'h1' ? 'text-h1' : 'text-h2'}>{title}</Heading>
-      <div className="mt-4 max-w-[58ch] text-graphite">{standfirst}</div>
+      <div className="mt-4 max-w-[37.9rem] text-graphite">{standfirst}</div>
       <hr className="mt-8 border-0 border-t border-rule" />
     </Row>
   )
