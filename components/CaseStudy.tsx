@@ -56,10 +56,16 @@ export function Section({
   return (
     <section {...(id ? { id } : {})} className="mt-10 lg:mt-14">
       <div className="grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-10 lg:gap-y-0">
-        <Heading className="text-meta font-mono font-normal tracking-normal text-ink lg:col-start-1 lg:row-start-1 lg:pt-1 lg:text-right">
+        <Heading className="text-meta font-mono font-normal tracking-normal text-ink lg:col-start-1 lg:row-start-1 lg:self-start lg:pt-1 lg:text-right">
           {heading}
         </Heading>
-        <div className="min-w-0 lg:col-start-2 lg:row-start-1 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em]">
+        {/* When a section opens with an annotated paragraph, that note is
+            positioned into the rail at the paragraph's own top — which is
+            exactly where the section heading already is, so the two print on
+            top of each other. Pushing only the first note down clears the
+            heading; every later note keeps aligning with its paragraph.
+            tests/e2e/rail.spec.ts asserts no note ever intersects a heading. */}
+        <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:top-10 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em]">
           {children}
         </div>
       </div>

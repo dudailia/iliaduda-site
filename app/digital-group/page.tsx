@@ -158,23 +158,25 @@ export default function DigitalGroup() {
             and about {n('dgE2eCases')} executed end-to-end cases.
           </p>
           <p>
-            None of that is the interesting part. The interesting part is that several of those
-            gates ran, reported green, and were measuring nothing.
+            None of that is the interesting part. The interesting part is that two of those gates
+            ran, reported green, and were measuring nothing.
           </p>
           <Register
             columns={[
               {
-                heading: 'Guards that ran and measured nothing',
+                heading: 'A pass/fail audit aggregated by median',
                 items: [
-                  'a pass/fail audit aggregated by median across five runs: failing two of five medians to a pass, so the gate announced success while the thing it guarded was broken forty per cent of the time',
-                  'a readiness check that matched a log line instead of making a request — it declared the server ready under a second after launch, then scored a browser error page, and passed on every developer machine because they boot faster than the browser does',
+                  'five runs, and an audit failing two of them medians to a pass',
+                  'so the gate reported green while the thing it guarded was broken two times in five',
+                  'fixed by taking the worst run instead',
                 ],
               },
               {
-                heading: 'And two more of the same kind',
+                heading: 'A readiness check that matched a log line',
                 items: [
-                  'three geometric assertions that agreed with each other while the elements they described shipped clipped',
-                  'a test that failed readily, but toward the wrong answer, because its expected value encoded a misreading of the statute',
+                  'it declared the server ready under a second after launch',
+                  'then navigated, and scored a browser error page',
+                  'and passed on every developer machine, because they boot the stack faster than the browser starts',
                 ],
               },
             ]}

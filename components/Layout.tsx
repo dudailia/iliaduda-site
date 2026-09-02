@@ -35,7 +35,7 @@ export function Row({
     <div
       className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-10 lg:gap-y-0 ${className}`}
     >
-      <div className="text-meta font-mono text-graphite lg:pt-1 lg:text-right">{rail}</div>
+      <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right">{rail}</div>
       <div className="min-w-0">{children}</div>
     </div>
   )
