@@ -1,26 +1,150 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---------------------------------------------------------------------------
+   Palette — six values, and one rule that gives them meaning.
+
+   --indigo is the accent and it appears ONLY inside <figure>. It never touches
+   a heading, a link or a button. Inside a figure it encodes epistemic status:
+   --indigo-wash fills the context quantity, solid --indigo marks the value
+   actually under test, and thresholds are drawn in --ink. So the only coloured
+   thing on the page is a measurement, and within a measurement the colour says
+   which number is the claim.
+
+   Contrast ratios against --paper are asserted in tests/contrast.test.ts, not
+   eyeballed.
+   --------------------------------------------------------------------------- */
+
+@theme {
+  --color-ink: #16181c;
+  --color-paper: #faf9f7;
+  --color-graphite: #5b6068;
+  --color-rule: #dedcd7;
+  --color-indigo: #2f3a8c;
+  --color-indigo-wash: #e4e6f2;
+
+  /* next/font/local publishes the loaded faces as --font-*-face. These must NOT
+     be called --font-serif / --font-mono: naming them that made the theme token
+     reference itself, the declaration was dropped as circular, and the whole
+     site silently rendered in the Georgia fallback while still downloading both
+     webfonts. The bug was invisible on screen and visible in the computed
+     font-family, which is why the e2e suite now asserts the family by name. */
+  --font-serif: var(--font-serif-face), Georgia, 'Times New Roman', serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale, ratio ~1.28. No step exists that the page does not use. */
+  --text-note: 0.9375rem; /* 15px — margin notes, captions */
+  --text-note--line-height: 1.5;
+  --text-meta: 0.8125rem; /* 13px — mono status lines, figure labels */
+  --text-meta--line-height: 1.45;
+  --text-small: 1.0625rem; /* 17px — mobile body */
+  --text-small--line-height: 1.6;
+  --text-body: 1.1875rem; /* 19px — body */
+  --text-body--line-height: 1.62;
+  --text-h3: 1.5rem; /* 24px */
+  --text-h3--line-height: 1.3;
+  --text-h2: 1.9375rem; /* 31px */
+  --text-h2--line-height: 1.22;
+  --text-h1: 2.75rem; /* 44px */
+  --text-h1--line-height: 1.12;
+
+  --measure: 68ch;
+  --rail: 15rem;
+  --gutter: 2rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  /* No smooth scroll: figure anchors are pasted into email and should land
+     immediately, and it is motion nobody asked for. */
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-serif);
+  font-size: var(--text-small);
+  line-height: 1.6;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (min-width: 48rem) {
+  body {
+    font-size: var(--text-body);
+    line-height: 1.62;
+  }
+}
+
+h1,
+h2,
+h3 {
+  /* Same serif at larger sizes with tighter tracking. There is no third face
+     and no display weight. */
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Numbers must align in columns wherever they are compared. */
+.tabular,
+[data-mono] {
+  font-family: var(--font-mono);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Links — ink with a rule-coloured underline going to ink on hover and focus.
+   No accent, no arrow glyph.
+   --------------------------------------------------------------------------- */
+
+a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-rule);
+  transition:
+    color 120ms linear,
+    border-color 120ms linear;
+}
+
+a:hover {
+  border-bottom-color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+/* ---------------------------------------------------------------------------
+   The site has no scroll-triggered motion at all — no fade, slide, reveal,
+   count-up or draw-on. The only transitions are the link colour changes above.
+   This guard exists so that guarantee still holds if motion is ever added.
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Anchored figures must not land under a browser's find bar or feel flush. */
+[id] {
+  scroll-margin-top: 1.5rem;
 }

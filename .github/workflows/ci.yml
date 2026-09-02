@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: types, lint, provenance gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Type-check (strict, noUncheckedIndexedAccess)
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # facts.test.ts     — every number carries a source, or the build fails
+      # figures.test.ts   — a figure may not hardcode its own project's numbers
+      # copy.test.ts      — retracted claims cannot be restored
+      # contrast.test.ts  — WCAG ratios computed from globals.css, not eyeballed
+      - name: Provenance, copy and contrast gates
+        run: pnpm test
+
+  audit:
+    name: accessibility, keyboard, origin, 360px
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # Runs against `next start`, never `next dev`. Auditing the development
+      # server would be measuring an environment no real visitor uses.
+      - name: Axe (incl. best-practice), focus rings, off-origin requests, 360px
+        run: pnpm exec playwright test
+
+  budget:
+    name: lighthouse — accessibility 100, CLS, no third party
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Every minScore:1 assertion aggregates pessimistically, not by median.
+      # See the note in lighthouserc.json: a boolean gate aggregated by median
+      # reports green while failing two runs in five.
+      - name: Lighthouse CI (a11y = 100, CLS <= 0.005, 0 third-party requests)
+        run: pnpm exec lhci autorun

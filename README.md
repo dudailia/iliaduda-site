@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# iliaduda.com
 
-## Getting Started
+Personal site. Next.js 16, TypeScript, Tailwind 4, deployed on Vercel.
 
-First, run the development server:
+Seven case studies, one figure each, no product screenshots. The figures are
+hand-authored SVG — no chart library — and every number in them comes from
+`content/facts.ts`, where each entry carries the file it was verified against.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
+## Running it
+
+```
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## The gates
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Everything below fails the build rather than warning. The site makes claims
+about its own accessibility and layout stability, so those claims are checked
+rather than asserted.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+pnpm typecheck        # strict, plus noUncheckedIndexedAccess
+pnpm lint
+pnpm test             # provenance, retracted copy, contrast
+pnpm build
+pnpm test:e2e         # axe, focus rings, off-origin requests, 360px, fonts
+pnpm test:lh          # accessibility 100, CLS, zero third-party requests
+pnpm check:all        # all of the above, in order
+```
 
-## Learn More
+`pnpm test` is four gates:
 
-To learn more about Next.js, take a look at the following resources:
+- **`facts.test.ts`** — every entry in `content/facts.ts` must cite a source
+  specific enough to re-check. A number without provenance cannot reach a page.
+- **`figures.test.ts`** — a figure may not hardcode a value that `facts.ts`
+  already holds, and may not render a bare number as a text node. Scoped per
+  project, so a cricstate figure is checked against cricstate numbers.
+- **`copy.test.ts`** — a set of claims a self-audit retracted cannot be
+  restored. `tests/e2e/copy.spec.ts` repeats the check against rendered output,
+  because a template can assemble a phrase from pieces a source scan sees
+  separately.
+- **`contrast.test.ts`** — WCAG ratios computed from the tokens in
+  `app/globals.css`, so the gate cannot drift from the palette.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Measured on the worst of five Lighthouse runs per route: accessibility 100,
+performance 100, best practices 100, SEO 100, CLS 0.0000, 227 KB total transfer,
+zero third-party requests.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes
 
-## Deploy on Vercel
+- Two self-hosted variable typefaces, latin subset, 71.7 KB combined. No Google
+  Fonts, no CDN.
+- No scroll-triggered motion anywhere. The only transitions are link colour on
+  hover and focus.
+- The OTF files in `assets/og-fonts/` are build-time input for the Open Graph
+  image, which cannot read woff2. They are deliberately outside `public/`.
+- No analytics.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Still to do
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Real headshot and résumé PDF. Both are omitted rather than stubbed — a
+  portfolio whose own résumé download 404s makes the reader's argument for them.
+- `iliaduda.com` DNS.
