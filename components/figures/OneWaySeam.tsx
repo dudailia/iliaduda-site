@@ -97,7 +97,7 @@ function Marks() {
         <text x={W - 79} y="296" textAnchor="middle">
           dashboard on Vercel
         </text>
-        <text x={W - 79} y="310" textAnchor="middle" fill={GRAPHITE}>
+        <text x={W - 79} y="310" textAnchor="middle" fill={GRAPHITE} fontSize="10">
           realtime row changes
         </text>
       </g>

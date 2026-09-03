@@ -30,7 +30,7 @@ const W = DIAGRAM_W
 const TOP = 16
 const PITCH = 19
 const H = TOP + CONSTANTS.length * PITCH + 96
-const BRACKET_X = 236
+const BRACKET_X = 208
 const BOX_X = BRACKET_X + 22
 const BOX_W = W - BOX_X - 5
 
@@ -79,7 +79,7 @@ function Marks() {
       <rect x={BOX_X} y={midY - 22} width={BOX_W} height="44" fill={WASH} stroke={ACCENT} />
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY - 6}
+        y={midY - 9}
         textAnchor="middle"
         className="font-mono"
         fontSize="9.5"
@@ -89,7 +89,7 @@ function Marks() {
       </text>
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY + 8}
+        y={midY + 3}
         textAnchor="middle"
         className="font-mono"
         fontSize="9.5"
@@ -99,7 +99,7 @@ function Marks() {
       </text>
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY + 20}
+        y={midY + 15}
         textAnchor="middle"
         className="font-mono"
         fontSize="9.5"

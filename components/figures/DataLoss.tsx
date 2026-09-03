@@ -8,6 +8,11 @@ import { ACCENT, DIAGRAM_W, GRAPHITE, INK, RULE, SMALL, WASH } from '../figureKi
  * least: it is descriptive, has no holdout and carries no interval. The
  * reduction is the part that decides what the ranking is even about, so this is
  * the figure.
+ *
+ * Label lengths here are deliberately short of the frame. An earlier version
+ * filled 330 of the 336 available units, which fitted on macOS and overflowed
+ * by 25 on Linux CI, where the fallback mono is wider — a figure authored to
+ * the edge is authored to one machine's font metrics.
  */
 
 const RAW = value('siRowsRaw')
@@ -53,8 +58,8 @@ function Marks() {
             {i < STAGES.length - 1 ? (
               <text x={X0} y={y + BAR_H + 20} fontSize="10" fill={GRAPHITE}>
                 {i === 0
-                  ? `− ${fmt(RAW - CLEANED)} with no funding record and no date`
-                  : `− ${fmt(CLEANED - FINAL)} outliers by per-segment fences, or in thin years`}
+                  ? `− ${fmt(RAW - CLEANED)} lacking a funding record or a date`
+                  : `− ${fmt(CLEANED - FINAL)} outliers, and years too thin to use`}
               </text>
             ) : null}
           </g>
@@ -62,7 +67,7 @@ function Marks() {
       })}
       <line x1={X0} y1={H - 22} x2={W} y2={H - 22} stroke={RULE} strokeWidth="1" />
       <text x={X0} y={H - 8} className="font-mono" fontSize="10" fill={GRAPHITE}>
-        {`${value('siLossPct')}% of the supplied records are not in the ranking`}
+        {`${value('siLossPct')}% of supplied records are not ranked`}
       </text>
     </>
   )

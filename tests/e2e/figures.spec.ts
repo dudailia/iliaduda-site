@@ -16,6 +16,10 @@ import { ROUTES } from './routes'
 for (const route of ROUTES) {
   test(`${route} figures fit inside their own viewBox`, async ({ page }) => {
     await page.goto(route)
+    // Measure with the real font in place. Without this the check runs against
+    // whatever fallback the runner has, which is Menlo on macOS and something
+    // wider on Linux — so the same figure passed locally and failed in CI.
+    await page.evaluate(() => document.fonts.ready)
     const problems = await page.evaluate(() => {
       const out: string[] = []
       for (const svg of document.querySelectorAll<SVGSVGElement>('svg[role="img"]')) {

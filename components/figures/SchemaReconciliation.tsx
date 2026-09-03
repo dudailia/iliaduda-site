@@ -34,8 +34,8 @@ const W = DIAGRAM_W
 const TOP = 14
 const PITCH = 20
 const LABEL_X = 96
-const HUB_X = 196
-const HUB_W = 136
+const HUB_X = 190
+const HUB_W = 134
 const H = TOP + SOURCES.length * PITCH + 74
 const HUB_Y = TOP + (SOURCES.length * PITCH) / 2 - 22
 
