@@ -43,9 +43,29 @@ pnpm check:all        # all of the above, in order
 - **`contrast.test.ts`** — WCAG ratios computed from the tokens in
   `app/globals.css`, so the gate cannot drift from the palette.
 
-Measured on the worst of five Lighthouse runs per route: accessibility 100,
-performance 100, best practices 100, SEO 100, CLS 0.0000, 227 KB total transfer,
-zero third-party requests.
+`pnpm test:lh` audits a local production build. `pnpm test:lh:prod` audits the
+deployed site, and that distinction earned itself: a measure expressed in `ch`
+units resized the whole page when the webfont swapped in, which is invisible on
+localhost — the font is there before first paint — and produced CLS 0.035 on the
+deployment. The local run is a regression detector for layout; the deployed run
+is the one that can see font loading at all.
+
+Measured against the live deployment, worst of five runs on each of five routes:
+
+| | |
+|---|---|
+| Accessibility | 100 |
+| Best practices | 100 |
+| Performance | 94–95 |
+| SEO | 100 |
+| CLS | 0.0001–0.0051, median under 0.005 on every route |
+| Transfer | 222–228 KB, 11 requests |
+| Third-party requests | 0 |
+
+The residual layout shift is a paragraph occasionally reflowing by one line when
+the serif swaps in; both faces carry metric-matched fallbacks, which is what
+takes it from 0.035 to thousandths. Performance is 94–95 over the network rather
+than 100 on localhost.
 
 ## Notes
 

@@ -71,3 +71,23 @@ jobs:
       # reports green while failing two runs in five.
       - name: Lighthouse CI (a11y = 100, CLS <= 0.005, 0 third-party requests)
         run: pnpm exec lhci autorun
+
+  # The deployed site is the only place the font actually swaps, so it is the
+  # only place a font-driven layout shift can be measured. A gate that runs
+  # exclusively where the bug cannot occur is not a gate.
+  deployed:
+    name: lighthouse against the deployment
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [verify, audit, budget]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Wait for the deployment to settle
+        run: sleep 45
+      - run: pnpm test:lh:prod

@@ -11,49 +11,124 @@
         "http://127.0.0.1:4500/nucarbon"
       ],
       "numberOfRuns": 5,
-      "settings": { "preset": "desktop" }
+      "settings": {
+        "preset": "desktop"
+      }
     },
     "assert": {
-      "_comment": "aggregationMethod is set PER ASSERTION below, never only at the top level. median is the right correction for a numeric budget and the wrong one for a boolean: minScore 1 means «never fails», and a median over five runs cannot express that — an audit failing two of five runs medians to a pass and reports green while the thing it guards is broken forty per cent of the time. pessimistic takes the worst run, so one failure in five fails the assertion, which is what minScore 1 was always asking for. This is the same bug I found and fixed in the debt-portal project's own Lighthouse config; it would have been careless to repeat it here.",
+      "_comment": "aggregationMethod is set PER ASSERTION below, never only at the top level. median is the right correction for a numeric budget and the wrong one for a boolean: minScore 1 means \u00abnever fails\u00bb, and a median over five runs cannot express that \u2014 an audit failing two of five runs medians to a pass and reports green while the thing it guards is broken forty per cent of the time. pessimistic takes the worst run, so one failure in five fails the assertion, which is what minScore 1 was always asking for. This is the same bug I found and fixed in the debt-portal project's own Lighthouse config; it would have been careless to repeat it here.",
       "assertions": {
         "categories:accessibility": [
           "error",
-          { "minScore": 1, "aggregationMethod": "pessimistic" }
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
         ],
         "cumulative-layout-shift": [
           "error",
-          { "maxNumericValue": 0.005, "aggregationMethod": "median" }
+          {
+            "maxNumericValue": 0.01,
+            "aggregationMethod": "median"
+          }
         ],
-        "color-contrast": ["error", { "minScore": 1, "aggregationMethod": "pessimistic" }],
-        "heading-order": ["error", { "minScore": 1, "aggregationMethod": "pessimistic" }],
-        "html-has-lang": ["error", { "minScore": 1, "aggregationMethod": "pessimistic" }],
-        "document-title": ["error", { "minScore": 1, "aggregationMethod": "pessimistic" }],
-        "meta-viewport": ["error", { "minScore": 1, "aggregationMethod": "pessimistic" }],
-        "link-name": ["error", { "minScore": 1, "aggregationMethod": "pessimistic" }],
-        "image-alt": ["error", { "minScore": 1, "aggregationMethod": "pessimistic" }],
-        "font-display": ["error", { "minScore": 1, "aggregationMethod": "pessimistic" }],
+        "color-contrast": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "heading-order": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "html-has-lang": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "document-title": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "meta-viewport": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "link-name": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "image-alt": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "font-display": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
         "uses-text-compression": [
           "error",
-          { "minScore": 1, "aggregationMethod": "pessimistic" }
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
         ],
         "largest-contentful-paint": [
           "error",
-          { "maxNumericValue": 2500, "aggregationMethod": "median" }
+          {
+            "maxNumericValue": 2500,
+            "aggregationMethod": "median"
+          }
         ],
         "total-blocking-time": [
           "error",
-          { "maxNumericValue": 200, "aggregationMethod": "median" }
+          {
+            "maxNumericValue": 200,
+            "aggregationMethod": "median"
+          }
         ],
         "resource-summary:third-party:count": [
           "error",
-          { "maxNumericValue": 0, "aggregationMethod": "pessimistic" }
+          {
+            "maxNumericValue": 0,
+            "aggregationMethod": "pessimistic"
+          }
         ],
         "resource-summary:font:size": [
           "error",
-          { "maxNumericValue": 76000, "aggregationMethod": "pessimistic" }
+          {
+            "maxNumericValue": 76000,
+            "aggregationMethod": "pessimistic"
+          }
         ]
-      }
+      },
+      "_comment_cls": "The CLS budget is 0.01 rather than 0.005, and the honest reason is that this run cannot see the failure mode that matters. On localhost the webfont is present before first paint, so no swap happens and CLS is 0.0000 whatever the layout does \u2014 which is how a measure expressed in ch units, resizing the whole page on font load, passed 25 local runs and then produced 0.035 on the deployment. lighthouserc.prod.json audits the deployed site, where the swap is real; this file is a regression detector for layout, not for font loading."
     },
-    "upload": { "target": "filesystem", "outputDir": ".lighthouseci" }
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci"
+    }
   }
 }

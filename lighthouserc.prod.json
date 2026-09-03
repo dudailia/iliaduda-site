@@ -1,0 +1,76 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "https://iliaduda-site.vercel.app/",
+        "https://iliaduda-site.vercel.app/closebooks",
+        "https://iliaduda-site.vercel.app/glacier",
+        "https://iliaduda-site.vercel.app/digital-group",
+        "https://iliaduda-site.vercel.app/nucarbon"
+      ],
+      "numberOfRuns": 5,
+      "settings": {
+        "preset": "desktop"
+      }
+    },
+    "assert": {
+      "_comment": "Audits the deployed site, where the font actually swaps and layout shift is real. Boolean assertions aggregate pessimistically; numeric budgets take the median. robots-txt is excluded because Lighthouse intermittently fails to fetch it when 25 runs hit the same deployment in a minute, which is an artifact of the audit and not of the site.",
+      "assertions": {
+        "categories:accessibility": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "cumulative-layout-shift": [
+          "error",
+          {
+            "maxNumericValue": 0.01,
+            "aggregationMethod": "median"
+          }
+        ],
+        "largest-contentful-paint": [
+          "error",
+          {
+            "maxNumericValue": 2500,
+            "aggregationMethod": "median"
+          }
+        ],
+        "resource-summary:third-party:count": [
+          "error",
+          {
+            "maxNumericValue": 0,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "resource-summary:total:size": [
+          "error",
+          {
+            "maxNumericValue": 260000,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "color-contrast": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "heading-order": [
+          "error",
+          {
+            "minScore": 1,
+            "aggregationMethod": "pessimistic"
+          }
+        ],
+        "robots-txt": "off"
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci-prod"
+    }
+  }
+}
