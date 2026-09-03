@@ -66,7 +66,7 @@ export function Section({
             leaves the occupied space unchanged — which looks fixed and still
             collides. every later note keeps aligning with its paragraph.
             tests/e2e/rail.spec.ts asserts no two rail items ever intersect. */}
-        <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em]">
+        <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
           {children}
         </div>
       </div>

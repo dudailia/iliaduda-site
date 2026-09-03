@@ -82,7 +82,7 @@ export function Annotated({
   return (
     <div className="lg:-ml-[calc(var(--rail)+2.5rem)] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-10">
       <div className="min-w-0 lg:col-start-2 lg:row-start-1">{children}</div>
-      <aside className="text-note mt-3 border-l-2 border-rule pl-4 text-graphite lg:col-start-1 lg:row-start-1 lg:mt-0 lg:border-l-0 lg:pl-0 lg:text-right">
+      <aside className="text-note mt-3 border-l-2 border-rule pl-4 text-graphite lg:col-start-1 lg:row-start-1 lg:mt-0 lg:mb-2 lg:border-l-0 lg:pl-0 lg:text-right">
         {note}
       </aside>
     </div>
