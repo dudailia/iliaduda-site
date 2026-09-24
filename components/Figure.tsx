@@ -18,7 +18,8 @@ import { Row } from './Layout'
  * one of them is.
  *
  * `id` is a permanent anchor: these get pasted into email, which is how this
- * site actually gets used. They are listed in the sitemap and never renamed.
+ * site actually gets used. Fragments are not sitemap entries, but they are
+ * never renamed.
  */
 
 export interface Arrangement {

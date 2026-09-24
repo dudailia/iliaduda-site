@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { FORBIDDEN } from './forbidden'
 
 /**
  * A self-audit retracted a number of claims that appeared in earlier versions
@@ -14,28 +15,6 @@ import { describe, expect, it } from 'vitest'
  */
 
 const ROOTS = ['app', 'components', 'content', 'lib']
-
-/** Phrases that are unsupportable anywhere on this site. */
-const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
-  [/real money/i, 'not supportable — no project handles customer money'],
-  [/real clients/i, 'not supportable — CloseBooks has no paying customers'],
-  [/production[- ]grade/i, 'superlative that cannot be defended'],
-  [/battle[- ]tested/i, 'superlative that cannot be defended'],
-  // Narrowed from /enterprise/ after it flagged "Young Enterprise UK", which is
-  // the actual name of the organisation. The ban is on the self-description,
-  // not on the word.
-  [/\benterprise[-\s](ready|grade|class|scale)\b/i, 'superlative that cannot be defended'],
-  [/state street/i, 'removed from the site entirely'],
-  [/first real[- ]time/i, 'unsupportable and unfalsifiable'],
-  [/1,247/, 'a fixed reference dataset, never an aggregation across firms'],
-  [/automated 1099 filing/i, 'there is no IRS e-file integration'],
-  [/\bhonest(y|ly)?\b/i, 'the site demonstrates this; it must never announce it'],
-  [/\bpassionate\b/i, 'register'],
-  [/\bworld[- ]class\b/i, 'superlative'],
-  [/\bcutting[- ]edge\b/i, 'superlative'],
-  [/\bseamless(ly)?\b/i, 'register'],
-  [/\bbest[- ]in[- ]class\b/i, 'superlative'],
-]
 
 function stripComments(src: string): string {
   return src
@@ -88,7 +67,7 @@ describe('retracted claims cannot be restored', () => {
  */
 describe('per-project claims stay inside the project they are true of', () => {
   it('does not describe CloseBooks as tested', () => {
-    const path = join(process.cwd(), 'content/projects.ts')
+    const path = join(process.cwd(), 'content/papers.ts')
     let src: string
     try {
       src = stripComments(readFileSync(path, 'utf8'))

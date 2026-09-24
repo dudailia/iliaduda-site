@@ -1,22 +1,23 @@
-import type { Metadata } from 'next'
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
 import { Annotated, Shell } from '@/components/Layout'
 import { schemaReconciliation } from '@/components/figures/SchemaReconciliation'
 import { fact } from '@/content/facts'
+import { otherWork } from '@/content/papers'
+import { pageMeta } from '@/lib/meta'
 
-export const metadata: Metadata = {
-  title: 'AdConfirm',
-  description:
-    'Advertising placement inside invoices and receipts: eight accounting and point-of-sale integrations mapped onto one internal type, with metered billing in sub-penny units and Stripe Connect payouts.',
-}
+export const metadata = pageMeta(
+  '/adconfirm',
+  'AdConfirm',
+  'Advertising placement inside invoices and receipts: eight accounting and point-of-sale integrations mapped onto one internal type, with metered billing in sub-penny units and Stripe Connect payouts.',
+)
 
 export default function AdConfirm() {
   return (
     <Shell>
       <article>
         <CaseStudyTitle
-          slug="adconfirm"
+          byline={otherWork.find((o) => o.slug === 'adconfirm')!.status}
           level="h1"
           title="Eight vendors who disagree about what money is"
           standfirst={

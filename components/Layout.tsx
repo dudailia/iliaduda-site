@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /**
- * The whole site is one asymmetric grid: a 68ch text column with a 15rem rail
+ * The whole site is one asymmetric grid: a 710px text column with a 15rem rail
  * to its left. The rail holds figure numbers, statuses and limitation notes.
  * It is what makes the page read as a document rather than a landing page.
  *
@@ -11,7 +11,7 @@ import type { ReactNode } from 'react'
 
 export function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[calc(var(--rail)+2.5rem+var(--measure))] px-6 sm:px-8">
+    <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8">
       {children}
     </div>
   )
@@ -33,7 +33,7 @@ export function Row({
 }) {
   return (
     <div
-      className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-10 lg:gap-y-0 ${className}`}
+      className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 ${className}`}
     >
       <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right">{rail}</div>
       <div className="min-w-0">{children}</div>
@@ -80,7 +80,7 @@ export function Annotated({
   children: ReactNode
 }) {
   return (
-    <div className="lg:-ml-[calc(var(--rail)+2.5rem)] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-10">
+    <div className="lg:-ml-[calc(var(--rail)+var(--gutter))] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-(--gutter)">
       <div className="min-w-0 lg:col-start-2 lg:row-start-1">{children}</div>
       <aside className="text-note mt-3 border-l-2 border-rule pl-4 text-graphite lg:col-start-1 lg:row-start-1 lg:mt-0 lg:mb-2 lg:border-l-0 lg:pl-0 lg:text-right">
         {note}

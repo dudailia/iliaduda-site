@@ -272,38 +272,6 @@ const facts = {
     source: 'dg-website/lighthouserc.json:38-56',
   },
 
-  // ── Glacier Capital Systems ───────────────────────────────────────────────
-  glQuoteRefresh: {
-    value: 60,
-    unit: 'seconds',
-    label: 'quote refresh cadence',
-    source: 'Glacier — WORKER_QUOTE_REFRESH_SEC, delta/dashboard/worker.py:107-160',
-  },
-  glRescan: {
-    value: 300,
-    unit: 'seconds',
-    label: 'full rescan cadence',
-    source: 'Glacier — WORKER_RESCAN_INTERVAL_SEC, delta/dashboard/worker.py:107-160',
-  },
-  glWorkerMemory: {
-    value: 512,
-    unit: 'none',
-    label: 'worker memory, MB',
-    source: 'Glacier — worker/fly.toml, memory_mb',
-  },
-  glPytestFiles: {
-    value: 37,
-    unit: 'count',
-    label: 'pytest files',
-    source: 'Glacier glacier_v2_local — find -name "test_*.py" | wc -l',
-  },
-  glVitestFiles: {
-    value: 44,
-    unit: 'count',
-    label: 'vitest files',
-    source: 'Glacier glacier_v2_local — find -name "*.test.ts" | wc -l',
-  },
-
   // ── AdConfirm ─────────────────────────────────────────────────────────────
   acIntegrations: {
     value: 8,

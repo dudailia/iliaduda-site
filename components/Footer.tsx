@@ -1,60 +1,58 @@
+import { otherWork, visiblePapers } from '@/content/papers'
+import { AVAILABILITY, SITE } from '@/lib/site'
 import { Row, Shell } from './Layout'
-
-const NAV = [
-  ['cricstate', '/#cricstate'],
-  ['CloseBooks', '/closebooks'],
-  ['Glacier Capital Systems', '/glacier'],
-  ['Debt-settlement portal', '/digital-group'],
-  ['AdConfirm', '/adconfirm'],
-  ['Startup investment analysis', '/startup-investments'],
-  ['nucarbon', '/nucarbon'],
-] as const
-
-const ELSEWHERE = [
-  ['duda.i@northeastern.edu', 'mailto:duda.i@northeastern.edu'],
-  ['github.com/dudailia', 'https://github.com/dudailia'],
-  ['linkedin.com/in/ilia-duda', 'https://www.linkedin.com/in/ilia-duda'],
-] as const
+import { ContactLinks } from './Masthead'
 
 /**
- * Navigation lives here rather than in a sticky header. A header would put site
- * chrome above the measurement, and the measurement is the only thing that
- * needs to be above the fold.
+ * Every page ends on the ask, not on a colophon: the end of a visit is the
+ * part a reader remembers, so it says what Ilia is looking for and how to
+ * reach him, then lists the papers, then — last and smallest — how the site is
+ * built.
  */
 export function Footer() {
+  const papers = visiblePapers(SITE.isProduction)
   return (
     <footer className="mt-24 border-t border-rule py-12 lg:mt-32">
       <Shell>
-        <Row rail="Pages">
-          <nav aria-label="Case studies">
-            <ul className="grid gap-y-1.5 sm:grid-cols-2">
-              {NAV.map(([label, href]) => (
-                <li key={href}>
-                  <a href={href} className="text-note">
-                    {label}
+        <Row rail="Contact">
+          <p className="max-w-[36rem]">
+            {AVAILABILITY.line}, in quant and risk, investments, investment banking or data
+            science in finance. The fastest way to reach me is email.
+          </p>
+          <ContactLinks className="text-note mt-3" />
+        </Row>
+        <div className="h-10" />
+        <Row rail="Papers">
+          <nav aria-label="Papers">
+            <ul className="text-note grid gap-y-1.5 sm:grid-cols-2 sm:gap-x-8">
+              {papers.map((p) => (
+                <li key={p.href}>
+                  <a href={p.href} className="inline-block py-1">
+                    {p.title}
                   </a>
                 </li>
               ))}
+              {otherWork.map((o) => (
+                <li key={o.href}>
+                  <a href={o.href} className="inline-block py-1">
+                    {o.name}
+                  </a>
+                </li>
+              ))}
+              <li>
+                <a href="/about" className="inline-block py-1">
+                  About and CV
+                </a>
+              </li>
             </ul>
           </nav>
         </Row>
-        <div className="h-8" />
-        <Row rail="Elsewhere">
-          <ul className="text-note grid gap-y-1.5">
-            {ELSEWHERE.map(([label, href]) => (
-              <li key={href}>
-                <a href={href} className="font-mono">
-                  {label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </Row>
-        <div className="h-8" />
-        <Row rail="Boston, MA">
+        <div className="h-10" />
+        <Row rail="Colophon">
           <p className="text-note text-graphite">
-            Built with Next.js and TypeScript. Two self-hosted typefaces, no third-party
-            requests, no analytics.
+            Set in Source Serif 4 and Source Code Pro, both self-hosted. No third-party requests,
+            no analytics.{' '}
+            <a href="https://github.com/dudailia/iliaduda-site">Source on GitHub</a>.
           </p>
         </Row>
       </Shell>

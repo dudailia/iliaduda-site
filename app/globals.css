@@ -10,8 +10,11 @@
    thing on the page is a measurement, and within a measurement the colour says
    which number is the claim.
 
-   Contrast ratios against --paper are asserted in tests/contrast.test.ts, not
-   eyeballed.
+   There are two themes and still six roles. The dark set is the same six names
+   redeclared under prefers-color-scheme, so every utility and every figure
+   follows the reader's system setting without a toggle, a script or a flash of
+   the wrong theme. Contrast ratios for BOTH sets are asserted in
+   tests/contrast.test.ts, not eyeballed.
    --------------------------------------------------------------------------- */
 
 @theme {
@@ -46,6 +49,9 @@
   --text-h2--line-height: 1.22;
   --text-h1: 2.75rem; /* 44px */
   --text-h1--line-height: 1.12;
+  /* The masthead name — the one step above h1, used once, on the home page. */
+  --text-display: 3.5rem; /* 56px */
+  --text-display--line-height: 1.04;
 
   /* Deliberately NOT `ch`.
      The ch unit is the advance width of "0" in the FONT CURRENTLY IN USE, so a
@@ -59,88 +65,126 @@
      so the line length is unchanged once the font is in. */
   --measure: 44.375rem;
   --rail: 15rem;
-  --gutter: 2rem;
+  /* The space between rail and text column. One value, used by every grid. */
+  --gutter: 2.5rem;
 }
 
-/* ---------------------------------------------------------------------------
-   Base
-   --------------------------------------------------------------------------- */
-
-html {
-  /* No smooth scroll: figure anchors are pasted into email and should land
-     immediately, and it is motion nobody asked for. */
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
-  font-family: var(--font-serif);
-  font-size: var(--text-small);
-  line-height: 1.6;
-  font-variant-numeric: oldstyle-nums proportional-nums;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-@media (min-width: 48rem) {
-  body {
-    font-size: var(--text-body);
-    line-height: 1.62;
+/* Night reading. Warm near-black paper, warm off-white ink, and an indigo
+   lifted until it carries the same meaning at the same contrast. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink: #e9e6df;
+    --color-paper: #111316;
+    --color-graphite: #9ea3ab;
+    --color-rule: #2b2e34;
+    --color-indigo: #a3adf5;
+    --color-indigo-wash: #262b4c;
   }
 }
 
-h1,
-h2,
-h3 {
-  /* Same serif at larger sizes with tighter tracking. There is no third face
-     and no display weight. */
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  text-wrap: balance;
-  font-variant-numeric: lining-nums tabular-nums;
-}
+/* ---------------------------------------------------------------------------
+   Base.
 
-p {
-  text-wrap: pretty;
+   Everything here is inside @layer base. It was not, once: an unlayered
+   `a { border-bottom }` beats every Tailwind utility, because unlayered styles
+   outrank all layers regardless of specificity — so `border-0` on the index
+   links lost, and every entry drew a second rule under its first.
+   --------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  html {
+    /* No smooth scroll: figure anchors are pasted into email and should land
+       immediately, and it is motion nobody asked for. */
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--color-rule) var(--color-paper);
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    caret-color: var(--color-ink);
+    font-family: var(--font-serif);
+    font-size: var(--text-small);
+    line-height: 1.6;
+    font-variant-numeric: oldstyle-nums proportional-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  @media (min-width: 48rem) {
+    body {
+      font-size: var(--text-body);
+      line-height: 1.62;
+    }
+  }
+
+  ::selection {
+    background-color: var(--color-indigo-wash);
+    color: var(--color-ink);
+  }
+
+  h1,
+  h2,
+  h3 {
+    /* Same serif at larger sizes with tighter tracking. There is no third face
+       and no display weight. */
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Links — ink with a rule-coloured underline going to ink on hover and
+     focus. No accent, no arrow glyph. text-decoration rather than a border:
+     a border sits on the padding box, so the tap-target padding links carry on
+     mobile pushed the line a full 8px below the words it belonged to. */
+  a {
+    color: inherit;
+    text-decoration-line: underline;
+    text-decoration-color: var(--color-rule);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+    text-decoration-skip-ink: auto;
+    transition:
+      color 120ms linear,
+      text-decoration-color 120ms linear;
+  }
+
+  a:hover {
+    text-decoration-color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  /* Anchored figures must not land under a browser's find bar or feel flush. */
+  [id] {
+    scroll-margin-top: 1.5rem;
+  }
 }
 
 /* Numbers must align in columns wherever they are compared. */
-.tabular,
-[data-mono] {
+@utility tabular {
   font-family: var(--font-mono);
   font-variant-numeric: lining-nums tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
 
 /* ---------------------------------------------------------------------------
-   Links — ink with a rule-coloured underline going to ink on hover and focus.
-   No accent, no arrow glyph.
-   --------------------------------------------------------------------------- */
-
-a {
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px solid var(--color-rule);
-  transition:
-    color 120ms linear,
-    border-color 120ms linear;
-}
-
-a:hover {
-  border-bottom-color: var(--color-ink);
-}
-
-:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 3px;
-  border-radius: 1px;
-}
-
-/* ---------------------------------------------------------------------------
-   The site has no scroll-triggered motion at all — no fade, slide, reveal,
-   count-up or draw-on. The only transitions are the link colour changes above.
-   This guard exists so that guarantee still holds if motion is ever added.
+   One orchestrated moment on the whole site — the hero figure's entrance — and
+   it is written to be skippable. Everything else is link colour. This guard
+   keeps that true if motion is ever added carelessly.
    --------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -152,9 +196,4 @@ a:hover {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* Anchored figures must not land under a browser's find bar or feel flush. */
-[id] {
-  scroll-margin-top: 1.5rem;
 }

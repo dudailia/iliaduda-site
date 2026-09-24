@@ -1,15 +1,16 @@
-import type { Metadata } from 'next'
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
 import { Annotated, Shell } from '@/components/Layout'
 import { dataLoss } from '@/components/figures/DataLoss'
 import { fact } from '@/content/facts'
+import { otherWork } from '@/content/papers'
+import { pageMeta } from '@/lib/meta'
 
-export const metadata: Metadata = {
-  title: 'Startup investment analysis',
-  description:
-    'Segment ranking over 40,000-plus startup funding records, originally a Yandex Practicum capstone. Descriptive, with no holdout and no uncertainty estimate.',
-}
+export const metadata = pageMeta(
+  '/startup-investments',
+  'Startup investment analysis',
+  'Segment ranking over 40,000-plus startup funding records, originally a Yandex Practicum capstone. Descriptive, with no holdout and no uncertainty estimate.',
+)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
@@ -18,7 +19,7 @@ export default function StartupInvestments() {
     <Shell>
       <article>
         <CaseStudyTitle
-          slug="startups"
+          byline={otherWork.find((o) => o.slug === 'startup-investments')!.status}
           level="h1"
           title="Ranking 395 market segments, and what the ranking leaves out"
           standfirst={

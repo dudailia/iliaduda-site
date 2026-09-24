@@ -3,10 +3,11 @@ import { ROUTES } from './routes'
 
 /**
  * The margin rail carries two different things — section headings and
- * limitation notes — and they are positioned by different mechanisms: headings
- * are grid cells, notes are absolutely positioned out of the text column. When
- * a section opened with an annotated paragraph the two landed on the same
- * coordinates and printed over each other, on five pages at once.
+ * limitation notes. Notes were once absolutely positioned out of the text
+ * column, and when a section opened with an annotated paragraph a note and a
+ * heading landed on the same coordinates and printed over each other, on five
+ * pages at once. Notes are back in flow now (components/Layout.tsx, Annotated),
+ * which makes overlap impossible by construction; this gate proves it stays so.
  *
  * Nothing else caught it. Axe does not model overlap, the viewBox gate only
  * covers figures, and the page still had no horizontal overflow. So this

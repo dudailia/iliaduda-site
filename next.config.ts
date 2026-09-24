@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
   agentRules: false,
 
   poweredByHeader: false,
+
+  // Old URLs have been pasted into email, so they keep working. Permanent (308)
+  // because these are moves, not experiments.
+  async redirects() {
+    return [
+      // Glacier is described at résumé level on /about, not as a paper.
+      { source: '/glacier', destination: '/about#glacier', permanent: true },
+      { source: '/digital-group', destination: '/debt-portal', permanent: true },
+    ]
+  },
 }
 
 export default nextConfig

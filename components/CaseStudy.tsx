@@ -13,21 +13,24 @@ import { Row } from './Layout'
  */
 
 export function CaseStudyTitle({
-  slug,
+  byline,
   title,
   standfirst,
   level = 'h2',
 }: {
-  slug: string
+  /** Role and dates, as on the résumé. Sits under the title, never above it:
+   *  a label over a heading is a kicker, and the heading has to carry itself. */
+  byline?: ReactNode
   title: string
   standfirst: ReactNode
   level?: 'h1' | 'h2'
 }) {
   const Heading = level
   return (
-    <Row rail={slug} className="pt-10 lg:pt-16">
-      <Heading className={level === 'h1' ? 'text-h1' : 'text-h2'}>{title}</Heading>
-      <div className="mt-4 max-w-[37.9rem] text-graphite">{standfirst}</div>
+    <Row className="pt-10 lg:pt-16">
+      <Heading className={level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'}>{title}</Heading>
+      {byline ? <p className="text-meta mt-3 font-mono text-graphite">{byline}</p> : null}
+      <div className="mt-5 max-w-[37.9rem]">{standfirst}</div>
       <hr className="mt-8 border-0 border-t border-rule" />
     </Row>
   )
@@ -55,7 +58,7 @@ export function Section({
   const Heading = level
   return (
     <section {...(id ? { id } : {})} className="mt-10 lg:mt-14">
-      <div className="grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-10 lg:gap-y-0">
+      <div className="grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0">
         <Heading className="text-meta font-mono font-normal tracking-normal text-ink lg:col-start-1 lg:row-start-1 lg:self-start lg:pt-1 lg:text-right">
           {heading}
         </Heading>

@@ -38,7 +38,6 @@ const PROJECT_OF: Readonly<Record<string, string>> = {
   'MaterialityBar.tsx': 'cr',
   'TenantIsolation.tsx': 'cb',
   'ContactBudget.tsx': 'dg',
-  'OneWaySeam.tsx': 'gl',
   'SchemaReconciliation.tsx': 'ac',
   'DataLoss.tsx': 'si',
   'ConstantsDerivation.tsx': 'nc',

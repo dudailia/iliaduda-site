@@ -11,10 +11,17 @@ import { describe, expect, it } from 'vitest'
 
 const css = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
-function token(name: string): string {
-  const m = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css)
-  if (!m || !m[1]) throw new Error(`--color-${name} not found in app/globals.css`)
-  return m[1]
+/** The light set lives in @theme; the dark set redeclares the same six names
+ *  inside the prefers-color-scheme block. Each theme is checked on its own. */
+const themeBlock = /@theme\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
+const darkBlock = /@media \(prefers-color-scheme: dark\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
+
+function reader(block: string, theme: string) {
+  return (name: string): string => {
+    const m = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(block)
+    if (!m || !m[1]) throw new Error(`--color-${name} not found in the ${theme} theme`)
+    return m[1]
+  }
 }
 
 function channel(v: number): number {
@@ -35,46 +42,56 @@ function ratio(a: string, b: string): number {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
 }
 
-const paper = token('paper')
+for (const [theme, block] of [
+  ['light', themeBlock],
+  ['dark', darkBlock],
+] as const) {
+  const token = reader(block, theme)
+  const paper = token('paper')
 
-describe('palette contrast against its documented use', () => {
-  it('body text (ink on paper) clears AAA for body size', () => {
-    expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(7)
+  describe(`${theme} palette contrast against its documented use`, () => {
+    it('body text (ink on paper) clears AAA for body size', () => {
+      expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(7)
+    })
+
+    it('margin notes and captions (graphite on paper) clear AA for body text', () => {
+      // Notes are 15px, which is body text, not large text — so 4.5:1, not 3:1.
+      expect(ratio(token('graphite'), paper)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('the accent clears AA for body text, because figure labels use it', () => {
+      expect(ratio(token('indigo'), paper)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('the accent wash is distinguishable from paper as a graphic', () => {
+      // A fill, never text. WCAG non-text contrast is 3:1 — but this fill is only
+      // ever read against its own outline and neighbouring marks, so the real
+      // requirement is that it is visible at all, and that the solid accent on
+      // top of it clears 3:1 so the two bars are never confusable.
+      expect(ratio(token('indigo'), token('indigo-wash'))).toBeGreaterThanOrEqual(3)
+    })
+
+    it('hairlines are visible without competing with text', () => {
+      const r = ratio(token('rule'), paper)
+      expect(r).toBeGreaterThanOrEqual(1.2)
+      expect(r).toBeLessThan(ratio(token('graphite'), paper))
+    })
+
+    it('the focus ring clears 3:1 against the background it sits on', () => {
+      expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(3)
+    })
+  })
+}
+
+describe('the palette is exactly the six documented values, in both themes', () => {
+  const SIX = new Set(['ink', 'paper', 'graphite', 'rule', 'indigo', 'indigo-wash'])
+  const names = (block: string) => new Set([...block.matchAll(/--color-([a-z-]+):/g)].map((m) => m[1]))
+
+  it('declares no seventh colour token anywhere', () => {
+    expect(names(css)).toEqual(SIX)
   })
 
-  it('margin notes and captions (graphite on paper) clear AA for body text', () => {
-    // Notes are 15px, which is body text, not large text — so 4.5:1, not 3:1.
-    expect(ratio(token('graphite'), paper)).toBeGreaterThanOrEqual(4.5)
-  })
-
-  it('the accent clears AA for body text, because figure labels use it', () => {
-    expect(ratio(token('indigo'), paper)).toBeGreaterThanOrEqual(4.5)
-  })
-
-  it('the accent wash is distinguishable from paper as a graphic', () => {
-    // A fill, never text. WCAG non-text contrast is 3:1 — but this fill is only
-    // ever read against its own outline and neighbouring marks, so the honest
-    // requirement is that it is visible at all, and that the solid accent on
-    // top of it clears 3:1 so the two bars are never confusable.
-    expect(ratio(token('indigo'), token('indigo-wash'))).toBeGreaterThanOrEqual(3)
-  })
-
-  it('hairlines are visible without competing with text', () => {
-    const r = ratio(token('rule'), paper)
-    expect(r).toBeGreaterThanOrEqual(1.2)
-    expect(r).toBeLessThan(ratio(token('graphite'), paper))
-  })
-
-  it('the focus ring clears 3:1 against the background it sits on', () => {
-    expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(3)
-  })
-})
-
-describe('the palette is exactly the six documented values', () => {
-  it('declares no seventh colour token', () => {
-    const declared = [...css.matchAll(/--color-([a-z-]+):/g)].map((m) => m[1])
-    expect(new Set(declared)).toEqual(
-      new Set(['ink', 'paper', 'graphite', 'rule', 'indigo', 'indigo-wash']),
-    )
+  it('the dark theme redeclares every role, so none silently falls back to light', () => {
+    expect(names(darkBlock)).toEqual(SIX)
   })
 })

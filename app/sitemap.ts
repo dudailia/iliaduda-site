@@ -1,23 +1,20 @@
 import type { MetadataRoute } from 'next'
-import { projects } from '@/content/projects'
-
-const SITE = 'https://iliaduda.com'
+import { otherWork, visiblePapers } from '@/content/papers'
+import { SITE } from '@/lib/site'
 
 /**
- * cricstate is not listed: it renders on the home page and /cricstate is a
- * permanent redirect to that anchor, so listing it would advertise a redirect.
- * The figure anchors (#fig-materiality, #fig-tenant-isolation, …) are not
- * sitemap entries — fragments are not separate URLs — but they are permanent,
- * because they get pasted into email and that is how this site gets used.
+ * Pending papers are never listed: visiblePapers(true) is the production view
+ * whatever deployment builds this file. Figure anchors are not entries —
+ * fragments are not separate URLs — but they are permanent, because they get
+ * pasted into email and that is how this site gets used.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date()
+  const url = (path: string) => `${SITE.canonical}${path}`
   return [
-    { url: SITE, lastModified: now, priority: 1 },
-    ...projects.map((p) => ({
-      url: `${SITE}${p.href}`,
-      lastModified: now,
-      priority: 0.8,
-    })),
+    { url: url('/'), lastModified: now, priority: 1 },
+    ...visiblePapers(true).map((p) => ({ url: url(p.href), lastModified: now, priority: 0.8 })),
+    { url: url('/about'), lastModified: now, priority: 0.8 },
+    ...otherWork.map((o) => ({ url: url(o.href), lastModified: now, priority: 0.5 })),
   ]
 }

@@ -1,15 +1,16 @@
-import type { Metadata } from 'next'
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
 import { Annotated, Shell } from '@/components/Layout'
 import { tenantIsolation } from '@/components/figures/TenantIsolation'
 import { fact } from '@/content/facts'
+import { papers } from '@/content/papers'
+import { pageMeta } from '@/lib/meta'
 
-export const metadata: Metadata = {
-  title: 'CloseBooks',
-  description:
-    'An AI-assisted month-end close tool for CPA firms, built solo. Around a hundred API routes, multi-tenant isolation, a Claude categorization pipeline, Stripe billing and a QuickBooks journal push.',
-}
+export const metadata = pageMeta(
+  '/closebooks',
+  'CloseBooks',
+  'An AI-assisted month-end close tool for CPA firms, built solo. Around a hundred API routes, multi-tenant isolation, a Claude categorization pipeline, Stripe billing and a QuickBooks journal push.',
+)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
@@ -18,7 +19,7 @@ export default function CloseBooks() {
     <Shell>
       <article>
         <CaseStudyTitle
-          slug="closebooks"
+          byline={papers.find((p) => p.slug === 'closebooks')!.byline}
           level="h1"
           title="I audited my own deployed app and found it lying to users"
           standfirst={

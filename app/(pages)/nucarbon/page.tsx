@@ -1,22 +1,23 @@
-import type { Metadata } from 'next'
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
 import { Annotated, Shell } from '@/components/Layout'
 import { constantsDerivation } from '@/components/figures/ConstantsDerivation'
 import { fact } from '@/content/facts'
+import { otherWork } from '@/content/papers'
+import { pageMeta } from '@/lib/meta'
 
-export const metadata: Metadata = {
-  title: 'nucarbon',
-  description:
-    'A modelling and visualisation prototype estimating the carbon cost of campus AI use, built in a week for Northeastern’s Sustainability Incubator. It models rather than measures.',
-}
+export const metadata = pageMeta(
+  '/nucarbon',
+  'nucarbon',
+  'A modelling and visualisation prototype estimating the carbon cost of campus AI use, built in a week for Northeastern’s Sustainability Incubator. It models rather than measures.',
+)
 
 export default function Nucarbon() {
   return (
     <Shell>
       <article>
         <CaseStudyTitle
-          slug="nucarbon"
+          byline={otherWork.find((o) => o.slug === 'nucarbon')!.status}
           level="h1"
           title="A dashboard that measures nothing"
           standfirst={

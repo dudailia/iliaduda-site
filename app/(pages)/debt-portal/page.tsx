@@ -1,24 +1,25 @@
-import type { Metadata } from 'next'
 import { CaseStudyTitle, Meta, Register, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
 import { Annotated, Shell } from '@/components/Layout'
 import { contactBudget } from '@/components/figures/ContactBudget'
 import { fact } from '@/content/facts'
+import { papers } from '@/content/papers'
+import { pageMeta } from '@/lib/meta'
 
-export const metadata: Metadata = {
-  title: 'Debt-settlement portal',
-  description:
-    'A self-service debt settlement portal whose architecture was decided by statute: data-localisation rules removed the easy hosting choices, and a statutory cap on contact frequency meant the login code itself spends a legal allowance.',
-}
+export const metadata = pageMeta(
+  '/debt-portal',
+  'Debt-settlement portal',
+  'A self-service debt settlement portal whose architecture was decided by statute: data-localisation rules removed the easy hosting choices, and a statutory cap on contact frequency meant the login code itself spends a legal allowance.',
+)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
-export default function DigitalGroup() {
+export default function DebtPortal() {
   return (
     <Shell>
       <article>
         <CaseStudyTitle
-          slug="debt portal"
+          byline={papers.find((p) => p.slug === 'debt-portal')!.byline}
           level="h1"
           title="When the law decides your architecture"
           standfirst={
