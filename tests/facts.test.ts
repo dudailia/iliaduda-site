@@ -30,6 +30,21 @@ describe('every number on the site has provenance', () => {
   })
 })
 
+describe('synthetic values say so', () => {
+  const synthetic = entries.filter(([, f]) => f.kind === 'synthetic')
+
+  it.each(synthetic)('%s names the module that uses it and calls itself synthetic', (_key, f) => {
+    expect(f.source).toMatch(/^lib\/[\w-]+\.ts\b/)
+    expect(f.source).toMatch(/\bsynthetic\b/)
+  })
+
+  it('every value that is not measured is marked', () => {
+    // A source that says "set by hand" is a chosen value, whatever its kind.
+    const unmarked = entries.filter(([, f]) => /set by hand|synthetic/.test(f.source) && f.kind !== 'synthetic')
+    expect(unmarked.map(([k]) => k)).toEqual([])
+  })
+})
+
 describe('facts are not silently duplicated', () => {
   it('has no two keys with the same label and value', () => {
     const seen = new Map<string, string>()

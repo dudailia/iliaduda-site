@@ -33,7 +33,9 @@ export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
   // Trading work is described at résumé level only. No performance, no
   // benchmark comparison, no tickers, no internals — ever, on any page.
   [/\bsharpe\b/i, 'no performance metrics for any trading work'],
-  [/\balpha\b/i, 'no performance metrics for any trading work'],
+  // Not followed by a colon, so a WebGL option key (`alpha: false`) is code,
+  // not a claim; the word in any sentence is still caught.
+  [/\balpha\b(?!\s*:)/i, 'no performance metrics for any trading work'],
   [/\bmax(imum)? drawdown\b/i, 'no performance metrics for any trading work'],
   [/[+−-]\s?\d+(\.\d+)?\s?%\s+(total\s+)?returns?\b/i, 'no returns for any trading work'],
   [/\bvs\.?\s+(the\s+)?(SPY|S&P)|\bS&P\s?500\b/i, 'no strategy-versus-benchmark comparison'],

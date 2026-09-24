@@ -41,6 +41,8 @@ const PROJECT_OF: Readonly<Record<string, string>> = {
   'SchemaReconciliation.tsx': 'ac',
   'DataLoss.tsx': 'si',
   'ConstantsDerivation.tsx': 'nc',
+  'VolSurface.tsx': 'iv',
+  'VolSurfaceLive.tsx': 'iv',
 }
 
 function ownValues(file: string): Set<string> {

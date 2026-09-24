@@ -1,6 +1,7 @@
 import { Contents, ExperienceBrief, OtherWork } from '@/components/Contents'
 import { Shell } from '@/components/Layout'
 import { Masthead } from '@/components/Masthead'
+import { SurfaceFigure } from '@/components/figures/VolSurface'
 import { pageMeta } from '@/lib/meta'
 import { AVAILABILITY, POSITIONING } from '@/lib/site'
 
@@ -11,6 +12,7 @@ export default function Home() {
     <main id="main">
       <Shell>
         <Masthead />
+        <SurfaceFigure entrance />
         <Contents />
         <ExperienceBrief />
         <OtherWork />

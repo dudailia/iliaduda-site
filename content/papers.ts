@@ -31,6 +31,14 @@ export interface Paper {
 
 export const papers: readonly Paper[] = [
   {
+    slug: 'iv-surface',
+    href: '/iv-surface',
+    title: 'An implied-volatility surface that cannot be arbitraged',
+    abstract: `A synthetic SSVI surface in the shape of an equity index, drawn live, with implied and local volatility and Black–Scholes Greeks read off any point. Its hand-set parameters meet Gatheral and Jacquier’s sufficient conditions for no static arbitrage, and the tests check butterfly and calendar arbitrage on a dense grid rather than trusting that the theorem’s hypotheses were met.`,
+    byline: 'Independent work · September 2026 · synthetic data',
+    status: 'published',
+  },
+  {
     slug: 'closebooks',
     href: '/closebooks',
     title: 'CloseBooks: month-end close for small CPA firms',
@@ -50,7 +58,7 @@ export const papers: readonly Paper[] = [
     slug: 'debt-portal',
     href: '/debt-portal',
     title: 'A debt-settlement portal built to Russian federal law',
-    abstract: `A ${n('dgRoutes')}-route self-service portal where people settle a debt without a phone call, for a licensed Russian collection agency. The statutes set the architecture: data localisation removed foreign hosting, and a legal cap on creditor contact means a login code spends part of a person's allowance.`,
+    abstract: `A ${n('dgRoutes')}-route self-service portal where people settle a debt without a phone call, for a licensed Russian collection agency. The statutes set the architecture: data localisation removed foreign hosting, and a legal cap on creditor contact means a login code spends part of a person’s allowance.`,
     byline: 'Sole developer and project lead · July 2026 – present',
     status: 'published',
   },
