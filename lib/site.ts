@@ -43,20 +43,31 @@ export const resumeLink = RESUME.published
   : { href: RESUME.fallback, label: 'CV' }
 
 /**
- * The canonical origin, resolved without any project setting or env var of our
- * own. Vercel exposes VERCEL_PROJECT_PRODUCTION_URL on every deployment: it is
- * the production domain — the vercel.app host today, iliaduda.com once that
- * domain is attached — so canonical URLs switch over by themselves.
+ * The canonical origin. Vercel exposes VERCEL_PROJECT_PRODUCTION_URL on every
+ * deployment: the project's production domain. That is already iliaduda.com —
+ * the domain is attached to the project — but on 2026-09-24 the name did not
+ * resolve at all (NXDOMAIN from the .com registry: not registered or not
+ * delegated). A canonical URL on a host that does not exist is worse than none,
+ * so until DOMAIN_LIVE is flipped the canonical falls back to the vercel.app
+ * host that does answer.
  *
- * `origin` is where this particular build is served from. On a preview it is
- * the preview URL, so Open Graph images resolve on the deployment being shared
- * rather than pointing at a production that does not have them yet.
+ * TODO(owner): set DOMAIN_LIVE to true once iliaduda.com resolves.
  */
+const DOMAIN_LIVE = false
+const FALLBACK = 'iliaduda-site.vercel.app'
+
 function https(host: string | undefined): string | undefined {
   return host ? `https://${host}` : undefined
 }
 
-const production = https(process.env.VERCEL_PROJECT_PRODUCTION_URL)
+const host = process.env.VERCEL_PROJECT_PRODUCTION_URL
+const production = https(host?.endsWith('iliaduda.com') && !DOMAIN_LIVE ? FALLBACK : host)
+
+/**
+ * `origin` is where this particular build is served from. On a preview it is
+ * the preview URL, so Open Graph images resolve on the deployment being shared
+ * rather than pointing at a production that does not have them yet.
+ */
 const deployment =
   process.env.VERCEL_ENV === 'preview' ? https(process.env.VERCEL_URL) : undefined
 

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
+import { AVAILABILITY } from '@/lib/site'
 
 export const alt = 'Ilia Duda — quantitative finance and the systems around it'
 export const size = { width: 1200, height: 630 }
@@ -42,8 +43,8 @@ export default async function OpengraphImage() {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 92, letterSpacing: '-0.02em' }}>Ilia Duda</div>
           <div style={{ fontSize: 36, color: '#5B6068', marginTop: 18, maxWidth: 880 }}>
-            Quantitative finance and the systems around it — research stacks, market tooling, and
-            applied LLM infrastructure.
+            Mathematics and Business Administration at Northeastern. Quantitative finance and
+            the systems around it.
           </div>
         </div>
         <div
@@ -56,7 +57,7 @@ export default async function OpengraphImage() {
             paddingTop: 24,
           }}
         >
-          iliaduda.com
+          {AVAILABILITY.line}
         </div>
       </div>
     ),
