@@ -46,10 +46,10 @@ export const resumeLink = RESUME.published
  * The canonical origin. Vercel exposes VERCEL_PROJECT_PRODUCTION_URL on every
  * deployment: the project's production domain. That is already iliaduda.com —
  * the domain is attached to the project — but on 2026-09-24 the name did not
- * resolve at all (NXDOMAIN from the .com registry: not registered or not
- * delegated). A canonical URL on a host that does not exist is worse than none,
- * so until DOMAIN_LIVE is flipped the canonical falls back to the vercel.app
- * host that does answer.
+ * resolve at all: registered (RU-CENTER, since 2013) with no nameservers
+ * delegated, so NXDOMAIN. A canonical URL on a host that does not answer is
+ * worse than none, so until DOMAIN_LIVE is flipped the canonical falls back to
+ * the vercel.app host that does.
  *
  * TODO(owner): set DOMAIN_LIVE to true once iliaduda.com resolves.
  */
