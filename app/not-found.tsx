@@ -13,7 +13,7 @@ export default function NotFound() {
               <h1 className="text-h2">That page is not here</h1>
               <p className="mt-4 max-w-[34rem]">
                 The link may be old, or I may have renamed something I said I would not rename.
-                Everything is listed in the <Link href="/#contents">contents</Link>, and the{' '}
+                Everything is listed in the <Link prefetch={false} href="/#contents">contents</Link>, and the{' '}
                 <a href="/about">CV</a> is one click away.
               </p>
             </Row>

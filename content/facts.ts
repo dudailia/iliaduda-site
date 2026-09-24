@@ -12,6 +12,8 @@
  * are absent for exactly that reason.
  */
 
+import { synthetic } from './synthetic'
+
 export type Unit =
   | 'percent'
   | 'count'
@@ -42,61 +44,9 @@ export interface Fact {
 }
 
 const facts = {
-  // ── Implied-volatility surface (synthetic) ────────────────────────────────
-  // Hand-set SSVI parameters for the hero figure and paper 1. Not fitted to
-  // any market data and not any employer's model. Chosen so the surface looks
-  // like an equity index — downward skew, a volatility term structure that
-  // decays from the short end — and satisfies Gatheral and Jacquier's
-  // sufficient no-arbitrage conditions, which tests/svi.test.ts checks.
-  ivSigmaShort: {
-    value: 0.26,
-    unit: 'none',
-    label: 'at-the-money volatility at the short end',
-    source: 'lib/svi.ts — synthetic, set by hand',
-    kind: 'synthetic',
-  },
-  ivSigmaLong: {
-    value: 0.19,
-    unit: 'none',
-    label: 'long-run at-the-money volatility',
-    source: 'lib/svi.ts — synthetic, set by hand',
-    kind: 'synthetic',
-  },
-  ivKappa: {
-    value: 1.5,
-    unit: 'none',
-    label: 'term-structure decay rate, per year',
-    source: 'lib/svi.ts — synthetic, set by hand',
-    kind: 'synthetic',
-  },
-  ivRho: {
-    value: -0.62,
-    unit: 'none',
-    label: 'skew, ρ',
-    source: 'lib/svi.ts — synthetic, set by hand',
-    kind: 'synthetic',
-  },
-  ivEta: {
-    value: 1.1,
-    unit: 'none',
-    label: 'curvature, η',
-    source: 'lib/svi.ts — synthetic, set by hand; η(1+|ρ|) ≤ 2',
-    kind: 'synthetic',
-  },
-  ivGamma: {
-    value: 0.5,
-    unit: 'none',
-    label: 'power-law exponent, γ',
-    source: 'lib/svi.ts — synthetic, set by hand',
-    kind: 'synthetic',
-  },
-  ivForward: {
-    value: 100,
-    unit: 'none',
-    label: 'forward price',
-    source: 'lib/bs.ts — synthetic, a round number with rates and dividends at zero',
-    kind: 'synthetic',
-  },
+  // Synthetic parameters for the hero figure live in ./synthetic, so the
+  // browser bundle carries seven numbers rather than this whole table.
+  ...synthetic,
 
   // ── cricstate ──────────────────────────────────────────────────────────────
   // The figure axis. One unit throughout: relative NLL improvement over the

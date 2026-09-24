@@ -1,4 +1,4 @@
-import { value } from '@/content/facts'
+import { syntheticValue as value } from '@/content/synthetic'
 
 /**
  * Black's formula on a forward, with rates and dividends at zero, so the

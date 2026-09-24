@@ -1,10 +1,10 @@
-import { value } from '@/content/facts'
+import { syntheticValue as value } from '@/content/synthetic'
 
 /**
  * A synthetic implied-volatility surface: Gatheral and Jacquier's SSVI
  * ("Arbitrage-free SVI volatility surfaces", Quantitative Finance, 2014) with
  * a power-law curvature function. Every parameter is chosen by hand and lives
- * in content/facts.ts marked synthetic. Nothing here is fitted to a market.
+ * in content/synthetic.ts, marked synthetic. Nothing here is fitted to a market.
  *
  * Coordinates: k = log(K/F), log-moneyness, and T in years. The surface is
  * stored as total implied variance w(k, T) = σ²(k, T)·T, which is the quantity

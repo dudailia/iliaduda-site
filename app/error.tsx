@@ -15,7 +15,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
               <h1 className="text-h2">Something broke</h1>
               <p className="mt-4 max-w-[34rem]">
                 Not the impression I was going for. You can retry, or go back to the{' '}
-                <Link href="/">contents</Link>.
+                <Link prefetch={false} href="/">contents</Link>.
               </p>
               <button
                 type="button"

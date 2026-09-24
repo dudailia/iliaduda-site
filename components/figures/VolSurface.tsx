@@ -228,7 +228,7 @@ export function SurfaceFigure({ entrance, number = 'Fig. 1' }: { entrance: boole
           A surface shaped like an equity index: volatility climbs toward low strikes, the skew,
           and settles as expiry lengthens. Every point passes the no-arbitrage checks the
           repository&rsquo;s tests run, and the margin prices a call wherever the probe sits.{' '}
-          <Link href="/iv-surface">How it is built</Link>.
+          <Link prefetch={false} href="/iv-surface">How it is built</Link>.
         </>
       }
     />

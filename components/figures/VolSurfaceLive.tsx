@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
-import { value } from '@/content/facts'
+import { syntheticValue as value } from '@/content/synthetic'
 import { PROBE_START, STEP, announce, clampProbe, cssPct, readout, type Probe } from '@/lib/surfaceView'
 import { cssColor, saveData, supportsWebGL2, useColorScheme, useInView, useReducedMotion, whenIdle } from './surface/env'
 import { fromFraction, fx, fy } from './surface/frames'
