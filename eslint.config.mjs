@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local, gitignored audit scripts and captures.
+    ".audit/**",
+    ".lighthouseci/**",
+    ".lighthouseci-prod/**",
   ]),
 ]);
 

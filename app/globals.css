@@ -154,12 +154,15 @@
     text-underline-offset: 0.22em;
     text-decoration-skip-ink: auto;
     transition:
-      color 120ms linear,
-      text-decoration-color 120ms linear;
+      color 120ms ease,
+      text-decoration-color 120ms ease;
   }
 
-  a:hover {
-    text-decoration-color: var(--color-ink);
+  /* Gated: on touch, a tap leaves :hover stuck on until the next tap. */
+  @media (hover: hover) and (pointer: fine) {
+    a:hover {
+      text-decoration-color: var(--color-ink);
+    }
   }
 
   :focus-visible {

@@ -32,17 +32,20 @@ export function useColorScheme(): 'light' | 'dark' {
   )
 }
 
-/** Whether the element is on screen, with a margin so work starts just
- *  before it is needed. */
-export function useInView(ref: RefObject<Element | null>, rootMargin = '200px'): boolean {
+/** Whether the element is on screen — with a margin, so work can start just
+ *  before it is needed, or a threshold, so motion waits until it is seen. */
+export function useInView(ref: RefObject<Element | null>, rootMargin = '200px', threshold = 0): boolean {
   const [inView, setInView] = useState(false)
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => setInView(!!e?.isIntersecting), { rootMargin })
+    const io = new IntersectionObserver(
+      ([e]) => setInView(!!e && e.isIntersecting && e.intersectionRatio >= threshold),
+      { rootMargin, threshold },
+    )
     io.observe(el)
     return () => io.disconnect()
-  }, [ref, rootMargin])
+  }, [ref, rootMargin, threshold])
   return inView
 }
 

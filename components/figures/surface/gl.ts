@@ -264,19 +264,28 @@ function compile(gl: WebGL2RenderingContext, vs: string, fs: string): WebGLProgr
 // ── the renderer ─────────────────────────────────────────────────────────────
 
 const ENTRANCE_MS = 900
-/** Strong ease-in-out: an on-screen object moving from one state to another. */
-function easeInOut(t: number): number {
-  // cubic-bezier(0.77, 0, 0.175, 1), solved for y at x = t by bisection.
-  const bx = (u: number) => 3 * u * (1 - u) * (1 - u) * 0.77 + 3 * u * u * (1 - u) * 0.175 + u * u * u
-  const by = (u: number) => 3 * u * u * (1 - u) + u * u * u
-  let lo = 0, hi = 1
-  for (let i = 0; i < 24; i++) {
-    const mid = (lo + hi) / 2
-    if (bx(mid) < t) lo = mid
-    else hi = mid
+/** How long heights and zoom take to settle when a hand takes over mid-tilt. */
+const HANDOFF_MS = 180
+/** A shortened tilt, for a pointer that lands before the entrance has begun. */
+const SETTLE_MS = 240
+
+/** A CSS cubic-bezier, solved for y at x = t by bisection. */
+function bezier(x1: number, y1: number, x2: number, y2: number) {
+  const b = (u: number, p1: number, p2: number) => 3 * u * (1 - u) * (1 - u) * p1 + 3 * u * u * (1 - u) * p2 + u * u * u
+  return (t: number) => {
+    let lo = 0, hi = 1
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2
+      if (b(mid, x1, x2) < t) lo = mid
+      else hi = mid
+    }
+    return b((lo + hi) / 2, y1, y2)
   }
-  return by((lo + hi) / 2)
 }
+/** Strong ease-in-out: an on-screen object moving from one state to another. */
+const easeInOut = bezier(0.77, 0, 0.175, 1)
+/** Strong ease-out: the system settling in response to the reader. */
+const easeOut = bezier(0.23, 1, 0.32, 1)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 export function createRenderer(o: RendererOptions): Renderer | null {
@@ -389,12 +398,22 @@ export function createRenderer(o: RendererOptions): Renderer | null {
   let probe: Probe | null = null
   let cam: Camera = { ...REST }
   let lift = 1
-  let visible = true
+  // Not visible until the figure says so: the entrance counts down from the
+  // moment it is seen, not from the moment it was loaded.
+  let visible = false
+  let countdown = false
   let raf = 0
   let destroyed = false
   let entering = false
   /** Standing overhead, waiting for the canvas to finish fading in. */
   let waiting = false
+  /**
+   * A hand took over. `full`: it landed before the tilt began, so the camera
+   * settles to rest quickly. Otherwise it landed mid-tilt: yaw and pitch
+   * belong to the reader from wherever they were, and only zoom and height
+   * finish — retargeted from their current values, never snapped.
+   */
+  let settle: { start: number; from: Camera; fromLift: number; full: boolean } | null = null
   let enterStart = 0
   let enterFrom: Camera = REST
   let mvp: M4 = new Float32Array(16)
@@ -425,6 +444,19 @@ export function createRenderer(o: RendererOptions): Renderer | null {
       cam = { yaw: lerp(enterFrom.yaw, rest.yaw, e), pitch: lerp(enterFrom.pitch, rest.pitch, e), dist: lerp(enterFrom.dist, rest.dist, e), ty: lerp(enterFrom.ty, rest.ty, e) }
       lift = e
       if (t >= 1) entering = false
+      else raf = requestAnimationFrame(draw)
+    } else if (settle) {
+      const t = Math.min(1, (performance.now() - settle.start) / (settle.full ? SETTLE_MS : HANDOFF_MS))
+      const e = easeOut(t)
+      const f = settle.from
+      if (settle.full) {
+        const rest = { ...REST, dist: fit(REST, w / h, w < NARROW) }
+        cam = { yaw: lerp(f.yaw, rest.yaw, e), pitch: lerp(f.pitch, rest.pitch, e), dist: lerp(f.dist, rest.dist, e), ty: lerp(f.ty, rest.ty, e) }
+      } else {
+        cam = { ...cam, dist: lerp(f.dist, fit(cam, w / h, w < NARROW), e), ty: lerp(f.ty, REST.ty, e) }
+      }
+      lift = lerp(settle.fromLift, 1, e)
+      if (t >= 1) settle = null
       else raf = requestAnimationFrame(draw)
     } else if (!waiting) {
       cam = { ...cam, dist: fit(cam, w / h, w < NARROW) }
@@ -484,7 +516,7 @@ export function createRenderer(o: RendererOptions): Renderer | null {
       const sx = ((c[0] / c[3]) * 0.5 + 0.5) * w
       const sy = (1 - ((c[1] / c[3]) * 0.5 + 0.5)) * h
       l.el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%, -50%)`
-      l.el.style.opacity = waiting ? '0' : entering ? String(Math.max(0, lift * 2 - 1)) : '1'
+      l.el.style.opacity = waiting ? '0' : String(Math.max(0, lift * 2 - 1))
     }
   }
 
@@ -530,18 +562,30 @@ export function createRenderer(o: RendererOptions): Renderer | null {
 
   // ── input ────────────────────────────────────────────────────────────────
   let drag: { id: number; x: number; y: number; moved: number; t: number; type: string } | null = null
+  let hoverAt: [number, number] | null = null
+  let hoverRaf = 0
+  /** Keyboard: instant, like every keyboard action on this figure. */
   const finishEntrance = () => {
-    if (entering || waiting) {
+    if (entering || waiting || settle) {
       entering = false
       waiting = false
+      settle = null
       cam = { ...REST }
       lift = 1
       request()
     }
   }
+  /** Pointer: hand over from where the motion is, not from where it was going. */
+  const handOff = () => {
+    if (!entering && !waiting) return
+    settle = { start: performance.now(), from: { ...cam }, fromLift: lift, full: waiting }
+    entering = false
+    waiting = false
+    request()
+  }
   const onDown = (e: PointerEvent) => {
     if (drag) return // one pointer at a time: a second finger must not jump the view
-    finishEntrance()
+    handOff()
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: performance.now(), type: e.pointerType }
     o.canvas.setPointerCapture(e.pointerId)
   }
@@ -551,7 +595,9 @@ export function createRenderer(o: RendererOptions): Renderer | null {
       drag.moved += Math.abs(dx) + Math.abs(dy)
       drag.x = e.clientX
       drag.y = e.clientY
-      if (drag.moved > 4) {
+      // While a pre-tilt settle runs, the camera is still arriving; a drag
+      // takes effect from the pose it arrives at.
+      if (drag.moved > 4 && !settle?.full) {
         cam = {
           ...cam,
           yaw: cam.yaw - dx * 0.008,
@@ -562,7 +608,16 @@ export function createRenderer(o: RendererOptions): Renderer | null {
       }
       return
     }
-    if (e.pointerType === 'mouse') o.onHover(pick(e.clientX, e.clientY))
+    // At most one pick per frame: pointermove fires faster than the screen
+    // refreshes, and each hover is a React render as well as a ray march.
+    if (e.pointerType === 'mouse') {
+      hoverAt = [e.clientX, e.clientY]
+      if (!hoverRaf)
+        hoverRaf = requestAnimationFrame(() => {
+          hoverRaf = 0
+          if (hoverAt && !destroyed) o.onHover(pick(hoverAt[0], hoverAt[1]))
+        })
+    }
   }
   const onUp = (e: PointerEvent) => {
     if (!drag || e.pointerId !== drag.id) return
@@ -574,7 +629,10 @@ export function createRenderer(o: RendererOptions): Renderer | null {
     }
   }
   const onLeave = (e: PointerEvent) => {
-    if (e.pointerType === 'mouse' && !drag) o.onHover(null)
+    if (e.pointerType === 'mouse' && !drag) {
+      hoverAt = null
+      o.onHover(null)
+    }
   }
   o.canvas.addEventListener('pointerdown', onDown)
   o.canvas.addEventListener('pointermove', onMove)
@@ -593,29 +651,36 @@ export function createRenderer(o: RendererOptions): Renderer | null {
   o.canvas.addEventListener('webglcontextlost', lost)
 
   // ── start ────────────────────────────────────────────────────────────────
+  let begin: (() => void) | null = null
+  /** The canvas fades in over the map (240ms), then the tilt waits for an idle
+   *  main thread — right after load the page is still hydrating, and a tilt
+   *  started then drops most of its middle frames, which is exactly where an
+   *  ease-in-out does its moving. */
+  const startCountdown = () => {
+    if (countdown || !begin) return
+    countdown = true
+    const go = begin
+    window.setTimeout(() => {
+      if ('requestIdleCallback' in window) window.requestIdleCallback(go, { timeout: 1200 })
+      else go()
+    }, 240)
+  }
+
   const { w, h } = size()
   if (o.entrance && w && h) {
     enterFrom = overhead(w / h)
     cam = { ...enterFrom }
     lift = 0
     waiting = true
-    // The canvas fades in over the map first, then the map stands up — but
-    // only once the main thread is free. Right after load the page is still
-    // hydrating and prefetching, and a tilt started then drops most of its
-    // middle frames, which is exactly where an ease-in-out does its moving.
     draw()
     o.onReady()
-    const begin = () => {
+    begin = () => {
       if (destroyed || !waiting) return
       waiting = false
       entering = true
       enterStart = 0
       request()
     }
-    window.setTimeout(() => {
-      if ('requestIdleCallback' in window) window.requestIdleCallback(begin, { timeout: 1200 })
-      else begin()
-    }, 240)
   } else {
     draw()
     o.onReady()
@@ -632,6 +697,7 @@ export function createRenderer(o: RendererOptions): Renderer | null {
     },
     setVisible(v) {
       visible = v
+      if (v && waiting) startCountdown()
       if (v) request()
     },
     turn(direction) {
@@ -647,6 +713,7 @@ export function createRenderer(o: RendererOptions): Renderer | null {
     destroy() {
       destroyed = true
       if (raf) cancelAnimationFrame(raf)
+      if (hoverRaf) cancelAnimationFrame(hoverRaf)
       ro.disconnect()
       o.canvas.removeEventListener('webglcontextlost', lost)
       o.labels.replaceChildren()

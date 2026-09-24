@@ -21,6 +21,19 @@ import type { Colors, Renderer } from './surface/gl'
 
 const SEEN = 'fig-surface-entrance'
 
+/** The one crossfade: map to canvas, 240ms on a strong ease-out, with a 3px
+ *  blur so the flat map and the overhead render read as one object. The 2D
+ *  axes leave on the same clock instead of vanishing. */
+const FADE = 'transition-[opacity,filter] duration-[240ms] ease-[cubic-bezier(0.23,1,0.32,1)]'
+/** The 2D axes fade out with the canvas and are then hidden outright: text at
+ *  opacity 0 is still in the accessibility tree and still fails contrast.
+ *  visibility is discrete, so it waits out the fade before it flips. */
+const axisFade = (gone: boolean) => ({
+  opacity: gone ? 0 : 1,
+  visibility: gone ? ('hidden' as const) : ('visible' as const),
+  transition: `opacity 240ms cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear ${gone ? '240ms' : '0s'}`,
+})
+
 interface Props {
   id: string
   number: string
@@ -56,18 +69,30 @@ export function VolSurfaceLive(p: Props) {
 
   const [pinned, setPinned] = useState<Probe>(PROBE_START)
   const [hover, setHover] = useState<Probe | null>(null)
-  const [mode, setMode] = useState<'map' | 'gl'>('map')
+  const [ready, setReady] = useState(false)
+  const [revealed, setRevealed] = useState(false)
   const [spoken, setSpoken] = useState('')
 
   const reduced = useReducedMotion()
   const scheme = useColorScheme()
-  const inView = useInView(box)
+  // Two thresholds: start loading just before the figure arrives, but only
+  // count it as seen — and let the entrance play — once a third of it is on
+  // screen. One margin for both played the one moment below the fold.
+  const near = useInView(box, '200px')
+  const seen = useInView(box, '0px', 0.35)
+  // Latches: once seen, the surface stays the figure. Derived during render
+  // rather than in an effect, which would paint one frame of the old state.
+  if (seen && !revealed) setRevealed(true)
+  // The map stays the figure until the surface can actually be looked at: a
+  // canvas that crossfaded in below the fold would swap a labelled map for an
+  // unlabelled overhead render and leave it there.
+  const mode: 'map' | 'gl' = ready && revealed ? 'gl' : 'map'
   const shown = hover ?? pinned
   const rows = useMemo(() => readout(shown), [shown])
 
   // Upgrade to WebGL once, when everything allows it.
   useEffect(() => {
-    if (!inView || reduced || renderer.current || !supportsWebGL2() || saveData()) return
+    if (!near || reduced || renderer.current || !supportsWebGL2() || saveData()) return
     let cancelled = false
     const cancelIdle = whenIdle(() => {
       void import('./surface/gl').then(({ createRenderer }) => {
@@ -89,10 +114,10 @@ export function VolSurfaceLive(p: Props) {
             setHover(null)
             setPinned(q)
           },
-          onReady: () => setMode('gl'),
+          onReady: () => setReady(true),
           onLost: () => {
             renderer.current = null
-            setMode('map')
+            setReady(false)
           },
         })
       })
@@ -101,20 +126,20 @@ export function VolSurfaceLive(p: Props) {
       cancelled = true
       cancelIdle()
     }
-  }, [inView, reduced, p.entrance])
+  }, [near, reduced, p.entrance])
 
   // Reduced motion switched on mid-visit: back to the still figure.
   useEffect(() => {
     if (reduced && renderer.current) {
       renderer.current.destroy()
       renderer.current = null
-      setMode('map')
+      setReady(false)
     }
   }, [reduced])
 
   useEffect(() => () => renderer.current?.destroy(), [])
   useEffect(() => renderer.current?.setProbe(shown), [shown, mode])
-  useEffect(() => renderer.current?.setVisible(inView), [inView, mode])
+  useEffect(() => renderer.current?.setVisible(seen), [seen, mode])
   useEffect(() => renderer.current?.setColors(colors()), [scheme, mode])
 
   // Announce the committed probe, not every hover, and not on every keypress.
@@ -186,7 +211,9 @@ export function VolSurfaceLive(p: Props) {
           </div>
 
           <div className="mt-5 flex">
-            <div className={`flex-none ${gl ? 'invisible' : ''}`}>{p.expiryAxis}</div>
+            <div className="flex-none" style={axisFade(gl)}>
+              {p.expiryAxis}
+            </div>
             <div className="min-w-0 flex-1">
               <div
                 ref={box}
@@ -208,7 +235,10 @@ export function VolSurfaceLive(p: Props) {
                 }}
                 className="relative aspect-[5/4] cursor-crosshair touch-pan-y select-none sm:aspect-[16/10]"
               >
-                <div className="absolute inset-0 transition-opacity duration-200 ease-out" style={{ opacity: gl ? 0 : 1 }}>
+                {/* The poster never fades: the canvas is opaque and fades in over
+                    it, so there is one crossfade, not two with different clocks
+                    and a dip between them. */}
+                <div className="absolute inset-0">
                   {p.poster}
                   <svg aria-hidden viewBox="0 0 1 1" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
                     <line x1={fx(shown.k)} x2={fx(shown.k)} y1={0} y2={1} stroke="var(--color-indigo)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
@@ -223,12 +253,14 @@ export function VolSurfaceLive(p: Props) {
                 <canvas
                   ref={canvas}
                   aria-hidden
-                  className="absolute inset-0 h-full w-full transition-[opacity,filter] duration-[240ms] ease-[cubic-bezier(0.23,1,0.32,1)]"
+                  className={`absolute inset-0 h-full w-full ${FADE}`}
                   style={{ opacity: gl ? 1 : 0, filter: gl ? 'none' : 'blur(3px)', pointerEvents: gl ? 'auto' : 'none', touchAction: 'pan-y' }}
                 />
                 <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" />
               </div>
-              <div className={gl ? 'invisible' : ''}>{p.strikeAxis}</div>
+              <div style={axisFade(gl)}>
+                {p.strikeAxis}
+              </div>
             </div>
           </div>
 

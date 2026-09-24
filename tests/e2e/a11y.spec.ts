@@ -5,6 +5,12 @@ import { ROUTES } from './routes'
 for (const route of ROUTES) {
   test(`${route} has no accessibility violations`, async ({ page }) => {
     await page.goto(route)
+    // Measure the settled page. Mid-crossfade, text is legitimately at partial
+    // opacity for 240ms, and axe would score contrast on a frame no reader
+    // stops on.
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'))
+    await page.waitForTimeout(300)
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'))
     const { violations } = await new AxeBuilder({ page })
       // 'best-practice' included deliberately: heading-order lives there, and
       // scoping this gate to WCAG tags alone let a heading-order defect through
