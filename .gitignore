@@ -46,3 +46,6 @@ next-env.d.ts
 /.impeccable/review/
 /.impeccable/build/
 .env*
+
+# local handoff notes
+/HANDOFF.md
