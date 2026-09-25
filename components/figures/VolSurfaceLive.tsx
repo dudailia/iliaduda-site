@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { syntheticValue as value } from '@/content/synthetic'
 import { PROBE_START, STEP, announce, clampProbe, cssPct, readout, type Probe } from '@/lib/surfaceView'
+import { vtStyle } from '@/components/FigureFrame'
 import { cssColor, saveData, supportsWebGL2, useColorScheme, useInView, useReducedMotion, whenIdle } from './surface/env'
 import { fromFraction, fx, fy } from './surface/frames'
 import type { Colors, Renderer } from './surface/gl'
@@ -48,6 +49,8 @@ interface Props {
   descId: string
   /** Play the one entrance on this page (home), or never (the paper). */
   entrance: boolean
+  /** View-transition name, on the paper page only: the contents thumbnail grows into this. */
+  vt?: string
 }
 
 function colors(): Colors {
@@ -210,7 +213,7 @@ export function VolSurfaceLive(p: Props) {
             <span className="text-meta block pt-px font-mono text-graphite">{p.subtitle}</span>
           </div>
 
-          <div className="mt-5 flex">
+          <div className="mt-5 flex" style={p.vt ? vtStyle(p.vt) : undefined}>
             <div className="flex-none" style={axisFade(gl)}>
               {p.expiryAxis}
             </div>

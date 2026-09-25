@@ -1,6 +1,7 @@
 import { CaseStudyTitle, Meta, Register, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
 import { Annotated, Shell } from '@/components/Layout'
+import { CricketReplay } from '@/components/figures/CricketReplay'
 import { materialityArrangements, materialityBar } from '@/components/figures/MaterialityBar'
 import { fact } from '@/content/facts'
 import { papers } from '@/content/papers'
@@ -17,8 +18,8 @@ function MaterialityTable() {
   return (
     <table>
       <caption>
-        Relative improvement in negative log-likelihood over a marginal baseline, T1/T20,
-        after calibration.
+        Relative improvement in negative log-likelihood over a marginal baseline, T1/T20, after
+        calibration.
       </caption>
       <thead>
         <tr>
@@ -53,197 +54,141 @@ export default function Cricstate() {
           standfirst={<p>{paper.abstract}</p>}
         />
 
-        <Figure
-          id="fig-materiality"
-          number="Fig 1"
-          title="Predictive signal in ball-by-ball cricket beyond match state"
-          subtitle="relative NLL vs a marginal baseline · T1/T20 · calibrated"
-          description={materialityBar.description}
-          arrangements={materialityArrangements}
-          table={<MaterialityTable />}
-          caption={
-            <>
-              Match state is a saturating predictor of the next ball. The verdict rests on one
-              documented test touch, the shuffled-identity canary and byte-identical replay — not
-              on the thresholds having been in git first.
-            </>
-          }
-        />
+        <CricketReplay />
 
-
-        <Section heading="What problem, and for whom">
+        <Section heading="The question">
           <p>
-            Ball-by-ball cricket data is free, large and unusually clean, which makes it a good
-            place to test a habit rather than a hypothesis. The habit is this: you fit a model on
-            match state — score, wickets, balls remaining, run rate, phase — and then you reach
-            for the two enrichments everyone reaches for next. Give every batter and bowler their
-            own parameters. Add a per-match latent for pitch and conditions. Both are easy to
-            justify in a proposal, and both are expensive to maintain once they exist.
+            Given the state of a T20 match — score, wickets, balls left, the target, who is at the
+            crease and how long they have been there — how well can you price the next ball and
+            the result, and how much more do you gain by modelling the players themselves? The
+            second half is the expensive decision: a hierarchical model with a parameter per
+            batter and bowler is easy to propose and costly to maintain, so the study measured its
+            value before building it.
           </p>
           <p>
-            I wanted to know whether either was worth building at all. That is a measurement
-            question, not a modelling one, and the two have different failure modes. A modelling
-            question fails loudly when the model is bad. A measurement question fails quietly,
-            because a leak or an optimistic confidence interval produces a number that looks like
-            a discovery. So the work went into the measurement, and the model was allowed to lose.
+            It is a measurement problem more than a modelling one, and measurement problems fail
+            quietly: a leak or an optimistic interval produces a number that looks like a
+            discovery. So most of the engineering went into making the measurement trustworthy.
           </p>
         </Section>
 
-        <Section heading="What I built">
+        <Section heading="The model">
           <p>
-            Python with polars, scikit-learn and scipy, dependency-locked under uv. A four-rung
-            ladder from a marginal baseline to gradient boosting on match state, and then the two
-            enrichments measured against the top rung rather than against the baseline — because
-            beating a marginal baseline is not the claim anyone would act on.
+            A four-rung ladder, each rung scored against the one below it: a marginal baseline,
+            then models of increasing capacity, up to gradient boosting on{' '}
+            {fact('crFeatures').value} whitelisted features of the match state. Every rung is fit
+            on the training period only, tuned and calibrated on a later validation period —
+            isotonic regression for win probability, temperature scaling for the next ball — and
+            scored once on a held-out test period that no fitting decision ever saw.
           </p>
           <p>
-            {n('crFilesSeen')} match files from a Cricsheet snapshot go through an exact replay
-            with a pure transition function; {n('crMatches')} of them produce{' '}
-            {n('crDeliveries')} deliveries of state. Negative log-likelihood is the primary
-            metric, with multiclass Brier as a proper-scoring cross-check and expected calibration
-            error over twenty equal-mass bins per class. Calibration maps are fit on the
-            validation split only. Continuous integration runs ruff, ruff format, mypy in strict
-            mode and pytest, over {n('crTestFiles')} test files and {n('crTestLines')} lines of
-            tests.
+            On win probability the top rung reaches a test log-loss of {fact('crT2Nll').value.toFixed(3)}{' '}
+            against {fact('crT2Base').value.toFixed(3)} for the base rate, {fact('crT2Skill').value}%
+            skill over {n('crT2TestMatches')} held-out matches. On the far harder next-ball task,
+            eleven outcome classes, it is {fact('crStateGain').value}% better than the baseline.
+            Fig. 1 is that model, unchanged, scoring a match from the test period.
           </p>
         </Section>
 
-        <Section heading="The hard part">
+        <Section heading="How it was validated">
           <p>
-            The first thing I had to accept is that a leakage test which always passes is
-            indistinguishable from a leakage test that does nothing. The standard check is a
-            shuffle: permute the feature you are testing, refit, and confirm the model gets no
-            better. Almost every shuffle test in the wild asserts only the second half of that
-            sentence, which means a broken harness — one that silently drops the feature, or fits
-            on the wrong frame — passes it perfectly.
+            Leakage discipline in a research repository is usually a convention, and conventions
+            decay under deadline. Here it is a property of the code. The feature builder&rsquo;s
+            first statement is a select against a frozen whitelist, so an outcome column is
+            unreachable by construction, and a test proves it by asserting byte-equality between
+            a clean frame and one with label-bearing columns injected. The data loader raises on
+            any read of the test split unless the leaderboard runner passes an explicit flag, so
+            the single test touch is enforced rather than remembered.
           </p>
           <p>
-            So the canary asserts its own power first. On a synthetic split with a{' '}
-            <em>planted</em> identity signal, the test requires that true identities be detected —
-            the fitted loss must beat the baseline by a margin — and only then requires that
-            shuffling destroys the detection. A second test asserts the shuffle is a genuine
-            permutation with the same multiset of player ids, so it cannot pass by degenerately
-            dropping players. A third pins the three-way verdict: shuffled behaves like state is a
-            pass, shuffled worse than state is a failure, and shuffled <em>better</em> than state
-            voids the result rather than warning about it. A leak does not get to be a footnote.
-          </p>
-          <p>
-            The second decision was to stop relying on my own attention. Leakage discipline in a
-            research repository is usually a convention, and conventions decay under deadline. So
-            it is a property of the code in four places instead. The feature builder&rsquo;s first
-            statement is a select against a frozen whitelist, which makes an outcome column
-            unreachable by construction rather than merely unused — and the test proves it by
-            asserting byte-equality between a clean frame and one with label-bearing columns
-            deliberately injected.
-          </p>
-          <p>
-            Every calibration function&rsquo;s data parameters are named with a validation prefix,
-            and a test reflects over the function signatures and rejects any that are not, because
-            a convention a linter can check is a different kind of object from a convention. The
-            dataset loader raises on any attempt to read the test split unless the leaderboard
-            runner passes an explicit flag, so single-test-touch lives in the loader rather than
-            in my memory of having agreed to it. And ruff is configured so that swallowing an
-            exception fails the build — a swallowed parse failure is exactly how a corpus quietly
-            loses rows — with the two legitimate quarantine boundaries individually exempted and
-            each carrying its reason in the exemption.
+            The leakage canaries have to prove their own power before they are believed. The
+            shuffled-identity test first requires that a <em>planted</em> identity signal on a
+            synthetic split is detected, and only then that shuffling destroys it — a canary that
+            cannot detect anything passes every leak. A poisoned-column canary and a temporal-split
+            check run in continuous integration alongside it.
           </p>
           <Annotated
             note={
               <>
                 A paired bootstrap over {n('crBootstrapResamples')} resamples, with draws shared
-                between the two models being compared so between-match variance cancels.
+                between the two models being compared so that between-match variance cancels.
               </>
             }
           >
             <p>
-              Third, the confidence intervals. The obvious move is to bootstrap over deliveries,
-              and it is wrong: there are roughly two hundred balls inside a match and they are not
-              independent, so resampling balls produces intervals that are far too tight and a
-              null result that looks like a finding. The unit of independence is the match, so the
-              resampling is over matches — expressed as a multinomial count matrix, which makes it
-              linear algebra rather than a loop. The pairing is not asserted in a comment either:
-              a test plants a between-match spread and requires the paired interval to come out
-              more than ten times tighter than the unpaired one.
+              The confidence intervals resample matches, not balls. Balls inside a match are not
+              independent, so resampling them manufactures precision; the match is the unit, and
+              the resampling is written as a multinomial count matrix, which turns it into linear
+              algebra rather than a loop. A test plants a between-match spread and requires the
+              paired interval to come out more than ten times tighter than the unpaired one.
             </p>
           </Annotated>
           <p>
-            Last, the corpus boundary. A match that cannot be replayed is quarantined with a coded
-            reason, never dropped — {n('crQuarantined')} of {n('crFilesSeen')} files, mostly
-            formats outside the study&rsquo;s scope. The subtle case is over accounting: an over
-            with the wrong number of legal balls is a warning if the source data declares the
-            umpire miscounted, and a hard quarantine if it does not, because those two things look
-            identical in a row count and mean completely different things.{' '}
-            {n('crGoldens')} golden fixtures pin one real pathology each — a super over, a
-            Duckworth-Lewis revised target, penalty runs, a concussion replacement, a stumping off
-            a wide — including one negative golden built by deleting a delivery from a real match
-            and asserting the accounting catches it.
+            The corpus is an exact replay of {n('crFilesSeen')} Cricsheet files through a pure
+            transition function, pinned by hash and rebuilt byte-identically. A file that cannot
+            be replayed is quarantined with a coded reason, never dropped — {n('crQuarantined')}{' '}
+            of them, mostly formats outside the study&rsquo;s scope — and {n('crGoldens')} golden
+            fixtures pin one real pathology each: a super over, a revised target, penalty runs, a
+            concussion replacement.
           </p>
         </Section>
 
-        <Section heading="What the measurement said">
+        <Figure
+          id="fig-materiality"
+          number="Fig. 2"
+          title="What each enrichment adds beyond match state"
+          subtitle="relative NLL improvement over a marginal baseline · next ball, T20 · calibrated"
+          description={materialityBar.description}
+          arrangements={materialityArrangements}
+          table={<MaterialityTable />}
+          caption={
+            <>
+              Match state carries the signal. Player identity adds a real, reproducible{' '}
+              {fact('crIdentityGain').value}% — its interval excludes zero — but under the{' '}
+              {fact('crJustifyBar').value.toFixed(0)}% bar for further work.
+            </>
+          }
+        />
+
+        <Section heading="What the measurement decided">
           <p>
-            Match state saturates. Player identity adds {fact('crIdentityGain').value}% in relative
-            negative log-likelihood, which is real, reproducible, and below the bar at which I
-            would have started building — it lands inside the ambiguous band rather than clearing
-            it. The per-match latent adds {fact('crLatentGain').value}% and was frozen before its
-            test evaluation. The hierarchical model I intended to write was declined on its own
-            evidence.
+            The per-player model was not built. Identity is worth {fact('crIdentityGain').value}%
+            in log-likelihood and a per-match latent for pitch and conditions{' '}
+            {fact('crLatentGain').value}%, both below the materiality bar, so the study spent its
+            effort on the result it could defend rather than the model it had planned. Knowing
+            what not to build, and being able to show why, is the output.
           </p>
           <p>
-            Part of the design was fixed before any test split was read and part was not. The
-            register below draws that line exactly, because a result is only as strong as the
-            weakest thing that was decided after looking.
+            The evaluation protocol was fixed before the test split was read; the verdict bands
+            were entered with the evaluation itself. The register below draws that line exactly.
           </p>
           <Register
             columns={[
               {
-                heading: 'Frozen before any test split was read',
+                heading: 'Fixed before any test split was read',
                 items: [
                   'the four-rung ladder and validation-only tuning',
                   'the metric contract and the calibration policy',
                   'the leakage canaries, including the ladder-inversion stop rule',
                   'the corpus and label hash pins',
-                  'the single-test-touch discipline itself',
+                  'the single-test-touch discipline',
                 ],
               },
               {
-                heading: 'Not frozen before the test was read',
+                heading: 'Entered with the evaluation',
                 items: [
                   'the materiality bands that classify the result',
                   'the challenger gate thresholds',
-                  'both entered in the same commit as the evaluation, not before it',
                 ],
               },
             ]}
           />
-          <p className="mt-6">
-            So the verdict does not rest on the thresholds having been committed first. It rests on
-            the single documented test touch, on the shuffled-identity canary, and on the corpus
-            hash reproducing byte-identically across independent builds.
-          </p>
-          <Annotated
-            note={
-              <>
-                Not a null result about the whole exercise: on T20 win probability the same ladder
-                cleared every clause of the gate, at {fact('crT2Skill').value}% skill over the
-                baseline.
-              </>
-            }
-          >
-            <p>
-              The published leakage ledger also records a canary that was never run — a
-              match-level shuffle, frozen by decision along with the branch it belonged to. It
-              sits in the results file marked as not run, next to the ones that passed, because a
-              test suite that reports only the tests you executed is telling you about your
-              diligence rather than about your evidence.
-            </p>
-          </Annotated>
         </Section>
 
         <Meta
           rows={[
             ['repo', <a key="r" href="https://github.com/dudailia/cricstate">github.com/dudailia/cricstate</a>],
-            ['status', 'published; no model shipped'],
+            ['data', 'Cricsheet ball-by-ball, snapshot of 2 July 2026, pinned by hash'],
             ['stack', 'Python · polars · scikit-learn · scipy · uv · GitHub Actions'],
           ]}
         />

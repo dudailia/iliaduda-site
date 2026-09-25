@@ -3,11 +3,11 @@
     "collect": {
       "url": [
         "https://iliaduda-site.vercel.app/",
+        "https://iliaduda-site.vercel.app/iv-surface",
         "https://iliaduda-site.vercel.app/closebooks",
         "https://iliaduda-site.vercel.app/cricstate",
-        "https://iliaduda-site.vercel.app/debt-portal",
-        "https://iliaduda-site.vercel.app/about",
-        "https://iliaduda-site.vercel.app/iv-surface"
+        "https://iliaduda-site.vercel.app/startup-investments",
+        "https://iliaduda-site.vercel.app/debt-portal"
       ],
       "numberOfRuns": 5,
       "settings": {

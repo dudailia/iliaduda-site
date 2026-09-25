@@ -12,6 +12,7 @@
  * are absent for exactly that reason.
  */
 
+import { rules } from './rules'
 import { synthetic } from './synthetic'
 
 export type Unit =
@@ -47,6 +48,8 @@ const facts = {
   // Synthetic parameters for the hero figure live in ./synthetic, so the
   // browser bundle carries seven numbers rather than this whole table.
   ...synthetic,
+  // Rules a client figure runs live; see ./rules.
+  ...rules,
 
   // ── cricstate ──────────────────────────────────────────────────────────────
   // The figure axis. One unit throughout: relative NLL improvement over the
@@ -80,6 +83,30 @@ const facts = {
     unit: 'percent',
     label: 'ambiguous below',
     source: 'cricstate/report/paper.md:97-102 — REL_AMBIG_LO',
+  },
+  crT2Nll: {
+    value: 0.49036,
+    unit: 'nats',
+    label: 'B3 test NLL, T2/T20',
+    source: 'cricstate/docs/LEADERBOARD.md:76-83 — B3_gbm 0.49036 [0.47547, 0.50519]; reproduced by scripts/cricket_replay.py',
+  },
+  crT2Base: {
+    value: 0.69275,
+    unit: 'nats',
+    label: 'marginal-baseline test NLL, T2/T20',
+    source: 'cricstate/docs/LEADERBOARD.md:76-83 — B0_marginal 0.69275',
+  },
+  crT2TestMatches: {
+    value: 1489,
+    unit: 'count',
+    label: 'held-out T20 matches in the T2 test cell',
+    source: 'cricstate/docs/LEADERBOARD.md:76 — test n = 1,489 matches',
+  },
+  crFeatures: {
+    value: 27,
+    unit: 'count',
+    label: 'whitelisted match-state features',
+    source: 'cricstate/src/evalkit/features.py — FEATURE_COLUMNS; artifacts/t2/t20/B3_gbm/fingerprint.json n_features',
   },
   crMatches: {
     value: 16754,
@@ -179,12 +206,6 @@ const facts = {
     label: 'transactions per model call',
     source: 'closebooks-app/src/lib/categorize.ts:5-9 — BATCH_SIZE',
   },
-  cbAutoApprove: {
-    value: 0.85,
-    unit: 'none',
-    label: 'auto-approve confidence threshold',
-    source: 'closebooks-app/src/lib/categorize.ts:5-9 — AUTO_APPROVE_THRESHOLD',
-  },
   cbHistoryBefore: {
     value: 62,
     unit: 'megabytes',
@@ -219,42 +240,6 @@ const facts = {
   },
   // 230-ФЗ art. 7. Two separate ceilings, because the statute treats a phone
   // call and an electronic message as different things.
-  dgCallsDay: {
-    value: 1,
-    unit: 'count',
-    label: 'calls per day',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgCallsWeek: {
-    value: 2,
-    unit: 'count',
-    label: 'calls per week',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgCallsMonth: {
-    value: 8,
-    unit: 'count',
-    label: 'calls per month',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgMessagesDay: {
-    value: 2,
-    unit: 'count',
-    label: 'messages per day',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgMessagesWeek: {
-    value: 4,
-    unit: 'count',
-    label: 'messages per week',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgMessagesMonth: {
-    value: 16,
-    unit: 'count',
-    label: 'messages per month',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
   dgClsGate: {
     value: 0.05,
     unit: 'none',
@@ -384,6 +369,24 @@ const facts = {
     unit: 'weight',
     label: 'company count',
     source: 'startup-investment-analysis notebook cell 119',
+  },
+  siMassSegments: {
+    value: 48,
+    unit: 'count',
+    label: 'mass segments the model ranks',
+    source: 'startup-investment-analysis notebook cell 119 — mass_market_segments excluding unknown; content/data/startup-ranking.json',
+  },
+  siGrowingSegments: {
+    value: 10,
+    unit: 'count',
+    label: 'ranked segments whose 2014 funding rose, so present in growth_df',
+    source: 'startup-investment-analysis notebook cell 101 — growth_2014 > 0; scripts/startup_ranking.py',
+  },
+  siZeroedSegments: {
+    value: 38,
+    unit: 'count',
+    label: 'ranked segments scored zero on growth and CAGR',
+    source: 'startup-investment-analysis notebook cells 101 and 119 — absent from growth_df; scripts/startup_ranking.py',
   },
   siWeightZeroed: {
     value: 65,

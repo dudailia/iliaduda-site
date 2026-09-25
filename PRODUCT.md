@@ -40,7 +40,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 ## Brand Commitments
 
 - Keep and elevate the incumbent identity: the site reads like a research paper — serif text, figures labelled "Fig. N", limitation notes in the margin beside the claim they qualify.
-- Copy is claim first, with its limit paired next to it; never a limit alone at the top.
+- Positioning (confirmed 2026-09-24): the site sells Ilia to top quant, trading and investment firms. Every statement true, framed at its strongest: lead with what he built, the hard problems solved and the depth it proves. No self-undermining or defensive lines; omitting a weakness is fine, inventing a strength is not. Limits appear only where a sharp reader expects them (e.g. synthetic data), phrased as rigour. Unconfirmed users, customers, revenue, returns or results are never claimed — TODO and ask.
 - Indigo appears only inside figures and marks the value being claimed.
 - One orchestrated motion moment on the whole site (the hero figure); everything else is calm.
 - The site demonstrates rigour; it never announces it (the word "honest" is banned by test).
@@ -48,6 +48,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 ## Evidence on Hand
 
 - Sourced facts for cricstate, CloseBooks, the debt-settlement portal, AdConfirm, startup-investment analysis and nucarbon in `content/facts.ts`.
+- Current résumé: ~/Downloads/Ilia_Duda_Resume-3.pdf (2026-09-24). Not publishable as-is: carries Glacier internals, "pre-registered" and a phone number.
 - Public repos: github.com/dudailia/cricstate (also at ~/Desktop/cricstate), closebooks-app, startup-investment-analysis, nucarbon.
 - Headshot: ~/Desktop/portfolio-iliaduda/headshot.jpg.
 - SNG Services redesign material: ~/sng-demo, ~/Desktop/sng-handoff — pending owner confirmation before publication.

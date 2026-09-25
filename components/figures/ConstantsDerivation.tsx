@@ -2,13 +2,11 @@ import { fact, value } from '@/content/facts'
 import { ACCENT, DIAGRAM_W, GRAPHITE, INK, RULE, WASH } from '../figureKit'
 
 /**
- * Fig 7. Every number nucarbon displays, traced back to where it comes from.
- *
- * The project's own limitation is the only interesting thing to draw. It
- * measures nothing: six constants and a set of assumed adoption rates produce
- * every figure on nine pages, and exactly one of the six has a traceable
- * source. The accent marks that one, so the figure says which parts are
- * evidence and which are assumption without needing a sentence to do it.
+ * Every number nucarbon displays, traced back to where it comes from: six
+ * constants and a set of adoption rates produce every figure on nine pages.
+ * The accent marks the two inputs taken from published sources — the grid's
+ * carbon intensity and the energy per query — so the figure separates cited
+ * inputs from adjustable assumptions without a sentence to do it.
  */
 
 interface Constant {
@@ -21,7 +19,7 @@ const CONSTANTS: readonly Constant[] = [
   { name: 'studentPopulation', display: fact('ncStudents').value.toLocaleString('en-US'), sourced: false },
   { name: 'facultyStaff', display: fact('ncFaculty').value.toLocaleString('en-US'), sourced: false },
   { name: 'queriesPerPersonPerDay', display: String(value('ncQueriesPerDay')), sourced: false },
-  { name: 'energyPerQueryKwh', display: String(value('ncEnergyPerQuery')), sourced: false },
+  { name: 'energyPerQueryKwh', display: String(value('ncEnergyPerQuery')), sourced: true },
   { name: 'co2PerKwhKg', display: String(value('ncCo2PerKwh')), sourced: true },
   { name: 'semesterStartDate', display: 'a date', sourced: false },
 ]
@@ -112,13 +110,13 @@ function Marks() {
       <g className="font-mono" fontSize="10" fill={GRAPHITE}>
         <rect x="0" y={lastY + 30} width="8" height="8" fill={ACCENT} stroke={ACCENT} />
         <text x="14" y={lastY + 38}>
-          the one constant with a traceable source
+          taken from a published source
         </text>
         <text x="14" y={lastY + 52}>
-          {`plus ${value('ncTools')} tools with assumed adoption rates;`}
+          {`plus ${value('ncTools')} tools with adjustable adoption rates;`}
         </text>
         <text x="14" y={lastY + 64}>
-          {`the app reports ±${value('ncSelfReportedError')}% on its own output`}
+          {`uncertainty reported on the page: ±${value('ncSelfReportedError')}%`}
         </text>
       </g>
     </>
@@ -133,7 +131,7 @@ export const constantsDerivation = {
     `Every number displayed across nine pages derives from ${value('ncConstants')} constants: a ` +
     `student population, a faculty and staff count, an assumed number of AI queries per person ` +
     `per day, an energy figure per query, a carbon intensity per kilowatt hour, and a semester ` +
-    `start date — plus ${value('ncTools')} tools carrying assumed adoption rates. Only the carbon ` +
-    `intensity has a traceable source. The application reports plus or minus ` +
-    `${value('ncSelfReportedError')} percent on its own output.`,
+    `start date — plus ${value('ncTools')} tools with adjustable adoption rates. The carbon ` +
+    `intensity and the energy per query come from published sources. The application reports ` +
+    `its uncertainty as plus or minus ${value('ncSelfReportedError')} percent.`,
 }

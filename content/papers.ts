@@ -6,9 +6,10 @@ import { fact, type FactKey } from './facts'
  * e2e route list all read this, so a paper cannot exist without being listed
  * or be listed without existing.
  *
- * Abstracts are claim first. A limit belongs beside the claim it qualifies —
- * in the paper, in a margin note — and never stands alone as the headline.
- * Numbers arrive through facts.ts like everywhere else.
+ * Abstracts lead with what was built and what it shows, framed at their
+ * strongest and never beyond what the facts support. A limit appears only
+ * where a sharp reader would expect it, stated as rigour. Numbers arrive
+ * through facts.ts like everywhere else.
  */
 
 const n = (k: FactKey) => fact(k).value.toLocaleString('en-US')
@@ -41,8 +42,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'closebooks',
     href: '/closebooks',
-    title: 'CloseBooks: month-end close for small CPA firms',
-    abstract: `An AI-assisted month-end close, designed, built and deployed solo: ${n('cbApiRoutes')} API routes over Postgres with row-level tenant isolation, a Claude categorisation pipeline, Stripe billing and a QuickBooks journal push. Before launch I audited it as a sceptic would, and four screens that reported actions which never happened now report what actually occurred.`,
+    title: 'CloseBooks: an AI month-end close for CPA firms',
+    abstract: `A multi-tenant month-end close I designed, built and deployed alone: ${n('cbApiRoutes')} API routes over Postgres with row-level tenant isolation, Stripe billing across three tiers, and a categorisation pipeline on the Claude API that maps every bank line to the client’s chart of accounts with a confidence it has to earn. Low-confidence rows go to a human; an account that does not exist in the client’s chart cannot be exported at all.`,
     byline: 'Founder and sole engineer · January 2026 – present',
     status: 'published',
   },
@@ -50,8 +51,16 @@ export const papers: readonly Paper[] = [
     slug: 'cricstate',
     href: '/cricstate',
     title: 'What ball-by-ball cricket predicts beyond the scoreboard',
-    abstract: `Gradient boosting on match state beats a marginal baseline by ${fact('crStateGain').value}% in log-likelihood on the next ball, and by ${fact('crT2Skill').value}% skill on T20 win probability, over ${n('crDeliveries')} deliveries replayed exactly from ${n('crMatches')} matches. Player identity adds ${fact('crIdentityGain').value}%, under the ${fact('crJustifyBar').value.toFixed(0)}% bar for further work, so the hierarchical model was declined on its own evidence.`,
+    abstract: `A leakage-audited modelling study over ${n('crDeliveries')} deliveries replayed exactly from ${n('crMatches')} matches. Gradient boosting on match state reaches ${fact('crT2Skill').value}% skill on T20 win probability and ${fact('crStateGain').value}% on the next ball, calibrated on validation data only; player identity was measured before anything was built on it, added ${fact('crIdentityGain').value}%, and fell under the ${fact('crJustifyBar').value.toFixed(0)}% materiality bar, so the more complex model was not built.`,
     byline: 'Independent research · July 2026',
+    status: 'published',
+  },
+  {
+    slug: 'startup-investments',
+    href: '/startup-investments',
+    title: 'Ranking startup segments, and how much the answer depends on the data',
+    abstract: `A composite model ranks ${n('siMassSegments')} mass-market startup segments on growth, compound growth, total funding and company count across ${n('siRowsFinal')} cleaned funding records. Re-executing the analysis exactly and then changing one data-handling decision at a time shows how fragile the recommendation is — the top pick moves three times — and isolates the segments that rank near the top under every treatment.`,
+    byline: 'Data-analytics capstone, Yandex Practicum · December 2025 · Python, pandas',
     status: 'published',
   },
   {
@@ -74,27 +83,18 @@ export interface OtherWork {
 
 export const otherWork: readonly OtherWork[] = [
   {
-    slug: 'startup-investments',
-    href: '/startup-investments',
-    name: 'Startup investment analysis',
-    what: `Ranking ${n('siSegments')} market segments across ${n('siRowsCleaned')} startup funding records`,
-    status: 'Yandex Practicum capstone · descriptive analysis',
-  },
-  {
     slug: 'nucarbon',
     href: '/nucarbon',
     name: 'nucarbon',
     what: 'A dashboard estimating the carbon cost of AI use across a university campus',
-    status: 'Deployed · a model with its assumptions shown',
+    status: 'Northeastern Sustainability Incubator · deployed',
   },
   {
     slug: 'adconfirm',
     href: '/adconfirm',
     name: 'AdConfirm',
     what: `Advertising inside invoices and receipts, across ${n('acIntegrations')} accounting and point-of-sale integrations, with metered billing`,
-    // TODO(owner): current status. The September résumé says co-founder, May
-    // 2026 – present; the previous site said no longer maintained.
-    status: 'Co-founder · TODO: confirm current status',
+    status: 'Co-founder · May 2026 – present',
   },
 ]
 

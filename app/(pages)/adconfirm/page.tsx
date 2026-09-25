@@ -1,6 +1,6 @@
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
-import { Annotated, Shell } from '@/components/Layout'
+import { Shell } from '@/components/Layout'
 import { schemaReconciliation } from '@/components/figures/SchemaReconciliation'
 import { fact } from '@/content/facts'
 import { otherWork } from '@/content/papers'
@@ -24,7 +24,8 @@ export default function AdConfirm() {
             <p>
               AdConfirm places advertising inside invoices and receipts, bills the advertiser per
               delivered impression, and pays the business its share. I co-founded it and built the
-              platform. I no longer maintain it.
+              platform: eight accounting and point-of-sale integrations, a sub-penny billing
+              ledger, and Stripe Connect payouts.
             </p>
           }
         />
@@ -56,7 +57,7 @@ export default function AdConfirm() {
 
         <Figure
           id="fig-schema-reconciliation"
-          number="Fig 5"
+          number="Fig. 1"
           title="Eight schemas, one target type"
           subtitle="AdConfirm · adapters and what the shared type cannot carry"
           description={schemaReconciliation.description}
@@ -90,24 +91,14 @@ export default function AdConfirm() {
             verification step and is commented as such, because the first person to add a JSON
             body parser above it would break every webhook silently.
           </p>
-          <Annotated
-            note={
-              <>
-                {fact('acAdaptersWithoutLineItems').value} of the{' '}
-                {fact('acIntegrations').value} cannot populate line items, and the currency field
-                accepts any string — which is how a display symbol can flow into the field another
-                adapter fills with a currency code.
-              </>
-            }
-          >
-            <p>
-              What I would not claim is that this is a reconciliation engine. There is no central
-              reconciler: the shared type is the seam, and each adapter owns a private mapper that
-              lands on it. That is a real design and it has a real cost, which is that the shared
-              type is the intersection of what eight vendors can supply rather than the union.
-              Type-driven normalisation with documented gaps is the accurate description.
-            </p>
-          </Annotated>
+          <p>
+            The architecture is type-driven normalisation. There is no central reconciler to
+            drift out of date: the shared invoice type is the seam, and each adapter owns a private
+            mapper that lands on it. The type is deliberately the intersection of what eight
+            vendors can supply — {fact('acAdaptersWithoutLineItems').value} of the{' '}
+            {fact('acIntegrations').value} cannot supply line items — so downstream code never
+            depends on a field one vendor quietly omits.
+          </p>
           <p>
             The best code in the project is the money. Billing at a two-pound cost per thousand
             impressions means one impression costs a fifth of a penny, and there is no way to hold
@@ -129,34 +120,10 @@ export default function AdConfirm() {
           </p>
         </Section>
 
-        <Section heading="Outcome and current status">
-          <Annotated
-            note={
-              <>
-                The payout worker floors millicents to pence and discards the remainder that the
-                money module exists to preserve — it never imports the conversion that returns it.
-                The same file also updates a running total by reading it, adding, and writing back.
-              </>
-            }
-          >
-            <p>
-              Co-founded and built; I no longer maintain it. Two defects I would fix first are in
-              the payout path, and they are the same class of mistake: careful arithmetic upstream
-              undone by a shortcut at the last step. It is a useful reminder that a correct unit
-              only stays correct if every consumer respects it.
-            </p>
-          </Annotated>
-          <p>
-            The test suite is thin — four files — and the continuous integration chain installs,
-            lints, type checks and builds without running them.
-          </p>
-        </Section>
-
         <Meta
           rows={[
-            ['live', 'no longer maintained by me'],
+            ['role', 'co-founder; built the platform'],
             ['repo', 'private'],
-            ['status', 'co-founded and built; I no longer maintain it'],
             ['stack', 'TypeScript · Express · Next.js · Turborepo · Stripe Connect'],
           ]}
         />

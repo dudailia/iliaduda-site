@@ -25,6 +25,20 @@ export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
   [/\bseamless(ly)?\b/i, 'register'],
   [/\bbest[- ]in[- ]class\b/i, 'superlative'],
 
+  // Positioning (2026-09-24): the site sells its subject at his strongest and
+  // never undermines him. Omitting a weakness is allowed; announcing one in
+  // these words is not. Truth gates above and below still apply.
+  [/no paying customers/i, 'positioning: defensive'],
+  [/no longer maintain/i, 'positioning: defensive'],
+  [/measures nothing/i, 'positioning: defensive'],
+  [/null result/i, 'positioning: a negative result is framed as the measurement it is'],
+  [/lying to users/i, 'positioning: defensive'],
+  [/declined to build/i, 'positioning: defensive'],
+  [/not a forecast/i, 'positioning: defensive'],
+  [/\bthin test suite\b|\bthe test suite is thin\b/i, 'positioning: defensive'],
+  [/should not pretend/i, 'positioning: defensive'],
+  [/flattering version/i, 'positioning: defensive'],
+
   // cricstate. Part of the design was frozen before the test split was read
   // and part was not, so the stronger word is retracted everywhere.
   [/pre-?registered|pre-?registration/i, 'retracted: the materiality bands were not frozen first'],

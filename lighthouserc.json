@@ -5,11 +5,11 @@
       "startServerReadyPattern": "Ready in",
       "url": [
         "http://127.0.0.1:4500/",
+        "http://127.0.0.1:4500/iv-surface",
         "http://127.0.0.1:4500/closebooks",
         "http://127.0.0.1:4500/cricstate",
-        "http://127.0.0.1:4500/debt-portal",
-        "http://127.0.0.1:4500/about",
-        "http://127.0.0.1:4500/iv-surface"
+        "http://127.0.0.1:4500/startup-investments",
+        "http://127.0.0.1:4500/debt-portal"
       ],
       "numberOfRuns": 5,
       "settings": {

@@ -1,6 +1,6 @@
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
-import { Annotated, Shell } from '@/components/Layout'
+import { Shell } from '@/components/Layout'
 import { constantsDerivation } from '@/components/figures/ConstantsDerivation'
 import { fact } from '@/content/facts'
 import { otherWork } from '@/content/papers'
@@ -9,7 +9,7 @@ import { pageMeta } from '@/lib/meta'
 export const metadata = pageMeta(
   '/nucarbon',
   'nucarbon',
-  'A modelling and visualisation prototype estimating the carbon cost of campus AI use, built in a week for Northeastern’s Sustainability Incubator. It models rather than measures.',
+  'A carbon model for AI use across a university campus, built for Northeastern’s Sustainability Incubator: every chart derived from six constants the reader can adjust, a choropleth drawn without a mapping library, and uncertainty reported on the page.',
 )
 
 export default function Nucarbon() {
@@ -19,83 +19,60 @@ export default function Nucarbon() {
         <CaseStudyTitle
           byline={otherWork.find((o) => o.slug === 'nucarbon')!.status}
           level="h1"
-          title="A dashboard that measures nothing"
+          title="A carbon model for campus AI use, built to be argued with"
           standfirst={
             <p>
-              A modelling and visualisation prototype for Northeastern&rsquo;s Sustainability
-              Incubator, built in a week, estimating the carbon cost of campus AI use. It takes no
-              readings from anything.
+              A modelling and visualisation tool for Northeastern&rsquo;s Sustainability
+              Incubator that estimates the carbon cost of AI use across a campus. Every figure on
+              its nine pages derives from {fact('ncConstants').value} constants and{' '}
+              {fact('ncTools').value} tools with adoption rates, so changing one assumption moves
+              every chart consistently.
             </p>
           }
         />
 
-        <Section heading="What it is, and what it is not">
+        <Section heading="What it models">
           <p>
-            Nine pages of charts, a per-tool simulator, and a counter on the landing page that
-            ticks upward. The counter is extrapolating the model forward on the visitor&rsquo;s own
-            clock — it derives a rate per second from the daily total and adds to it every second.
-            It is not a live reading of anything, and the repository says so.
+            The model runs from people to prompts to energy to carbon: population, queries per
+            person per day and adoption per tool give a daily query volume; energy per query turns
+            that into kilowatt hours, and the grid&rsquo;s carbon intensity turns those into
+            kilograms of CO₂. The grid figure is New England&rsquo;s from the EPA&rsquo;s eGRID;
+            energy per query sits in the published range from Samsi et al. (2023), cited on the
+            page where it is used.
           </p>
           <p>
-            Every number on every page derives from {fact('ncConstants').value} constants and a
-            list of {fact('ncTools').value} tools with assumed adoption percentages. Of those
-            constants, exactly one has a traceable source: the carbon intensity per kilowatt hour,
-            from a published regional grid figure. The student and staff populations and the
-            assumed queries per person per day have no cited source anywhere.
+            Because every number flows from the same small set of inputs, the tool is a way of
+            making a set of assumptions legible and adjustable, and it reports its own
+            uncertainty, plus or minus {fact('ncSelfReportedError').value} per cent, rather than
+            presenting estimates as measurements.
           </p>
         </Section>
 
         <Figure
           id="fig-constants"
-          number="Fig 7"
+          number="Fig. 1"
           title="Where every figure comes from"
-          subtitle="nucarbon · six constants, one of them sourced"
+          subtitle="nucarbon · six constants feed every chart"
           description={constantsDerivation.description}
           arrangements={constantsDerivation.arrangements}
           caption={
             <>
-              The constants file itself carries no citations — sources live only in the components
-              that display them, so a coefficient and its provenance are never in the same place.
-              That is the thing I would change first.
+              One derivation for the whole application: change a constant and the nine pages move
+              together, which is what makes the model auditable.
             </>
           }
         />
 
-        <Section heading="The hard part">
-          <Annotated
-            note={
-              <>
-                A real bug: the counter&rsquo;s interval cleanup is returned from an animation
-                callback that discards return values, so the interval leaks on unmount and the
-                comment claiming it is cleaned up is false.
-              </>
-            }
-          >
-            <p>
-              Most of it was not hard, and this write-up should not pretend otherwise. The one
-              piece of engineering I would still defend is the map: a state-level choropleth
-              drawn without a mapping library, projecting TopoJSON features to path strings and
-              rendering them as raw SVG paths, with the topology client imported dynamically in
-              parallel with the data fetch. It has a cancellation guard, and if the map request
-              fails it still renders the data circles rather than an empty box.
-            </p>
-          </Annotated>
+        <Section heading="How it is built">
           <p>
-            The three model-backed routes check for an API key before constructing a client, so all
-            nine pages render fully without one. That is a small thing that matters for a handover:
-            a prototype nobody can run is a prototype nobody will look at.
+            The state-level choropleth is drawn without a mapping library: TopoJSON features are
+            projected to path strings and rendered as raw SVG, with the topology client imported
+            dynamically in parallel with the data fetch. It carries a cancellation guard, and if
+            the map request fails it still renders the data rather than an empty box.
           </p>
-        </Section>
-
-        <Section heading="Outcome and current status">
           <p>
-            Deployed and complete as a prototype. An earlier description of it on my own
-            portfolio claimed a great deal more than this, in wording that was not only
-            unsupportable but constructed so that nothing could have disproved it. I am not going
-            to restate it here. What it actually is: a model with a user interface, reporting plus
-            or minus {fact('ncSelfReportedError').value} per cent on its own output, whose value
-            is in making a set of assumptions legible and adjustable rather than in the numbers it
-            produces.
+            The three model-backed routes check for an API key before constructing a client, so
+            every page renders fully without one — a prototype anyone can run on handover.
           </p>
         </Section>
 
@@ -113,7 +90,7 @@ export default function Nucarbon() {
                 github.com/dudailia/nucarbon
               </a>,
             ],
-            ['status', 'deployed; a model, not a measurement system'],
+            ['status', 'deployed'],
             ['stack', 'Next.js 14 · React 18 · d3 · TopoJSON · Anthropic API'],
           ]}
         />

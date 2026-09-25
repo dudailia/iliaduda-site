@@ -46,7 +46,7 @@ interface Level {
   readonly label: { x: number; y: number } | null
 }
 
-function levels(): readonly Level[] {
+export function levels(): readonly Level[] {
   const field = sample()
   return LEVELS.map((level) => {
     const lines = contour(field, NK, NT, level)
@@ -216,6 +216,7 @@ export function SurfaceFigure({ entrance, number = 'Fig. 1' }: { entrance: boole
       id={id}
       number={number}
       entrance={entrance}
+      {...(entrance ? {} : { vt: 'iv-surface' })}
       descId={`${id}-desc`}
       title="Implied volatility across strike and expiry"
       subtitle="SSVI surface · synthetic parameters, set by hand · not market data"

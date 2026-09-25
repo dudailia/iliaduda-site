@@ -63,6 +63,24 @@ export const synthetic = {
     source: 'lib/bs.ts — synthetic, a round number with rates and dividends at zero',
     kind: 'synthetic',
   },
+
+  // Illustrative settlement terms for the debt-portal figure. The client's
+  // real discount ladder is a commercial decision that was never in the
+  // portal's code; these are invented, and labelled so wherever shown.
+  stFloorRub: {
+    value: 1000,
+    unit: 'none',
+    label: 'illustrative minimum monthly payment, roubles',
+    source: 'lib/settlement.ts — synthetic, illustrative; not the client’s terms',
+    kind: 'synthetic',
+  },
+  stMaxMonths: {
+    value: 36,
+    unit: 'count',
+    label: 'illustrative longest term, months',
+    source: 'lib/settlement.ts — synthetic, illustrative; not the client’s terms',
+    kind: 'synthetic',
+  },
 } as const satisfies Record<string, Fact>
 
 export type SyntheticKey = keyof typeof synthetic

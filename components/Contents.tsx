@@ -2,6 +2,7 @@ import { otherWork, visiblePapers } from '@/content/papers'
 import { roles } from '@/content/experience'
 import { SITE } from '@/lib/site'
 import { Row } from './Layout'
+import { PaperThumb } from './PaperThumb'
 
 /**
  * The issue's table of contents. Deliberately a typeset list separated by
@@ -29,17 +30,22 @@ export function Contents() {
       <Row rail={<SectionHeading id="contents">Contents</SectionHeading>}>
         <ol className="grid list-none border-t border-rule">
           {papers.map((p) => (
-            <li key={p.slug} className="border-b border-rule py-6">
-              <h3 className="text-h3">
-                <a href={p.href} className="no-underline hover:underline">
-                  {p.title}
-                </a>
-              </h3>
-              <p className="text-meta mt-1.5 font-mono text-graphite">
-                {p.byline}
-                {p.status === 'pending' ? ' · pending publication' : ''}
-              </p>
-              <p className="text-note mt-3 max-w-[38rem]">{p.abstract}</p>
+            <li key={p.slug} className="grid gap-x-6 border-b border-rule py-6 sm:grid-cols-[minmax(0,1fr)_9rem]">
+              <div className="min-w-0">
+                <h3 className="text-h3">
+                  <a href={p.href} className="no-underline hover:underline">
+                    {p.title}
+                  </a>
+                </h3>
+                <p className="text-meta mt-1.5 font-mono text-graphite">
+                  {p.byline}
+                  {p.status === 'pending' ? ' · pending publication' : ''}
+                </p>
+                <p className="text-note mt-3 max-w-[38rem]">{p.abstract}</p>
+              </div>
+              <div className="hidden pt-1.5 sm:block">
+                <PaperThumb slug={p.slug} />
+              </div>
             </li>
           ))}
         </ol>

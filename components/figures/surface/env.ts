@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useSyncExternalStore, type RefObject } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 
 /**
  * What a live figure needs to know about where it is running, and nothing
@@ -86,4 +86,31 @@ export function cssColor(name: string): [number, number, number] {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(v)
   if (!m) return [0.5, 0.5, 0.5]
   return [Number.parseInt(m[1]!, 16) / 255, Number.parseInt(m[2]!, 16) / 255, Number.parseInt(m[3]!, 16) / 255]
+}
+
+/**
+ * Call `fn` once, the first time the element is at least `threshold` visible.
+ * The call comes from the observer itself — an external event — so a figure
+ * can start its one-time motion there without setting state in an effect.
+ */
+export function useOnceSeen(ref: RefObject<Element | null>, threshold: number, fn: () => void): void {
+  const cb = useRef(fn)
+  useEffect(() => {
+    cb.current = fn
+  })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e && e.isIntersecting && e.intersectionRatio >= threshold) {
+          io.disconnect()
+          cb.current()
+        }
+      },
+      { threshold },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref, threshold])
 }

@@ -200,3 +200,38 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Opening a paper from the contents: its figure grows out of the contents
+   entry's thumbnail. A cross-document view transition — the links are plain
+   anchors, so this is the browser's own navigation, no router and no script.
+   The thumbnail and the paper's Fig. 1 share a view-transition-name
+   (fig-<slug>); everything else crossfades quickly underneath.
+
+   Reduced motion: no transition at all, the new page is simply there.
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  /* The morph is the point of the navigation, so it gets a moving-on-screen
+     curve and a duration a reader can follow; the page underneath gets out of
+     the way fast. Both ends of a morph carry view-transition-class: figure. */
+  ::view-transition-group(*.figure) {
+    animation-duration: 380ms;
+    animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1);
+  }
+
+  ::view-transition-old(*.figure),
+  ::view-transition-new(*.figure) {
+    animation-duration: 380ms;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}

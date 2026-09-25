@@ -20,11 +20,15 @@ export const metadata = pageMeta(
 const SKILLS = [
   [
     'Quantitative',
-    'Options pricing (Black–Scholes), Greeks, volatility surface modelling, portfolio construction, Fama–French and CAPM regression, isotonic calibration, leakage auditing, bootstrap inference, hypothesis testing.',
+    'Options pricing and Black–Scholes, Greeks, volatility surface modelling, calibration, temporal cross-validation, bootstrap confidence intervals, hypothesis testing, Fama–French and CAPM regression.',
   ],
   [
-    'Programming',
-    'Python (pandas, NumPy, SciPy, scikit-learn, PyTorch, matplotlib), SQL, TypeScript, JavaScript, React, Next.js, Node, PostgreSQL and Supabase, Stripe, the Anthropic API, Git. Deploys on Vercel, Fly.io and Yandex Cloud. Excel financial modelling.',
+    'Languages',
+    'Python (pandas, NumPy, SciPy, scikit-learn, PyTorch), TypeScript, JavaScript, SQL. English and Russian, both fluent.',
+  ],
+  [
+    'Platforms',
+    'Next.js, React, Supabase (Postgres, Auth, Realtime), Vercel, Fly.io, Stripe, Yandex Cloud, Tailwind, Git, Jupyter; the Anthropic Claude API and LLM pipelines.',
   ],
 ] as const
 
