@@ -49,3 +49,6 @@ next-env.d.ts
 
 # local handoff notes
 /HANDOFF.md
+
+# the CV PDF is printed from /cv at build time (scripts/cv-pdf.mjs)
+/public/ilia-duda-resume.pdf

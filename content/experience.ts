@@ -21,9 +21,14 @@ export interface Role {
   readonly brief: string
   /** Résumé-level bullets for /about. */
   readonly detail: readonly string[]
+  /** The same facts cut to fit one printed page, for /cv. Falls back to detail. */
+  readonly cv?: readonly string[]
   /** Set when a bullet still needs the owner's sign-off before production. */
   readonly draft?: string
+  /** The paper this role is written up in. */
   readonly href?: string
+  /** A figure on /about that belongs to this role. */
+  readonly figure?: string
 }
 
 export const roles: readonly Role[] = [
@@ -31,7 +36,7 @@ export const roles: readonly Role[] = [
     id: 'glacier',
     org: 'Glacier Capital Systems',
     orgNote: 'proprietary options trading firm',
-    title: 'Quantitative Software Engineer',
+    title: 'Quantitative Analyst and Engineer',
     place: 'Remote',
     dates: 'January 2026 – present',
     brief: 'Sole engineer on the firm’s Python research stack for options, and the real-time dashboard that puts its output in front of the trader.',
@@ -40,8 +45,11 @@ export const roles: readonly Role[] = [
       'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
       'Built the real-time alert dashboard — Next.js on Vercel, Supabase, and a Python worker on Fly.io — replacing a cron-and-email pipeline, and moved strategy configuration out of code so non-engineers can tune it without a deploy.',
     ],
-    draft:
-      'TODO(owner): sign off these bullets, and confirm the title: you told me “Quantitative Software Engineer”, the résumé you just sent says “Quantitative Analyst and Engineer”. Borderline: naming the components, the validation service, the hosting providers.',
+    cv: [
+      'Sole engineer on the firm’s Python research stack for options: volatility modelling, options-chain analysis, candidate scoring and market scanning.',
+      'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
+      'Built the real-time alert dashboard (Next.js, Supabase, a Python worker on Fly.io) that replaced a cron-and-email pipeline; moved strategy configuration out of code.',
+    ],
   },
   {
     id: 'debt-portal',
@@ -55,6 +63,10 @@ export const roles: readonly Role[] = [
       'Only developer on a self-service debt-settlement portal for a licensed collection organisation: debt lookup, a settlement calculator, SMS authentication, and card and SBP payment.',
       'Architecture set by statute: 152-FZ data localisation rules out foreign hosting and CDNs, and the 230-FZ contact cap means the login SMS itself spends part of a debtor’s legal allowance, so the limits are enforced in code.',
       'Next.js 16 with Turbopack and Tailwind 4, hosted on Yandex Cloud.',
+    ],
+    cv: [
+      'Only developer, end to end: debt lookup, a settlement calculator in integer kopecks, SMS authentication.',
+      'Built to 152-FZ data localisation and the 230-FZ contact cap, enforced in code and by build gates; Next.js 16, Yandex Cloud.',
     ],
     href: '/debt-portal',
   },
@@ -70,6 +82,10 @@ export const roles: readonly Role[] = [
       'Wrote the categorisation pipeline on the Anthropic Claude API: it parses bank statements from CSV and PDF, maps each line to the client’s chart of accounts with a confidence score, and routes low-confidence rows to an exception queue for a human to approve.',
       'Gated export behind chart-of-accounts validation, so a suggested account that does not resolve against the client’s chart cannot leave the system.',
     ],
+    cv: [
+      'Built and deployed alone a multi-tenant month-end close for CPA firms: Next.js, TypeScript, Supabase Postgres with row-level security, Stripe billing in three tiers.',
+      'Categorisation pipeline on the Claude API: parses CSV and PDF bank statements and maps each line to the client’s chart of accounts with a confidence score; low-confidence rows go to a human.',
+    ],
     href: '/closebooks',
   },
   {
@@ -83,6 +99,9 @@ export const roles: readonly Role[] = [
       'Co-founded a product placing ads inside invoices and receipts, with metered billing and Stripe Connect payouts to the businesses hosting the placements.',
       'Built eight accounting and point-of-sale integrations onto one invoice type, and a billing ledger in millicents so a fifth-of-a-penny impression is exact.',
     ],
+    cv: [
+      'Co-founded a product placing ads inside invoices and receipts; built eight accounting and point-of-sale integrations onto one invoice type, a millicent billing ledger and Stripe Connect payouts.',
+    ],
     href: '/adconfirm',
   },
   {
@@ -92,11 +111,17 @@ export const roles: readonly Role[] = [
     title: 'Investment Banking Intern',
     place: 'Moscow',
     dates: 'July – August 2023',
-    brief: 'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models.',
+    brief: 'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models; wrote daily briefings on government bonds through two rate hikes.',
     detail: [
-      'Covered Russian energy, metals and banking sectors.',
-      'Built DCF, comparable-company and sensitivity models, and wrote daily market briefings on government bond movements and index activity.',
+      'Covered the Russian energy, metals and banking sectors.',
+      'Built DCF, comparable-company and sensitivity models.',
+      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate increases in five weeks.',
     ],
+    cv: [
+      'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models.',
+      'Wrote daily briefings on OFZ, index activity and Bank of Russia policy through two rate rises in five weeks.',
+    ],
+    figure: '/about#fig-ofz-curve',
   },
   {
     id: 'monito',
@@ -109,6 +134,9 @@ export const roles: readonly Role[] = [
     detail: [
       'Won UK National Company of the Year and reached the European Finals.',
       'Owned the budget and the financial reporting as financial director.',
+    ],
+    cv: [
+      'Won UK National Company of the Year and reached the European Finals.',
     ],
   },
 ]
@@ -137,6 +165,33 @@ export const certifications = [
   'DataCamp — AI Engineer for Data Scientists Associate',
   'IBM — Generative AI in Action',
   'Yandex Practicum — Data analytics',
+] as const
+
+/**
+ * Monito's competition, round by round, from the timeline on the owner's
+ * earlier site. Each round is won to reach the next.
+ */
+export const monitoRounds = [
+  { round: 'Worcestershire and Warwickshire', result: 'Regional award', date: 'January 2023' },
+  { round: 'West Midlands', result: 'Company of the Year', date: 'March 2023' },
+  { round: 'United Kingdom', result: 'National Company of the Year', date: 'May 2023' },
+  { round: 'Europe', result: 'European Finals', date: 'July 2023' },
+] as const
+
+/** Skills as on the résumé, for /about and /cv. */
+export const SKILLS = [
+  [
+    'Quantitative',
+    'Options pricing and Black–Scholes, Greeks, volatility surface modelling, calibration, temporal cross-validation, bootstrap confidence intervals, hypothesis testing, Fama–French and CAPM regression.',
+  ],
+  [
+    'Languages',
+    'Python (pandas, NumPy, SciPy, scikit-learn, PyTorch), TypeScript, JavaScript, SQL. English and Russian, both fluent.',
+  ],
+  [
+    'Platforms',
+    'Next.js, React, Supabase (Postgres, Auth, Realtime), Vercel, Fly.io, Stripe, Yandex Cloud, Tailwind, Git, Jupyter; the Anthropic Claude API and LLM pipelines.',
+  ],
 ] as const
 
 export const languages = 'English and Russian, both fluent.'

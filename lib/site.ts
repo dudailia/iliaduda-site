@@ -27,20 +27,17 @@ export const POSITIONING =
   'Mathematics and Business Administration at Northeastern, class of 2028. I work on quantitative finance and the systems around it: research stacks, market tooling and applied LLM infrastructure.'
 
 /**
- * The résumé is linked only once the file exists. A portfolio whose résumé
- * link 404s makes the reader's argument for them, so until the PDF is in
- * public/ the link goes to the CV section on /about and says so.
+ * The CV is a page (/cv) and a PDF printed from it at build time by
+ * scripts/cv-pdf.mjs, so the two cannot disagree. The masthead links the PDF,
+ * because that is what a recruiter files; the page is linked from /about and
+ * the footer.
  */
 export const RESUME = {
   pdf: '/ilia-duda-resume.pdf',
-  // TODO(owner): set to true when public/ilia-duda-resume.pdf is supplied.
-  published: false,
-  fallback: '/about#cv',
+  page: '/cv',
 } as const
 
-export const resumeLink = RESUME.published
-  ? { href: RESUME.pdf, label: 'Résumé (PDF)' }
-  : { href: RESUME.fallback, label: 'CV' }
+export const resumeLink = { href: RESUME.pdf, label: 'CV (PDF)' } as const
 
 /**
  * The canonical origin. Vercel exposes VERCEL_PROJECT_PRODUCTION_URL on every
@@ -73,6 +70,8 @@ const deployment =
 
 export const SITE = {
   canonical: production ?? 'http://localhost:3000',
+  /** The public address to print, on the CV, even from a local build. */
+  public: production ?? https(FALLBACK)!,
   origin: deployment ?? production ?? 'http://localhost:3000',
   /** Previews render pending work; production never does. */
   isProduction: process.env.VERCEL_ENV === 'production',

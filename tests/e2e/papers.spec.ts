@@ -66,3 +66,16 @@ test('opening a paper names exactly its own thumbnail and its own figure', async
     expect(onPaper, `${name} on ${p.href}`).toBe(1)
   }
 })
+
+test('BCS: the OFZ curve opens on the extraordinary hike and scrubs by trading day', async ({ page }) => {
+  await page.goto('/about')
+  const slider = page.getByRole('slider', { name: 'Trading day' })
+  await expect(slider).toHaveAttribute('aria-valuetext', /15 Aug 2023: 3-month 10\.69%.*key rate 12\.00%/)
+  await slider.focus()
+  await page.keyboard.press('ArrowLeft')
+  await expect(slider).toHaveAttribute('aria-valuetext', /14 Aug 2023: 3-month 8\.39%.*key rate 8\.50%/)
+  await page.keyboard.press('Home')
+  await expect(slider).toHaveAttribute('aria-valuetext', /3 Jul 2023.*key rate 7\.50%/)
+  await page.getByRole('button', { name: /21 Jul/ }).click()
+  await expect(slider).toHaveAttribute('aria-valuetext', /21 Jul 2023/)
+})

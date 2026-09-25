@@ -28,6 +28,13 @@ export interface Paper {
    * publication.
    */
   readonly status: 'published' | 'pending'
+  /**
+   * The paper as one résumé line, for /cv. Only papers that are not already a
+   * role on the CV carry one; the rest are written up under Experience.
+   */
+  readonly cv?: string
+  /** A short name for the CV's run-in heading. */
+  readonly cvName?: string
 }
 
 export const papers: readonly Paper[] = [
@@ -38,6 +45,8 @@ export const papers: readonly Paper[] = [
     abstract: `A synthetic SSVI surface shaped like an equity index, drawn live, with implied and local volatility and Black–Scholes Greeks at any point. Its parameters meet Gatheral and Jacquier’s conditions for no static arbitrage, the tests check them on a dense grid, and Fig. 2 lets you break them.`,
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
+    cvName: 'Implied-volatility surface without static arbitrage',
+    cv: 'A synthetic SSVI surface rendered live in raw WebGL2, with Dupire local volatility and Black–Scholes Greeks at any point; no-static-arbitrage conditions asserted by tests on a dense grid.',
   },
   {
     slug: 'closebooks',
@@ -54,6 +63,8 @@ export const papers: readonly Paper[] = [
     abstract: `A leakage-audited model of T20 cricket over ${n('crDeliveries')} deliveries. Gradient boosting on match state cuts log-loss on win probability ${Math.round(fact('crT2Skill').value)}% below the base rate (${fact('crT2Nll').value.toFixed(3)} against ${fact('crT2Base').value.toFixed(3)}) on held-out matches, and the study measured what player identity adds before building on it: ${fact('crIdentityGain').value}%, under the bar.`,
     byline: 'Independent research · July 2026',
     status: 'published',
+    cvName: 'cricstate',
+    cv: `Leakage-audited T20 win-probability model over ${n('crDeliveries')} deliveries: gradient boosting on match state cuts held-out log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate; temporal splits, leakage canaries in CI, paired bootstrap.`,
   },
   {
     slug: 'startup-investments',
@@ -62,6 +73,8 @@ export const papers: readonly Paper[] = [
     abstract: `A composite model ranks ${n('siMassSegments')} startup segments on growth and size across ${n('siRowsFinal')} funding records. Re-executing my capstone exactly, then changing one data decision at a time, measures how much the recommendation depends on them — three treatments give three different top picks — and finds the segments that hold up under all three.`,
     byline: 'Data-analytics capstone, Yandex Practicum · December 2025 · Python, pandas',
     status: 'published',
+    cvName: 'Startup segment ranking',
+    cv: `Re-executed my capstone ranking of ${n('siMassSegments')} startup segments over ${n('siRowsFinal')} funding records, varying one data decision at a time: three treatments, three top picks, and the segments robust to all three.`,
   },
   {
     slug: 'debt-portal',

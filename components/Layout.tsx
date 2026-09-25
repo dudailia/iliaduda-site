@@ -11,7 +11,7 @@ import type { ReactNode } from 'react'
 
 export function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8">
+    <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">
       {children}
     </div>
   )

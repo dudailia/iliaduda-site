@@ -444,6 +444,34 @@ const facts = {
     label: 'error the app reports on its own output',
     source: 'nucarbon/app/executive/page.tsx:457',
   },
+
+  // ── BCS: the OFZ curve, July–August 2023 ──────────────────────────────────
+  // Public market data, written by scripts/ofz_curve.mjs from the Moscow
+  // Exchange and cross-checked against the Bank of Russia.
+  bcTradingDays: {
+    value: 44,
+    unit: 'count',
+    label: 'trading days drawn',
+    source: 'content/data/ofz-curve.json → days (every date in cbr.ru/hd_base/zcyc_params, 03.07.2023–31.08.2023)',
+  },
+  bcKeyRateJune: {
+    value: 7.5,
+    unit: 'percent',
+    label: 'key rate into July',
+    source: 'cbr.ru/hd_base/KeyRate — 7.50 in effect from 01.06.2023',
+  },
+  bcKeyRateJuly: {
+    value: 8.5,
+    unit: 'percent',
+    label: 'key rate from 24 July',
+    source: 'cbr.ru/hd_base/KeyRate — 8.50 from 24.07.2023; Bank of Russia press release, 21 July 2023',
+  },
+  bcKeyRateAug: {
+    value: 12,
+    unit: 'percent',
+    label: 'key rate from 15 August',
+    source: 'cbr.ru/hd_base/KeyRate — 12.00 from 15.08.2023; Bank of Russia press release, extraordinary meeting of 15 August 2023',
+  },
 } as const satisfies Record<string, Fact>
 
 export type FactKey = keyof typeof facts

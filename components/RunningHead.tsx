@@ -10,7 +10,7 @@ import { Shell } from './Layout'
  */
 export function RunningHead() {
   return (
-    <header className="border-b border-rule">
+    <header className="border-b border-rule print:hidden">
       <Shell>
         <div className="text-meta flex flex-wrap items-baseline justify-between gap-x-6 font-mono">
           <p className="flex items-baseline gap-x-3">

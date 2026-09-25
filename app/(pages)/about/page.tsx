@@ -1,54 +1,85 @@
-import { CaseStudyTitle, Section } from '@/components/CaseStudy'
-import { Shell } from '@/components/Layout'
+import Image from 'next/image'
+import { Section } from '@/components/CaseStudy'
+import { Row, Shell } from '@/components/Layout'
 import { ContactLinks } from '@/components/Masthead'
-import { certifications, education, languages, roles } from '@/content/experience'
+import { OfzCurve } from '@/components/figures/OfzCurve'
+import { certifications, education, languages, monitoRounds, roles, SKILLS } from '@/content/experience'
 import { pageMeta } from '@/lib/meta'
-import { AVAILABILITY, POSITIONING, SITE } from '@/lib/site'
+import { AVAILABILITY, PERSON, POSITIONING, SITE } from '@/lib/site'
+import headshot from './headshot.jpg'
 
 export const metadata = pageMeta(
   '/about',
-  'About and CV',
+  'About',
   `Experience, education and coursework. ${AVAILABILITY.line}.`,
 )
 
 /**
- * The CV in the site's own register. The masthead's résumé link points here
- * until the PDF exists, so this page has to stand in for it completely:
- * experience, education, coursework, skills, and how to get in touch.
+ * The long form of the CV: every role with its detail, the figure that goes
+ * with the BCS internship, Monito's competition round by round, education,
+ * coursework and skills. /cv is the same facts cut to one printed page.
  */
 
-const SKILLS = [
-  [
-    'Quantitative',
-    'Options pricing and Black–Scholes, Greeks, volatility surface modelling, calibration, temporal cross-validation, bootstrap confidence intervals, hypothesis testing, Fama–French and CAPM regression.',
-  ],
-  [
-    'Languages',
-    'Python (pandas, NumPy, SciPy, scikit-learn, PyTorch), TypeScript, JavaScript, SQL. English and Russian, both fluent.',
-  ],
-  [
-    'Platforms',
-    'Next.js, React, Supabase (Postgres, Auth, Realtime), Vercel, Fly.io, Stripe, Yandex Cloud, Tailwind, Git, Jupyter; the Anthropic Claude API and LLM pipelines.',
-  ],
-] as const
+
+function MonitoRounds() {
+  return (
+    <table className="text-note mt-4 w-full border-y border-rule">
+      <caption className="sr-only">Monito in the Young Enterprise company programme, round by round</caption>
+      <thead className="sr-only">
+        <tr>
+          <th scope="col">Round</th>
+          <th scope="col">Result</th>
+          <th scope="col">Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {monitoRounds.map((r) => (
+          <tr key={r.round} className="border-b border-rule last:border-b-0">
+            <th scope="row" className="py-1.5 pr-4 text-left font-normal text-graphite">
+              {r.round}
+            </th>
+            <td className="py-1.5 pr-4">{r.result}</td>
+            <td className="text-meta py-1.5 text-right font-mono whitespace-nowrap text-graphite">{r.date}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
 
 export default function About() {
   return (
     <Shell>
       <article id="cv">
-        <CaseStudyTitle
-          level="h1"
-          title="About and CV"
-          standfirst={
-            <>
-              <p>
-                {POSITIONING} {AVAILABILITY.line}; based in Boston and open to{' '}
-                {AVAILABILITY.locations.join(', ').replace(/, ([^,]*)$/, ' or $1')}.
-              </p>
-              <ContactLinks className="text-note mt-3 text-ink" />
-            </>
+        <Row
+          className="pt-10 lg:pt-16"
+          rail={
+            <Image
+              src={headshot}
+              alt={`${PERSON.name}`}
+              sizes="(min-width: 64rem) 128px, 88px"
+              loading="eager"
+              className="h-auto w-[5.5rem] border border-rule lg:ml-auto lg:w-32"
+            />
           }
-        />
+        >
+          <h1 className="text-h2 sm:text-h1">About</h1>
+          <div className="mt-5 max-w-[37.9rem]">
+            <p>
+              {POSITIONING} {AVAILABILITY.line}, based in Boston and just as open to{' '}
+              {AVAILABILITY.locations
+                .filter((l) => !PERSON.base.startsWith(l))
+                .join(', ')
+                .replace(/, ([^,]*)$/, ' or $1')}
+              .
+            </p>
+            <ContactLinks className="text-note mt-3 text-ink" />
+            <p className="text-note mt-1 text-graphite">
+              The same record cut to one page: <a href="/cv">the CV</a>.
+            </p>
+          </div>
+          <hr className="mt-8 border-0 border-t border-rule" />
+        </Row>
 
         <Section heading="Experience">
           <ol className="grid list-none gap-y-8">
@@ -76,6 +107,8 @@ export default function About() {
                     <a href={r.href}>Read the paper</a>
                   </p>
                 ) : null}
+                {r.id === 'bcs' ? <OfzCurve inline /> : null}
+                {r.id === 'monito' ? <MonitoRounds /> : null}
               </li>
             ))}
           </ol>

@@ -7,6 +7,7 @@ import { otherWork, visiblePapers } from '../../content/papers'
 export const ROUTES = [
   '/',
   '/about',
+  '/cv',
   ...visiblePapers(false).map((p) => p.href),
   ...otherWork.map((o) => o.href),
 ] as const

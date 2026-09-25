@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: url('/'), lastModified: now, priority: 1 },
     ...visiblePapers(true).map((p) => ({ url: url(p.href), lastModified: now, priority: 0.8 })),
     { url: url('/about'), lastModified: now, priority: 0.8 },
+    { url: url('/cv'), lastModified: now, priority: 0.8 },
     ...otherWork.map((o) => ({ url: url(o.href), lastModified: now, priority: 0.5 })),
   ]
 }

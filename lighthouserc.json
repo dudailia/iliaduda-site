@@ -9,7 +9,9 @@
         "http://127.0.0.1:4500/closebooks",
         "http://127.0.0.1:4500/cricstate",
         "http://127.0.0.1:4500/startup-investments",
-        "http://127.0.0.1:4500/debt-portal"
+        "http://127.0.0.1:4500/debt-portal",
+        "http://127.0.0.1:4500/about",
+        "http://127.0.0.1:4500/cv"
       ],
       "numberOfRuns": 5,
       "settings": {

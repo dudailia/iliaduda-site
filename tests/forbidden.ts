@@ -57,4 +57,7 @@ export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
   [/version delta/i, 'Glacier internal system name'],
   [/worker\.py|fly\.toml|glacier_v2|WORKER_[A-Z_]+/, 'Glacier internal paths and settings'],
   [/\bDTE\b|\bOTM\b/, 'Glacier strategy parameters'],
+
+  // The public CV and every page: no phone number, ever.
+  [/\+\d[\d\s().-]{8,}\d|\(\d{3}\)\s?\d{3}[\s.-]\d{4}\b/, 'no phone number on the public site'],
 ]

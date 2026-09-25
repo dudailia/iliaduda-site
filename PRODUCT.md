@@ -32,7 +32,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 - Next.js 16 App Router, React 19, Tailwind 4, TypeScript strict. Hand-authored SVG figures; no chart library.
 - Hard budgets: mobile Lighthouse performance ≥ 90; accessibility 100; zero third-party requests; production total transfer ≤ 260 KB; CLS ≤ 0.01. WebGL must be lazy-loaded, paused off-screen, with a static fallback; `prefers-reduced-motion` means static figures.
 - Strict CSP (`script-src 'self' 'unsafe-inline'`, no `blob:`, no eval, `connect-src 'self'`).
-- Glacier Capital Systems (proprietary trading firm; Quantitative Software Engineer, remote, Jan 2026 – present) is described at résumé level only: what he builds and the stack. Never strategies, parameters, data, code, internal names/paths, env vars, test counts, performance numbers, returns, Sharpe, tickers or strategy-vs-benchmark charts.
+- Glacier Capital Systems (proprietary trading firm; Quantitative Analyst and Engineer, remote, Jan 2026 – present) is described at résumé level only: what he builds and the stack. Never strategies, parameters, data, code, internal names/paths, env vars, test counts, performance numbers, returns, Sharpe, tickers or strategy-vs-benchmark charts.
 - Never invent metrics, clients, users or results. Missing facts ship as visible TODO placeholders and are listed for the owner.
 - When sources conflict, the September 2026 résumé wins and the conflict is listed.
 - Nothing paid is enabled. Vercel Web Analytics may be suggested, never enabled.

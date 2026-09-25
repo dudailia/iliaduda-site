@@ -12,7 +12,7 @@ import { ContactLinks } from './Masthead'
 export function Footer() {
   const papers = visiblePapers(SITE.isProduction)
   return (
-    <footer className="mt-24 border-t border-rule py-12 lg:mt-32">
+    <footer className="mt-24 border-t border-rule py-12 lg:mt-32 print:hidden">
       <Shell>
         <Row rail="Contact">
           <p className="max-w-[36rem]">
@@ -41,7 +41,12 @@ export function Footer() {
               ))}
               <li>
                 <a href="/about" className="inline-block py-1">
-                  About and CV
+                  About
+                </a>
+              </li>
+              <li>
+                <a href="/cv" className="inline-block py-1">
+                  CV
                 </a>
               </li>
             </ul>

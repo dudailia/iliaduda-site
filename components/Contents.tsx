@@ -100,13 +100,23 @@ export function ExperienceBrief() {
                     {' '}
                     <a href={r.href}>Read the paper</a>
                   </>
+                ) : r.figure ? (
+                  <>
+                    {' '}
+                    <a href={r.figure}>See the curve</a>
+                  </>
                 ) : null}
               </p>
             </li>
           ))}
         </ul>
-        <p className="text-note mt-6">
-          <a href="/about">Full CV, education and coursework</a>
+        <p className="text-note mt-6 flex flex-wrap gap-x-5">
+          <a href="/about" className="inline-block py-1">
+            Every role in full, with education and coursework
+          </a>
+          <a href="/cv" className="inline-block py-1">
+            The one-page CV
+          </a>
         </p>
       </Row>
     </section>
