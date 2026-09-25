@@ -83,15 +83,15 @@ pnpm check:all        # all of the above, in order
   use, each figure doing the one thing it exists to show, the CV PDF served as
   one page, and the old URLs redirecting.
 
-Measured on the preview deployment, mobile Lighthouse, two runs per route:
+Measured on the preview deployment (25 September 2026), mobile Lighthouse, two runs on each of ten routes:
 
 | | |
 |---|---|
-| Performance | MEASURED |
+| Performance | 93–100 |
 | Accessibility | 100 |
 | Best practices | 100 |
 | CLS | 0 |
-| Transfer | MEASURED |
+| Transfer | 233–258 KB (budget 260) |
 | Third-party requests | 0 |
 
 ## Notes
