@@ -35,15 +35,19 @@ export function LabPage({
     <>
       <div className="border-b border-rule">
         <Shell>
-          <nav aria-label="Hero prototypes" className="text-meta flex flex-wrap items-baseline justify-between gap-x-6 font-mono">
-            <p className="py-2.5 text-graphite">Lab · hero prototypes · not linked, not indexed</p>
+          {/* One line at every width, 2.5rem tall: the heroes size their
+              stages against it (100svh − 2.5rem). */}
+          <nav aria-label="Hero prototypes" className="text-meta flex h-10 flex-nowrap items-center justify-between gap-x-6 overflow-hidden font-mono whitespace-nowrap">
+            <p className="text-graphite">
+              Lab<span className="hidden sm:inline"> · hero prototypes · not linked, not indexed</span>
+            </p>
             <ul className="flex gap-x-2">
               {LAB.map((l) => (
                 <li key={l.slug}>
                   <a
                     href={`/lab/${l.slug}`}
                     aria-current={l.slug === slug ? 'page' : undefined}
-                    className={`inline-block min-w-6 px-1.5 py-2.5 text-center ${l.slug === slug ? 'text-ink' : 'text-graphite'}`}
+                    className={`inline-block min-w-6 px-1.5 py-2 text-center ${l.slug === slug ? 'text-ink' : 'text-graphite'}`}
                   >
                     {l.slug.toUpperCase()}
                     <span className="sr-only">: {l.name}</span>

@@ -75,7 +75,7 @@ export interface Stage {
   /** Whether this stage will ever go live (false under reduced motion, no WebGL2, save-data). */
   eligible: boolean
   reduced: boolean
-  /** Current quality level and measured frames per second, for honest readouts. */
+  /** Current quality level and measured frames per second, for readouts that report what this device does. */
   quality: number
   fps: number
   tier: Tier | null
@@ -120,6 +120,7 @@ export function useStage(create: Create, opts: { threshold?: number } = {}): Sta
     let t0 = 0
     let last = 0
     let ema = 16.7
+    let vsync = 16.7
     let slow = 0
     let fast = 0
     let frames = 0
@@ -150,12 +151,16 @@ export function useStage(create: Create, opts: { threshold?: number } = {}): Sta
         first = true
         setLive(true)
       }
-      // The governor. An EMA of frame time; a second of slow frames steps
-      // down, three seconds of easy ones step up, never past the device tier.
+      // The governor, against this display's own refresh: `vsync` tracks the
+      // shortest smoothed frame interval seen (8.3ms at 120Hz, 16.7ms at
+      // 60Hz). A second below ~50fps steps down; three seconds at the refresh
+      // rate step back up, never past the device tier. A fixed "under 13ms"
+      // could never be met at 60Hz, so quality once lowered stayed low.
       ema = ema * 0.9 + dt * 1000 * 0.1
-      if (ema > 21) slow += dt
+      vsync = Math.min(vsync * 1.0005, ema)
+      if (ema > Math.max(vsync * 1.35, 20)) slow += dt
       else slow = 0
-      if (ema < 13) fast += dt
+      if (ema < vsync * 1.15) fast += dt
       else fast = 0
       if (slow > 1 && q > 0) {
         q--

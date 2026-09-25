@@ -295,7 +295,7 @@ export function Hero({ initial }: { initial: { stats: Summary; bars: Bar[] } }) 
   return (
     <section ref={section} aria-label="Live figure: a million simulated futures" className="relative" style={{ height: tall ? '250vh' : undefined }}>
       {/* The stage is one screen under the lab bar, whose height depends on how its line wraps. */}
-      <figure data-fps={fps} data-quality={quality} data-tier={tier ?? ''} className="sticky top-0 flex h-[calc(100svh-6.1rem)] min-h-[36rem] flex-col min-[26rem]:h-[calc(100svh-4.95rem)] min-[32.2rem]:h-[calc(100svh-2.5rem)]">
+      <figure data-fps={fps} data-quality={quality} data-tier={tier ?? ''} className="sticky top-0 flex h-[calc(100svh-2.5rem)] min-h-[36rem] flex-col">
         <figcaption
           ref={caption}
           className="pointer-events-none z-10 mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 pt-3 sm:absolute sm:inset-x-0 sm:top-0 sm:px-8 sm:pt-5 lg:pt-7"
