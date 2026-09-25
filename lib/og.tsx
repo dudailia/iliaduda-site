@@ -25,7 +25,7 @@ export const OG = {
   wash: '#E4E6F2',
 } as const
 
-async function fonts() {
+export async function fonts() {
   const [serif, mono] = await Promise.all([
     readFile(join(process.cwd(), 'assets/og-fonts/SourceSerif4-Regular.otf')),
     readFile(join(process.cwd(), 'assets/og-fonts/SourceCodePro-Regular.otf')),
@@ -118,6 +118,27 @@ export function ogThumb(slug: string): ReactNode {
         <path key={`p${i}`} d={d} fill="none" stroke={OG.indigo} strokeWidth={3 / sx} />
       ))}
     </svg>
+  )
+}
+
+/**
+ * A figure box that is a register rather than a chart: for pages whose figure
+ * is a list (the CV's roles, AdConfirm's adapters, nucarbon's constants). The
+ * rows are the page's own data, so the card still shows the thing itself.
+ */
+export function ogRegister(rows: readonly (readonly [string, string, boolean?])[], fontSize = 21): ReactNode {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: OG_FIG.width, fontFamily: 'SourceMono', fontSize }}>
+      {rows.map(([k, v, claim]) => (
+        <div
+          key={k}
+          style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '9px 0', borderBottom: `1px solid ${OG.rule}` }}
+        >
+          <span style={{ color: claim ? OG.indigo : OG.ink }}>{k}</span>
+          <span style={{ color: OG.graphite, flexShrink: 0 }}>{v}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 

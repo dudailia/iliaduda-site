@@ -57,6 +57,19 @@ try {
   await page.goto(`${ORIGIN}/cv`, { waitUntil: 'networkidle' })
   await page.evaluate(() => document.fonts.ready)
 
+  // Chromium paints positioned boxes after in-flow content, and writes the
+  // PDF's text layer in paint order. One absolutely positioned bullet dash
+  // once put every bullet after the Skills section in the extracted text —
+  // invisible on the page, and exactly what a résumé parser reads.
+  const positioned = await page.evaluate(() =>
+    [...document.querySelectorAll('.cv, .cv *')].flatMap((el) =>
+      [null, '::before', '::after']
+        .filter((pseudo) => getComputedStyle(el, pseudo).position !== 'static')
+        .map((pseudo) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}${pseudo ?? ''}`),
+    ),
+  )
+  if (positioned.length) throw new Error(`/cv must have no positioned boxes (PDF text order): ${positioned.join(', ')}`)
+
   const print = (format) => page.pdf({ format, margin: MARGIN, printBackground: false, tagged: true, outline: false })
   const letter = await print('Letter')
   const a4 = await print('A4')

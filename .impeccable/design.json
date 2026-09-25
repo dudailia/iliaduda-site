@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-25T14:40:23.123867+00:00",
+  "title": "Design System: Ilia Duda — working papers",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#16181c"
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#faf9f7"
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "#5b6068"
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#dedcd7"
+      },
+      "indigo": {
+        "role": "primary",
+        "displayName": "Measurement Indigo",
+        "canonical": "#2f3a8c"
+      },
+      "indigo-wash": {
+        "role": "primary",
+        "displayName": "Context Wash",
+        "canonical": "#e4e6f2"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The masthead name, once."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose at a 44.375rem measure."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Rail headings, meta lines, readouts, ticks: data only."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "ease-orchestrated",
+        "value": "cubic-bezier(0.77, 0, 0.175, 1)",
+        "purpose": "Hero tilt (900ms), contents-to-figure morph (380ms), FLIP reorder (280ms)."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Root crossfade (180ms), confidence settle (240ms)."
+      },
+      {
+        "name": "state",
+        "value": "120–150ms ease-out",
+        "purpose": "Link underline and control border colour."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "40rem"
+      },
+      {
+        "name": "md",
+        "value": "48rem"
+      },
+      {
+        "name": "lg",
+        "value": "64rem"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Figure control",
+      "kind": "button",
+      "refersTo": "figure-control",
+      "description": "Quiet instrument inside a figure; ink fill when selected.",
+      "html": "<div class=\"ds-row\"><button class=\"ds-ctl\" aria-pressed=\"false\">As written</button><button class=\"ds-ctl ds-on\" aria-pressed=\"true\">Both fixed</button></div>",
+      "css": ".ds-row{display:flex;gap:8px}.ds-ctl{font-family:var(--font-mono),ui-monospace,monospace;font-size:13px;line-height:1.45;padding:8px 10px;border:1px solid var(--color-graphite,#5b6068);border-radius:4px;background:var(--color-paper,#faf9f7);color:var(--color-ink,#16181c);transition:border-color 150ms ease-out;cursor:pointer}.ds-ctl:hover{border-color:var(--color-ink,#16181c)}.ds-ctl:focus-visible{outline:2px solid var(--color-ink,#16181c);outline-offset:3px}.ds-on{background:var(--color-ink,#16181c);color:var(--color-paper,#faf9f7);border-color:var(--color-ink,#16181c)}"
+    },
+    {
+      "name": "Text link",
+      "kind": "custom",
+      "refersTo": "text-link",
+      "description": "Ink text, hairline underline that darkens on hover.",
+      "html": "<p class=\"ds-p\">Read <a class=\"ds-a\" href=\"#\">the paper</a>.</p>",
+      "css": ".ds-p{font-family:var(--font-serif),Georgia,serif;font-size:19px;color:var(--color-ink,#16181c)}.ds-a{color:inherit;text-decoration:underline;text-decoration-color:var(--color-rule,#dedcd7);text-decoration-thickness:1px;text-underline-offset:.22em;transition:text-decoration-color 120ms ease}.ds-a:hover{text-decoration-color:var(--color-ink,#16181c)}.ds-a:focus-visible{outline:2px solid var(--color-ink,#16181c);outline-offset:3px}"
+    },
+    {
+      "name": "Rail row",
+      "kind": "custom",
+      "refersTo": "rail-heading",
+      "description": "Right-aligned mono heading in a 15rem rail beside the text column.",
+      "html": "<div class=\"ds-rr\"><h2 class=\"ds-rh\">The hard part</h2><p class=\"ds-rp\">Every one of the eight vendors disagrees with the others somewhere.</p></div>",
+      "css": ".ds-rr{display:grid;grid-template-columns:15rem minmax(0,44.375rem);gap:0 2.5rem}.ds-rh{font-family:var(--font-mono),monospace;font-size:13px;font-weight:400;text-align:right;padding-top:4px;color:var(--color-ink,#16181c);margin:0}.ds-rp{font-family:var(--font-serif),Georgia,serif;font-size:19px;line-height:1.62;margin:0;color:var(--color-ink,#16181c)}"
+    },
+    {
+      "name": "Meta line",
+      "kind": "custom",
+      "refersTo": "meta-line",
+      "description": "Role · place · dates in graphite mono; wraps between items only.",
+      "html": "<p class=\"ds-m\"><span>Quantitative Analyst and Engineer ·</span> <span>Remote ·</span> <span>January 2026 – present</span></p>",
+      "css": ".ds-m{font-family:var(--font-mono),monospace;font-size:13px;line-height:1.45;color:var(--color-graphite,#5b6068)}.ds-m span{white-space:nowrap}"
+    },
+    {
+      "name": "Figure frame",
+      "kind": "card",
+      "refersTo": "figure-caption",
+      "description": "Fig. N in the rail, title over mono subtitle and hairline, caption in graphite.",
+      "html": "<figure class=\"ds-f\"><div class=\"ds-fn\">Fig. 1</div><div><div class=\"ds-ft\">The OFZ curve through two rate decisions</div><div class=\"ds-fs\">zero-coupon yield · public data</div><svg viewBox=\"0 0 300 90\" class=\"ds-fp\"><path d=\"M0 70 C80 60 160 40 300 30\" fill=\"none\" stroke=\"var(--color-rule,#dedcd7)\"/><path d=\"M0 30 C80 26 160 20 300 18\" fill=\"none\" stroke=\"var(--color-indigo,#2f3a8c)\" stroke-width=\"2\"/></svg><figcaption class=\"ds-fc\">The short end repriced; the long end did not move.</figcaption></div></figure>",
+      "css": ".ds-f{display:grid;grid-template-columns:6rem 1fr;gap:0 1.5rem;margin:0}.ds-fn{font-family:var(--font-mono),monospace;font-size:13px;color:var(--color-graphite,#5b6068);text-align:right;padding-top:2px}.ds-ft{font-family:var(--font-serif),serif;font-size:15px;color:var(--color-ink,#16181c)}.ds-fs{font-family:var(--font-mono),monospace;font-size:13px;color:var(--color-graphite,#5b6068);border-bottom:1px solid var(--color-rule,#dedcd7);padding-bottom:8px}.ds-fp{width:100%;margin-top:12px}.ds-fc{font-family:var(--font-serif),serif;font-size:15px;line-height:1.5;color:var(--color-graphite,#5b6068);margin-top:12px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A working paper whose figures are alive",
+    "overview": "The site is set as a short journal issue. A masthead carries the front matter, Contents lists five papers, and each paper is a few hundred words of argument around one figure. You can turn, scrub, drag or re-run the figure, and every number in it traces back to a file. The reader is a recruiter at a quantitative, trading or investment firm who gives the first screen thirty seconds, then forwards the link to someone who checks the claims. So the register is the one both of them already trust: the academic paper. It uses serif text, a margin, numbered figures and captions that state what the figure shows.\n\nDensity is literary rather than dashboard-like. There is one text column at a fixed measure, a margin to its left that holds headings, figure numbers and readouts, and generous vertical space between sections. Everything is typographic: no cards, no icons, no photographs except one small portrait in the margin of /about. Colour is almost absent, which is what lets the one accent mean something.\n\nIt is calm everywhere except once. The home page's implied-volatility surface gets a single orchestrated entrance. Two figures replay once when first seen (the cricket match and the CloseBooks batch). Everything else changes state only in direct response to the reader.",
+    "keyCharacteristics": [
+      "One serif family for all prose and headings, one mono for labels, data and measurement. No third face, no display weight.",
+      "An asymmetric grid: a 15rem rail to the left of a 710px text column; below 64rem the rail folds inline.",
+      "Six colour roles in two themes, following the system setting with no toggle.",
+      "Indigo appears only inside figures, and there it marks the claimed value.",
+      "Figures are real and interactive, labelled \"Fig. N\", captioned in graphite, and every figure has a prose description and a screen-reader table.",
+      "Print is a first-class medium: every page prints as a document, and /cv prints to exactly one sheet."
+    ],
+    "rules": [
+      {
+        "name": "The Indigo Is Evidence Rule",
+        "body": "Indigo appears only inside a `<figure>` and only on the measured value. If you are reaching for indigo to make a link, heading or button stand out, the answer is ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Themes, Six Names Rule",
+        "body": "A new colour is a new role in both themes, and it is added to `tests/contrast.test.ts`, which checks WCAG ratios for both sets from the tokens themselves.",
+        "section": "colors"
+      },
+      {
+        "name": "The Measure Is Not in ch Rule",
+        "body": "The measure is in rem (44.375rem), never `ch`. A `ch` measure changes the moment the webfont swaps in, and it once reflowed the whole page for 0.035 CLS on the deployment.",
+        "section": "typography"
+      },
+      {
+        "name": "The Whole Item Rule",
+        "body": "A meta line wraps between items, never inside one. \"January 2026 – present\" is never split across lines, and no line starts with a \"·\" (`Items` in `components/Layout.tsx`).",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Means Data Rule",
+        "body": "Mono is for labels, numbers, dates and code. Prose in mono, or mono to look \"technical\", is out.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline Is the Only Edge Rule",
+        "body": "Separation is a 1px rule or white space. No shadow, no card, no raised surface. When two ruled blocks meet, one rule is enough.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** put every number through `content/facts.ts` with its source, and label synthetic data \"synthetic\" on the figure that draws it.",
+      "**Do** hang headings, figure numbers and readouts in the 15rem rail, right-aligned, in label type.",
+      "**Do** keep the text column at 44.375rem and let figures narrower than it stay narrower (quiet diagrams are authored at 336px).",
+      "**Do** give every figure a prose `<desc>` with the real values, an sr-only table, and keyboard control of anything a pointer can do.",
+      "**Do** check both themes and print: tokens for night, the light set for paper."
+    ],
+    "donts": [
+      "**Don't** use indigo outside a figure, or for anything in a figure except the claimed value.",
+      "**Don't** add cards, shadows, icons, emoji, gradients, badges or a hero-metric block. This is a paper.",
+      "**Don't** put a label above a heading. The byline goes under the title.",
+      "**Don't** add motion that plays by itself beyond the three existing moments, and never without a reduced-motion path.",
+      "**Don't** position anything absolutely inside the CV sheet. Chromium writes the PDF text layer in paint order, and positioned boxes paint last.",
+      "**Don't** load anything from another origin: no CDN, fonts, analytics or scripts."
+    ]
+  }
+}

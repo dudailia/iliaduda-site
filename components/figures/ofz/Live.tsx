@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { zcy, type GParams } from '@/lib/gcurve'
 
@@ -34,7 +34,7 @@ const W = 1000
 const H = 1000
 const TICKS_T = [0.25, 1, 2, 5, 10, 20] as const
 const TICKS_Y = [7, 8, 9, 10, 11, 12] as const
-const SAMPLES = 64
+const SAMPLES = 40
 
 // Square-root maturity axis: a quarter of the width for the first year, where
 // a rate decision lands, without squeezing twenty years off the edge.
@@ -44,7 +44,9 @@ const TS = Array.from({ length: SAMPLES }, (_, i) => {
   const r = Math.sqrt(T_MIN) + ((Math.sqrt(T_MAX) - Math.sqrt(T_MIN)) * i) / (SAMPLES - 1)
   return r * r
 })
-const path = (p: GParams) => TS.map((t, i) => `${i ? 'L' : 'M'}${sx(t).toFixed(1)} ${sy(zcy(p, t)).toFixed(1)}`).join('')
+// Whole units of a 1000-unit box: a tenth of a pixel at most on screen, and
+// forty-four of these ship in the HTML.
+const path = (p: GParams) => TS.map((t, i) => `${i ? 'L' : 'M'}${Math.round(sx(t))} ${Math.round(sy(zcy(p, t)))}`).join('')
 
 const pc = (y: number) => `${y.toFixed(2)}%`
 const bp = (d: number) => `${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(Math.round(d))} bp`
@@ -68,6 +70,11 @@ export function OfzLive({
   frame: { id: string; number: string; title: string; subtitle: string; caption: ReactNode; table: ReactNode; inline?: boolean }
 }) {
   const [at, setAt] = useState(start)
+  // Only a jump from a mark button is announced: moving the slider itself is
+  // already spoken through its valuetext, and saying it twice is noise.
+  const [announce, setAnnounce] = useState('')
+  // The summer's curves never change; only the chosen day does.
+  const context = useMemo(() => days.map((x) => <path key={x.date} d={path(x.params)} vectorEffect="non-scaling-stroke" />), [days])
   const d = days[at]!
   const prev = days[Math.max(0, at - 1)]!
   const rate = [...keyRate].reverse().find((k) => k.from <= d.date)!.rate
@@ -121,9 +128,7 @@ export function OfzLive({
               </g>
               {/* The summer, every session, as context. */}
               <g fill="none" stroke="var(--color-rule)" strokeWidth={1}>
-                {days.map((x) => (
-                  <path key={x.date} d={path(x.params)} vectorEffect="non-scaling-stroke" />
-                ))}
+                {context}
               </g>
               <line
                 x1={0}
@@ -163,7 +168,9 @@ export function OfzLive({
               ))}
             <span
               aria-hidden
-              className="text-meta pointer-events-none absolute right-1.5 -translate-y-full pb-0.5 font-mono text-ink"
+              className={`text-meta pointer-events-none absolute right-1.5 font-mono text-ink ${
+                sy(rate) / H < 0.12 ? 'pt-0.5' : '-translate-y-full pb-0.5'
+              }`}
               style={{ top: `${(sy(rate) / H) * 100}%` }}
             >
               {`key rate ${rate.toFixed(2)}%`}
@@ -195,7 +202,10 @@ export function OfzLive({
             value={at}
             aria-label="Trading day"
             aria-valuetext={valueText}
-            onChange={(e) => setAt(Number(e.currentTarget.value))}
+            onChange={(e) => {
+              setAt(Number(e.currentTarget.value))
+              setAnnounce('')
+            }}
             className="h-6 w-full accent-[var(--color-indigo)]"
           />
           {/* Positions follow the thumb's centre, which travels the track
@@ -211,7 +221,11 @@ export function OfzLive({
                 <button
                   key={m.index}
                   type="button"
-                  onClick={() => setAt(m.index)}
+                  onClick={() => {
+                    setAt(m.index)
+                    const x = days[m.index]!
+                    setAnnounce(`${day(x.date)}: 3-month ${pc(zcy(x.params, T_MIN))}, 10-year ${pc(zcy(x.params, 10))}`)
+                  }}
                   aria-pressed={at === m.index}
                   className={`absolute ${align} rounded-sm px-1 py-1 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out ${
                     at === m.index ? 'text-ink' : 'text-graphite hover:text-ink'
@@ -226,7 +240,7 @@ export function OfzLive({
           </div>
         </div>
         <p className="sr-only" aria-live="polite">
-          {valueText}
+          {announce}
         </p>
       </div>
     </FigureFrame>

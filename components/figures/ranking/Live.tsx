@@ -99,7 +99,7 @@ export function RankingLive({
       rows={[
         { label: 'Treatment', value: current.label },
         { label: 'Top pick', value: shown[0]!.name },
-        { label: 'Rank correlation with as written', value: v === 'a' ? 'ρ = 1.00' : `ρ = ${rho[v].toFixed(2)}` },
+        { label: 'Spearman ρ against as written', value: v === 'a' ? '1.00' : rho[v].toFixed(2) },
         { label: 'Scored zero on growth', value: v === 'a' ? `${zeroed} of ${rows.length}` : 'none' },
       ]}
     />

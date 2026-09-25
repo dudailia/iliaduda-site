@@ -91,7 +91,8 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
   const maxM = all.length
   const maxPay = Math.max(...all.map((t) => t.s.monthly))
   const minPay = Math.min(...all.map((t) => t.s.monthly))
-  const px = (m: number) => (maxM === 1 ? 50 : ((m - 1) / (maxM - 1)) * 100)
+  // Inset 2% each side, so the first and last dots sit inside the frame.
+  const px = (m: number) => (maxM === 1 ? 50 : 2 + ((m - 1) / (maxM - 1)) * 96)
   const py = (v: number) => (maxPay === minPay ? 50 : 6 + (1 - (v - minPay) / (maxPay - minPay)) * 88)
   const stepPath = offered.map((t, k) => `${k ? 'L' : 'M'}${px(t.months).toFixed(2)} ${py(t.s.monthly).toFixed(2)}`).join('')
 
@@ -214,7 +215,14 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
               />
             ))}
             <span aria-hidden className="text-meta absolute right-1.5 top-1.5 bg-paper px-0.5 font-mono text-graphite">{rub(maxPay)} a month</span>
-            <span aria-hidden className="text-meta absolute bottom-1.5 right-1.5 bg-paper px-0.5 font-mono text-graphite">{rub(minPay)}</span>
+            {/* Above the line's low end, not on it: the last terms' dots sit there. */}
+            <span
+              aria-hidden
+              className="text-meta absolute right-1.5 -translate-y-full bg-paper px-0.5 font-mono text-graphite"
+              style={{ top: `calc(${py(minPay)}% - 0.5rem)` }}
+            >
+              {rub(minPay)} a month
+            </span>
           </div>
           <div aria-hidden className="text-meta mt-1 flex justify-between font-mono text-graphite">
             <span>1 month</span>

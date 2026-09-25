@@ -153,7 +153,9 @@ function Wide() {
               stroke={ACCENT}
               strokeWidth={stroke(s.role)}
             />
-            <text x={W.x0 + w + 9} y={y + 16} fontSize="12.5" fill={INK}>
+            {/* A paper halo: the small gains' labels cross the ambiguous band
+                and the 1% line. */}
+            <text x={W.x0 + w + 9} y={y + 16} fontSize="12.5" fill={INK} stroke="var(--color-paper)" strokeWidth={4} paintOrder="stroke">
               {gain(s.gain)}
             </text>
           </g>
@@ -220,7 +222,7 @@ function Narrow() {
         const w = Math.max(nScale(s.gain), 1.5)
         return (
           <g key={s.key} className="font-mono">
-            <text x={N.x0} y={y - 7} fontSize="12" fill={INK}>
+            <text x={N.x0} y={y - 7} fontSize="12" fill={INK} stroke="var(--color-paper)" strokeWidth={4} paintOrder="stroke">
               {`${s.label}  ${gain(s.gain)}`}
             </text>
             <rect

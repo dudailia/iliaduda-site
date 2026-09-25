@@ -194,4 +194,3 @@ export const SKILLS = [
   ],
 ] as const
 
-export const languages = 'English and Russian, both fluent.'

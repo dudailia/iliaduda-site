@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
+import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '../surface/env'
 
 /**
@@ -87,7 +88,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   // The one self-drawing replay, once, when the figure is actually seen — and
   // not if the reader has already taken the scrubber.
   useOnceSeen(box, 0.6, () => {
-    if (reduced || box.current?.contains(document.activeElement)) return
+    if (reduced || arrivedByMorph() || box.current?.contains(document.activeElement)) return
     setAt(0)
     play(0)
   })

@@ -2,7 +2,9 @@ import { levels } from '@/components/figures/VolSurface'
 import { chart, feed } from '@/content/data/closebooks-feed'
 import replay from '@/content/data/cricket-final.json'
 import ranking from '@/content/data/startup-ranking.json'
+import ofz from '@/content/data/ofz-curve.json'
 import { categorise } from './closebooks'
+import { zcy } from './gcurve'
 import { offeredTerms } from './settlement'
 import { LABELLED } from './surfaceView'
 
@@ -84,12 +86,28 @@ function debtPortal(): Thumb {
   return { context: [line([[0, TH], [TW, TH]]), line([[0, 0], [0, TH]])], claim: [line(pts)] }
 }
 
+function bcs(): Thumb {
+  // The /about figure: every session of the summer as context, 15 August in
+  // indigo. Same axes as the figure: square-root maturity, 6.5–12.5%.
+  const T0 = Math.sqrt(0.25)
+  const T1 = Math.sqrt(20)
+  const ts = Array.from({ length: 28 }, (_, i) => (T0 + ((T1 - T0) * i) / 27) ** 2)
+  const curve = (p: readonly number[]) =>
+    line(ts.map((t) => [((Math.sqrt(t) - T0) / (T1 - T0)) * TW, ((12.5 - zcy(p, t)) / 6) * TH] as const))
+  const hike = ofz.days.find((d) => d.date === '2023-08-15')!
+  return {
+    context: ofz.days.filter((d) => d !== hike).map((d) => curve(d.params)),
+    claim: [curve(hike.params)],
+  }
+}
+
 const BUILDERS: Record<string, () => Thumb> = {
   'iv-surface': ivSurface,
   cricstate: cricket,
   'startup-investments': startup,
   closebooks,
   'debt-portal': debtPortal,
+  bcs,
 }
 
 export function thumbFor(slug: string): Thumb | null {

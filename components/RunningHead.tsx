@@ -10,7 +10,10 @@ import { Shell } from './Layout'
  */
 export function RunningHead() {
   return (
-    <header className="border-b border-rule print:hidden">
+    // Its own view-transition name: going from one paper to the next, the
+    // running head is the same pixels on both pages, so it holds still while
+    // the page under it crossfades instead of blinking with it.
+    <header className="border-b border-rule print:hidden [view-transition-name:running-head]">
       <Shell>
         <div className="text-meta flex flex-wrap items-baseline justify-between gap-x-6 font-mono">
           <p className="flex items-baseline gap-x-3">

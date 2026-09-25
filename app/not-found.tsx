@@ -12,9 +12,9 @@ export default function NotFound() {
             <Row rail="404">
               <h1 className="text-h2">That page is not here</h1>
               <p className="mt-4 max-w-[34rem]">
-                The link may be old, or I may have renamed something I said I would not rename.
-                Everything is listed in the <Link prefetch={false} href="/#contents">contents</Link>, and the{' '}
-                <a href="/about">CV</a> is one click away.
+                Everything on the site is listed in the{' '}
+                <Link prefetch={false} href="/#contents">contents</Link>, and the <a href="/cv">CV</a> is one
+                page.
               </p>
             </Row>
           </div>

@@ -15,10 +15,15 @@ import { OfzLive, type Day, type Mark } from './ofz/Live'
  * extraordinary rate decision, because that is the session the figure is for.
  */
 
+// Rounded for the browser to what the figure can show: four decimals of a
+// basis-point parameter move the curve by far less than a pixel, and a
+// duration to the hundredth of a year is under four days. The tests check the
+// unrounded file.
+const r = (x: number, dp: number) => Number(x.toFixed(dp))
 const days: Day[] = curve.days.map((d) => ({
   date: d.date,
-  params: d.params,
-  bonds: d.bonds as [number, number][],
+  params: d.params.map((p) => r(p, 4)),
+  bonds: d.bonds.map(([t, y]) => [r(t!, 2), y!] as [number, number]),
 }))
 
 const at = (date: string) => days.findIndex((d) => d.date === date)
@@ -55,9 +60,13 @@ const description =
 
 const TERMS = [0.25, 1, 5, 10] as const
 
+// The slider announces every day's yields as it moves; the table holds the
+// days the figure marks, around each decision.
+const KEY_DAYS = [...new Set([FIRST, JULY - 1, JULY, AUG - 1, AUG, LAST])]
+
 const table = (
   <table>
-    <caption>OFZ zero-coupon yields by trading day, July–August 2023, percent</caption>
+    <caption>OFZ zero-coupon yields around the two rate decisions, July–August 2023, percent</caption>
     <thead>
       <tr>
         <th scope="col">Trading day</th>
@@ -67,7 +76,7 @@ const table = (
       </tr>
     </thead>
     <tbody>
-      {days.map((d) => (
+      {KEY_DAYS.map((i) => days[i]!).map((d) => (
         <tr key={d.date}>
           <th scope="row">{long(d.date)}</th>
           {TERMS.map((t) => (

@@ -19,7 +19,7 @@ interface Source {
   readonly lineItems: boolean
 }
 
-const SOURCES: readonly Source[] = [
+export const SOURCES: readonly Source[] = [
   { name: 'Xero', auth: 'oauth', lineItems: true },
   { name: 'QuickBooks', auth: 'oauth', lineItems: true },
   { name: 'FreeAgent', auth: 'oauth', lineItems: true },

@@ -25,7 +25,9 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
   const ks = Array.from({ length: N + 1 }, (_, i) => K0 + ((K1 - K0) * i) / N)
   const gs = ks.map((k) => gWithEta(k, T, eta))
   const lo = Math.min(-0.5, ...gs)
-  const hi = Math.max(1.1, ...gs)
+  // Headroom over the peak, so the curve never touches the frame.
+  const top = Math.max(1.1, ...gs)
+  const hi = top + (top - lo) * 0.08
   const x = (i: number) => (i / N) * 100
   const y = (v: number) => ((hi - v) / (hi - lo)) * 100
   const path = gs.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(2)} ${y(v).toFixed(2)}`).join('')
@@ -90,7 +92,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
           value={eta}
           onChange={(e) => setEta(Number(e.currentTarget.value))}
           aria-valuetext={`eta ${eta.toFixed(2)}; ${arbitrage ? `butterfly arbitrage, lowest g ${minG.toFixed(3)}` : 'no butterfly arbitrage'}`}
-          className="mt-1 w-full accent-[var(--color-indigo)]"
+          className="mt-1 h-6 w-full accent-[var(--color-indigo)]"
         />
       </label>
       <div className="mt-2 flex gap-2">

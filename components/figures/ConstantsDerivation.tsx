@@ -15,7 +15,7 @@ interface Constant {
   readonly sourced: boolean
 }
 
-const CONSTANTS: readonly Constant[] = [
+export const CONSTANTS: readonly Constant[] = [
   { name: 'studentPopulation', display: fact('ncStudents').value.toLocaleString('en-US'), sourced: false },
   { name: 'facultyStaff', display: fact('ncFaculty').value.toLocaleString('en-US'), sourced: false },
   { name: 'queriesPerPersonPerDay', display: String(value('ncQueriesPerDay')), sourced: false },

@@ -1,7 +1,7 @@
 import { otherWork, visiblePapers } from '@/content/papers'
 import { roles } from '@/content/experience'
 import { SITE } from '@/lib/site'
-import { Row } from './Layout'
+import { Items, Row } from './Layout'
 import { PaperThumb } from './PaperThumb'
 
 /**
@@ -43,8 +43,7 @@ export function Contents() {
                   </a>
                 </h3>
                 <p className="text-meta mt-1.5 font-mono text-graphite">
-                  {p.byline}
-                  {p.status === 'pending' ? ' · pending publication' : ''}
+                  <Items items={[...p.byline.split(' · '), p.status === 'pending' && 'pending publication']} />
                 </p>
                 <p className="text-note mt-3 max-w-[38rem]">{p.abstract}</p>
               </div>
@@ -70,7 +69,9 @@ export function OtherWork() {
                 {o.name}
               </a>
               <span className="text-note mt-1 block max-w-[38rem]">{o.what}</span>
-              <span className="text-meta mt-1 block font-mono text-graphite">{o.status}</span>
+              <span className="text-meta mt-1 block font-mono text-graphite">
+                <Items items={o.status} />
+              </span>
             </li>
           ))}
         </ul>
@@ -91,19 +92,23 @@ export function ExperienceBrief() {
                 <span className="text-graphite">, {r.orgNote}</span>
               </p>
               <p className="text-meta mt-0.5 font-mono text-graphite">
-                {[r.title, r.place, r.dates].filter(Boolean).join(' · ')}
+                <Items items={[r.title, r.place, r.dates]} />
               </p>
               <p className="text-note mt-1.5 max-w-[38rem]">
                 {r.brief}
                 {r.href ? (
                   <>
                     {' '}
-                    <a href={r.href}>Read the paper</a>
+                    <a href={r.href} className="whitespace-nowrap">
+                      Read the paper
+                    </a>
                   </>
                 ) : r.figure ? (
                   <>
                     {' '}
-                    <a href={r.figure}>See the curve</a>
+                    <a href={r.figure} className="whitespace-nowrap">
+                      See the curve
+                    </a>
                   </>
                 ) : null}
               </p>

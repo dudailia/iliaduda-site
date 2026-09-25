@@ -70,8 +70,12 @@ const deployment =
 
 export const SITE = {
   canonical: production ?? 'http://localhost:3000',
-  /** The public address to print, on the CV, even from a local build. */
-  public: production ?? https(FALLBACK)!,
+  /**
+   * The address the CV prints and links. On a preview it is the preview, so a
+   * page that exists only on this branch still resolves; locally, the public
+   * host rather than localhost.
+   */
+  public: deployment ?? production ?? https(FALLBACK)!,
   origin: deployment ?? production ?? 'http://localhost:3000',
   /** Previews render pending work; production never does. */
   isProduction: process.env.VERCEL_ENV === 'production',

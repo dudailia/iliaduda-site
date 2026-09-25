@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Row } from './Layout'
+import { Items, Row } from './Layout'
 
 /**
  * Section headings live in the rail, right-aligned, rather than stacked above
@@ -29,7 +29,9 @@ export function CaseStudyTitle({
   return (
     <Row className="pt-10 lg:pt-16">
       <Heading className={level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'}>{title}</Heading>
-      {byline ? <p className="text-meta mt-3 font-mono text-graphite">{byline}</p> : null}
+      {byline ? (
+        <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>
+      ) : null}
       <div className="mt-5 max-w-[37.9rem]">{standfirst}</div>
       <hr className="mt-8 border-0 border-t border-rule" />
     </Row>

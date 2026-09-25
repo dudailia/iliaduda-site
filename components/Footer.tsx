@@ -39,6 +39,13 @@ export function Footer() {
                   </a>
                 </li>
               ))}
+            </ul>
+          </nav>
+        </Row>
+        <div className="h-6" />
+        <Row rail="Pages">
+          <nav aria-label="Pages">
+            <ul className="text-note flex flex-wrap gap-x-8 gap-y-1.5">
               <li>
                 <a href="/about" className="inline-block py-1">
                   About

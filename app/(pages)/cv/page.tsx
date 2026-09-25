@@ -46,7 +46,7 @@ export default function Cv() {
     <div className="mx-auto w-full max-w-[872px] px-6 pt-8 sm:px-8 md:px-0 lg:pt-12 print:max-w-none print:p-0">
       <p className="text-meta mb-4 flex flex-wrap justify-between gap-x-6 gap-y-1 font-mono text-graphite print:hidden">
         <span>One page · prints to Letter or A4</span>
-        <a href={RESUME.pdf} className="text-ink" download>
+        <a href={RESUME.pdf} className="inline-block py-2.5 text-ink" download>
           Download the PDF
         </a>
       </p>
@@ -98,7 +98,7 @@ export default function Cv() {
                   <p>
                     <strong>{r.org}</strong>
                     <span className="cv-muted">, {r.orgNote}</span>
-                    <span className="cv-sep"> · </span>
+                    <span className="cv-muted"> · </span>
                     <span>{r.title}</span>
                   </p>
                   <p className="cv-date">{shortDates(r.dates)}</p>

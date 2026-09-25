@@ -155,8 +155,9 @@ export function SurfacePoster({ titleId, descId }: { titleId: string; descId: st
               key={l.level}
               className="text-meta absolute -translate-x-1/2 -translate-y-1/2 bg-paper px-1 font-mono leading-none text-ink"
               style={{
-                left: cssPct(Math.min(0.96, Math.max(0.04, l.label.x))),
-                top: cssPct(Math.min(0.96, Math.max(0.03, l.label.y))),
+                // Inset from the frame, so a label never sits on its line.
+                left: cssPct(Math.min(0.95, Math.max(0.05, l.label.x))),
+                top: cssPct(Math.min(0.91, Math.max(0.05, l.label.y))),
               }}
             >
               {pct(l.level)}
@@ -188,7 +189,12 @@ export function StrikeAxis() {
 
 export function ExpiryAxis() {
   return (
+    // The column this sits in also holds the strike labels under the plot, so
+    // the ticks are placed in a box that stops at the plot's bottom edge
+    // (bottom-7 = the strike row's mt-2 + h-5). Placed against the full column
+    // they sat low, and 2Y fell into the strike row.
     <div aria-hidden className="text-meta relative h-full w-8 shrink-0 font-mono text-graphite">
+      <div className="absolute inset-x-0 top-0 bottom-7">
       {EXPIRY_TICKS.map((T) => (
         <span
           key={T}
@@ -200,6 +206,7 @@ export function ExpiryAxis() {
           {expiryLabel(T)}
         </span>
       ))}
+      </div>
     </div>
   )
 }

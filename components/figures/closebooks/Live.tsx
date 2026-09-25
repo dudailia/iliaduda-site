@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { categorise, exportable, type Account, type Line, type Result, type Status } from '@/lib/closebooks'
+import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '../surface/env'
 
 /**
@@ -66,7 +67,7 @@ export function CategorisationLive({
   // never under a reader who is already inside it: replaying would unmount the
   // very button they have focused.
   useOnceSeen(box, 0.3, () => {
-    if (reduced || box.current?.contains(document.activeElement)) return
+    if (reduced || arrivedByMorph() || box.current?.contains(document.activeElement)) return
     setArrived(0)
     setSettled(false)
   })

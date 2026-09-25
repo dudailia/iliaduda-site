@@ -138,7 +138,9 @@
     font-variant-numeric: lining-nums tabular-nums;
   }
 
-  p {
+  p,
+  li,
+  figcaption {
     text-wrap: pretty;
   }
 
@@ -229,6 +231,12 @@
     animation-duration: 380ms;
   }
 
+  /* The running head: identical on both sides, so no animation at all. From
+     home, which has none, it simply fades in with the page. */
+  ::view-transition-group(running-head) {
+    animation-duration: 0s;
+  }
+
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: 180ms;
@@ -270,10 +278,6 @@
   .cv li,
   .cv dd {
     text-wrap: pretty;
-  }
-
-  .cv a {
-    text-decoration-color: var(--color-rule);
   }
 
   .cv-header {
@@ -349,10 +353,11 @@
         grid-template-columns: minmax(0, 1fr);
       }
 
-      .cv-contact a {
-        display: inline-block;
-        padding: 0.4em 0;
-      }
+    }
+
+    .cv-contact a {
+      display: inline-block;
+      padding: 0.4em 0;
     }
   }
 
@@ -372,27 +377,27 @@
     color: var(--color-graphite);
   }
 
-  .cv-sep {
-    color: var(--color-graphite);
-  }
-
   .cv-bullets {
     list-style: none;
     margin-top: 0.1em;
   }
 
+  /* A hairline dash, not a glyph, and IN FLOW. It was absolutely positioned
+     once, and Chromium paints positioned boxes after in-flow content — so the
+     PDF's text layer carried every bullet after the Skills section, cut off
+     from its role, which is what a résumé parser reads. scripts/cv-pdf.mjs
+     now fails the build on any positioned box inside the sheet. */
   .cv-bullets li {
-    position: relative;
     padding-left: 0.95em;
+    text-indent: -0.95em;
   }
 
-  /* A hairline dash, not a glyph: the same rule colour as the section lines. */
   .cv-bullets li::before {
     content: '';
-    position: absolute;
-    left: 0.1em;
-    top: 0.68em;
+    display: inline-block;
     width: 0.45em;
+    margin: 0 0.5em 0 0.1em;
+    vertical-align: 0.3em;
     border-top: 1px solid var(--color-graphite);
   }
 

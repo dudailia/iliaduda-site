@@ -49,12 +49,20 @@ export function FigureFrame({
 }) {
   const wide = !inline
   return (
-    <figure id={id} className={inline ? 'my-8' : 'my-12 lg:my-16'} aria-labelledby={`${id}-title`}>
+    <figure id={id} className={inline ? 'relative my-8 scroll-mt-28' : 'my-12 lg:my-16'} aria-labelledby={`${id}-title`}>
       <div
         className={`grid grid-cols-1 gap-y-2 ${wide ? 'lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0' : ''}`}
       >
         <div className={`text-meta font-mono text-graphite ${wide ? 'lg:pt-1 lg:text-right' : ''}`}>
-          <span>{number}</span>
+          {/* Inline on a wide screen, the number still goes where every
+              figure's number goes: in the rail, level with the title. */}
+          <span
+            className={
+              inline ? 'lg:absolute lg:right-[calc(100%+var(--gutter))] lg:top-px lg:whitespace-nowrap' : undefined
+            }
+          >
+            {number}
+          </span>
           {rail && wide ? <div className="sticky top-6 mt-[4.75rem] hidden lg:block">{rail}</div> : null}
         </div>
         <div className="min-w-0">
