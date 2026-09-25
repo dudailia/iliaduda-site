@@ -37,13 +37,13 @@ export function LabPage({
         <Shell>
           <nav aria-label="Hero prototypes" className="text-meta flex flex-wrap items-baseline justify-between gap-x-6 font-mono">
             <p className="py-2.5 text-graphite">Lab · hero prototypes · not linked, not indexed</p>
-            <ul className="flex gap-x-4">
+            <ul className="flex gap-x-2">
               {LAB.map((l) => (
                 <li key={l.slug}>
                   <a
                     href={`/lab/${l.slug}`}
                     aria-current={l.slug === slug ? 'page' : undefined}
-                    className={`inline-block py-2.5 ${l.slug === slug ? 'text-ink' : 'text-graphite'}`}
+                    className={`inline-block min-w-6 px-1.5 py-2.5 text-center ${l.slug === slug ? 'text-ink' : 'text-graphite'}`}
                   >
                     {l.slug.toUpperCase()}
                     <span className="sr-only">: {l.name}</span>
