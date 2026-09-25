@@ -23,6 +23,8 @@ const eslintConfig = defineConfig([
     ".audit/**",
     ".lighthouseci/**",
     ".lighthouseci-prod/**",
+    // Parallel agent worktrees; each lints itself.
+    ".claude/**",
   ]),
 ]);
 
