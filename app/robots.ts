@@ -3,7 +3,8 @@ import { SITE } from '@/lib/site'
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: '*', allow: '/' }],
+    // /lab holds unlinked hero prototypes; production 404s them anyway.
+    rules: [{ userAgent: '*', allow: '/', disallow: '/lab' }],
     sitemap: `${SITE.canonical}/sitemap.xml`,
   }
 }
