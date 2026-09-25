@@ -41,6 +41,7 @@ const PROJECT_OF: Readonly<Record<string, string>> = {
   'DataLoss.tsx': 'si',
   'ConstantsDerivation.tsx': 'nc',
   'VolSurface.tsx': 'iv',
+  'ArbitrageBound.tsx': 'iv',
   'CricketReplay.tsx': 'cr',
   'SegmentRanking.tsx': 'si',
   'CategorisationPipeline.tsx': 'cb',

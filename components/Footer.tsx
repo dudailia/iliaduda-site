@@ -49,7 +49,7 @@ export function Footer() {
         </Row>
         <div className="h-10" />
         <Row rail="Colophon">
-          <p className="text-note text-graphite">
+          <p className="text-note max-w-[36rem] text-graphite">
             Set in Source Serif 4 and Source Code Pro, both self-hosted. No third-party requests,
             no analytics.{' '}
             <a href="https://github.com/dudailia/iliaduda-site">Source on GitHub</a>.

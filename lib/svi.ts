@@ -121,3 +121,24 @@ export function grid(nk: number, nT: number): { k: number[]; T: number[]; iv: Fl
   }
   return { k: ks, T: Ts, iv: out }
 }
+
+/**
+ * Durrleman's g for a surface identical to this one except for its curvature
+ * η — for the figure that lets a reader push η past the bound and watch the
+ * implied density go negative. With η = P.eta this is exactly g(k, T).
+ */
+export function gWithEta(k: number, T: number, eta: number): number {
+  const th = theta(T)
+  const { rho, gamma } = P
+  const f = eta / (Math.pow(th, gamma) * Math.pow(1 + th, 1 - gamma))
+  const a = f * k + rho
+  const s = Math.sqrt(a * a + 1 - rho * rho)
+  const v = (th / 2) * (1 + rho * f * k + s)
+  const dk = (th / 2) * (rho * f + (f * a) / s)
+  const dkk = ((th / 2) * f * f * (1 - rho * rho)) / (s * s * s)
+  const t1 = 1 - (k * dk) / (2 * v)
+  return t1 * t1 - (dk * dk / 4) * (1 / v + 0.25) + dkk / 2
+}
+
+/** The η at which the sufficient condition η(1 + |ρ|) ≤ 2 stops holding. */
+export const ETA_BOUND = 2 / (1 + Math.abs(P.rho))

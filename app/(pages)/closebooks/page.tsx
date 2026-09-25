@@ -1,6 +1,6 @@
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
-import { Annotated, Shell } from '@/components/Layout'
+import { Shell } from '@/components/Layout'
 import { CategorisationPipeline } from '@/components/figures/CategorisationPipeline'
 import { tenantIsolation } from '@/components/figures/TenantIsolation'
 import { fact } from '@/content/facts'
@@ -19,6 +19,8 @@ export default function CloseBooks() {
       <article>
         <CaseStudyTitle byline={paper.byline} level="h1" title={paper.title} standfirst={<p>{paper.abstract}</p>} />
 
+        <CategorisationPipeline />
+
         <Section heading="What it does">
           <p>
             A small accounting firm closes every client&rsquo;s books every month: pull the bank
@@ -36,8 +38,6 @@ export default function CloseBooks() {
             pages and {n('cbMigrations')} SQL migrations.
           </p>
         </Section>
-
-        <CategorisationPipeline />
 
         <Section heading="The AI pipeline">
           <p>
@@ -72,7 +72,7 @@ export default function CloseBooks() {
             scope every query to firm membership, and a five-level role hierarchy — owner, admin,
             senior accountant, staff, read-only — is expressed as security-definer functions, so
             reading, writing, approving and managing billing are separate privileges checked in
-            SQL. Deleting a compliance record needs a senior role; editing one does not.
+            SQL.
           </p>
         </Section>
 
@@ -91,30 +91,6 @@ export default function CloseBooks() {
             </>
           }
         />
-
-        <Section heading="Engineering discipline">
-          <Annotated
-            note={
-              <>
-                Turning type checking on in the build surfaced {n('cbTypeErrors')} type errors and
-                two live runtime faults; the codebase is now type-clean.
-              </>
-            }
-          >
-            <p>
-              Before showing the product to anyone I read it as a sceptic would, and took every
-              screen that claimed an external action had happened at its word. Where a flow was not
-              yet wired to the outside world — a filing, a verification, a sent document — the
-              screen now says exactly what happened rather than what was intended. A product
-              aimed at accountants has to be as exact about its own state as it is about the
-              books.
-            </p>
-          </Annotated>
-          <p>
-            Repository history was rewritten to drop a vendored dependency tree, taking it from
-            about {fact('cbHistoryBefore').value}&nbsp;MB to {fact('cbHistoryAfter').value}&nbsp;MB.
-          </p>
-        </Section>
 
         <Meta
           rows={[

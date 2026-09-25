@@ -18,8 +18,7 @@ export function SettlementInstrument() {
           a legal allowance of {fact('dgMessagesDay').value} a day, {fact('dgMessagesWeek').value}{' '}
           a week and {fact('dgMessagesMonth').value} a month. The portal counts rolling windows,
           one contact per verification episode, and checks a refusal of interaction before any
-          cap. The calculator shows only terms worth choosing, and the payment step recomputes the
-          amount on the server from the chosen term rather than trusting a number from the browser.
+          cap. The calculator offers only terms worth choosing.
         </>
       }
       table={

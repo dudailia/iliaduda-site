@@ -269,11 +269,27 @@ export function VolSurfaceLive(p: Props) {
 
           {readouts('text-meta mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono lg:hidden')}
 
-          <p className="text-meta mt-4 font-mono text-graphite">
+          <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite">
             {gl
               ? 'Drag to turn · hover or tap to read a point · arrow keys move the probe · [ ] turn'
               : 'Hover or tap to read a point · arrow keys move the probe'}
             {` · F = ${value('ivForward')}, rates at zero`}
+            {gl ? (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    renderer.current?.reset()
+                    setHover(null)
+                    setPinned(PROBE_START)
+                  }}
+                  className="underline decoration-rule underline-offset-2 hover:decoration-ink"
+                >
+                  reset view
+                </button>
+              </>
+            ) : null}
           </p>
 
           <figcaption className="text-note mt-4 max-w-[39.2rem] text-graphite">{p.caption}</figcaption>

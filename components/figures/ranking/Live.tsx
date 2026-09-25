@@ -1,6 +1,7 @@
 'use client'
 
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { useReducedMotion } from '../surface/env'
 
 /**
@@ -33,11 +34,13 @@ export function RankingLive({
   variants,
   rho,
   description,
+  frame,
 }: {
   rows: readonly Row[]
   variants: readonly { key: Variant; label: string; note: string }[]
   rho: Record<Variant, number>
   description: string
+  frame: { id: string; number: string; vt: string; title: string; subtitle: string; caption: ReactNode; table: ReactNode }
 }) {
   const [v, setV] = useState<Variant>('a')
   const reduced = useReducedMotion()
@@ -47,6 +50,11 @@ export function RankingLive({
   const shown = [...rows].sort((x, y) => x[v].rank - y[v].rank).slice(0, SHOWN)
   const max = Math.max(...rows.map((r) => Math.max(r.a.score, r.b.score, r.c.score)))
 
+  const radios = useRef<Record<string, HTMLButtonElement | null>>({})
+  const moveTo = (next: Variant) => {
+    choose(next)
+    radios.current[next]?.focus()
+  }
   const choose = (next: Variant) => {
     if (next === v) return
     // First: where every row is now.
@@ -84,13 +92,29 @@ export function RankingLive({
   }, [v, reduced])
 
   const current = variants.find((x) => x.key === v)!
+  const zeroed = rows.filter((r) => r.zeroed).length
+
+  const rail = (
+    <Readouts
+      rows={[
+        { label: 'Treatment', value: current.label },
+        { label: 'Top pick', value: shown[0]!.name },
+        { label: 'Rank correlation with as written', value: v === 'a' ? 'ρ = 1.00' : `ρ = ${rho[v].toFixed(2)}` },
+        { label: 'Scored zero on growth', value: v === 'a' ? `${zeroed} of ${rows.length}` : 'none' },
+      ]}
+    />
+  )
 
   return (
+    <FigureFrame {...frame} rail={rail}>
     <div>
       <div role="radiogroup" aria-label="Treatment of the data" className="text-meta flex flex-wrap gap-2 font-mono">
         {variants.map((x) => (
           <button
             key={x.key}
+            ref={(el) => {
+              radios.current[x.key] = el
+            }}
             type="button"
             role="radio"
             aria-checked={v === x.key}
@@ -99,15 +123,15 @@ export function RankingLive({
               const i = variants.findIndex((y) => y.key === v)
               if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
                 e.preventDefault()
-                choose(variants[(i + 1) % variants.length]!.key)
+                moveTo(variants[(i + 1) % variants.length]!.key)
               } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
                 e.preventDefault()
-                choose(variants[(i + variants.length - 1) % variants.length]!.key)
+                moveTo(variants[(i + variants.length - 1) % variants.length]!.key)
               }
             }}
             tabIndex={v === x.key ? 0 : -1}
-            className={`rounded-sm border px-3 py-2 transition-colors duration-150 ease-out ${
-              v === x.key ? 'border-ink bg-ink text-paper' : 'border-rule text-ink hover:border-graphite'
+            className={`rounded-sm border px-2.5 py-2 transition-colors duration-150 ease-out ${
+              v === x.key ? 'border-ink bg-ink text-paper' : 'border-graphite text-ink hover:border-ink'
             }`}
           >
             {x.label}
@@ -127,7 +151,7 @@ export function RankingLive({
             <li
               key={r.name}
               data-name={r.name}
-              className="grid min-w-0 grid-cols-[1.75rem_minmax(0,9.5rem)_1fr_3.25rem] items-center gap-x-3 border-b border-rule py-1.5 sm:grid-cols-[2rem_12rem_1fr_4.5rem]"
+              className="grid min-w-0 grid-cols-[1.5rem_minmax(0,8.5rem)_1fr_2.5rem_2.25rem] items-center gap-x-2.5 border-b border-rule py-1.5 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
             >
               <span className="text-meta tabular text-graphite">{now}</span>
               <span className="text-note truncate">
@@ -144,32 +168,22 @@ export function RankingLive({
                   style={{ transform: `scaleX(${r[v].score / max})`, transition: reduced ? 'none' : 'transform 280ms cubic-bezier(0.77, 0, 0.175, 1)' }}
                 />
               </span>
-              <span className="text-meta tabular text-right text-graphite">
-                {r[v].score.toFixed(1)}
-                {v !== 'a' && delta !== 0 ? (
-                  <span className="block text-ink">{delta > 0 ? `↑${delta}` : `↓${-delta}`}</span>
-                ) : null}
+              <span className="text-meta tabular text-right text-graphite">{r[v].score.toFixed(1)}</span>
+              {/* Its own column, always present: a second line that appeared
+                  only after a switch changed every row's height mid-move. */}
+              <span className="text-meta tabular text-right text-ink">
+                {v !== 'a' && delta !== 0 ? (delta > 0 ? `↑${delta}` : `↓${-delta}`) : ''}
               </span>
             </li>
           )
         })}
       </ol>
 
-      <dl className="text-meta mt-4 grid grid-cols-2 gap-x-6 gap-y-1 font-mono sm:grid-cols-3">
-        <div>
-          <dt className="text-graphite">Top pick</dt>
-          <dd className="text-ink">{shown[0]!.name}</dd>
-        </div>
-        <div>
-          <dt className="text-graphite">Rank correlation with as written</dt>
-          <dd className="tabular text-ink">{v === 'a' ? '1.00' : `ρ = ${rho[v].toFixed(2)}`}</dd>
-        </div>
-        <div>
-          <dt className="text-graphite">Scored zero on growth</dt>
-          <dd className="tabular text-ink">{v === 'a' ? `${rows.filter((r) => r.zeroed).length} of ${rows.length}` : 'none'}</dd>
-        </div>
-      </dl>
+      <p className="text-meta mt-3 font-mono text-graphite">
+        ∅ absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written
+      </p>
       <p className="sr-only">{description}</p>
     </div>
+    </FigureFrame>
   )
 }

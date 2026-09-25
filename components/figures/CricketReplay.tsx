@@ -50,12 +50,11 @@ export function CricketReplay() {
       description={description}
       caption={
         <>
-          The model has seen nothing from this match or anything after it: it is the train-only
-          leaderboard model, calibrated on the validation period, scoring a match from the
-          held-out test period, which begins on 30 August 2025. The match was chosen by a rule
-          fixed first — the tournament&rsquo;s final — not for the shape of its curve. On the
-          whole test period the same model reaches {fact('crT2Skill').value}% skill over the
-          base rate.
+          The published model, trained on matches up to November 2024 and calibrated on the
+          season after, scoring the tournament&rsquo;s final from the held-out test period —
+          chosen by rule, not by curve. Across all {fact('crT2TestMatches').value.toLocaleString('en-US')}{' '}
+          held-out matches its log-loss is {Math.round(fact('crT2Skill').value)}% lower than the
+          base rate&rsquo;s.
         </>
       }
       table={

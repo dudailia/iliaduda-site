@@ -24,6 +24,7 @@ export function FigureFrame({
   caption,
   table,
   vt,
+  railBelow = true,
   children,
 }: {
   id: string
@@ -36,6 +37,9 @@ export function FigureFrame({
   caption: ReactNode
   table?: ReactNode
   vt?: string
+  /** Repeat the rail under the figure on narrow screens. Off when the figure
+   *  already shows its state inline where a phone reader needs it. */
+  railBelow?: boolean
   children: ReactNode
 }) {
   return (
@@ -43,7 +47,7 @@ export function FigureFrame({
       <div className="grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0">
         <div className="text-meta font-mono text-graphite lg:pt-1 lg:text-right">
           <span>{number}</span>
-          {rail ? <div className="mt-[4.75rem] hidden lg:block">{rail}</div> : null}
+          {rail ? <div className="sticky top-6 mt-[4.75rem] hidden lg:block">{rail}</div> : null}
         </div>
         <div className="min-w-0">
           <div className="text-note border-b border-rule pb-2">
@@ -55,8 +59,8 @@ export function FigureFrame({
           <div className="mt-5" style={vt ? vtStyle(vt) : undefined}>
             {children}
           </div>
-          {rail ? <div className="mt-5 lg:hidden">{rail}</div> : null}
-          {hint ? <p className="text-meta mt-4 font-mono text-graphite">{hint}</p> : null}
+          {rail && railBelow ? <div className="mt-5 lg:hidden">{rail}</div> : null}
+          {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite">{hint}</p> : null}
           <figcaption className="text-note mt-4 max-w-[39.2rem] text-graphite">{caption}</figcaption>
           {table ? <div className="sr-only">{table}</div> : null}
         </div>

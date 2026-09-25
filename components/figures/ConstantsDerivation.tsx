@@ -49,10 +49,10 @@ function Marks() {
               fill={c.sourced ? ACCENT : 'none'}
               stroke={c.sourced ? ACCENT : RULE}
             />
-            <text x="14" y={y} fontSize="10" fill={INK}>
+            <text x="14" y={y} fontSize="12" fill={INK}>
               {c.name}
             </text>
-            <text x={BRACKET_X - 12} y={y} textAnchor="end" fontSize="10" fill={GRAPHITE}>
+            <text x={BRACKET_X - 12} y={y} textAnchor="end" fontSize="12" fill={GRAPHITE}>
               {c.display}
             </text>
           </g>
@@ -74,40 +74,40 @@ function Marks() {
         stroke={INK}
         strokeWidth="1"
       />
-      <rect x={BOX_X} y={midY - 22} width={BOX_W} height="44" fill={WASH} stroke={ACCENT} />
+      <rect x={BOX_X} y={midY - 29} width={BOX_W} height="58" fill={WASH} stroke={ACCENT} />
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY - 9}
+        y={midY - 11}
         textAnchor="middle"
         className="font-mono"
-        fontSize="9.5"
+        fontSize="12"
         fill={INK}
       >
         every figure
       </text>
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY + 3}
+        y={midY + 4}
         textAnchor="middle"
         className="font-mono"
-        fontSize="9.5"
+        fontSize="12"
         fill={INK}
       >
         on nine
       </text>
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY + 15}
+        y={midY + 19}
         textAnchor="middle"
         className="font-mono"
-        fontSize="9.5"
+        fontSize="12"
         fill={INK}
       >
         pages
       </text>
 
       <line x1="0" y1={lastY + 18} x2={W} y2={lastY + 18} stroke={RULE} strokeWidth="1" />
-      <g className="font-mono" fontSize="10" fill={GRAPHITE}>
+      <g className="font-mono" fontSize="12" fill={GRAPHITE}>
         <rect x="0" y={lastY + 30} width="8" height="8" fill={ACCENT} stroke={ACCENT} />
         <text x="14" y={lastY + 38}>
           taken from a published source

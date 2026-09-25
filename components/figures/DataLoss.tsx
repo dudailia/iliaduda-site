@@ -56,7 +56,7 @@ function Marks() {
               strokeWidth={s.role === 'measured' ? 0 : 1}
             />
             {i < STAGES.length - 1 ? (
-              <text x={X0} y={y + BAR_H + 20} fontSize="10" fill={GRAPHITE}>
+              <text x={X0} y={y + BAR_H + 20} fontSize="12" fill={GRAPHITE}>
                 {i === 0
                   ? `− ${fmt(RAW - CLEANED)} lacking a funding record or a date`
                   : `− ${fmt(CLEANED - FINAL)} outliers, and years too thin to use`}
@@ -66,7 +66,7 @@ function Marks() {
         )
       })}
       <line x1={X0} y1={H - 22} x2={W} y2={H - 22} stroke={RULE} strokeWidth="1" />
-      <text x={X0} y={H - 8} className="font-mono" fontSize="10" fill={GRAPHITE}>
+      <text x={X0} y={H - 8} className="font-mono" fontSize="12" fill={GRAPHITE}>
         {`${value('siLossPct')}% of supplied records are not ranked`}
       </text>
     </>

@@ -1,5 +1,6 @@
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Annotated, Shell } from '@/components/Layout'
+import { ArbitrageBound } from '@/components/figures/ArbitrageBound'
 import { SurfaceFigure } from '@/components/figures/VolSurface'
 import { fact, type FactKey } from '@/content/facts'
 import { papers } from '@/content/papers'
@@ -7,7 +8,7 @@ import { pageMeta } from '@/lib/meta'
 
 const paper = papers.find((p) => p.slug === 'iv-surface')!
 
-export const metadata = pageMeta('/iv-surface', 'An arbitrage-free implied-volatility surface', paper.abstract)
+export const metadata = pageMeta('/iv-surface', 'An implied-volatility surface free of static arbitrage', paper.abstract)
 
 const SRC = 'https://github.com/dudailia/iliaduda-site/blob/redesign'
 
@@ -45,9 +46,8 @@ export default function IvSurface() {
           <Annotated
             note={
               <>
-                Synthetic throughout. The parameters were chosen to look like an equity index,
-                not fitted to any market&rsquo;s quotes, and they are not any employer&rsquo;s
-                model.
+                Synthetic throughout: the parameters are chosen to look like an equity index,
+                not fitted to market quotes.
               </>
             }
           >
@@ -86,13 +86,14 @@ export default function IvSurface() {
           </p>
         </Section>
 
+        <ArbitrageBound />
+
         <Section heading="What the margin reads">
           <Annotated
             note={
               <>
-                Sticky-strike: σ is held fixed while each Greek is taken. How the surface itself
-                moves when the underlying does is a separate, larger question this figure does not
-                model.
+                Greeks are sticky-strike: σ is held fixed while each is taken. Skew dynamics are
+                out of scope.
               </>
             }
           >
@@ -114,9 +115,8 @@ export default function IvSurface() {
 
         <Section heading="How it is checked">
           <p>
-            The surface is synthetic, which makes it the one figure on this site whose numbers
-            could be anything at all. So the tests hold it to the standard it claims. Durrleman&rsquo;s
-            g is evaluated across the drawn expiries at strikes well beyond the drawn range and
+            Because the parameters are chosen rather than fitted, the tests hold the surface to
+            the standard real quotes would face. Durrleman&rsquo;s g is evaluated across the drawn expiries at strikes well beyond the drawn range and
             must stay positive; ∂w/∂T must stay positive everywhere the figure draws. Each Greek is
             compared with a finite difference of the price, and put–call parity is checked away
             from the money.

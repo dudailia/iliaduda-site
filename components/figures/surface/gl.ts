@@ -76,8 +76,13 @@ interface Camera {
 
 const REST: Camera = { yaw: 0.62, pitch: 0.42, dist: 4.1, ty: 0.3 }
 const FOV = (30 * Math.PI) / 180
-const PITCH_MIN = 0.12
-const PITCH_MAX = 1.3
+const PITCH_MIN = 0.2
+const PITCH_MAX = 1.1
+/** Turning is clamped to the arc where the axis labels can all be read; past
+ *  it the tick labels stack on each other and the titles leave the box. */
+const YAW_MIN = 0.1
+const YAW_MAX = 1.25
+const clampYaw = (y: number) => Math.min(YAW_MAX, Math.max(YAW_MIN, y))
 
 /** Straight down, close enough that the floor fills the box like the map did. */
 function overhead(aspect: number): Camera {
@@ -378,21 +383,22 @@ export function createRenderer(o: RendererOptions): Renderer | null {
 
   // Labels: HTML, projected each frame
   // `wide` labels are dropped in a narrow box, where they would touch.
-  type Label = { el: HTMLSpanElement; at: [number, number, number]; lifted: boolean; wide: boolean }
+  type Label = { el: HTMLSpanElement; at: [number, number, number]; lifted: boolean; wide: boolean; rank: number; w: number; h: number }
   const labels: Label[] = []
-  const addLabel = (text: string, at: [number, number, number], lifted: boolean, wide: boolean, cls: string) => {
+  // rank: lower is kept first when two labels would overlap.
+  const addLabel = (text: string, at: [number, number, number], lifted: boolean, wide: boolean, cls: string, rank = 2) => {
     const el = document.createElement('span')
     el.textContent = text
     el.className = `absolute left-0 top-0 whitespace-nowrap rounded-sm bg-paper/80 px-0.5 font-mono text-meta leading-none ${cls}`
     o.labels.appendChild(el)
-    labels.push({ el, at, lifted, wide })
+    labels.push({ el, at, lifted, wide, rank, w: 0, h: 0 })
   }
   STRIKE_TICKS.forEach((K, i) => addLabel(`${Math.round(K * 100)}%`, [wx(Math.log(K)), 0, ZW + 0.12], false, i % 2 === 1, 'text-graphite'))
   EXPIRY_TICKS.forEach((T, i) => addLabel(expiryLabel(T), [XW + 0.14, 0, wz(T)], false, i % 2 === 1, 'text-graphite'))
   for (const v of [0.2, 0.3, 0.4, 0.5]) addLabel(`${Math.round(v * 100)}%`, [-XW - 0.1, wy(v), -ZW], true, v === 0.3 || v === 0.5, 'text-graphite')
-  addLabel('Strike, % of forward', [0, 0, ZW + 0.42], false, true, 'text-ink')
-  addLabel('Expiry', [XW + 0.62, 0, 0], false, true, 'text-ink')
-  addLabel('Implied vol', [-XW - 0.1, HMAX + 0.1, -ZW], true, false, 'text-ink')
+  addLabel('Strike, % of forward', [0, 0, ZW + 0.42], false, true, 'text-ink', 0)
+  addLabel('Expiry', [XW + 0.62, 0, 0], false, true, 'text-ink', 0)
+  addLabel('Implied vol', [-XW - 0.1, HMAX + 0.1, -ZW], true, false, 'text-ink', 0)
 
   let colors = o.colors
   let probe: Probe | null = null
@@ -506,17 +512,27 @@ export function createRenderer(o: RendererOptions): Renderer | null {
     }
     gl.bindVertexArray(null)
 
-    // Labels follow the projection; lifted ones rise with the surface.
+    // Labels follow the projection; lifted ones rise with the surface. Any
+    // label that would overlap one already placed is dropped for this frame,
+    // titles first, so a turned view never prints two labels on each other.
     const narrow = w < NARROW
-    for (const l of labels) {
+    const placed: [number, number, number, number][] = []
+    for (const l of [...labels].sort((a, b) => a.rank - b.rank)) {
       l.el.hidden = narrow && l.wide
       if (l.el.hidden) continue
+      if (!l.w) {
+        l.w = l.el.offsetWidth
+        l.h = l.el.offsetHeight
+      }
       const [x, y, z] = l.at
       const c = apply(mvp, x, l.lifted ? y * lift : y, z)
       const sx = ((c[0] / c[3]) * 0.5 + 0.5) * w
       const sy = (1 - ((c[1] / c[3]) * 0.5 + 0.5)) * h
+      const box: [number, number, number, number] = [sx - l.w / 2 - 2, sy - l.h / 2 - 1, sx + l.w / 2 + 2, sy + l.h / 2 + 1]
+      const clash = placed.some((b) => box[0] < b[2] && b[0] < box[2] && box[1] < b[3] && b[1] < box[3])
+      if (!clash) placed.push(box)
       l.el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%, -50%)`
-      l.el.style.opacity = waiting ? '0' : String(Math.max(0, lift * 2 - 1))
+      l.el.style.opacity = waiting || clash ? '0' : String(Math.max(0, lift * 2 - 1))
     }
   }
 
@@ -600,7 +616,7 @@ export function createRenderer(o: RendererOptions): Renderer | null {
       if (drag.moved > 4 && !settle?.full) {
         cam = {
           ...cam,
-          yaw: cam.yaw - dx * 0.008,
+          yaw: clampYaw(cam.yaw - dx * 0.008),
           // Touch turns only: vertical drags belong to the page scroll.
           pitch: drag.type === 'touch' ? cam.pitch : Math.min(PITCH_MAX, Math.max(PITCH_MIN, cam.pitch + dy * 0.006)),
         }
@@ -702,7 +718,7 @@ export function createRenderer(o: RendererOptions): Renderer | null {
     },
     turn(direction) {
       finishEntrance()
-      cam = { ...cam, yaw: cam.yaw + direction * (Math.PI / 12) }
+      cam = { ...cam, yaw: clampYaw(cam.yaw + direction * (Math.PI / 12)) }
       request()
     },
     reset() {

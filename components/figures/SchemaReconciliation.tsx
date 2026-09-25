@@ -65,7 +65,7 @@ function Marks() {
               fill={s.lineItems ? ACCENT : 'none'}
               stroke={ACCENT}
             />
-            <text x={LABEL_X + 22} y={y + 8} className="font-mono" fontSize="9" fill={GRAPHITE}>
+            <text x={LABEL_X + 22} y={y + 8} className="font-mono" fontSize="12" fill={GRAPHITE}>
               {s.auth === 'static' ? 'static' : 'oauth'}
             </text>
             <path
@@ -94,10 +94,10 @@ function Marks() {
         y={HUB_Y + 34}
         textAnchor="middle"
         className="font-mono"
-        fontSize="9.5"
+        fontSize="12"
         fill={GRAPHITE}
       >
-        one target interface
+        one target type
       </text>
 
       <line
@@ -108,7 +108,7 @@ function Marks() {
         stroke={RULE}
         strokeWidth="1"
       />
-      <g className="font-mono" fontSize="10" fill={GRAPHITE}>
+      <g className="font-mono" fontSize="12" fill={GRAPHITE}>
         <rect x="0" y={H - 44} width="8" height="8" fill="none" stroke={ACCENT} />
         <text x="14" y={H - 36}>
           {`${value('acAdaptersWithoutLineItems')} of ${value('acIntegrations')} cannot supply line items,`}

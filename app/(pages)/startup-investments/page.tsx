@@ -86,7 +86,7 @@ export default function StartupInvestments() {
           >
             <p>
               A recommendation is only as good as its sensitivity to the choices underneath it,
-              so I re-ran the analysis exactly and then changed one data-handling decision at a
+              so I re-ran my capstone exactly and then changed one data-handling decision at a
               time. The growth lookup, as written, only knows the {n('siGrowingSegments')} segments
               whose funding rose in 2014, so the other {n('siZeroedSegments')} score zero on{' '}
               {fact('siWeightZeroed').value}% of the weight — including Biotechnology and Software,
@@ -110,9 +110,9 @@ export default function StartupInvestments() {
             {top15.length
               ? `Only ${list(top15)} are in the top fifteen under every one of them, which makes them the defensible recommendation: the answer that does not depend on which of three reasonable data decisions you believe.`
               : 'None is in the top fifteen under all three either.'}
-            {top10.length ? ` ${list(top10)} hold the top ten throughout.` : ''} The general point
-            is the one a risk desk would make: a model&rsquo;s data pipeline is part of the model,
-            and a ranking should be reported with the decisions it is sensitive to.
+            {top10.length ? ` ${list(top10)} hold the top ten throughout.` : ''} A model&rsquo;s data
+            pipeline is part of the model, and a ranking is only as useful as the report of what
+            it is sensitive to.
           </p>
         </Section>
 

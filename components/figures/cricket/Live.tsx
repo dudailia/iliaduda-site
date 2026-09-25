@@ -33,6 +33,18 @@ interface Props {
   description: string
 }
 
+/**
+ * The vertical axis is log-odds. Win probability spends most of a one-sided
+ * match above 97%, where a linear axis flattens it into the frame; on
+ * log-odds, the distance from 99% to 99.9% is the same as from 50% to 90%,
+ * which is how a model's confidence should be read.
+ */
+const CLAMP = 0.9995
+const logit = (p: number) => Math.log(p / (1 - p))
+const L = logit(CLAMP)
+const TICKS = [0.01, 0.1, 0.5, 0.9, 0.99, 0.999] as const
+const tickLabel = (t: number) => `${(t * 100).toFixed(t < 0.01 || t > 0.99 ? 1 : 0)}%`
+
 const pct = (p: number) => (p >= 0.9995 ? '> 99.9%' : p <= 0.0005 ? '< 0.1%' : `${(p * 100).toFixed(1)}%`)
 
 export function CricketLive({ balls, maxBalls, first, second, result, caption, table, description }: Props) {
@@ -48,7 +60,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   // Where the innings changes, and the x of every ball.
   const breakAt = balls.findIndex((b) => b[0] === 2)
   const x = (i: number) => (i / (n - 1)) * W
-  const y = (p: number) => (1 - p) * H
+  const y = (p: number) => ((L - logit(Math.min(CLAMP, Math.max(1 - CLAMP, p)))) / (2 * L)) * H
   const path = balls.map((b, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(b[9]).toFixed(1)}`).join('')
 
   const stop = () => {
@@ -74,7 +86,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
 
   // The one self-drawing replay, once, when the figure is actually seen — and
   // not if the reader has already taken the scrubber.
-  useOnceSeen(box, 0.35, () => {
+  useOnceSeen(box, 0.6, () => {
     if (reduced || box.current?.contains(document.activeElement)) return
     setAt(0)
     play(0)
@@ -109,7 +121,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       number="Fig. 1"
       vt="cricstate"
       title={`${first} v ${second}, replayed ball by ball`}
-      subtitle="T20 win probability for the side batting first · B3 gradient boosting · isotonic, fit on validation · held-out test match"
+      subtitle="probability the side batting first wins · gradient boosting on match state · calibrated on the season before · a match it never saw · log-odds scale"
       rail={<Readouts rows={rows} />}
       caption={caption}
       table={table}
@@ -117,10 +129,10 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     >
       <div ref={box} className="relative">
         <div className="flex">
-          <div aria-hidden className="text-meta relative w-9 shrink-0 font-mono text-graphite">
-            {[1, 0.75, 0.5, 0.25, 0].map((v) => (
-              <span key={v} className="absolute right-2 -translate-y-1/2" style={{ top: `${(1 - v) * 100}%` }}>
-                {v * 100}%
+          <div aria-hidden className="text-meta relative w-11 shrink-0 font-mono text-graphite">
+            {TICKS.map((v) => (
+              <span key={v} className="absolute right-2 -translate-y-1/2" style={{ top: `${(y(v) / H) * 100}%` }}>
+                {tickLabel(v)}
               </span>
             ))}
           </div>
@@ -136,7 +148,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               <title id="fig-replay-svg-title">{`Probability ${first} wins, before each ball`}</title>
               <desc id="fig-replay-desc">{description}</desc>
               <g stroke="var(--color-rule)" strokeWidth={1} fill="none">
-                {[0.25, 0.75].map((v) => (
+                {TICKS.filter((v) => v !== 0.5).map((v) => (
                   <line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} vectorEffect="non-scaling-stroke" />
                 ))}
               </g>
@@ -158,13 +170,13 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             <span
               aria-hidden
               className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-indigo"
-              style={{ left: `${(x(at) / W) * 100}%`, top: `${(y(p) / H) * 100}%` }}
+              style={{ left: `${Math.min(99, (x(at) / W) * 100)}%`, top: `${(y(p) / H) * 100}%` }}
             />
           </div>
         </div>
 
         {/* Innings, named under the axis rather than over the curve. */}
-        <div aria-hidden className="text-meta relative mt-1.5 ml-9 h-5 font-mono text-graphite">
+        <div aria-hidden className="text-meta relative mt-1.5 ml-11 h-5 font-mono text-graphite">
           <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${(x(breakAt) / W) * 50}%` }}>
             {first} batting
           </span>
@@ -176,11 +188,15 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
           </span>
         </div>
 
-        <div className="mt-3 flex items-center gap-3 pl-9">
+        <p aria-hidden className="text-meta mt-1 ml-11 font-mono text-graphite">
+          <span className="mr-1 inline-block h-2.5 w-px translate-y-0.5 bg-ink" /> a wicket falls
+        </p>
+
+        <div className="mt-3 flex items-center gap-3 pl-11">
           <button
             type="button"
             onClick={() => (playing ? stop() : play(at >= n - 1 ? 0 : at))}
-            className="text-meta w-[4.5rem] shrink-0 rounded-sm border border-rule px-2 py-1.5 font-mono transition-colors duration-150 ease-out hover:border-graphite"
+            className="text-meta w-[4.5rem] shrink-0 rounded-sm border border-graphite px-2 py-1.5 font-mono transition-colors duration-150 ease-out hover:border-ink"
           >
             {playing ? 'Pause' : at >= n - 1 ? 'Replay' : 'Play'}
           </button>
@@ -197,7 +213,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               setAt(Number(e.currentTarget.value))
             }}
             onKeyDown={() => playing && stop()}
-            className="w-full accent-[var(--color-indigo)]"
+            className="h-6 w-full accent-[var(--color-indigo)]"
           />
         </div>
         <p className="sr-only" aria-live="polite">

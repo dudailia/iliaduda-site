@@ -27,7 +27,7 @@ export function RunningHead() {
                 </Link>
               </li>
               <li>
-                <a href={resumeLink.href} className="inline-block py-2.5">
+                <a href={resumeLink.href} className="inline-block min-w-6 py-2.5 text-center">
                   {resumeLink.label}
                 </a>
               </li>

@@ -83,8 +83,8 @@ export default function Cricstate() {
           </p>
           <p>
             On win probability the top rung reaches a test log-loss of {fact('crT2Nll').value.toFixed(3)}{' '}
-            against {fact('crT2Base').value.toFixed(3)} for the base rate, {fact('crT2Skill').value}%
-            skill over {n('crT2TestMatches')} held-out matches. On the far harder next-ball task,
+            against {fact('crT2Base').value.toFixed(3)} for the base rate — {Math.round(fact('crT2Skill').value)}%
+            lower, over {n('crT2TestMatches')} held-out matches. On the far harder next-ball task,
             eleven outcome classes, it is {fact('crStateGain').value}% better than the baseline.
             Fig. 1 is that model, unchanged, scoring a match from the test period.
           </p>
@@ -152,11 +152,10 @@ export default function Cricstate() {
 
         <Section heading="What the measurement decided">
           <p>
-            The per-player model was not built. Identity is worth {fact('crIdentityGain').value}%
-            in log-likelihood and a per-match latent for pitch and conditions{' '}
-            {fact('crLatentGain').value}%, both below the materiality bar, so the study spent its
-            effort on the result it could defend rather than the model it had planned. Knowing
-            what not to build, and being able to show why, is the output.
+            Identity is worth {fact('crIdentityGain').value}% in log-likelihood and a per-match
+            latent for pitch and conditions {fact('crLatentGain').value}%, both below the
+            materiality bar, so the per-player model was ruled out by measurement rather than
+            built on instinct.
           </p>
           <p>
             The evaluation protocol was fixed before the test split was read; the verdict bands

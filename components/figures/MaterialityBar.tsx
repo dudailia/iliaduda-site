@@ -176,7 +176,7 @@ function Wide() {
             y={W.axisY + 19}
             textAnchor={anchorFor(t)}
             className="font-mono"
-            fontSize="11.5"
+            fontSize="12"
             fill={GRAPHITE}
           >
             {t}%
@@ -252,7 +252,7 @@ function Narrow() {
             y={N.axisY + 19}
             textAnchor={anchorFor(t)}
             className="font-mono"
-            fontSize="11"
+            fontSize="12"
             fill={GRAPHITE}
           >
             {t}%

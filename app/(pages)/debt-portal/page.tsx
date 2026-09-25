@@ -1,4 +1,4 @@
-import { CaseStudyTitle, Meta, Register, Section } from '@/components/CaseStudy'
+import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Annotated, Shell } from '@/components/Layout'
 import { SettlementInstrument } from '@/components/figures/SettlementInstrument'
 import { fact } from '@/content/facts'
@@ -17,6 +17,8 @@ export default function DebtPortal() {
       <article>
         <CaseStudyTitle byline={paper.byline} level="h1" title={paper.title} standfirst={<p>{paper.abstract}</p>} />
 
+        <SettlementInstrument />
+
         <Section heading="The product">
           <p>
             People in debt avoid the phone call, so the product is the opposite of one: look the
@@ -26,8 +28,6 @@ export default function DebtPortal() {
             statutory limits, the disclosures, and the build gates that keep them true.
           </p>
         </Section>
-
-        <SettlementInstrument />
 
         <Section heading="What the law set">
           <p>
@@ -68,14 +68,14 @@ export default function DebtPortal() {
           </p>
         </Section>
 
-        <Section heading="Gates exactly as wide as their subject">
+        <Section heading="Compliance enforced at build time">
           <p>
             Because calls and messages have different ceilings, importing the wrong set at a send
             site is a compliance bug no happy-path test would catch. The telephone caps live in
             their own module, and a static check forbids the login path from importing them —
             matching static imports, dynamic imports and require calls alike. A display component
             that publishes both caps on the rights page is banned only from the route that
-            actually sends and counts: two bans, two scopes, each as wide as its subject.
+            actually sends and counts.
           </p>
           <p>
             Standards are build gates rather than intentions: types, lint, contrast computed from
@@ -84,27 +84,10 @@ export default function DebtPortal() {
             value is {fact('dgClsMeasured').value} on every audited route, over {n('dgUnitTests')}{' '}
             unit tests and {n('dgE2eCases')} end-to-end cases.
           </p>
-          <Register
-            columns={[
-              {
-                heading: 'A pass/fail audit aggregated by median',
-                items: [
-                  'five runs, and an audit failing two of them medians to a pass',
-                  'fixed by taking the worst run for every boolean assertion',
-                ],
-              },
-              {
-                heading: 'A readiness check that matched a log line',
-                items: [
-                  'it declared the server ready before it could serve a page',
-                  'fixed by polling the URL until it answers',
-                ],
-              },
-            ]}
-          />
-          <p className="mt-6">
-            Both gates reported green while measuring nothing; finding them is the kind of work
-            the portal is built on. The rule written afterwards is the transferable part:{' '}
+          <p>
+            The gates are held to the same standard as the product: a boolean audit takes the
+            worst of its runs, never the median, and a server is ready when it answers a request,
+            not when it prints a log line —{' '}
             <em>an assertion measured against an environment no real visitor uses is not a guard.</em>
           </p>
         </Section>

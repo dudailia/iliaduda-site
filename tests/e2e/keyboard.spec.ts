@@ -4,7 +4,10 @@ import { ROUTES } from './routes'
 for (const route of ROUTES) {
   test(`${route} gives every interactive element a visible focus ring`, async ({ page }) => {
     await page.goto(route)
-    const targets = page.locator('a[href], button, [tabindex="0"]')
+    // Everything in the tab order. Elements with tabindex=-1 are out of it by
+    // design (a thumbnail that duplicates its title link, the inactive options
+    // of a roving radio group) and are reached another way.
+    const targets = page.locator('a[href]:not([tabindex="-1"]), button:not([tabindex="-1"]), [tabindex="0"]')
     const count = await targets.count()
     expect(count).toBeGreaterThan(0)
 

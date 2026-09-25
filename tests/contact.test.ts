@@ -22,12 +22,16 @@ describe('the statutory contact allowance', () => {
     expect(requestCode(a, 23 * H).outcome.ok).toBe(false)
     expect(requestCode(a, 24 * H + 1).outcome.ok).toBe(true)
   })
-  it('states the next allowed time conservatively, as now plus the window', () => {
+  it('states the moment the allowance reopens: the oldest contact ageing out, and it does not drift', () => {
     let a = empty
     a = requestCode(a, 0).next
-    a = requestCode(a, 10 * 60_000).next
-    const o = requestCode(a, 20 * 60_000).outcome
-    expect(o.ok === false && o.reason === 'cap' && o.nextAt).toBe(20 * 60_000 + WINDOWS[0].ms)
+    a = requestCode(a, 30 * 60_000).next
+    const first = requestCode(a, 60 * 60_000).outcome
+    const later = requestCode(a, 90 * 60_000).outcome
+    expect(first.ok === false && first.reason === 'cap' && first.nextAt).toBe(WINDOWS[0].ms)
+    expect(later.ok === false && later.reason === 'cap' && later.nextAt).toBe(WINDOWS[0].ms)
+    // And at that moment a code is in fact allowed.
+    expect(requestCode(a, WINDOWS[0].ms + 1).outcome.ok).toBe(true)
   })
   it('the weekly cap binds when the daily one no longer does', () => {
     let a = empty

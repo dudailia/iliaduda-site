@@ -23,12 +23,17 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
   )
 }
 
+const VT_CLICK = `document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-vt-contents] a[href]');if(!a)return;var li=a.closest('li');var t=li&&li.querySelector('[data-vt-thumb]');if(!t||!t.offsetWidth)return;t.style.viewTransitionName=t.dataset.vtThumb;t.style.viewTransitionClass='figure';},true);addEventListener('pageshow',function(){document.querySelectorAll('[data-vt-thumb]').forEach(function(t){t.style.viewTransitionName='';});});`
+
 export function Contents() {
   const papers = visiblePapers(SITE.isProduction)
   return (
     <section aria-labelledby="contents" className="mt-16 lg:mt-24">
+      {/* Opening a paper names only its own thumbnail for the view
+          transition; every other thumbnail stays out of it. */}
+      <script dangerouslySetInnerHTML={{ __html: VT_CLICK }} />
       <Row rail={<SectionHeading id="contents">Contents</SectionHeading>}>
-        <ol className="grid list-none border-t border-rule">
+        <ol className="grid list-none border-t border-rule" data-vt-contents>
           {papers.map((p) => (
             <li key={p.slug} className="grid gap-x-6 border-b border-rule py-6 sm:grid-cols-[minmax(0,1fr)_9rem]">
               <div className="min-w-0">
@@ -44,7 +49,7 @@ export function Contents() {
                 <p className="text-note mt-3 max-w-[38rem]">{p.abstract}</p>
               </div>
               <div className="hidden pt-1.5 sm:block">
-                <PaperThumb slug={p.slug} />
+                <PaperThumb slug={p.slug} href={p.href} />
               </div>
             </li>
           ))}

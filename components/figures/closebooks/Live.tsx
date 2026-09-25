@@ -44,6 +44,13 @@ export function CategorisationLive({
   const [arrived, setArrived] = useState(feed.length)
   const [settled, setSettled] = useState(true)
   const [human, setHuman] = useState<Record<number, Human>>({})
+  const statusRefs = useRef<(HTMLSpanElement | null)[]>([])
+  // After a reviewer acts, focus lands on the row's new status rather than
+  // falling to the page, and the gate's new count is announced.
+  const act = (i: number, what: Human) => {
+    setHuman((h) => ({ ...h, [i]: what }))
+    requestAnimationFrame(() => statusRefs.current[i]?.focus())
+  }
 
   const results: Result[] = feed.map((l) => categorise(l, chart))
 
@@ -80,12 +87,20 @@ export function CategorisationLive({
       ? (chart.find((a) => a.code === remap[feed[i]!.suggested.code]) ?? null)
       : results[i]!.account
 
+  // Counted from the rows that have settled, so the gate visibly fills as the
+  // batch lands instead of printing its final totals before a row arrives.
+  const done = (i: number) => settled || i < arrived - 3
   const counts = {
-    auto: results.filter((r, i) => r.status === 'approved' && !human[i]).length,
-    review: feed.filter((_, i) => status(i) === 'pending').length,
-    blocked: feed.filter((_, i) => status(i) === 'flagged').length,
-    out: feed.filter((_, i) => exportable(status(i), accountOf(i))).length,
+    auto: results.filter((r, i) => done(i) && r.status === 'approved' && !human[i]).length,
+    review: feed.filter((_, i) => done(i) && status(i) === 'pending').length,
+    blocked: feed.filter((_, i) => done(i) && status(i) === 'flagged').length,
+    out: feed.filter((_, i) => done(i) && exportable(status(i), accountOf(i))).length,
   }
+
+  // Announced only once a reviewer has acted: the gate's new state.
+  const said = Object.keys(human).length
+    ? `Exportable ${counts.out} of ${feed.length}; ${counts.review} waiting, ${counts.blocked} blocked.`
+    : ''
 
   const rows = [
     { label: 'Batch', value: `${feed.length} lines, indexed 0–${feed.length - 1}` },
@@ -104,13 +119,19 @@ export function CategorisationLive({
       number="Fig. 1"
       vt="closebooks"
       title="A bank feed through the categorisation pipeline"
-      subtitle="synthetic feed and model outputs · CloseBooks’ own rules applied to them · categorize.ts, coaValidation.ts"
+      subtitle="synthetic feed and model outputs · the rules applied to them are the product’s own, from the shipped code"
       rail={<Readouts rows={rows} />}
+      railBelow={false}
       hint="Approve a row waiting for review, or remap a blocked one, and watch the export gate"
       caption={caption}
       table={table}
     >
       <div ref={box}>
+        {/* The gate, where a phone reader can see it change: above the rows,
+            pinned while they scroll past. The rail carries it on wide screens. */}
+        <p className="text-meta sticky top-0 z-10 -mx-1 mb-2 bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
+          approved {counts.auto} · waiting {counts.review} · blocked {counts.blocked} · exportable {counts.out} of {feed.length}
+        </p>
         <ol className="grid list-none border-t border-rule" aria-label="Categorised bank lines">
           {feed.map((l, i) => {
             const r = results[i]!
@@ -120,7 +141,13 @@ export function CategorisationLive({
             // A row settles three arrivals after it lands, so settling ripples
             // down the batch behind the feed rather than all at once.
             const final = settled || i < arrived - 3
-            const conf = human[i] ? Math.max(r.confidence, threshold) : final ? r.confidence : l.stated
+            // A reviewer changes the status, not the model's confidence.
+            const conf = final ? r.confidence : l.stated
+            const finalNote = r.steps.length
+              ? r.steps.map((s) => `${s.why} → ${s.to.toFixed(2)}`).join(' · ')
+              : r.status === 'pending'
+                ? `below the ${threshold.toFixed(2)} threshold`
+                : ''
             const note = human[i]
               ? human[i] === 'remapped'
                 ? 'remapped by a reviewer'
@@ -152,7 +179,11 @@ export function CategorisationLive({
                   <span />
                   <span className="text-meta min-w-0 font-mono text-graphite">
                     → {acct ? `${acct.code} ${acct.name}` : `${l.suggested.code} ${l.suggested.name}`}
-                    {note ? <span className="block text-ink">{note}</span> : null}
+                    {/* The line is reserved before the row settles, so settling
+                        never changes the row's height. */}
+                    {note || finalNote ? (
+                      <span className={`block text-ink ${note ? '' : 'invisible'}`}>{note || finalNote}</span>
+                    ) : null}
                   </span>
                   <span className="col-start-2 mt-1.5 flex items-center gap-2 sm:col-start-auto sm:mt-0">
                     <span className="relative h-2 w-16 bg-indigo-wash" aria-hidden>
@@ -174,7 +205,7 @@ export function CategorisationLive({
                     {st === 'pending' && final ? (
                       <button
                         type="button"
-                        onClick={() => setHuman((h) => ({ ...h, [i]: 'approved-by-reviewer' }))}
+                        onClick={() => act(i, 'approved-by-reviewer')}
                         aria-label={`Approve line ${i}, ${l.description}`}
                         className="text-meta rounded-sm border border-ink px-2 py-1 font-mono transition-transform duration-150 ease-out active:scale-[0.97]"
                       >
@@ -183,14 +214,22 @@ export function CategorisationLive({
                     ) : st === 'flagged' && final && remap[l.suggested.code] ? (
                       <button
                         type="button"
-                        onClick={() => setHuman((h) => ({ ...h, [i]: 'remapped' }))}
+                        onClick={() => act(i, 'remapped')}
                         aria-label={`Map line ${i}, ${l.description}, to account ${remap[l.suggested.code]}`}
                         className="text-meta rounded-sm border border-ink px-2 py-1 font-mono transition-transform duration-150 ease-out active:scale-[0.97]"
                       >
                         Map to {remap[l.suggested.code]}
                       </button>
                     ) : (
-                      <span className="text-meta font-mono text-graphite">{!final ? '…' : st}</span>
+                      <span
+                        ref={(el) => {
+                          statusRefs.current[i] = el
+                        }}
+                        tabIndex={-1}
+                        className="text-meta font-mono text-graphite"
+                      >
+                        {!final ? '…' : human[i] ? 'approved · reviewer' : st}
+                      </span>
                     )}
                   </span>
                 </div>
@@ -198,11 +237,14 @@ export function CategorisationLive({
             )
           })}
         </ol>
+        <p className="sr-only" aria-live="polite">
+          {said}
+        </p>
         <div className="mt-3 flex justify-end">
           <button
             type="button"
             onClick={stream}
-            className="text-meta rounded-sm border border-rule px-2 py-1 font-mono transition-colors duration-150 ease-out hover:border-graphite"
+            className="text-meta rounded-sm border border-graphite px-2 py-1 font-mono transition-colors duration-150 ease-out hover:border-ink"
           >
             Run the batch again
           </button>

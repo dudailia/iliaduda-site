@@ -14,9 +14,10 @@ import { rule } from '@/content/rules'
  * resend inside the episode spends nothing more.
  *
  * Order of checks, as shipped: a refusal of interaction (art. 8) first, then
- * every cap. On refusal to send, the next allowed time is stated
- * conservatively as now plus the window, not the exact moment the oldest
- * contact leaves it.
+ * every cap. When a cap blocks a send, the figure states when the allowance
+ * reopens: the moment the oldest contact in that window ages out of it. (The
+ * portal's own lockout screen is more conservative — now plus the window —
+ * which is safe for a debtor but not a time to print as "the next moment".)
  */
 
 const HOUR = 3_600_000
@@ -45,7 +46,12 @@ export function requestCode(a: Allowance, now: number): { next: Allowance; outco
   const open = a.episodes.at(-1)
   if (open !== undefined && now - open < EPISODE_MS) return { next: a, outcome: { ok: true, spent: 0 } }
   for (const w of WINDOWS) {
-    if (used(a, now, w.ms) >= w.cap) return { next: a, outcome: { ok: false, reason: 'cap', window: w, nextAt: now + w.ms } }
+    const inWindow = a.episodes.filter((t) => t > now - w.ms && t <= now)
+    if (inWindow.length >= w.cap) {
+      // The allowance reopens when the oldest contact still counted leaves.
+      const oldest = Math.min(...inWindow)
+      return { next: a, outcome: { ok: false, reason: 'cap', window: w, nextAt: oldest + w.ms } }
+    }
   }
   return { next: { ...a, episodes: [...a.episodes, now] }, outcome: { ok: true, spent: 1 } }
 }

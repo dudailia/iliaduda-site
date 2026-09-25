@@ -1,4 +1,3 @@
-import { FigureFrame } from '@/components/FigureFrame'
 import { fact, value } from '@/content/facts'
 import ranking from '@/content/data/startup-ranking.json'
 import { RankingLive, type Row, type Variant } from './ranking/Live'
@@ -42,6 +41,43 @@ export const VARIANTS = [
   },
 ] as const satisfies readonly { key: Variant; label: string; note: string }[]
 
+const TABLE = (
+
+        <table>
+          <caption>Rank of each segment under the three treatments</caption>
+          <thead>
+            <tr>
+              <th scope="col">Segment</th>
+              {VARIANTS.map((v) => (
+                <th key={v.key} scope="col">{v.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[...ranking.segments].sort((x: Segment, y: Segment) => x.a.rank - y.a.rank).map((s: Segment) => (
+              <tr key={s.name}>
+                <th scope="row">{s.name}</th>
+                <td>{s.a.rank}</td>
+                <td>{s.b.rank}</td>
+                <td>{s.c.rank}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      
+)
+
+const CAPTION = (rhoB: number) => (
+
+        <>
+          The weights never change; only the handling of the data does. Fixing the growth lookup
+          alone leaves the ranking almost uncorrelated with the capstone&rsquo;s original
+          (Spearman ρ = {rhoB.toFixed(2)}), which is the whole argument for treating a
+          model&rsquo;s data pipeline as part of the model.
+        </>
+      
+)
+
 export function SegmentRanking() {
   const rows: Row[] = ranking.segments.map((s: Segment) => ({
     name: s.name,
@@ -66,45 +102,20 @@ export function SegmentRanking() {
     `With the CAGR start fixed as well, the top pick is ${top('c')}.`
 
   return (
-    <FigureFrame
-      id="fig-ranking"
-      number="Fig. 1"
-      vt="startup-investments"
-      title="One model, three treatments of the data, three top picks"
-      subtitle={`composite score 0–100 · ${value('siMassSegments')} mass segments · growth ${w('siWeightGrowth')} · CAGR ${w('siWeightCagr')} · funding ${w('siWeightFunding')} · companies ${w('siWeightCompanies')}`}
-      caption={
-        <>
-          The weights never change; only the handling of the data does. Fixing the growth lookup
-          alone leaves the ranking almost uncorrelated with the one the notebook reported
-          (Spearman ρ = {rho.b.toFixed(2)}), which is the whole argument for treating a
-          model&rsquo;s data pipeline as part of the model.
-        </>
-      }
-      table={
-        <table>
-          <caption>Rank of each segment under the three treatments</caption>
-          <thead>
-            <tr>
-              <th scope="col">Segment</th>
-              {VARIANTS.map((v) => (
-                <th key={v.key} scope="col">{v.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[...ranking.segments].sort((x: Segment, y: Segment) => x.a.rank - y.a.rank).map((s: Segment) => (
-              <tr key={s.name}>
-                <th scope="row">{s.name}</th>
-                <td>{s.a.rank}</td>
-                <td>{s.b.rank}</td>
-                <td>{s.c.rank}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      }
-    >
-      <RankingLive rows={rows} variants={VARIANTS} rho={rho} description={description} />
-    </FigureFrame>
+    <RankingLive
+      rows={rows}
+      variants={VARIANTS}
+      rho={rho}
+      description={description}
+      frame={{
+        id: 'fig-ranking',
+        number: 'Fig. 1',
+        vt: 'startup-investments',
+        title: 'One model, three treatments of the data, three top picks',
+        subtitle: `composite score 0–100 · ${value('siMassSegments')} mass segments · growth ${w('siWeightGrowth')} · CAGR ${w('siWeightCagr')} · funding ${w('siWeightFunding')} · companies ${w('siWeightCompanies')}`,
+        caption: CAPTION(rho.b),
+        table: TABLE,
+      }}
+    />
   )
 }

@@ -5,7 +5,7 @@ import { visiblePapers } from '../../content/papers'
 
 test('startup ranking: changing the treatment changes the top pick', async ({ page }) => {
   await page.goto('/startup-investments')
-  const top = page.locator('#fig-ranking dd').first()
+  const top = page.locator('#fig-ranking dt:has-text("Top pick") + dd').first()
   await expect(top).toHaveText('Technology')
   await page.getByRole('radio', { name: 'Both fixed' }).click()
   await expect(top).toHaveText('Software')
@@ -19,9 +19,9 @@ test('CloseBooks: approving a waiting row lets it through the export gate', asyn
   await page.goto('/closebooks')
   const exportable = page.locator('#fig-pipeline dt:has-text("Exportable") + dd').first()
   const before = await exportable.textContent()
-  await page.getByRole('button', { name: /Approve line 5/ }).click()
+  await page.getByRole('button', { name: /Approve line 4/ }).click()
   await expect(exportable).not.toHaveText(before ?? '')
-  await page.getByRole('button', { name: /Map line 4/ }).click()
+  await page.getByRole('button', { name: /Map line 3/ }).click()
   await expect(page.locator('#fig-pipeline dt:has-text("Blocked") + dd').first()).toHaveText('0')
 })
 
@@ -48,13 +48,17 @@ test('debt portal: the login spends the statutory allowance and stops at the cap
   await expect(page.locator('#fig-settlement [aria-live="polite"]').last()).toHaveText(/Not sent: 2 of 2 in the last 24 hours/)
 })
 
-test('opening a paper can morph its thumbnail: names match across the two pages', async ({ page }) => {
+test('opening a paper names exactly its own thumbnail and its own figure', async ({ page }) => {
+  // Contents: no thumbnail carries a name until its paper is opened, so the
+  // unmatched ones never hang over the incoming page.
   await page.goto('/')
+  const named = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-vt-thumb]')].filter((e) => getComputedStyle(e).viewTransitionName !== 'none').length)
+  expect(named).toBe(0)
   for (const p of visiblePapers(false)) {
-    const name = `fig-${p.slug}`
-    const onHome = await page.evaluate((n) => [...document.querySelectorAll<HTMLElement>('*')].filter((e) => getComputedStyle(e).viewTransitionName === n).length, name)
-    expect(onHome, `${name} on the contents page`).toBe(1)
+    const thumbs = await page.locator(`[data-vt-thumb="fig-${p.slug}"]`).count()
+    expect(thumbs, `thumbnail for ${p.slug}`).toBe(1)
   }
+  // Each paper: its figure carries the matching name.
   for (const p of visiblePapers(false)) {
     await page.goto(p.href)
     const name = `fig-${p.slug}`

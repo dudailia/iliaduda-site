@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { black, cdf, FORWARD } from '../lib/bs'
-import { DOMAIN, g, iv, localVol, P, phi, theta, w, wk, wT } from '../lib/svi'
+import { DOMAIN, ETA_BOUND, g, gWithEta, iv, localVol, P, phi, theta, w, wk, wT } from '../lib/svi'
 
 /**
  * The hero figure is synthetic, which makes it the one figure on the site whose
@@ -113,6 +113,17 @@ describe('Black on a forward, r = q = 0', () => {
     expect(r.gamma).toBeCloseTo((black(F + h, K, T, s).call - 2 * r.call + black(F - h, K, T, s).call) / (h * h), 3)
     expect(r.vega).toBeCloseTo((black(F, K, T, s + h).call - black(F, K, T, s - h).call) / (2 * h) / 100, 7)
     expect(r.theta).toBeCloseTo(-(black(F, K, T + h, s).call - black(F, K, T - h, s).call) / (2 * h) / 365, 7)
+  })
+})
+
+describe('the arbitrage bound figure', () => {
+  it('gWithEta reproduces g at the chosen η', () => {
+    for (const k of [-0.3, 0, 0.2]) for (const T of [0.1, 1]) expect(gWithEta(k, T, P.eta)).toBeCloseTo(g(k, T), 12)
+  })
+  it('the sufficient bound is conservative: no arbitrage just past it, arbitrage well past it', () => {
+    const minG = (eta: number) => Math.min(...Array.from({ length: 400 }, (_, i) => gWithEta(-0.6 + i / 400, DOMAIN.tMin, eta)))
+    expect(minG(ETA_BOUND * 1.2)).toBeGreaterThan(0)
+    expect(minG(3.5)).toBeLessThan(0)
   })
 })
 
