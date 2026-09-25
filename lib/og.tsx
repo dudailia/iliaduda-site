@@ -31,8 +31,8 @@ export async function fonts() {
     readFile(join(process.cwd(), 'assets/og-fonts/SourceCodePro-Regular.otf')),
   ])
   return [
-    { name: 'SourceSerif', data: serif, style: 'normal' as const, weight: 400 as const },
-    { name: 'SourceMono', data: mono, style: 'normal' as const, weight: 400 as const },
+    { name: 'Source Serif 4', data: serif, style: 'normal' as const, weight: 400 as const },
+    { name: 'Source Code Pro', data: mono, style: 'normal' as const, weight: 400 as const },
   ]
 }
 
@@ -62,23 +62,23 @@ export async function paperCard({
           backgroundColor: OG.paper,
           color: OG.ink,
           padding: '64px 72px',
-          fontFamily: 'SourceSerif',
+          fontFamily: 'Source Serif 4',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: 560 }}>
-          <div style={{ display: 'flex', fontFamily: 'SourceMono', fontSize: 22, color: OG.graphite }}>
+          <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 22, color: OG.graphite }}>
             {PERSON.name} · working papers
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 50, lineHeight: 1.1, letterSpacing: '-0.015em' }}>{title}</div>
-            <div style={{ display: 'flex', fontFamily: 'SourceMono', fontSize: 20, color: OG.graphite, marginTop: 22 }}>
+            <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 20, color: OG.graphite, marginTop: 22 }}>
               {byline}
             </div>
           </div>
           <div
             style={{
               display: 'flex',
-              fontFamily: 'SourceMono',
+              fontFamily: 'Source Code Pro',
               fontSize: 20,
               color: OG.ink,
               borderTop: `1px solid ${OG.rule}`,
@@ -89,7 +89,7 @@ export async function paperCard({
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', marginLeft: 40, width: OG_FIG.width }}>
-          <div style={{ display: 'flex', fontFamily: 'SourceMono', fontSize: 18, color: OG.graphite, marginBottom: 14 }}>
+          <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 18, color: OG.graphite, marginBottom: 14 }}>
             {kicker}
           </div>
           <div style={{ display: 'flex', width: OG_FIG.width, height: OG_FIG.height, borderTop: `1px solid ${OG.rule}`, paddingTop: 16 }}>
@@ -128,7 +128,7 @@ export function ogThumb(slug: string): ReactNode {
  */
 export function ogRegister(rows: readonly (readonly [string, string, boolean?])[], fontSize = 21): ReactNode {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: OG_FIG.width, fontFamily: 'SourceMono', fontSize }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: OG_FIG.width, fontFamily: 'Source Code Pro', fontSize }}>
       {rows.map(([k, v, claim]) => (
         <div
           key={k}

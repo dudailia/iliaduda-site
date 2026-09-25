@@ -84,13 +84,21 @@ export const easeOut = bezier(0.23, 1, 0.32, 1)
 export type Phase = 'shock' | 'relax' | 'calm'
 
 /** Shock amplitude at loop time `t` seconds: a fast rise, an exponential relaxation that reaches zero exactly, a calm hold. */
+/** Time constant of the critically damped relaxation, seconds. */
+const RELAX_T = 0.9
+
 export function amplitude(t: number): number {
   const u = ((t % LOOP) + LOOP) % LOOP
   if (u < RISE) return easeOut(u / RISE)
   if (u < RISE + RELAX) {
+    // Critically damped, so the fall starts at zero speed exactly where the
+    // rise ends: a plain exponential left the peak at full speed, and the
+    // surface visibly hit the ceiling and dropped. Half-life ≈ 1.5s; it is
+    // under 0.04 by about 4.5s and reaches zero exactly at the end.
     const x = u - RISE
-    const end = Math.exp(-RELAX / TAU)
-    return (Math.exp(-x / TAU) - end) / (1 - end)
+    const d = (y: number) => (1 + y / RELAX_T) * Math.exp(-y / RELAX_T)
+    const end = d(RELAX)
+    return (d(x) - end) / (1 - end)
   }
   return 0
 }

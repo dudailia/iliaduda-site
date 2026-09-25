@@ -114,7 +114,10 @@ in float vPay; out vec4 o;
 void main() { o = vec4(1.0, vPay, 0.0, 0.0); }`
 
 // One fragment per (strand, step): the log return of that strand's current
-// ensemble member up to that step.
+// ensemble member up to that step. Phase comes from a golden-ratio sequence
+// and the member id from a fixed stride (4096, the most strands any tier
+// draws), so a quality step adds or removes strands without re-ageing or
+// re-drawing the rest; indexing by i/uN reshuffled the whole cloud at once.
 const PATH_FS = `${HEAD}${RNG}
 uniform int uN, uH; uniform float uTime, uDrift, uVol;
 out vec4 o;
@@ -124,8 +127,8 @@ void main() {
   int j = f.x - block * 65;
   int i = block * uH + f.y;
   if (i >= uN) { o = vec4(0.0); return; }
-  float ph = uTime / ${PERIOD.toFixed(2)} + float(i) / float(uN);
-  uint id = (uint(floor(ph)) * uint(uN) + uint(i)) & 0x0FFFFFFFu;
+  float ph = uTime / ${PERIOD.toFixed(2)} + fract(float(i) * 0.618034);
+  uint id = (uint(floor(ph)) * 4096u + uint(i)) & 0x0FFFFFFFu;
   float x = 0.0;
   for (int g = 0; g < ${GROUPS}; g++) {
     int rem = j - g * 4;
@@ -143,8 +146,8 @@ uniform mat4 uVP;
 float lr(int i, int j) { return texelFetch(uPath, ivec2((i / uH) * 65 + j, i % uH), 0).r; }
 struct St { vec3 p; float age; float front; bool pays; };
 St strand(int i, float jWant) {
-  float ph = uTime / ${PERIOD.toFixed(2)} + float(i) / float(uN);
-  uint id = (uint(floor(ph)) * uint(uN) + uint(i)) & 0x0FFFFFFFu;
+  float ph = uTime / ${PERIOD.toFixed(2)} + fract(float(i) * 0.618034);
+  uint id = (uint(floor(ph)) * 4096u + uint(i)) & 0x0FFFFFFFu;
   St s;
   s.age = fract(ph);
   s.front = clamp(s.age / ${REVEAL.toFixed(2)}, 0.0, 1.0) * 64.0;
@@ -459,6 +462,11 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
   const readBuf = new Float32Array(MAXB * 4)
   const histData = new Float32Array(HIST.bins * 4)
   let histGen = -1
+  const barC = new Float32Array(HIST.bins)
+  const barG = new Float32Array(HIST.bins)
+  const barLen = new Float32Array(HIST.bins)
+  let barsReady = false
+  let lastBarT = performance.now()
   let runStart = 0, runPaths = 0, doneAt = 0
   let rateT = 0, rateN = 0, rate = 0
   let statsAt = 0
@@ -855,17 +863,32 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     segment([X1, wy(AXIS.lo), 0], [X1, wy(AXIS.hi), 0], hair, rgba(palette.graphite, 0.5 * vis))
     for (const s of TICKS) segment([X1 - 0.03, wy(s), 0], [X1, wy(s), 0], hair, rgba(palette.graphite, 0.8 * vis))
     // The histogram: counts, morphing into what each bin pays.
+    // A new commit clears the GPU histogram, and the first batch back is
+    // noisy. So the bars on screen keep their last lengths and ease toward
+    // each new target (a 50ms exponential follow) instead of blinking out on
+    // every step of a volatility drag; the numbers stay instant.
+    const tNow = performance.now()
+    const follow = 1 - Math.exp(-Math.min(0.1, (tNow - lastBarT) / 1000) * 20)
+    lastBarT = tNow
+    const w = morph(p)
     if (histGen === gen) {
       let maxC = 0, maxG = 0
       for (let b = 0; b < HIST.bins; b++) {
         maxC = Math.max(maxC, histData[b * 4]!)
         maxG = Math.max(maxG, histData[b * 4 + 1]!)
       }
-      const w = morph(p)
       for (let b = 0; b < HIST.bins; b++) {
         const c = histData[b * 4]!, g = histData[b * 4 + 1]!
-        if (!c) continue
-        const len = (1 - w) * (c / maxC) + w * (maxG ? g / maxG : 0)
+        barC[b] = maxC ? c / maxC : 0
+        barG[b] = maxG ? g / maxG : 0
+      }
+      barsReady = true
+    }
+    if (barsReady) {
+      for (let b = 0; b < HIST.bins; b++) {
+        const target = (1 - w) * barC[b]! + w * barG[b]!
+        barLen[b] = barLen[b]! + (target - barLen[b]!) * follow
+        const len = barLen[b]!
         if (len < 1e-4) continue
         const lo = HIST.lo + b * binWidth
         const pays = lo + binWidth / 2 > kv.x

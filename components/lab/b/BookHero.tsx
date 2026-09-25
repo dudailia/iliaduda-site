@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Shell } from '@/components/Layout'
-import { fade, useStage, type Create, type Palette, type Renderer } from '../useStage'
+import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '../useStage'
 import { posterSim, type Sim, type Stats } from '@/lib/lab/b/sim'
 import { fmt, readAt, sentence, type Reading } from '@/lib/lab/b/read'
 import type { KeyProbe, Shared } from './renderer'
@@ -239,7 +239,7 @@ export function BookHero({ posterWide, posterNarrow, initial }: { posterWide: Re
           }}
           className="absolute inset-0 cursor-crosshair touch-pan-y select-none focus-visible:outline-offset-[-4px]"
         >
-          <div data-lab-poster className="absolute inset-0" style={fade(!live)}>
+          <div data-lab-poster className="absolute inset-0" style={underlay(live)}>
             <div className="h-full portrait:hidden">{posterWide}</div>
             <div className="hidden h-full portrait:block">{posterNarrow}</div>
           </div>

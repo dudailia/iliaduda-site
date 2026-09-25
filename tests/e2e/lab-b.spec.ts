@@ -28,7 +28,8 @@ test('goes live on its first frame, or keeps the poster', async ({ page }) => {
   const live = await settle(page)
   const poster = page.locator('[data-lab-poster]')
   if (live) {
-    await expect(poster).toHaveCSS('opacity', '0', { timeout: 2000 })
+    // The canvas fades in over the poster, which is then hidden (kit underlay).
+    await expect(poster).toHaveCSS('visibility', 'hidden', { timeout: 2000 })
     // The live labels are the renderer's: the price tag carries a computed mid.
     await expect(page.locator('section span', { hasText: /^Price \$\d+\.\d{2,3}$/ }).first()).toBeVisible()
   } else {

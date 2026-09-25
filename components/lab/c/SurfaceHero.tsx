@@ -5,7 +5,7 @@ import { amplitude, LOOP, params, PEAK, phase, PHASE_TEXT, SIZE_MAX, SIZE_MIN, t
 import { all, numbers, probeText, text as format } from '@/lib/lab/c/readouts'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/lab/c/ssvi'
 import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/lab/c/view'
-import { fade, useStage, type Create, type Renderer } from '../useStage'
+import { fade, underlay, useStage, type Create, type Renderer } from '../useStage'
 import { AxisLabel, Frame, NoteMark } from './marks'
 import type { Probe, Sim } from './renderer'
 
@@ -331,7 +331,7 @@ export function SurfaceHero({ poster, lede, intro, introShort, desc }: { poster:
         onKeyDown={onKey}
         className="relative order-1 my-3 aspect-[1.35] w-full flex-none cursor-crosshair touch-pan-y select-none sm:my-2 sm:aspect-auto sm:min-h-[320px] sm:w-auto sm:flex-1 lg:order-2 lg:ml-(--gutter)"
       >
-        <div className="absolute inset-0" style={fade(!live)}>
+        <div className="absolute inset-0" style={underlay(live)}>
           {poster}
           <Frame>
             <span

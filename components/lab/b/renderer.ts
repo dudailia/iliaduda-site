@@ -47,7 +47,9 @@ const SPARK_LIFE = 0.6
 const DRIFT = { amp: 0.07, period: 48 }
 /** Window follow speed, ticks per second: linear, never eased. */
 const FOLLOW = 4
-const OMEGA = 4.5
+// The orbit follows the pointer quickly (settles in ~0.5s) and swings little:
+// a slow, wide orbit slid the level under the probe while the reader aimed.
+const OMEGA = 9
 
 const HEAD = `#version 300 es
 precision highp float;
@@ -68,7 +70,7 @@ layout(location = 0) in vec2 aGrid;
 uniform sampler2D uDepth;
 uniform sampler2D uCentre;
 uniform int uHead, uRows, uBase, uWmod;
-uniform float uFracX, uFracZ;
+uniform float uFracX, uFracZ, uRowsF;
 uniform mat4 uMVP;
 out vec3 vPos; out vec3 vN; out float vCum; out float vRow; out float vPx; out float vAge;
 float hgt(float c) { return H * pow(abs(c) / REF, POW); }
@@ -90,7 +92,7 @@ void main() {
   vCum = d;
   vRow = float(uWmod - a);
   vPx = float(j + ((uBase % 10) + 10) % 10);
-  vAge = (float(a) + uFracZ) / float(uRows);
+  vAge = (float(a) + uFracZ) / uRowsF;
   vPos = vec3(x, y, z);
   gl_Position = uMVP * vec4(x, y, z, 1.0);
 }`
@@ -257,6 +259,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   const gridBuf = gl.createBuffer()!
   const idxBuf = gl.createBuffer()!
   let rows: number = ROWS_BY_Q[2]
+  let rowsF = 0
   let idxCount = 0
   const buildGrid = (nz: number) => {
     const g = new Float32Array(NX * nz * 2)
@@ -525,8 +528,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     if (Math.abs(target - centre) > 40) centre = target
 
     // The pointer orbit: a critically damped spring toward the pointer's offset.
-    const ty = pointerN ? -0.12 * pointerN[0] : 0
-    const tp = pointerN ? 0.05 * pointerN[1] : 0
+    const ty = pointerN ? -0.05 * pointerN[0] : 0
+    const tp = pointerN ? 0.02 * pointerN[1] : 0
     for (let left = dt; left > 1e-6; left -= 1 / 60) {
       const h = Math.min(left, 1 / 60)
       spring.vy += (-OMEGA * OMEGA * (spring.yaw - ty) - 2 * OMEGA * spring.vy) * h
@@ -573,6 +576,12 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     gl.uniform1i(terrain.u('uCentre'), 1)
     gl.uniform1i(terrain.u('uHead'), head)
     gl.uniform1i(terrain.u('uRows'), Math.min(rows, sim.written))
+    // The age fade eases toward a new history depth (τ ≈ 250ms) instead of
+    // rescaling in one frame when quality steps: rows a step adds emerge out
+    // of the fade rather than the whole terrain jumping 23% deeper.
+    const rowsTarget = Math.min(rows, sim.written)
+    rowsF = rowsF ? rowsF + (rowsTarget - rowsF) * (1 - Math.exp(-dt * 4)) : rowsTarget
+    gl.uniform1f(terrain.u('uRowsF'), Math.max(1, rowsF))
     gl.uniform1i(terrain.u('uBase'), b - START)
     const wmod = (sim.written - 1) % 1200
     gl.uniform1i(terrain.u('uWmod'), wmod)

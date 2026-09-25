@@ -62,6 +62,7 @@ typography:
     lineHeight: 1.45
     fontFeature: "lnum, tnum"
 rounded:
+  focus: "1px"
   sm: "4px"
   full: "9999px"
 spacing:

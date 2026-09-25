@@ -24,10 +24,10 @@ export default async function OpengraphImage() {
           backgroundColor: OG.paper,
           color: OG.ink,
           padding: '72px 80px',
-          fontFamily: 'SourceSerif',
+          fontFamily: 'Source Serif 4',
         }}
       >
-        <div style={{ display: 'flex', fontFamily: 'SourceMono', fontSize: 26, color: OG.graphite }}>{PERSON.base}</div>
+        <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 26, color: OG.graphite }}>{PERSON.base}</div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 92, letterSpacing: '-0.02em' }}>{PERSON.name}</div>
           <div style={{ fontSize: 36, color: OG.graphite, marginTop: 18, maxWidth: 880 }}>
@@ -38,7 +38,7 @@ export default async function OpengraphImage() {
         <div
           style={{
             display: 'flex',
-            fontFamily: 'SourceMono',
+            fontFamily: 'Source Code Pro',
             fontSize: 24,
             color: OG.ink,
             borderTop: `1px solid ${OG.rule}`,

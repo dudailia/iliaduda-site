@@ -38,14 +38,14 @@ export default function LabA() {
       method={
         <>
           <p>
-            Every path is geometric Brownian motion under the risk-neutral measure, stepped exactly in log space over 64
-            steps: S<sub>0</sub> = $100, T = 1 year, r = 3%, no dividends. The random numbers come from a counter-based
+            Every path is geometric Brownian motion under the risk-neutral measure, stepped exactly in log space over{' '}
+            {MODEL.steps} steps: S<sub>0</sub> = ${MODEL.s0}, T = {MODEL.T} year, r = {Math.round(MODEL.r * 1000) / 10}%, no dividends. The random numbers come from a counter-based
             hash (PCG4D of path id, step, seed) with Box–Muller, so any path can be regenerated anywhere; a CPU mirror of
             the same arithmetic backs the unit tests, which hold the estimator to within four standard errors of
             Black–Scholes and check that its error falls like 1/√n.
           </p>
           <p>
-            A fragment shader simulates 65,536 paths per draw into a 32-bit float target, writing payoff, payoff², final
+            A fragment shader simulates up to 65,536 paths per draw (fewer on a lighter device) into a 32-bit float target, writing payoff, payoff², final
             price and a count. Four-by-four summing passes reduce each batch to one texel; terminal prices are scattered
             into the histogram with additive blending. Results return through a pixel-pack buffer behind a fence, so the
             page never waits on the GPU, and are summed in double precision. The number of batches per frame adapts to

@@ -183,7 +183,7 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
   let lastParams: Params = params(amplitude(sim.clock), sim.size)
   /** Drag offset of the orbit, on a critically damped spring back to zero. */
   const spring = { yaw: 0, pitch: 0, vy: 0, vp: 0, ty: 0, tp: 0 }
-  let drag: { id: number; x: number; y: number; moved: number } | null = null
+  let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number } | null = null
 
   // ── input ──────────────────────────────────────────────────────────────────
   const pick = (clientX: number, clientY: number): Probe | null => {
@@ -225,7 +225,7 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
 
   const onDown = (e: PointerEvent) => {
     if (drag) return
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0 }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: spring.yaw, rawPitch: spring.pitch }
     canvas.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent) => {
@@ -235,9 +235,22 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       drag.x = e.clientX
       drag.y = e.clientY
       if (drag.moved > 4) {
-        spring.ty = Math.max(-0.9, Math.min(0.9, spring.ty - dx * 0.006))
+        // The surface follows the hand 1:1 while dragging, easing into soft
+        // limits (tanh) instead of stopping dead, and the hand's speed is
+        // kept so the release carries it.
+        const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
+        drag.t = e.timeStamp
+        drag.rawYaw -= dx * 0.006
+        const yaw = 0.9 * Math.tanh(drag.rawYaw / 0.9)
+        spring.vy = spring.vy * 0.6 + ((yaw - spring.yaw) / dtS) * 0.4
+        spring.yaw = yaw
         // Touch turns only: a vertical swipe belongs to the page.
-        if (e.pointerType !== 'touch') spring.tp = Math.max(-0.3, Math.min(0.5, spring.tp + dy * 0.004))
+        if (e.pointerType !== 'touch') {
+          drag.rawPitch += dy * 0.004
+          const pitch = 0.1 + 0.4 * Math.tanh((drag.rawPitch - 0.1) / 0.4)
+          spring.vp = spring.vp * 0.6 + ((pitch - spring.pitch) / dtS) * 0.4
+          spring.pitch = pitch
+        }
       }
       return
     }
@@ -324,10 +337,14 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       // Spring: ω = 7/s, critically damped (ζ = 1), semi-implicit Euler.
       const W = 7
       const step = Math.min(dt, 1 / 30)
-      spring.vy += (W * W * (spring.ty - spring.yaw) - 2 * W * spring.vy) * step
-      spring.vp += (W * W * (spring.tp - spring.pitch) - 2 * W * spring.vp) * step
-      spring.yaw += spring.vy * step
-      spring.pitch += spring.vp * step
+      // While a drag holds the surface, the hand sets the angle directly;
+      // the spring takes over on release, from the hand's own speed.
+      if (!drag || drag.moved <= 4) {
+        spring.vy += (W * W * (spring.ty - spring.yaw) - 2 * W * spring.vy) * step
+        spring.vp += (W * W * (spring.tp - spring.pitch) - 2 * W * spring.vp) * step
+        spring.yaw += spring.vy * step
+        spring.pitch += spring.vp * step
+      }
       const moving = !!drag || Math.abs(spring.yaw) + Math.abs(spring.pitch) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4
 
       if (drawnOnce && !sim.playing && !moving && !sim.dirty && !resized) return true

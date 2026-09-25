@@ -5,7 +5,7 @@ import { Shell } from '@/components/Layout'
 import { MODEL, bs } from '@/lib/lab/a/mc'
 import { POSTER_PATHS, fill, strands, summarize, type Bar, type Summary } from '@/lib/lab/a/poster'
 import { saveData, supportsWebGL2 } from '../../figures/surface/env'
-import { fade, useStage, type Create, type Renderer } from '../useStage'
+import { fade, underlay, useStage, type Create, type Renderer } from '../useStage'
 import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
 import type { LabRenderer, Stats } from './renderer'
@@ -268,8 +268,10 @@ export function Hero({ initial }: { initial: { stats: Summary; bars: Bar[] } }) 
   const fresh = shown.mode === 'gpu' || shown.mode === 'cpu' || (sigma === MODEL.sigma && strike === MODEL.strike)
 
   const speed =
-    shown.mode === 'gpu' || shown.mode === 'cpu'
+    (shown.mode === 'gpu' || shown.mode === 'cpu') && shown.rate > 0
       ? `${fmtRate(shown.rate)} paths/s`
+      : shown.mode === 'gpu' || shown.mode === 'cpu'
+        ? 'measuring…'
       : mounted && eligible && !reduced
         ? 'starting'
         : 'computed at build'
@@ -329,7 +331,7 @@ export function Hero({ initial }: { initial: { stats: Summary; bars: Bar[] } }) 
           onPointerCancel={onUp}
           onPointerLeave={onLeave}
         >
-          <div data-lab-poster className="absolute inset-0" style={fade(!live)}>
+          <div data-lab-poster className="absolute inset-0" style={underlay(live)}>
             <Poster strands={posterStrands} bars={bars} strike={strike} />
           </div>
           <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
@@ -408,7 +410,7 @@ export function Hero({ initial }: { initial: { stats: Summary; bars: Bar[] } }) 
                 <p className="text-meta mt-2 min-h-[2.9em] font-mono text-graphite sm:min-h-[1.45em]">
                   {why ?? (live ? hint : 'Scroll to fly through the futures.')}
                 </p>
-                <p className="text-meta font-mono text-graphite">Simulated, not market data · $100 today · one year · 3% rate · 64 steps a path</p>
+                <p className="text-meta font-mono text-graphite">Simulated, not market data · ${MODEL.s0} today · {MODEL.T === 1 ? 'one year' : `${MODEL.T} years`} · {Math.round(MODEL.r * 1000) / 10}% rate · {MODEL.steps} steps a path</p>
               </div>
             </div>
           </Shell>

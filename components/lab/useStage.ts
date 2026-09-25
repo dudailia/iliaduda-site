@@ -126,18 +126,28 @@ export function useStage(create: Create, opts: { threshold?: number } = {}): Sta
     let frames = 0
     let fpsAt = 0
     let first = false
+    const failures: number[] = []
+    const blockedUntil: number[] = []
 
+    // Setting a canvas's size clears its drawing buffer, and with alpha off a
+    // cleared buffer is black. So a resize — a window change, or the governor
+    // stepping quality after this tick's frame was already drawn — redraws in
+    // the same task (dt 0: the scene holds, nothing advances). Without it,
+    // every MacBook visit flashed one black frame about three seconds in, at
+    // the first step up.
     const size = () => {
       if (!renderer) return
       const r = cv.getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP[q]!)
       const w = Math.max(1, Math.round(r.width * dpr))
       const h = Math.max(1, Math.round(r.height * dpr))
-      if (cv.width !== w || cv.height !== h) {
+      const changed = cv.width !== w || cv.height !== h
+      if (changed) {
         cv.width = w
         cv.height = h
       }
       renderer.resize(w, h, r.width, r.height)
+      if (changed && first && t0) renderer.frame((last - t0) / 1000, 0)
     }
 
     const tick = (now: number) => {
@@ -162,13 +172,18 @@ export function useStage(create: Create, opts: { threshold?: number } = {}): Sta
       else slow = 0
       if (ema < vsync * 1.15) fast += dt
       else fast = 0
+      // Hysteresis: a level the device has just failed to hold is off limits
+      // for 30s, doubling each time it fails again, so a marginal phone does
+      // not climb and fall every four seconds.
       if (slow > 1 && q > 0) {
+        failures[q] = (failures[q] ?? 0) + 1
+        blockedUntil[q] = now + 30000 * 2 ** (failures[q]! - 1)
         q--
         slow = 0
         renderer.setQuality?.(q)
         size()
         setQuality(q)
-      } else if (fast > 3 && q < maxQ) {
+      } else if (fast > 3 && q < maxQ && now >= (blockedUntil[q + 1] ?? 0)) {
         q++
         fast = 0
         renderer.setQuality?.(q)
@@ -266,9 +281,20 @@ export function useStage(create: Create, opts: { threshold?: number } = {}): Sta
   return { box, canvas, live: live && !reduced, eligible: eligible && !reduced, reduced, quality, fps, tier }
 }
 
-/** The crossfade, as styles: poster out and canvas in on one clock. */
+/**
+ * The crossfade, as styles. The canvas fades in over the poster; the poster
+ * stays fully opaque underneath and is hidden only once the canvas is solid.
+ * Fading both at once dipped the picture's contrast by a quarter mid-fade,
+ * because two matching images each at half opacity do not add up to one.
+ */
 export const FADE_MS = 240
 export const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)'
+export function underlay(covered: boolean) {
+  return {
+    visibility: covered ? ('hidden' as const) : ('visible' as const),
+    transition: `visibility 0s linear ${covered ? `${FADE_MS}ms` : '0s'}`,
+  }
+}
 export function fade(show: boolean) {
   return {
     opacity: show ? 1 : 0,
