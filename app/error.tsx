@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { Row, Shell } from '@/components/Layout'
 import { RunningHead } from '@/components/RunningHead'
 
@@ -15,7 +14,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
               <h1 className="text-h2">Something broke</h1>
               <p className="mt-4 max-w-[34rem]">
                 The page failed to render. Retry, or go back to the{' '}
-                <Link prefetch={false} href="/">contents</Link>.
+                <a href="/">contents</a>.
               </p>
               <button
                 type="button"

@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { Row, Shell } from '@/components/Layout'
 import { RunningHead } from '@/components/RunningHead'
 
@@ -13,7 +12,7 @@ export default function NotFound() {
               <h1 className="text-h2">That page is not here</h1>
               <p className="mt-4 max-w-[34rem]">
                 Everything on the site is listed in the{' '}
-                <Link prefetch={false} href="/#contents">contents</Link>, and the <a href="/cv">CV</a> is one
+                <a href="/#contents">contents</a>, and the <a href="/cv">CV</a> is one
                 page.
               </p>
             </Row>
