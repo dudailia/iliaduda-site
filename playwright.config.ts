@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const PORT = 4400
+// E2E_PORT lets two checkouts run their suites side by side without one
+// reusing the other's server.
+const PORT = Number(process.env.E2E_PORT ?? 4400)
 const BASE = `http://127.0.0.1:${PORT}`
 
 export default defineConfig({
