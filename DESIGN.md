@@ -111,7 +111,7 @@ The site is set as a short journal issue. A masthead carries the front matter, C
 
 Density is literary rather than dashboard-like. There is one text column at a fixed measure, a margin to its left that holds headings, figure numbers and readouts, and generous vertical space between sections. Everything is typographic: no cards, no icons, no photographs except one small portrait in the margin of /about. Colour is almost absent, which is what lets the one accent mean something.
 
-It is calm everywhere except once. The home page's Fig. 1, a million simulated futures for one stock, plays a single signature sequence per visit and then keeps a quiet stream of futures moving while it is on screen. Two figures replay once when first seen (the cricket match and the CloseBooks batch). Everything else changes state only in direct response to the reader.
+It is calm everywhere except once. The home page's Fig. 1, a million simulated futures for one stock, plays a single signature sequence per visit and then falls still. Two figures replay once when first seen (the cricket match and the CloseBooks batch). Everything else changes state only in direct response to the reader.
 
 **Key Characteristics:**
 - One serif family for all prose and headings, one mono for labels, data and measurement. No third face, no display weight.
@@ -205,8 +205,18 @@ Square and ruled. Text blocks have no containers at all. The one rounded shape i
 - **Marks:** context in `rule`, claim in indigo, thresholds in ink (dashed where they are references), the previous state as a dashed indigo ghost, and axes as HTML labels in graphite mono.
 - **Interaction:** native range inputs (accent indigo, 24px hit height), radio groups with roving tabindex, and keyboard parity everywhere. Values are announced through `aria-valuetext`. A live region speaks only for changes the reader did not make on the control itself.
 - **Motion:** nothing moves unless the reader acts, with three exceptions, each once.
-  - The home figure's signature sequence, once per visit, the first time a third of its stage is on screen: 3.6s in four phases — the futures burst out of today (launches over 0.78s, each front easing out over 0.45s on cubic-bezier(0.23, 1, 0.32, 1)), the terminal histogram rises as the GPU's counts land, the counts become payoff × probability (0.94s on cubic-bezier(0.77, 0, 0.175, 1)), and the price appears. The numbers are real throughout; pricing restarts with the sequence, so the estimate really converges while it plays. A click, a key or a control finishes what is left in 240ms on the ease-out; scrolling does not. Off screen it waits. Afterwards a quiet stream of futures keeps moving while the figure is on screen.
-  - Two reader-started motions on the same figure: Fly through (9s out on easeInOutQuad, cubic-bezier(0.45, 0, 0.55, 1), 1.2s on the payoff view, 900ms home; Stop, Escape or a touch springs it home) and Replay (the futures fade out over 200ms and the sequence plays again).
+  - The home figure's signature sequence, once per visit, the first time its stage is on screen down to today's price: 3.6s in four phases.
+    - The paths burst out of today: launches over 0.78s, each front easing out over 0.45s on a quintic, the power curve closest to cubic-bezier(0.23, 1, 0.32, 1).
+    - The terminal histogram fills as they land, from the frame the first one reaches expiry.
+    - The counts become payoff × probability: 0.94s on cubic-bezier(0.77, 0, 0.175, 1).
+    - The call's price appears.
+    - The numbers are real throughout: pricing restarts with the sequence, so the estimate really converges while it plays.
+    - A click or a key finishes what is left in 240ms on the ease-out. Scrolling does not, by wheel, finger or key, and neither does any input before its first frame. Using the figure itself (a slider, a strike, Fly through) ends it at once.
+    - Off screen it waits.
+    - Afterwards the figure falls still: frames are drawn only while something changes, and nothing loops, so there is nothing to pause (WCAG 2.2.2).
+  - Two reader-started motions on the same figure:
+    - Fly through: 9s out on easeInOutQuad, cubic-bezier(0.45, 0, 0.55, 1); 1.2s on the payoff view; 900ms home. Stop, Escape or a touch springs it home.
+    - Replay: only the paths, bars and their labels fade out over 200ms (the axes and strike stay), and the sequence plays again.
   - The cricket replay is linear over 4.2s. The CloseBooks batch staggers rows 45ms apart and settles each over 240ms ease-out. A figure entered through the Contents morph skips its replay.
   - Reduced motion: everything is static and there is no canvas; every control still works on the still frame.
 

@@ -5,7 +5,7 @@ import { RNG } from '@/lib/futures/glsl'
 import { CAP_LOG2, Estimator, GROUPS, HIST, MODEL, binWidth, discount, stepCoefficients } from '@/lib/futures/mc'
 import { BURST, type Phases } from '@/lib/futures/sequence'
 import { AXIS, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
-import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Target } from '@/lib/gl'
+import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Tier, type Target } from '@/lib/gl'
 import { LABEL } from './Poster'
 
 /**
@@ -21,20 +21,20 @@ import { LABEL } from './Poster'
  * grows while fences come back within a frame or two and backs off when they
  * do not.
  *
- * The drawing job shows a few thousand members of the same ensemble — the
- * same generator, the same ids — as line strips accumulated into a float
- * density buffer (paths that finish above the strike in one channel, the rest
- * in another), bloomed, and composited into the site palette: a glow at
- * night, ink absorbed into paper by day.
+ * The drawing job shows a few thousand fixed members of the same ensemble —
+ * the same generator, the same ids the poster draws the first ninety of — as
+ * line strips accumulated into a float density buffer (paths that finish above
+ * the strike in one channel, the rest in another), bloomed, and composited into
+ * the site palette: a glow at night, ink absorbed into paper by day.
  *
- * The signature sequence (lib/futures/sequence.ts) drives the reveal: while it
- * plays, the strand clock stands still, so every strand is one fixed future
- * whose front eases out of today on a golden-ratio stagger; the histogram
+ * The signature sequence (lib/futures/sequence.ts) drives the reveal: each
+ * strand's front eases out of today on a golden-ratio stagger; the histogram
  * rises as the GPU's own counts land; the counts become payoff × probability;
  * the price appears. Pricing restarts when the sequence does, so the numbers
- * really are converging while the reader watches. After it, each strand keeps
- * the future it was showing until that life ends, then the quiet stream takes
- * over — nothing pops.
+ * really are converging while the reader watches. Then the figure falls still,
+ * and moves again only when the reader acts: nothing on the site loops by
+ * itself. A still frame is not redrawn: frames are drawn only while something
+ * is changing.
  */
 
 export interface Stats {
@@ -45,6 +45,8 @@ export interface Stats {
   /** Paths per second actually simulated and read back. */
   rate: number
   done: boolean
+  /** The run's terminal histogram — paths and summed payoff per bin — at most once a second, or null. */
+  hist: { counts: number[]; payoff: number[] } | null
 }
 
 export interface Options {
@@ -72,14 +74,18 @@ export interface FuturesRenderer extends Renderer {
 
 export const CAP = 2 ** CAP_LOG2
 const MAXB = 64
-const PERIOD = 6.5
-const REVEAL = 0.42
-const STRANDS = [320, 900, 2048, 4096] as const
+/**
+ * Strands drawn, fixed for the device: a quality step changes resolution and
+ * bloom, never the number of futures on screen, so nothing pops in or out.
+ */
+const STRANDS: Record<Tier, number> = { software: 320, low: 900, mid: 2048, high: 4096 }
 // Pricing is governed by its own fences, so above the software tier it is
 // not tied to the drawing quality: a phone that draws fewer strands can still
 // price as fast as its GPU allows.
 const GRID = [64, 256, 256, 256] as const
 const BATCHES = [1, 48, 64, 64] as const
+/** The stage area the gains are tuned at (the lg stage, 710 × 404). A smaller stage packs the same futures tighter. */
+const REF_AREA = 710 * 404
 
 // ── shaders ──────────────────────────────────────────────────────────────────
 
@@ -132,13 +138,10 @@ const SCATTER_FS = `${HEAD}
 in float vPay; out vec4 o;
 void main() { o = vec4(1.0, vPay, 0.0, 0.0); }`
 
-// One fragment per (strand, step): the log return of that strand's current
-// ensemble member up to that step. Phase comes from a golden-ratio sequence
-// and the member id from a fixed stride (4096, the most strands any tier
-// draws), so a quality step adds or removes strands without re-ageing or
-// re-drawing the rest; indexing by i/uN reshuffled the whole cloud at once.
+// One fragment per (strand, step): the log return of ensemble member i up to
+// that step. Member i is the same path lib/futures/mc.ts's path(i) gives.
 const PATH_FS = `${HEAD}${RNG}
-uniform int uN, uH; uniform float uTime, uDrift, uVol;
+uniform int uN, uH; uniform float uDrift, uVol;
 out vec4 o;
 void main() {
   ivec2 f = ivec2(gl_FragCoord.xy);
@@ -146,8 +149,7 @@ void main() {
   int j = f.x - block * 65;
   int i = block * uH + f.y;
   if (i >= uN) { o = vec4(0.0); return; }
-  float ph = uTime / ${PERIOD.toFixed(2)} + fract(float(i) * 0.618034);
-  uint id = (uint(floor(ph)) * 4096u + uint(i)) & 0x0FFFFFFFu;
+  uint id = uint(i);
   float x = 0.0;
   for (int g = 0; g < ${GROUPS}; g++) {
     int rem = j - g * 4;
@@ -159,40 +161,21 @@ void main() {
   o = vec4(x, 0.0, 0.0, 1.0);
 }`
 
-// Where a strand is, how much of it is showing, and how alive it is.
-//   In the sequence (uSeq = 1): the strand clock is frozen, each strand is one
-//   fixed future, and its front eases out of today on the burst's stagger.
-//   After it: a strand still in the life it had at the hand-off (uHand) keeps
-//   its whole path and fades only over what is left of that life; every later
-//   life streams out of today and fades near its end, the lab's quiet stream.
+// Where strand i is and how much of it is showing. Its front eases out of
+// today on the burst's golden-ratio stagger, on a quintic — the power curve
+// closest to the site's cubic-bezier(0.23, 1, 0.32, 1). Outside the sequence
+// uBurst is 1 and every path is whole.
 const STRAND = `
-uniform sampler2D uPath; uniform int uN, uH; uniform float uTime, uK, uS0, uGain;
-uniform float uSeq, uBurst, uHand;
+uniform sampler2D uPath; uniform int uN, uH; uniform float uK, uS0, uGain, uBurst;
 uniform mat4 uVP;
 float lr(int i, int j) { return texelFetch(uPath, ivec2((i / uH) * 65 + j, i % uH), 0).r; }
-struct St { vec3 p; float age; float front; float reveal; float alive; bool first; bool pays; };
+struct St { vec3 p; float reveal; float front; bool pays; };
 St strand(int i, float jWant) {
-  float off = fract(float(i) * 0.618034);
-  float ph = uTime / ${PERIOD.toFixed(2)} + off;
-  uint id = (uint(floor(ph)) * 4096u + uint(i)) & 0x0FFFFFFFu;
   St s;
-  s.age = fract(ph);
-  float r;
-  if (uSeq > 0.5) {
-    // The front eases out on a quintic, the power curve closest to the site's cubic-bezier(0.23, 1, 0.32, 1).
-    float u = clamp((uBurst - off * ${BURST.launch.toFixed(3)}) / ${BURST.front.toFixed(3)}, 0.0, 1.0);
-    float v = 1.0 - u;
-    r = 1.0 - v * v * v * v * v;
-    s.alive = 1.0;
-    s.first = false;
-  } else {
-    float phH = uHand / ${PERIOD.toFixed(2)} + off;
-    s.first = abs(floor(ph) - floor(phH)) < 0.5;
-    r = s.first ? 1.0 : clamp(s.age / ${REVEAL.toFixed(2)}, 0.0, 1.0);
-    s.alive = 1.0 - smoothstep(s.first ? max(fract(phH), 0.7) : 0.7, 1.0, s.age);
-  }
-  s.reveal = r;
-  s.front = r * 64.0;
+  float u = clamp((uBurst - fract(float(i) * 0.618034) * ${BURST.launch.toFixed(3)}) / ${BURST.front.toFixed(3)}, 0.0, 1.0);
+  float v = 1.0 - u;
+  s.reveal = 1.0 - v * v * v * v * v;
+  s.front = s.reveal * 64.0;
   float jj = min(jWant, s.front);
   int j0 = int(floor(jj));
   int j1 = min(j0 + 1, 64);
@@ -200,7 +183,7 @@ St strand(int i, float jWant) {
   float t = jj / 64.0;
   float S = uS0 * exp(x);
   // Depth only: a Gaussian lane per strand, so the cloud's cross-section is soft.
-  uvec4 h = pcg4d(uvec4(id, 65535u, SEED, SALT));
+  uvec4 h = pcg4d(uvec4(uint(i), 65535u, SEED, SALT));
   float lane = clamp(sqrt(-2.0 * log(unit(h.x))) * cos(6.2831853 * unit(h.y)), -2.5, 2.5);
   s.p = vec3(${X0.toFixed(3)} + ${(X1 - X0).toFixed(3)} * t, (S - uS0) * ${PY}, lane * ${(ZW * 0.45).toFixed(3)} * sqrt(t));
   s.pays = uS0 * exp(lr(i, 64)) > uK;
@@ -215,22 +198,18 @@ void main() {
   int seg = v / 2;
   St s = strand(i, float(seg + (v & 1)));
   vPays = s.pays ? 1 : 0;
-  vW = float(seg) < s.front ? uGain * s.alive : 0.0;
+  vW = float(seg) < s.front ? uGain : 0.0;
   gl_Position = uVP * vec4(s.p, 1.0);
 }`
 
-// A head rides each front while it travels: brighter in the burst, never on a
-// strand that has not launched, and never on one kept whole at the hand-off.
+// A head rides each front while it travels, and is gone once the path is whole.
 const HEAD_VS = `${HEAD}${RNG}${STRAND}
 uniform float uSize;
 out float vW; flat out int vPays;
 void main() {
   St s = strand(gl_VertexID, 64.0);
   vPays = s.pays ? 1 : 0;
-  float travelling = uSeq > 0.5
-    ? step(0.001, s.reveal) * (1.0 - smoothstep(0.97, 1.0, s.reveal)) * 1.5
-    : (s.first ? 0.0 : 1.0 - smoothstep(${REVEAL.toFixed(2)}, ${(REVEAL + 0.1).toFixed(2)}, s.age));
-  vW = uGain * 3.0 * travelling * s.alive;
+  vW = uGain * 4.5 * step(0.001, s.reveal) * (1.0 - smoothstep(0.97, 1.0, s.reveal));
   gl_PointSize = uSize;
   gl_Position = uVP * vec4(s.p, 1.0);
 }`
@@ -263,12 +242,14 @@ void main() {
     + (texture(uSrc, vUv + b) + texture(uSrc, vUv - b)) * 0.0702702703;
 }`
 
-// Night: the density glows toward the palette's indigo, a notch dimmer than
-// the lab's, so the densest cores no longer wash out to white.
-// Day: ink on paper. Each strand absorbs light — Beer–Lambert, in linear
-// light, with absorption set so one unit of density is exactly the token's
-// colour — so where the futures crowd, the page goes deep indigo toward ink
-// instead of pastel, and the bloom becomes a soft shadow of the crowd.
+// Night: the density glows toward the palette's indigo, dimmer than the lab's,
+// so the densest cores stay lavender rather than washing out to white.
+// Day: ink on paper. Each strand absorbs light — Beer–Lambert, in linear light,
+// with absorption per unit of density set from the token's colour — and the
+// total depth saturates (at most 1.2 units, shared between the two inks in
+// proportion), so where every future crosses, at today, the paper goes deep
+// indigo-slate, never black, and keeps its hue. The bloom is a faint shadow of
+// the crowd.
 const COMPOSITE_FS = `${HEAD}
 in vec2 vUv;
 uniform sampler2D uDen, uB1, uB2;
@@ -289,17 +270,14 @@ void main() {
     c = mix(c, uGraphite, not_ * 0.7);
     c = mix(c, uIndigo, pays);
     c += uIndigo * 0.18 * (1.0 - exp(-1.2 * b.r));
-    c = mix(c, uInk, 0.35 * smoothstep(0.5, 1.0, 1.0 - exp(-uTone * 0.08 * d.r)));
+    c = mix(c, uInk, 0.15 * smoothstep(0.5, 1.0, 1.0 - exp(-uTone * 0.08 * d.r)));
     o = vec4(min(c, vec3(1.0)), 1.0);
   } else {
     vec3 P = lin(uPaper);
     vec3 aPay = -log(clamp(lin(uIndigo) / P, vec3(1e-3), vec3(1.0)));
     vec3 aNot = -log(clamp(lin(uGraphite) / P, vec3(1e-3), vec3(1.0)));
-    float dp = uTone * d.r + 0.12 * b.r;
-    float dn = 0.55 * uTone * d.g + 0.06 * b.g;
-    // Ink saturates: the total depth is capped, and shared between the two
-    // inks in proportion, so where every future crosses (today) the paper
-    // goes deep indigo-slate, never black, and keeps its hue.
+    float dp = uTone * d.r + 0.06 * b.r;
+    float dn = 0.55 * uTone * d.g + 0.03 * b.g;
     float s = dp + dn;
     float k = s > 1e-4 ? 1.2 * (1.0 - exp(-s / 1.2)) / s : 1.0;
     vec3 tau = (aPay * dp + aNot * dn) * k;
@@ -329,6 +307,13 @@ function spring(s: { x: number; v: number }, target: number, dt: number, omega: 
   const c = s.v + omega * d
   s.x = target + (d + c * dt) * e
   s.v = (s.v - omega * c * dt) * e
+}
+/** Whether a spring has arrived; if it has, it is put exactly there, so a still figure stays still. */
+function arrived(s: { x: number; v: number }, target: number, eps: number) {
+  if (Math.abs(s.x - target) > eps || Math.abs(s.v) > eps * 10) return false
+  s.x = target
+  s.v = 0
+  return true
 }
 
 /** Where the flight turns the histogram into payoff: once it faces expiry (lib/futures/flight.ts keys). */
@@ -368,13 +353,17 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
 
   let palette: Palette = env.palette
   let q = 2
+  /** A quality step asked for while the sequence plays waits until it is over. */
+  let pendingQ: number | null = null
   let W = 0
   let chain: Target[] = []
   let grid: Target | null = null
   const results = target(gl, MAXB, 1, { float: 'f32' })
   const hist = target(gl, HIST.bins, 1, { float: 'f32' })
-  let pathT: Target | null = null
-  let pathN = 0, pathH = 0
+  const pathN = STRANDS[env.tier]
+  const pathH = Math.min(pathN, 1024)
+  // R32F, one channel: 65 steps per strand, strands in columns of pathH.
+  const pathT = target(gl, 65 * Math.ceil(pathN / pathH), pathH, { float: 'f32', channels: 1 })
   let den: Target | null = null
   let bl: Target[] = []
   let cw = 1, ch = 1, cssW = 1, cssH = 1
@@ -420,9 +409,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   const cLen = new Float32Array(HIST.bins)
   const gLen = new Float32Array(HIST.bins)
   let barsReady = false
+  let barsMoving = true
   let runStart = 0, runPaths = 0, doneAt = 0
   let rateT = 0, rateN = 0, rate = 0
   let statsAt = 0
+  let histAt = -1
   let mark = 4096
   let now = 0
 
@@ -432,10 +423,6 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   const prog = { x: 0, v: 0 }
   const morph = { x: 0, v: 0 }
   let vp: M4 = new Float32Array(16)
-  /** The strand clock, seconds. It stands still while the sequence plays. */
-  let clock = 0
-  /** The strand clock at the hand-off from the sequence to the stream. */
-  let hand = -1e6
   let seq: SeqState = 'none'
   let ph: Phases | null = null
   let lastCam = 0
@@ -443,14 +430,29 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let fade: { t: number; ms: number; then: () => void } | null = null
   let fadeMul = 1
   let firstFrame = true
+  /** Something changed that a still frame does not show yet. */
+  let dirty = true
+  let fresh = false
+  let draws = 0
 
   // Labels
-  // `side`: which way the label extends from its point (from its translate
-  // class), so it can be kept inside the box; `w` is its measured width, taken
+  // `side`/`vside`: which way the label extends from its point (from its
+  // translate classes), so it can be kept inside the box; `w`/`h` are measured
   // again only when its words change.
-  // `data`: the label belongs to the futures (the histogram's name, the price), so Replay fades it with them;
-  // the frame's labels (today, expiry, ticks, the strike) stay.
-  type Label = { el: HTMLSpanElement; at: () => V3; show: (p: number) => number; side: -1 | -0.5 | 0; w: number; text: string; data: boolean }
+  // `data`: the label belongs to the futures (the histogram's name, the price),
+  // so Replay fades it with them; the frame's labels (today, expiry, ticks, the
+  // strike) stay.
+  type Label = {
+    el: HTMLSpanElement
+    at: () => V3
+    show: (p: number) => number
+    side: -1 | -0.5 | 0
+    vside: -1 | -0.5 | 0
+    w: number
+    h: number
+    text: string
+    data: boolean
+  }
   const labels: Label[] = []
   const label = (text: string, cls: string, at: () => V3, show: (p: number) => number, data = false) => {
     const el = document.createElement('span')
@@ -458,7 +460,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     el.className = `${LABEL} left-0 top-0 ${cls}`
     el.style.opacity = '0'
     o.labels.appendChild(el)
-    labels.push({ el, at, show, side: cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0, w: -1, text: '', data })
+    const side = cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0
+    const vside = cls.includes('-translate-y-full') ? -1 : cls.includes('-translate-y-1/2') ? -0.5 : 0
+    labels.push({ el, at, show, side, vside, w: -1, h: -1, text: '', data })
     return el
   }
   const at2 = (a: readonly number[]): V3 => [a[0]!, a[1]!, 0]
@@ -472,13 +476,13 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   const strikeEl = label('', LABELS.strike.cls, () => [LABELS.strike.x0, wy(kv.x), 0], () => 1)
   // One label for the histogram. Its words change halfway through the morph,
   // and it dips to nothing there, so one text never crossfades into another.
-  const histEl = label('Where the futures end', `${LABELS.hist.cls} text-ink`, () => at2(LABELS.hist.at), (p) =>
+  const histEl = label('Where the paths end', `${LABELS.hist.cls} text-ink`, () => at2(LABELS.hist.at), (p) =>
     outside(p) * landing() * smooth(0.02, 0.22, Math.abs(2 * morph.x - 1)),
     true,
   )
   let histText = 0
-  // The climax: the payoff bars, averaged and discounted, are the price. The
-  // number is the live Monte Carlo estimate, not a restatement of the formula.
+  // The climax: the payoff bars, averaged and discounted, are the call's price.
+  // The number is the live Monte Carlo estimate, not a restatement of the formula.
   const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.value.x, wy(kv.x - LABELS.value.below), 0], (p) =>
     est.n > 0 ? outside(p) * smooth(0.55, 1, morph.x) * (inSeq() ? EASE_OUT(clamp01(ph!.price / 0.24)) : 1) : 0,
     true,
@@ -506,15 +510,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gen++
   }
 
-  function buildPath() {
-    const n = STRANDS[q]!
-    if (n === pathN) return
-    disposeTarget(gl, pathT)
-    pathN = n
-    pathH = Math.min(n, 1024)
-    const cols = Math.ceil(n / pathH)
-    // R32F, one channel: target() with channels 1.
-    pathT = target(gl, 65 * cols, pathH, { float: 'f32', channels: 1 })
+  function applyQuality(level: number) {
+    q = Math.max(0, Math.min(3, level))
+    buildGrid()
+    B = Math.min(B, BATCHES[q]!)
+    dirty = true
   }
 
   function buildScreen() {
@@ -563,6 +563,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       gl.clearColor(0, 0, 0, 0)
       gl.clear(gl.COLOR_BUFFER_BIT)
       histGen = -1
+      histAt = -1
       mark = 4096
     }
     if (offset >= CAP || !free.length) return
@@ -677,6 +678,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         paths += readBuf[i + 3]!
       }
       histGen = gen
+      fresh = true
       runPaths += paths
       rateN += paths
       if (est.n >= CAP && !doneAt) doneAt = now
@@ -700,11 +702,14 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   }
 
   function report(force = false) {
+    const narrow = cssW < 520
     const v =
       previewK != null && histGen === gen
-        ? `At strike $${Math.round(kv.x)}: about $${binnedPrice(kv.x).toFixed(2)}`
+        ? `Call at $${Math.round(kv.x)}: about $${binnedPrice(kv.x).toFixed(2)}`
         : est.n > 0
-          ? `Average, discounted to today: $${est.mean.toFixed(2)}`
+          ? narrow
+            ? `Call price: $${est.mean.toFixed(2)}`
+            : `Call price, the average discounted payoff: $${est.mean.toFixed(2)}`
           : ''
     if (v !== valueText) valueEl.textContent = valueText = v
     if (now - rateT > 0.5) {
@@ -716,6 +721,18 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     if (!force && now - statsAt < 0.1) return
     statsAt = now
     const done = !!doneAt
+    // The histogram goes out once a second, and once more when the run completes.
+    let h: Stats['hist'] = null
+    if (histGen === gen && (now - histAt > 1 || (done && histAt < doneAt))) {
+      histAt = now
+      const counts: number[] = []
+      const payoff: number[] = []
+      for (let b = 0; b < HIST.bins; b++) {
+        counts.push(histData[b * 4]!)
+        payoff.push(histData[b * 4 + 1]!)
+      }
+      h = { counts, payoff }
+    }
     o.onStats({
       n: est.n,
       mean: est.mean,
@@ -723,20 +740,22 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       forward: est.forward,
       rate: done ? runPaths / Math.max(1e-3, doneAt - runStart) : rate,
       done,
+      hist: h,
     })
   }
 
   // ── drawing ──
 
   function drawStrands() {
-    if (!pathT || !den) return
+    if (!den) return
+    const inS = inSeq()
+    const burst = inS ? ph!.burst : 1
     const { drift, vol } = stepCoefficients(sig.x)
     gl.disable(gl.BLEND)
     bind(pathT)
     P.path.use()
     gl.uniform1i(P.path.u('uN'), pathN)
     gl.uniform1i(P.path.u('uH'), pathH)
-    gl.uniform1f(P.path.u('uTime'), clock)
     gl.uniform1f(P.path.u('uDrift'), drift)
     gl.uniform1f(P.path.u('uVol'), vol)
     drawFullscreen(gl)
@@ -747,21 +766,22 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE)
     const scale = den.w / Math.max(1, cssW)
-    const gain = (palette.dark ? 0.2 : 0.155) * Math.sqrt(2048 / pathN) / scale
-    const inS = inSeq()
-    for (const [p, point] of [[P.line, 0], [P.head, 1]] as const) {
+    // A phone's stage packs the same futures into a fraction of the area, so the gain comes down with it.
+    // At night the glow saturates sooner, so it gives up more of its gain.
+    const areaK = Math.min(1, (cssW * cssH) / REF_AREA) ** (palette.dark ? 1 : 0.7)
+    const gain = ((palette.dark ? 0.2 : 0.155) * Math.sqrt(2048 / pathN) * areaK) / scale
+    // Heads only ride the fronts while they travel.
+    const passes = burst < 1 ? ([[P.line, 0], [P.head, 1]] as const) : ([[P.line, 0]] as const)
+    for (const [p, point] of passes) {
       p.use()
       tex(0, pathT)
       gl.uniform1i(p.u('uPath'), 0)
       gl.uniform1i(p.u('uN'), pathN)
       gl.uniform1i(p.u('uH'), pathH)
-      gl.uniform1f(p.u('uTime'), clock)
       gl.uniform1f(p.u('uK'), kv.x)
       gl.uniform1f(p.u('uS0'), MODEL.s0)
       gl.uniform1f(p.u('uGain'), gain)
-      gl.uniform1f(p.u('uSeq'), inS ? 1 : 0)
-      gl.uniform1f(p.u('uBurst'), inS ? ph!.burst : 1)
-      gl.uniform1f(p.u('uHand'), hand)
+      gl.uniform1f(p.u('uBurst'), burst)
       gl.uniform1f(p.u('uPoint'), point)
       gl.uniformMatrix4fv(p.u('uVP'), false, vp)
       gl.bindVertexArray(empty)
@@ -812,7 +832,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform3fv(P.composite.u('uWash'), palette.wash)
     gl.uniform1f(P.composite.u('uDark'), palette.dark ? 1 : 0)
     gl.uniform1f(P.composite.u('uBloom'), bloom ? 1 : 0)
-    gl.uniform1f(P.composite.u('uTone'), 1.1)
+    gl.uniform1f(P.composite.u('uTone'), palette.dark ? 0.9 : 1.1)
     gl.uniform1f(P.composite.u('uFade'), fadeMul)
     gl.bindVertexArray(empty)
     drawFullscreen(gl)
@@ -842,6 +862,27 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     tri([a[0], a[1]], [c[0], c[1]], [d[0], d[1]], col)
   }
 
+  /** New histogram data, or a previewed strike, gives the bars new targets. */
+  function barTargets() {
+    let maxC = 0, maxG = 0
+    const K = kv.x
+    for (let b = 0; b < HIST.bins; b++) {
+      const c = histData[b * 4]!
+      // While a strike is only previewed, what each bin pays is taken from
+      // the counts at that strike, so the bars agree with the line.
+      const g = previewK != null ? c * Math.max(HIST.lo + (b + 0.5) * binWidth - K, 0) : histData[b * 4 + 1]!
+      barC[b] = c
+      barG[b] = g
+      maxC = Math.max(maxC, c)
+      maxG = Math.max(maxG, g)
+    }
+    for (let b = 0; b < HIST.bins; b++) {
+      barC[b] = maxC ? barC[b]! / maxC : 0
+      barG[b] = maxG ? barG[b]! / maxG : 0
+    }
+    barsReady = true
+  }
+
   function drawOverlay(p: number, dt: number) {
     flat.length = 0
     const dpr = cw / Math.max(1, cssW)
@@ -849,54 +890,38 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     const dark = palette.dark
     // The frame (the expiry axis, its ticks, the strike) never fades: Replay clears only the futures.
     const vis = outside(p)
-    // Expiry plane and its price ticks.
     segment([X1, wy(AXIS.lo), 0], [X1, wy(AXIS.hi), 0], hair, rgba(palette.graphite, 0.5 * vis))
     for (const s of TICKS) segment([X1 - 0.03, wy(s), 0], [X1, wy(s), 0], hair, rgba(palette.graphite, 0.8 * vis))
     // The histogram. A new run clears the GPU histogram and its first batch
     // is noisy, so the bars on screen ease toward each new target (a 50ms
     // exponential follow) instead of blinking out on every step of a
     // volatility drag; the numbers stay instant.
-    const follow = 1 - Math.exp(-Math.min(0.1, dt) * 20)
-    if (histGen === gen) {
-      let maxC = 0, maxG = 0
-      const K = kv.x
-      for (let b = 0; b < HIST.bins; b++) {
-        const c = histData[b * 4]!
-        // While a strike is only previewed, what each bin pays is taken from
-        // the counts at that strike, so the bars agree with the line.
-        const g = previewK != null ? c * Math.max(HIST.lo + (b + 0.5) * binWidth - K, 0) : histData[b * 4 + 1]!
-        barG[b] = g
-        maxC = Math.max(maxC, c)
-        maxG = Math.max(maxG, g)
-      }
-      for (let b = 0; b < HIST.bins; b++) {
-        barC[b] = maxC ? histData[b * 4]! / maxC : 0
-        barG[b] = maxG ? barG[b]! / maxG : 0
-      }
-      barsReady = true
-    }
     if (barsReady) {
+      const follow = 1 - Math.exp(-Math.min(0.1, dt) * 20)
+      let delta = 0
+      for (let b = 0; b < HIST.bins; b++) {
+        const dc = barC[b]! - cLen[b]!, dg = barG[b]! - gLen[b]!
+        cLen[b] = cLen[b]! + dc * follow
+        gLen[b] = gLen[b]! + dg * follow
+        delta = Math.max(delta, Math.abs(dc), Math.abs(dg))
+      }
+      barsMoving = delta > 5e-4
       const w = morph.x
       const land = landing()
+      // Bars narrower than two pixels are the thin tail: drawn, they read as a dashed stub.
+      const pxPerLen = Math.abs(project(vp, HX0 + HLEN, wy(MODEL.s0), 0)[0] - project(vp, HX0, wy(MODEL.s0), 0)[0]) * cssW * 0.5
+      const minLen = 2 / Math.max(1, pxPerLen)
+      // The context first: the distribution itself, left as a hairline outline
+      // once the claim has taken its place, and drawn under it. Bins under half
+      // a percent of the tallest are the thin tail; the outline closes to the
+      // baseline around them.
       const outlineA = (dark ? 0.6 : 0.55) * w * vis * fadeMul
-      let prevX = -1
-      for (let b = 0; b < HIST.bins; b++) {
-        cLen[b] = cLen[b]! + (barC[b]! - cLen[b]!) * follow
-        gLen[b] = gLen[b]! + (barG[b]! - gLen[b]!) * follow
-        const lo = HIST.lo + b * binWidth
-        const y0 = wy(lo), y1 = wy(lo + binWidth)
-        // The claim: what each bin pays (indigo), grown out of the counts.
-        const len = land * ((1 - w) * cLen[b]! + w * gLen[b]!)
-        const pays = lo + binWidth / 2 > kv.x
-        if (len > 1e-4) {
-          const a = ((1 - w) * (pays ? (dark ? 0.62 : 0.5) : dark ? 0.4 : 0.28) + w * 0.95) * fadeMul
-          quad(HX0, y0 + 0.0025, HX0 + HLEN * len, y1 - 0.0025, rgba(pays ? palette.indigo : palette.graphite, a))
-        }
-        // The context: the distribution itself, left as a hairline outline once
-        // the claim has taken its place. Bins under half a percent of the tallest
-        // are the thin tail; the outline closes to the baseline around them.
-        if (outlineA > 0.005) {
-          const col = rgba(palette.graphite, outlineA)
+      if (outlineA > 0.005) {
+        const col = rgba(palette.graphite, outlineA)
+        let prevX = -1
+        for (let b = 0; b < HIST.bins; b++) {
+          const lo = HIST.lo + b * binWidth
+          const y0 = wy(lo), y1 = wy(lo + binWidth)
           if (cLen[b]! > 0.005) {
             const x = HX0 + HLEN * land * cLen[b]!
             segment([prevX >= 0 ? prevX : HX0, y0, 0], [x, y0, 0], hair, col)
@@ -907,6 +932,15 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
             prevX = -1
           }
         }
+      }
+      // The claim: what each bin pays (indigo), grown out of the counts.
+      for (let b = 0; b < HIST.bins; b++) {
+        const len = land * ((1 - w) * cLen[b]! + w * gLen[b]!)
+        if (len < minLen) continue
+        const lo = HIST.lo + b * binWidth
+        const pays = lo + binWidth / 2 > kv.x
+        const a = ((1 - w) * (pays ? (dark ? 0.62 : 0.5) : dark ? 0.4 : 0.28) + w * 0.95) * fadeMul
+        quad(HX0, wy(lo) + 0.0025, HX0 + HLEN * len, wy(lo + binWidth) - 0.0025, rgba(pays ? palette.indigo : palette.graphite, a))
       }
     }
     // The strike: a dashed ink reference line across the expiry region.
@@ -949,17 +983,23 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       if (l.text !== l.el.textContent) {
         l.text = l.el.textContent ?? ''
         l.w = l.el.offsetWidth
+        l.h = l.el.offsetHeight
       }
+      // Kept inside the stage both ways, 4px in, however the camera sits.
       let px = ((s[0] + 1) / 2) * cssW
       const left = px + l.side * l.w
       if (left < 4) px += 4 - left
       else if (left + l.w > cssW - 4) px -= left + l.w - (cssW - 4)
-      l.el.style.transform = `translate3d(${px.toFixed(1)}px, ${(((1 - s[1]) / 2) * cssH).toFixed(1)}px, 0)`
+      let py = ((1 - s[1]) / 2) * cssH
+      const top = py + l.vside * l.h
+      if (top < 4) py += 4 - top
+      else if (top + l.h > cssH - 4) py -= top + l.h - (cssH - 4)
+      l.el.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`
     }
   }
 
   /** Where the sequence is, from its phases: none, waiting to start, playing, or played. */
-  function advanceSequence(dt: number) {
+  function advanceSequence() {
     ph = o.sequence()
     const prev = seq
     seq = !ph ? 'none' : ph.price >= 1 ? 'done' : ph.burst > 0 ? 'playing' : 'pending'
@@ -969,8 +1009,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       gen++
       o.onSequenceFrame()
     }
-    if (seq === 'done' && (prev === 'playing' || prev === 'pending')) hand = clock
-    if (seq === 'none' || seq === 'done') clock += dt
+    // A quality step held back during the sequence lands once it is over.
+    if (!inSeq() && pendingQ != null) {
+      applyQuality(pendingQ)
+      pendingQ = null
+    }
   }
 
   const r: FuturesRenderer = {
@@ -993,11 +1036,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
           then()
         }
       } else fadeMul = 1
-      advanceSequence(dt)
+      advanceSequence()
       if (firstFrame) {
         firstFrame = false
         // A visit without a sequence opens on the finished picture: payoff bars and the price.
-        if (seq === 'none' || seq === 'done') morph.x = 1
+        if (!inSeq()) morph.x = 1
       }
       spring(sig, sigma, dt, 30)
       const k0 = Math.round(kv.x)
@@ -1014,21 +1057,46 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       const p = prog.x
       // The morph: the sequence's own clock while it plays; the flight's once
       // it faces expiry; and the finished payoff picture at rest or on the way home.
+      let morphTarget = 1
       if (inSeq()) {
         morph.x = EASE_IN_OUT(ph!.morph)
         morph.v = 0
-      } else spring(morph, cam > 0 && !returning ? flightMorph(p) : 1, dt, 12)
-      vp = viewProjection(p, cssW / Math.max(1, cssH))
+      } else {
+        morphTarget = cam > 0 && !returning ? flightMorph(p) : 1
+        spring(morph, morphTarget, dt, 12)
+      }
 
       collect()
-      drawStrands()
-      drawOverlay(p, dt)
-      const ht = morph.x >= 0.5 ? 1 : 0
-      if (ht !== histText) {
-        histText = ht
-        histEl.textContent = ht ? 'Payoff × how often it happens' : 'Where the futures end'
+      if (fresh && histGen === gen) {
+        barTargets()
+        barsMoving = true
       }
-      placeLabels(p)
+      fresh = false
+      // A still frame is not drawn again: only what is changing is.
+      const still =
+        !dirty &&
+        dt > 0 &&
+        !inSeq() &&
+        !fade &&
+        !barsMoving &&
+        cam === 0 &&
+        arrived(sig, sigma, 1e-6) &&
+        arrived(kv, previewK ?? strike, 1e-3) &&
+        arrived(prog, cam, 1e-5) &&
+        arrived(morph, morphTarget, 1e-5)
+      if (!still) {
+        vp = viewProjection(p, cssW / Math.max(1, cssH))
+        drawStrands()
+        drawOverlay(p, dt)
+        const ht = morph.x >= 0.5 ? 1 : 0
+        if (ht !== histText) {
+          histText = ht
+          histEl.textContent = ht ? 'Payoff × how often it happens' : 'Where the paths end'
+        }
+        placeLabels(p)
+        dirty = false
+        o.labels.dataset.draws = String(++draws)
+      }
       price()
       gl.flush()
       report()
@@ -1040,26 +1108,34 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       cssW = cw2
       cssH = ch2
       buildScreen()
+      dirty = true
     },
     setQuality(level) {
-      q = Math.max(0, Math.min(3, level))
-      buildGrid()
-      buildPath()
-      B = Math.min(B, BATCHES[q]!)
+      // Mid-sequence, a new pricing grid would restart the estimate and a
+      // bloom switch would change the picture under the reader: it waits.
+      if (inSeq()) pendingQ = level
+      else applyQuality(level)
     },
     setPalette(p) {
       palette = p
+      dirty = true
     },
     preview(k) {
+      if (k === previewK) return
       previewK = k
+      if (histGen === gen) barTargets()
+      dirty = true
     },
     setParams(s, k) {
       if (s === sigma && k === strike) return
       sigma = s
       strike = k
       gen++
+      dirty = true
     },
     fadeOut(ms, then) {
+      // A second press while the futures are already fading changes nothing.
+      if (fade) return
       fade = { t: 0, ms, then }
     },
     priceAt(x, y) {
@@ -1092,6 +1168,6 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       o.labels.replaceChildren()
     },
   }
-  r.setQuality!(q)
+  applyQuality(q)
   return r
 }

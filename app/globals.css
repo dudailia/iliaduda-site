@@ -260,6 +260,10 @@
   opacity: 0;
 }
 
+:root[data-futures-still] [data-futures-controls] {
+  min-height: 0;
+}
+
 /* ---------------------------------------------------------------------------
    The CV (/cv). One sheet, and the source of the PDF.
 

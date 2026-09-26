@@ -62,6 +62,8 @@ export function phaseAt(ms: number): Phases {
 export class Timeline {
   started = false
   private ms = 0
+  /** A frame of it has been drawn: before that the reader has seen nothing to skip. */
+  private seen = false
   /** Where a skip began, or -1. */
   private skipFrom = -1
   private skipT = 0
@@ -73,6 +75,7 @@ export class Timeline {
   /** Advance by the time a drawn frame took. Frames not drawn are time not passed. */
   advance(dtMs: number): void {
     if (!(dtMs > 0) || !this.started || this.done) return
+    this.seen = true
     if (this.skipFrom >= 0) {
       this.skipT = Math.min(SKIP_MS, this.skipT + dtMs)
       this.ms = this.skipT >= SKIP_MS ? SEQ_MS : this.skipFrom + (SEQ_MS - this.skipFrom) * EASE_OUT(this.skipT / SKIP_MS)
@@ -81,15 +84,28 @@ export class Timeline {
     this.ms = Math.min(SEQ_MS, this.ms + dtMs)
   }
 
-  /** The reader asked to skip: finish quickly. Only while it plays; a second skip changes nothing. */
+  /**
+   * The reader asked to get on with it: finish quickly. Only while it plays and
+   * after a frame of it has been drawn — a click before then spends nothing —
+   * and a second skip changes nothing.
+   */
   skip(): void {
-    if (!this.started || this.done || this.skipFrom >= 0) return
+    if (!this.started || !this.seen || this.done || this.skipFrom >= 0) return
     this.skipFrom = this.ms
     this.skipT = 0
   }
 
+  /** The reader is using the figure itself (a control, a strike, Fly through): the story ends now. */
+  finish(): void {
+    this.started = true
+    this.seen = true
+    this.ms = SEQ_MS
+    this.skipFrom = -1
+  }
+
   replay(): void {
     this.started = true
+    this.seen = false
     this.ms = 0
     this.skipFrom = -1
     this.skipT = 0
@@ -104,19 +120,21 @@ export class Timeline {
   }
 }
 
-const MODIFIERS = new Set(['Shift', 'Meta', 'Control', 'Alt'])
+/** Keys that are not a request: modifiers on their own, and the keys that scroll the page. */
+const NOT_A_REQUEST = new Set(['Shift', 'Meta', 'Control', 'Alt', ' ', 'Spacebar', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'Home', 'End'])
 
 /**
  * Whether an event is the reader asking to get on with it: a click or tap, a
- * key, a mouse or pen press. Not scrolling, and not a finger landing on the
- * glass, which on a phone is usually the start of a scroll towards the figure.
+ * key, a mouse or pen press. Not scrolling — by wheel, finger or key — and not
+ * a finger landing on the glass, which on a phone is usually the start of a
+ * scroll towards the figure.
  */
 export function isSkipInput(e: { type: string; pointerType?: string; key?: string }): boolean {
   switch (e.type) {
     case 'click':
       return true
     case 'keydown':
-      return !MODIFIERS.has(e.key ?? '')
+      return !NOT_A_REQUEST.has(e.key ?? '')
     case 'pointerdown':
       return e.pointerType === 'mouse' || e.pointerType === 'pen'
     default:

@@ -41,8 +41,8 @@ export function Poster({
   payBars: PayBar[]
   outline: string
   strike: number
-  /** The price the payoff bars add up to, as shown. */
-  price: string
+  /** The price the payoff bars add up to. */
+  price: number
 }) {
   const ky = MARKS.strikeY(strike)
   const w = (a: readonly number[]) => [px(a[0]!), py(a[1]!)] as const
@@ -89,7 +89,8 @@ export function Poster({
           Payoff × how often it happens
         </Label>
         <Label x={px(LABELS.value.x)} y={py(wy(strike - LABELS.value.below))} cls={`${LABELS.value.cls} text-indigo`} fill>
-          {price}
+          <span className="sm:hidden">Call price: ${price.toFixed(2)}</span>
+          <span className="hidden sm:inline">Call price, the average discounted payoff: ${price.toFixed(2)}</span>
         </Label>
       </div>
     </>

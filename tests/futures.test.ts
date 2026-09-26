@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { RNG } from '@/lib/futures/glsl'
 import { Estimator, MODEL, SALT, bs, bsCall, discount, normals4, path, pcg4d, price, terminal, unit } from '@/lib/futures/mc'
@@ -185,5 +186,16 @@ describe('the poster', () => {
     expect(inside).toBeLessThanOrEqual(d.stats.n)
     // At 25% volatility almost nothing lands outside $20–$240.
     expect(inside / d.stats.n).toBeGreaterThan(0.999)
+  })
+})
+
+describe('the model’s provenance', () => {
+  it('reads every number but the seed from content/synthetic', () => {
+    // A literal written back into MODEL would drift from its fact unnoticed.
+    const src = readFileSync('lib/futures/mc.ts', 'utf8')
+    const body = /export const MODEL = \{([\s\S]*?)\} as const/.exec(src)?.[1] ?? ''
+    expect(body.length).toBeGreaterThan(0)
+    const code = body.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => !/^\s*seed:/.test(l)).join('\n')
+    expect(code.match(/(?<![\w'"])\d+(\.\d+)?(?![\w'"])/g) ?? []).toEqual([])
   })
 })

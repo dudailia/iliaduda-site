@@ -119,7 +119,8 @@ describe('Timeline', () => {
   })
 
   it('skips within a quarter of a second from any point, and a second skip changes nothing', () => {
-    for (const at of [0, 400, 2000, 3500]) {
+    // From the first drawn frame on (a skip before any frame is ignored; see below).
+    for (const at of [16, 400, 2000, 3500]) {
       const t = new Timeline()
       t.start()
       t.advance(at)
@@ -130,6 +131,33 @@ describe('Timeline', () => {
       expect(t.done, `skipped at ${at}ms`).toBe(true)
     }
     expect(SKIP_MS).toBeLessThanOrEqual(300)
+  })
+
+  it('ignores a skip after start but before its first drawn frame', () => {
+    // start() comes from visibility, often before the renderer has drawn: a
+    // Tab or a click in that window must not spend a sequence nobody has seen.
+    const t = new Timeline()
+    t.start()
+    t.skip()
+    t.advance(1000)
+    expect(all(t.phases())).toEqual(all(phaseAt(1000)))
+    expect(t.done).toBe(false)
+  })
+
+  it('finish() ends it at once, started or not, for a reader who uses the figure', () => {
+    const a = new Timeline()
+    a.finish()
+    expect(a.done).toBe(true)
+    expect(all(a.phases())).toEqual([1, 1, 1, 1])
+    const b = new Timeline()
+    b.start()
+    b.advance(500)
+    b.finish()
+    expect(b.done).toBe(true)
+    // A later skip or advance changes nothing.
+    b.skip()
+    b.advance(100)
+    expect(all(b.phases())).toEqual([1, 1, 1, 1])
   })
 
   it('ignores a skip before it has started: the reader has not seen it yet', () => {
@@ -175,5 +203,10 @@ describe('isSkipInput', () => {
 
   it('does not count a modifier key pressed on its own', () => {
     for (const key of ['Shift', 'Meta', 'Control', 'Alt']) expect(isSkipInput({ type: 'keydown', key })).toBe(false)
+  })
+
+  it('does not count the keys that scroll the page', () => {
+    // Scrolling towards the figure is not asking to skip it, whether by wheel, finger or key.
+    for (const key of [' ', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'Home', 'End']) expect(isSkipInput({ type: 'keydown', key })).toBe(false)
   })
 })

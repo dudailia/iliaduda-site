@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import { Row } from './Layout'
+import { Items, Row } from './Layout'
 
 /**
  * Every figure goes through here so the accessibility wiring cannot be
@@ -60,7 +60,9 @@ export function Figure({
         <div className="text-note border-b border-rule pb-2">
           <span className="block text-ink">{title}</span>
           {subtitle ? (
-            <span className="text-meta block pt-0.5 font-mono text-graphite">{subtitle}</span>
+            <span className="text-meta block pt-0.5 font-mono text-graphite">
+              <Items items={subtitle} />
+            </span>
           ) : null}
         </div>
 

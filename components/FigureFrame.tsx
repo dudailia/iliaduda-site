@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { Items } from './Layout'
 
 /**
  * The layout every live figure shares: number and readouts in the rail, title
@@ -26,6 +27,7 @@ export function FigureFrame({
   vt,
   railBelow = true,
   inline = false,
+  className,
   children,
 }: {
   id: string
@@ -45,11 +47,13 @@ export function FigureFrame({
    *  narrow-screen arrangement holds at every width: number above, readouts
    *  below, nothing in a margin that belongs to someone else. */
   inline?: boolean
+  /** Replaces the figure's own vertical margins (the home page's Fig. 1 sits closer to the front matter). */
+  className?: string
   children: ReactNode
 }) {
   const wide = !inline
   return (
-    <figure id={id} className={inline ? 'relative my-8 scroll-mt-28' : 'my-12 lg:my-16'} aria-labelledby={`${id}-title`}>
+    <figure id={id} className={className ?? (inline ? 'relative my-8 scroll-mt-28' : 'my-12 lg:my-16')} aria-labelledby={`${id}-title`}>
       <div
         className={`grid grid-cols-1 gap-y-2 ${wide ? 'lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0' : ''}`}
       >
@@ -70,7 +74,10 @@ export function FigureFrame({
             <span id={`${id}-title`} className="block text-ink">
               {title}
             </span>
-            <span className="text-meta block pt-px font-mono text-graphite">{subtitle}</span>
+            {/* A subtitle wraps between its items, never inside one (DESIGN.md, the Whole Item Rule). */}
+            <span className="text-meta block pt-px font-mono text-graphite">
+              <Items items={subtitle} />
+            </span>
           </div>
           <div className="mt-5" style={vt ? vtStyle(vt) : undefined}>
             {children}

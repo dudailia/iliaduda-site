@@ -20,14 +20,16 @@ import type { FuturesRenderer, Stats } from './renderer'
  * the paths simulated and the rate this device simulates them at, all read
  * back from the GPU.
  *
- * Once per visit, the first time a third of the stage is on screen, it plays the
- * signature sequence (lib/futures/sequence.ts). A click, a key or any control
- * finishes it at once; scrolling does not. Fly through is the optional flight
- * along the futures; Replay plays the sequence again.
+ * Once per visit, the first time the stage is on screen down to today's price,
+ * it plays the signature sequence (lib/futures/sequence.ts), then falls still.
+ * A click or a key finishes it quickly; scrolling does not; using the figure
+ * itself (a control, a strike, Fly through) ends it at once. Fly through is the
+ * optional flight along the paths; Replay plays the sequence again.
  *
  * Without the live renderer (reduced motion, a software rasteriser, no float
- * render targets) the inputs still work: the still frame is redrawn and
- * repriced on the CPU, in slices small enough never to block the page.
+ * render targets, a failed load, a lost context) the inputs still work: the
+ * still frame is redrawn and repriced on the CPU, in slices small enough never
+ * to block the page.
  */
 
 const SEEN = 'futures-seq'
@@ -44,6 +46,7 @@ const CONTROL =
 
 type Mode = 'server' | 'cpu' | 'gpu'
 type Seq = 'off' | 'pending' | 'playing' | 'done'
+type Declined = 'software' | 'float' | 'load' | 'error' | 'lost' | null
 interface Shown {
   n: number
   mean: number
@@ -52,40 +55,57 @@ interface Shown {
   mode: Mode
   done: boolean
 }
+/** What the screen-reader table describes, with the inputs it was computed for, so its words always match its rows. */
+interface Table {
+  sigma: number
+  strike: number
+  n: number
+  mean: number
+  se: number
+  counts: readonly number[]
+  payoff: readonly number[]
+}
 
 /** Paths per CPU slice: about 3 ms on a laptop, well under a long task on a phone. */
 const SLICE = 1024
-
-const priceLine = (mean: number) => `Average, discounted to today: ${dollars(mean)}`
+/** If the live figure has not drawn by now, the finished poster shows instead of the empty frame it was waiting on. */
+const FIRST_FRAME_MS = 6000
 
 export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const [sigma, setSigma] = useState<number>(MODEL.sigma)
   const [strike, setStrike] = useState<number>(MODEL.strike)
   const [shown, setShown] = useState<Shown>({ ...initial.stats, rate: 0, mode: 'server', done: true })
   const [frame, setFrame] = useState<PosterFrame>(initial)
+  const [table, setTable] = useState<Table>({ sigma: MODEL.sigma, strike: MODEL.strike, ...initial.stats, counts: initial.counts, payoff: initial.payoff })
   const [history, setHistory] = useState<Point[]>([])
   // Why the live renderer declined, when it did.
-  const [declined, setDeclined] = useState<'software' | 'float' | null>(null)
+  const [declined, setDeclined] = useState<Declined>(null)
   const [flying, setFlying] = useState(false)
   const [seq, setSeq] = useState<Seq>('off')
   const mounted = useSyncExternalStore(noop, () => true, () => false)
   const [spoken, setSpoken] = useState('')
 
   const labels = useRef<HTMLDivElement>(null)
+  const cue = useRef<HTMLDivElement>(null)
   const renderer = useRef<FuturesRenderer | null>(null)
   const params = useRef({ sigma, strike })
   const liveRef = useRef(false)
+  const frameRef = useRef(frame)
   const timeline = useRef(new Timeline())
   const flight = useRef(new Flight())
   /** This visit plays the sequence: decided before first paint (components/figures/Futures.tsx). */
   const armed = useRef(false)
   const seqRef = useRef<Seq>('off')
+  useEffect(() => {
+    frameRef.current = frame
+  }, [frame])
 
   const setSeqState = useCallback((s: Seq) => {
     if (seqRef.current === s) return
     seqRef.current = s
     setSeq(s)
   }, [])
+  const playing = () => seqRef.current === 'pending' || seqRef.current === 'playing'
 
   // Claim the figure for the pre-paint script, and read its decision.
   useEffect(() => {
@@ -97,9 +117,10 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     }
   }, [setSeqState])
 
-  /** The live figure will not run here: show the finished picture, and do not wait for a sequence. */
+  /** The live figure will not play the sequence here: show the finished picture. */
   const release = useCallback(() => {
     armed.current = false
+    timeline.current.finish()
     delete document.documentElement.dataset.futuresSeq
     setSeqState('off')
   }, [setSeqState])
@@ -107,6 +128,10 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const onStats = useCallback((s: Stats) => {
     if (!liveRef.current) return
     setShown({ n: s.n, mean: s.mean, se: s.se, rate: s.rate, mode: 'gpu', done: s.done })
+    if (s.hist) {
+      const { sigma: sg, strike: k } = params.current
+      setTable({ sigma: sg, strike: k, n: s.n, mean: s.mean, se: s.se, counts: s.hist.counts, payoff: s.hist.payoff })
+    }
     if (s.n > 0) {
       setHistory((h) => {
         const last = h[h.length - 1]
@@ -156,26 +181,53 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       let quality = 2
       let palette = env.palette
       let gone = false
-      void import('./renderer').then((m) => {
-        if (gone || !labels.current) return
-        real = m.createRenderer(
-          { ...env, palette },
-          {
-            labels: labels.current,
-            sequence: () => (armed.current ? timeline.current.phases() : null),
-            camera: () => flight.current.p,
-            tick: onTick,
-            onStats,
-            onSequenceFrame,
-          },
-        )
-        real.setQuality!(quality)
-        if (size) real.resize(...size)
-        real.setParams(params.current.sigma, params.current.strike)
-        renderer.current = real
-      })
+      let broken = false
+      // Whatever becomes of it — a failed load, a shader that will not link, a
+      // renderer that throws — the reader is left with the finished picture,
+      // never an empty frame waiting on a figure that will not come.
+      const fail = (why: 'load' | 'error') => {
+        if (gone || broken) return
+        broken = true
+        setDeclined(why)
+        release()
+      }
+      const slow = window.setTimeout(() => {
+        if (!liveRef.current) release()
+      }, FIRST_FRAME_MS)
+      import('./renderer')
+        .then((m) => {
+          if (gone || !labels.current) return
+          try {
+            real = m.createRenderer(
+              { ...env, palette },
+              {
+                labels: labels.current,
+                sequence: () => (armed.current ? timeline.current.phases() : null),
+                camera: () => flight.current.p,
+                tick: onTick,
+                onStats,
+                onSequenceFrame,
+              },
+            )
+            real.setQuality!(quality)
+            if (size) real.resize(...size)
+            real.setParams(params.current.sigma, params.current.strike)
+            renderer.current = real
+          } catch {
+            fail('error')
+          }
+        })
+        .catch(() => fail('load'))
       const wrap: Renderer = {
-        frame: (t, dt) => (real ? real.frame(t, dt) : false),
+        frame: (t, dt) => {
+          if (!real || broken) return false
+          try {
+            return real.frame(t, dt)
+          } catch {
+            fail('error')
+            return false
+          }
+        },
         resize: (...a) => {
           size = a
           real?.resize(...a)
@@ -190,45 +242,56 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         },
         dispose: () => {
           gone = true
+          window.clearTimeout(slow)
           real?.dispose()
           renderer.current = null
         },
       }
       return wrap
     },
-    [onStats, onTick, onSequenceFrame],
+    [onStats, onTick, onSequenceFrame, release],
   )
 
   const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create)
   // The kit reports live once the renderer draws; from then the GPU owns the counter.
-  const wasLive = useRef(false)
   useEffect(() => {
     liveRef.current = live
-    // A lost context puts the poster back: it must be the finished picture.
-    if (wasLive.current && !live) release()
-    wasLive.current = live
-  }, [live, release])
+  }, [live])
   useEffect(() => {
     if (declined || (mounted && (!eligible || reduced))) release()
   }, [declined, eligible, reduced, mounted, release])
 
-  // The sequence starts the first time a good third of the stage is on
-  // screen: enough to see the futures leave today, and early enough that a
-  // laptop's first screen does not sit on an empty frame.
+  // A lost context, before or after the first frame, puts the finished poster
+  // back with its own numbers; the CPU reprices it if the inputs have moved.
   useEffect(() => {
-    const el = box.current
+    const cv = canvas.current
+    if (!cv) return
+    const onLost = () => {
+      setDeclined('lost')
+      release()
+      const f = frameRef.current
+      setShown({ ...f.stats, rate: 0, mode: 'server', done: true })
+    }
+    cv.addEventListener('webglcontextlost', onLost)
+    return () => cv.removeEventListener('webglcontextlost', onLost)
+  }, [canvas, release])
+
+  // The sequence starts the first time the stage is on screen down to today's
+  // price (the cue sits just below it), so the reader sees the paths leave it.
+  useEffect(() => {
+    const el = cue.current
     if (!el) return
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e && e.intersectionRatio >= 0.35 && armed.current && !timeline.current.started) timeline.current.start()
+        if (e?.isIntersecting && armed.current && !timeline.current.started) timeline.current.start()
       },
-      { threshold: [0.35] },
+      { threshold: [1], rootMargin: '0px 0px -2% 0px' },
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [box])
+  }, [])
 
-  // Any input finishes the sequence; Escape also ends a flight. A return
+  // A click or a key finishes the sequence; Escape also ends a flight. A return
   // through the back-forward cache finishes a sequence that was interrupted.
   const stopFlight = useCallback(() => {
     flight.current.stop()
@@ -241,7 +304,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       if (e.type === 'keydown' && k.key === 'Escape' && flight.current.flying) stopFlight()
     }
     const onShow = (e: PageTransitionEvent) => {
-      if (e.persisted) timeline.current.skip()
+      if (e.persisted && armed.current) timeline.current.finish()
     }
     for (const t of ['click', 'keydown', 'pointerdown']) document.addEventListener(t, onInput, true)
     addEventListener('pageshow', onShow)
@@ -268,6 +331,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       const e = ens.current!
       const f = summarize(e.t, strike)
       setFrame(f)
+      setTable({ sigma, strike, ...f.stats, counts: f.counts, payoff: f.payoff })
       setShown({ ...f.stats, rate: e.ms > 0 ? (e.n / e.ms) * 1000 : 0, mode: 'cpu', done: true })
     }
     if (ens.current && ens.current.sigma === sigma && ens.current.n === POSTER_PATHS) {
@@ -295,12 +359,12 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     }
   }, [sigma, strike, live])
 
-  // Changing an input starts a new run: the convergence plot starts again.
-  // Changes made on the canvas, not on a slider, are also spoken: the slider
-  // speaks for itself through its value text.
+  // Changing an input is using the figure: the sequence ends, the run starts
+  // again and the convergence plot with it. Changes made on the canvas, not on
+  // a slider, are also spoken: the slider speaks for itself through its value text.
   const said = useRef(0)
   const commit = useCallback((s: number, k: number, fromCanvas = false) => {
-    timeline.current.skip()
+    timeline.current.finish()
     setSigma(s)
     setStrike(k)
     setHistory([])
@@ -314,7 +378,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
 
   const toggleFlight = () => {
     if (flight.current.flying) return stopFlight()
-    timeline.current.skip()
+    timeline.current.finish()
     flight.current.start()
     setFlying(true)
   }
@@ -325,37 +389,20 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     armed.current = true
     r.fadeOut(200, () => {
       timeline.current.replay()
+      timeline.current.start()
       setHistory([])
     })
   }
 
-  // Pointer: drag sideways for volatility, point (or tap) for the strike.
+  // Pointer: drag sideways for volatility, point to preview a strike, click or
+  // tap to set it. While the sequence plays the stage only skips it.
   const drag = useRef<{ id: number; x: number; s: number; moved: boolean } | null>(null)
-  const rest = useRef(0)
   const kAt = (x: number, y: number) => {
     const p = renderer.current?.priceAt(x, y)
     return p == null ? null : Math.round(Math.min(MODEL.strikeMax, Math.max(MODEL.strikeMin, p)))
   }
-  const strikeAt = (x: number, y: number) => {
-    const k = kAt(x, y)
-    window.clearTimeout(rest.current)
-    renderer.current?.preview(null)
-    if (k != null && k !== strike) commit(sigma, k, true)
-  }
-  // Hover draws the strike under the pointer at once, and prices it only once
-  // the pointer rests: passing over the figure never throws the estimate away.
-  const hover = (x: number, y: number) => {
-    const k = kAt(x, y)
-    renderer.current?.preview(k)
-    window.clearTimeout(rest.current)
-    if (k != null && k !== strike) rest.current = window.setTimeout(() => strikeAt(x, y), 450)
-  }
-  const onLeave = () => {
-    window.clearTimeout(rest.current)
-    renderer.current?.preview(null)
-  }
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (!live || drag.current) return
+    if (!live || drag.current || playing()) return
     // Touching the figure mid-flight brings the camera home instead.
     if (flight.current.flying) return stopFlight()
     drag.current = { id: e.pointerId, x: e.clientX, s: sigma, moved: false }
@@ -371,14 +418,22 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       const w = e.currentTarget.getBoundingClientRect().width
       const s = Math.round(Math.min(MODEL.sigmaMax, Math.max(MODEL.sigmaMin, d.s + (dx / w) * 0.9)) * 100) / 100
       if (s !== sigma) commit(s, strike, true)
-    } else if (!d && e.pointerType === 'mouse' && !flight.current.flying) hover(e.clientX, e.clientY)
+    } else if (!d && e.pointerType === 'mouse' && !flight.current.flying && !playing()) renderer.current?.preview(kAt(e.clientX, e.clientY))
   }
   const onUp = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
     drag.current = null
-    if (!d.moved) strikeAt(e.clientX, e.clientY)
+    if (d.moved) return
+    const k = kAt(e.clientX, e.clientY)
+    renderer.current?.preview(null)
+    if (k != null && k !== strike) commit(sigma, k, true)
   }
+  // A cancelled pointer (the page took the gesture: a scroll) sets nothing.
+  const onCancel = (e: PointerEvent<HTMLDivElement>) => {
+    if (drag.current?.id === e.pointerId) drag.current = null
+  }
+  const onLeave = () => renderer.current?.preview(null)
 
   const exact = useMemo(() => bs(sigma, strike), [sigma, strike])
   const posterStrands = useMemo(() => strands(sigma, strike), [sigma, strike])
@@ -386,13 +441,14 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const hasMean = shown.n > 1 && Number.isFinite(shown.mean)
   const fresh = shown.mode === 'gpu' || shown.mode === 'cpu' || (sigma === MODEL.sigma && strike === MODEL.strike)
   const priced = hasMean && fresh
+  const changed = sigma !== MODEL.sigma || strike !== MODEL.strike
 
   const speed =
     (shown.mode === 'gpu' || shown.mode === 'cpu') && shown.rate > 0
       ? `${fmtRate(shown.rate)} paths/s`
       : shown.mode === 'gpu' || shown.mode === 'cpu'
         ? 'measuring…'
-        : mounted && eligible && !reduced
+        : mounted && eligible && !reduced && !declined
           ? 'starting'
           : 'computed at build'
   const coarse = mounted && window.matchMedia('(pointer: coarse)').matches
@@ -405,23 +461,27 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         ? 'Still frame: this browser draws WebGL in software.'
         : declined === 'float'
           ? 'Still frame: this browser offers no float render targets.'
-          : !eligible
-            ? saveData()
-              ? 'Still frame: your browser asks to save data.'
-              : supportsWebGL2()
-                ? 'Still frame.'
-                : 'Still frame: this browser has no WebGL2.'
-            : null
-  const hint = why ?? `${coarse ? 'Tap' : 'Point at'} a price to set the strike · drag sideways for volatility.`
+          : declined === 'lost'
+            ? 'Still frame: the graphics context was lost.'
+            : declined === 'load' || declined === 'error'
+              ? 'Still frame: the live figure could not start here.'
+              : !eligible
+                ? saveData()
+                  ? 'Still frame: your browser asks to save data.'
+                  : supportsWebGL2()
+                    ? 'Still frame.'
+                    : 'Still frame: this browser has no WebGL2.'
+                : null
+  const hint = why ?? `${coarse ? 'Tap' : 'Click'} a price at expiry to set the strike · drag sideways for volatility.`
 
   const mc = priced ? `${shown.mean.toFixed(4)} ± ${(2 * shown.se).toFixed(4)}` : '…'
   const paths = fresh ? fmtInt(shown.n) : '…'
   const speedLabel = shown.mode === 'cpu' ? 'On this CPU' : shown.mode === 'gpu' ? 'On this GPU' : 'Speed'
-  const perSec = (shown.mode === 'gpu' || shown.mode === 'cpu') && shown.rate > 0 ? fmtRate(shown.rate) : shown.mode === 'server' ? 'at build' : '…'
   const years = MODEL.T === 1 ? 'one year' : `${MODEL.T} years`
 
   const rail = (
     <div className="text-meta font-mono lg:text-right">
+      {/* The price, then the machine: two groups, one hairline apart. */}
       <dl className="grid grid-cols-1 gap-y-px [&_dd]:mb-2">
         <dt className="text-graphite">Simulated price ± 2 SE</dt>
         <dd className="tabular text-indigo" data-mc-price={priced ? shown.mean : ''} data-mc-se={priced ? shown.se : ''}>
@@ -433,6 +493,8 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         </dd>
         <dt className="text-graphite">Gap to the formula</dt>
         <dd className="tabular text-ink">{priced ? `${(diff / shown.se).toFixed(1)} SE` : '…'}</dd>
+      </dl>
+      <dl className="mt-1 grid grid-cols-1 gap-y-px border-t border-rule pt-3 [&_dd]:mb-2">
         <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
         <dd className="tabular text-ink" data-paths={fresh ? shown.n : 0}>
           {paths}
@@ -443,26 +505,26 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         </dd>
       </dl>
       {/* Its room is kept from the first paint, and it fades in with the canvas it reports on. */}
-      <div style={fade(live)}>
+      <div aria-hidden="true" style={fade(live)}>
         <Convergence points={history} exact={exact} />
       </div>
     </div>
   )
 
-  const table = (
+  const tableView = (
     <table>
       <caption>
-        {`Where ${fmtInt(frame.stats.n)} simulated futures of a $${MODEL.s0} stock end after ${years} at ${pct(sigma)} volatility, and what a call struck at $${strike} pays there. Priced by simulation at ${priced ? shown.mean.toFixed(4) : frame.stats.mean.toFixed(4)}; the Black–Scholes formula gives ${exact.toFixed(4)}.`}
+        {`Where ${fmtInt(table.n)} simulated paths of a $${MODEL.s0} stock end after ${years} at ${pct(table.sigma)} volatility, and what a call struck at $${table.strike} pays there. Priced by simulation at ${table.mean.toFixed(4)} ± ${(2 * table.se).toFixed(4)}; the Black–Scholes formula gives ${bs(table.sigma, table.strike).toFixed(4)}.`}
       </caption>
       <thead>
         <tr>
           <th scope="col">Price at expiry</th>
-          <th scope="col">Share of futures</th>
+          <th scope="col">Share of paths</th>
           <th scope="col">Average payoff there</th>
         </tr>
       </thead>
       <tbody>
-        {bands(frame).map((b) => (
+        {bands(table).map((b) => (
           <tr key={b.lo}>
             <td>{`$${b.lo}–$${b.hi}`}</td>
             <td>{`${(b.share * 100).toFixed(1)}%`}</td>
@@ -477,20 +539,22 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     <FigureFrame
       id="fig-futures"
       number="Fig. 1"
-      title={`Every line is one possible year for a $${MODEL.s0} stock.`}
-      subtitle={`Simulated · geometric Brownian motion · σ ${pct(MODEL.sigma)} · r ${(MODEL.r * 100).toFixed(1)}% · ${MODEL.steps} steps · not market data`}
+      className="mt-10 mb-12 lg:mt-10 lg:mb-16"
+      title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
+      subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
       rail={rail}
       railBelow={false}
       hint={hint}
       caption={
         <>
-          An option that pays whatever the stock finishes above the strike is worth that payoff averaged over every
-          future and discounted to today. The histogram at expiry is where the futures end; the indigo bars are what
-          each ending pays, weighted by how often it happens, and together they are the price. The margin shows the
-          simulation closing in on the Black–Scholes formula as the paths pile up. Simulated, not market data.
+          Each line is a path of geometric Brownian motion, stepped exactly in log space; its random numbers come from a
+          counter-based hash, so any path can be regenerated on the CPU, where the tests check the estimator against
+          Black–Scholes. A call pays whatever the stock finishes above the strike, and its price is that payoff averaged
+          over every path and discounted to today: the indigo bars, what each ending pays weighted by how often it
+          happens, add up to it. The margin shows the estimate closing in on the formula as the paths pile up.
         </>
       }
-      table={table}
+      table={tableView}
     >
       <div
         ref={box}
@@ -498,51 +562,56 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         data-fps={fps}
         data-quality={quality}
         data-tier={tier ?? ''}
-        className={`relative -mx-6 h-[clamp(22rem,60svh,32rem)] overflow-hidden sm:mx-0 lg:h-[clamp(26rem,56svh,38rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
+        className={`relative -mx-6 h-[clamp(22rem,60svh,32rem)] overflow-hidden sm:mx-0 lg:h-[clamp(24rem,calc(100svh-31rem),38rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
-        onPointerCancel={onUp}
+        onPointerCancel={onCancel}
         onPointerLeave={onLeave}
       >
         <div data-futures-poster="" className="absolute inset-0" style={underlay(live)}>
-          <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={priceLine(frame.stats.mean)} />
+          <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={frame.stats.mean} />
         </div>
         <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
         <div ref={labels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(live)} />
-        {/* The legend sits in the plot's one empty corner, under the fan, in label type, with no panel behind it. */}
-        <p aria-hidden="true" className="text-meta pointer-events-none absolute bottom-2 left-6 flex flex-wrap gap-x-4 gap-y-1 font-mono text-graphite sm:left-0">
-          <span>
-            <span className="mr-1.5 inline-block h-[3px] w-4 rounded-full bg-indigo align-middle" />
-            futures where it pays
-          </span>
-          <span>
-            <span className="mr-1.5 inline-block w-4 border-t-[1.5px] border-dashed border-ink align-middle" />
-            the strike
-          </span>
-        </p>
+        {/* The cue: when this is on screen, so are today's price and the strike, and the sequence may start. */}
+        <div ref={cue} aria-hidden="true" className="pointer-events-none absolute left-0 h-px w-px" style={{ top: '66%' }} />
       </div>
+      {/* The key sits under the plot, as a paper's does: no projected label can land on it, at any pose of the flight. */}
+      <p aria-hidden="true" className="text-meta mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-graphite">
+        <span>
+          <span className="mr-1.5 inline-block h-[3px] w-4 rounded-full bg-indigo align-middle" />
+          paths ending above the strike
+        </span>
+        <span>
+          <span className="mr-1.5 inline-block w-4 border-t-[1.5px] border-dashed border-ink align-middle" />
+          the strike
+        </span>
+      </p>
 
-      {/* A phone gets the three numbers that tell the story; the margin has the rest. */}
-      <dl className="text-meta mt-3 grid grid-cols-3 gap-x-4 border-t border-rule pt-3 font-mono lg:hidden">
+      {/* A phone gets the numbers that tell the story; the margin has the rest. */}
+      <dl className="text-meta mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono lg:hidden">
         <div className="min-w-0">
-          <dt className="text-graphite">Simulated</dt>
-          <dd className="tabular text-indigo">{priced ? shown.mean.toFixed(3) : '…'}</dd>
+          <dt className="text-graphite">Simulated ± 2 SE</dt>
+          <dd className="tabular text-indigo">{priced ? `${shown.mean.toFixed(3)} ± ${(2 * shown.se).toFixed(3)}` : '…'}</dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-graphite">Formula</dt>
+          <dt className="text-graphite">Black–Scholes</dt>
           <dd className="tabular text-ink">{exact.toFixed(3)}</dd>
         </div>
-        <div className="min-w-0">
-          <dt className="text-graphite">Paths/s</dt>
-          <dd className="tabular text-ink">{perSec}</dd>
+        <div className="col-span-2 min-w-0">
+          <dt className="text-graphite">{speedLabel}</dt>
+          <dd className="tabular text-ink">{speed}</dd>
         </div>
       </dl>
 
       <div className="mt-4 grid grid-cols-2 gap-x-6">
         <label className="block">
           <span className="text-meta font-mono text-graphite">
-            Volatility <span className="tabular text-ink">{pct(sigma)}</span>
+            Volatility{' '}
+            <span aria-hidden="true" className="tabular text-ink">
+              {pct(sigma)}
+            </span>
           </span>
           <input
             type="range"
@@ -557,7 +626,10 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         </label>
         <label className="block">
           <span className="text-meta font-mono text-graphite">
-            Strike <span className="tabular text-ink">${strike}</span>
+            Strike{' '}
+            <span aria-hidden="true" className="tabular text-ink">
+              ${strike}
+            </span>
           </span>
           <input
             type="range"
@@ -571,14 +643,24 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           />
         </label>
       </div>
-      {/* Space is kept for the controls from the first paint, so nothing moves when the figure goes live. */}
-      <div className={`mt-3 flex min-h-8 flex-wrap gap-2 ${live ? '' : 'invisible'}`}>
-        <button type="button" aria-pressed={flying} onClick={toggleFlight} className={CONTROL}>
-          {flying ? 'Stop' : 'Fly through'}
-        </button>
-        <button type="button" onClick={replay} className={CONTROL}>
-          Replay
-        </button>
+      {/* Room for the live controls is kept from the first paint, so nothing moves when the figure goes live;
+          where it never will (reduced motion, no WebGL2), the pre-paint script collapses it. */}
+      <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2">
+        {live && (
+          <>
+            <button type="button" onClick={toggleFlight} className={CONTROL}>
+              {flying ? 'Stop' : 'Fly through'}
+            </button>
+            <button type="button" onClick={replay} className={CONTROL}>
+              Replay
+            </button>
+          </>
+        )}
+        {changed && (
+          <button type="button" onClick={() => commit(MODEL.sigma, MODEL.strike)} className={CONTROL}>
+            Reset
+          </button>
+        )}
       </div>
       <p className="sr-only" aria-live="polite">
         {spoken}

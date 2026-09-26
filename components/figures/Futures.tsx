@@ -17,9 +17,11 @@ import { FuturesLive } from './futures/Live'
  * data not being saved — it marks the page, and the poster paints as the
  * composed frame without its futures, which the burst then fills. If the live
  * figure never takes over (its bundle failed), the mark is dropped after 8s
- * and the finished picture fades in.
+ * and the finished picture fades in. A visit that can never go live (reduced
+ * motion, no WebGL2, data saved) is marked too, and the room kept for the live
+ * controls collapses before it is ever seen.
  */
-const PREPAINT = `try{var d=document.documentElement;if(!sessionStorage.getItem('futures-seq')&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&'WebGL2RenderingContext' in window&&!(navigator.connection&&navigator.connection.saveData)){d.dataset.futuresSeq='1';setTimeout(function(){if(!d.dataset.futuresLive)delete d.dataset.futuresSeq},8000)}}catch(e){}`
+const PREPAINT = `try{var d=document.documentElement;var still=matchMedia('(prefers-reduced-motion: reduce)').matches||!('WebGL2RenderingContext' in window)||!!(navigator.connection&&navigator.connection.saveData);if(still)d.dataset.futuresStill='1';else if(!sessionStorage.getItem('futures-seq')){d.dataset.futuresSeq='1';setTimeout(function(){if(!d.dataset.futuresLive)delete d.dataset.futuresSeq},8000)}}catch(e){}`
 
 export function FuturesFigure() {
   const { stats, counts, payoff, payBars, outline } = summarize(ensemble(value('fuSigma'), POSTER_PATHS), value('fuStrike'))

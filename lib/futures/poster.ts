@@ -147,9 +147,9 @@ export type PosterFrame = Omit<Frame, 'bars'>
 
 /**
  * The histogram in `groups` equal bands of price, for the screen-reader table:
- * each band's share of all the futures, and what the option pays there on average.
+ * each band's share of all the paths, and what the option pays there on average.
  */
-export function bands(f: PosterFrame, groups = 11): { lo: number; hi: number; share: number; payoff: number }[] {
+export function bands(f: { n: number; counts: readonly number[]; payoff: readonly number[] }, groups = 11): { lo: number; hi: number; share: number; payoff: number }[] {
   const per = Math.ceil(HIST.bins / groups)
   const out: { lo: number; hi: number; share: number; payoff: number }[] = []
   for (let g = 0; g < groups; g++) {
@@ -158,7 +158,7 @@ export function bands(f: PosterFrame, groups = 11): { lo: number; hi: number; sh
       c += f.counts[b]!
       p += f.payoff[b]!
     }
-    out.push({ lo: HIST.lo + g * per * binWidth, hi: HIST.lo + Math.min(HIST.bins, (g + 1) * per) * binWidth, share: f.stats.n ? c / f.stats.n : 0, payoff: c ? p / c : 0 })
+    out.push({ lo: HIST.lo + g * per * binWidth, hi: HIST.lo + Math.min(HIST.bins, (g + 1) * per) * binWidth, share: f.n ? c / f.n : 0, payoff: c ? p / c : 0 })
   }
   return out
 }
