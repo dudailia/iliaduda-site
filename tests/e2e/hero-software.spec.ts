@@ -3,13 +3,14 @@ import { STAGE, canvasShown, errorsOf, fillOpacity } from './hero-kit'
 
 /**
  * The home figure where WebGL is drawn in software — what headless audits,
- * Lighthouse among them, run on. The live figure declines, and the finished
- * poster the page painted without its futures fades in, saying why.
+ * Lighthouse among them, run on. The live figure declines, and says why; the
+ * still frame, the resting view in depth drawn once on a 2D canvas, takes the
+ * place of the flat poster.
  */
 
 test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } })
 
-test('keeps the finished poster, fades it in, and says why', async ({ page }) => {
+test('declines, says why, and draws the still frame in depth in place of the flat poster', async ({ page }) => {
   const errors = errorsOf(page)
   await page.goto('/')
   await page.locator(STAGE).scrollIntoViewIfNeeded()
@@ -17,5 +18,8 @@ test('keeps the finished poster, fades it in, and says why', async ({ page }) =>
   expect(await page.evaluate(() => document.documentElement.dataset.futuresSeq)).toBeUndefined()
   await expect.poll(() => fillOpacity(page), { timeout: 2_000 }).toBe(1)
   expect(await canvasShown(page)).toBe(false)
+  const still = page.locator(`${STAGE} [data-still-canvas]`)
+  await expect.poll(() => still.evaluate((c) => Number(getComputedStyle(c).opacity)), { timeout: 10_000 }).toBe(1)
+  await expect(page.locator(`${STAGE} [data-futures-poster]`)).toBeHidden()
   expect(errors).toEqual([])
 })

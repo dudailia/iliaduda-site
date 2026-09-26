@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { RNG } from '@/lib/futures/glsl'
-import { Estimator, MODEL, SALT, bs, bsCall, discount, normals4, path, pcg4d, price, terminal, unit } from '@/lib/futures/mc'
+import { Estimator, MODEL, SALT, bs, bsCall, discount, lane, normals4, path, pcg4d, price, terminal, unit } from '@/lib/futures/mc'
 import { posterData } from '@/lib/futures/poster'
 
 /**
@@ -197,5 +197,28 @@ describe('the model’s provenance', () => {
     expect(body.length).toBeGreaterThan(0)
     const code = body.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => !/^\s*seed:/.test(l)).join('\n')
     expect(code.match(/(?<![\w'"])\d+(\.\d+)?(?![\w'"])/g) ?? []).toEqual([])
+  })
+})
+
+describe('the depth lanes', () => {
+  it('are the same on the CPU as in the shader: the still frame puts each path where the live figure does', () => {
+    const src = readFileSync('components/figures/futures/renderer.ts', 'utf8')
+    expect(src).toContain('uvec4 h = pcg4d(uvec4(id, 65535u, SEED, SALT));')
+    expect(src).toContain('return clamp(sqrt(-2.0 * log(unit(h.x))) * cos(6.2831853 * unit(h.y)), -2.5, 2.5);')
+    const h = pcg4d(12345, 65535, MODEL.seed, SALT)
+    expect(lane(12345)).toBeCloseTo(Math.max(-2.5, Math.min(2.5, Math.sqrt(-2 * Math.log(unit(h[0]!))) * Math.cos(6.2831853 * unit(h[1]!)))), 12)
+  })
+
+  it('are a clamped standard normal across paths', () => {
+    let s = 0, s2 = 0
+    const n = 20_000
+    for (let i = 0; i < n; i++) {
+      const x = lane(i)
+      expect(Math.abs(x)).toBeLessThanOrEqual(2.5)
+      s += x
+      s2 += x * x
+    }
+    expect(Math.abs(s / n)).toBeLessThan(0.03)
+    expect(Math.abs(Math.sqrt(s2 / n) - 1)).toBeLessThan(0.03)
   })
 })

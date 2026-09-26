@@ -109,6 +109,8 @@ test('the eight-bit path draws the same picture as half float', async ({ browser
     const page = await ctx.newPage()
     const errors = errorsOf(page)
     await seen(page)
+    // Paused from the first frame: the figure holds the composed frame with every path whole, the same picture both times.
+    await page.addInitScript(() => sessionStorage.setItem('futures-paused', '1'))
     await page.goto(url)
     expect(await goLive(page)).toBe(true)
     await expect(page.locator('[data-paths]').first()).not.toHaveAttribute('data-paths', '0', { timeout: 15_000 })

@@ -7,7 +7,7 @@ export const GPU = ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist
 export const STAGE = '[data-seq]'
 export const num = async (page: Page, sel: string, attr: string) => Number((await page.locator(sel).first().getAttribute(attr)) ?? NaN)
 export const canvasShown = (page: Page) =>
-  page.locator(`${STAGE} canvas`).evaluate((c) => getComputedStyle(c).visibility !== 'hidden' && Number(getComputedStyle(c).opacity) > 0.5)
+  page.locator(`${STAGE} [data-live-canvas]`).evaluate((c) => getComputedStyle(c).visibility !== 'hidden' && Number(getComputedStyle(c).opacity) > 0.5)
 export const seq = (page: Page) => page.locator(STAGE).getAttribute('data-seq')
 export const fillOpacity = (page: Page) =>
   page.locator('[data-futures-poster] [data-fill]').first().evaluate((e) => Number(getComputedStyle(e).opacity))

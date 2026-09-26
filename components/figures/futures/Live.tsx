@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type PointerEvent } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
-import { saveData, supportsWebGL2 } from '@/components/stage/env'
+import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
 import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
 import type { LiveInfo } from '@/lib/futures/debug'
 import { Flight } from '@/lib/futures/flight'
@@ -90,6 +90,14 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const [flying, setFlying] = useState(false)
   const [seq, setSeq] = useState<Seq>('off')
   const mounted = useSyncExternalStore(noop, () => true, () => false)
+  const scheme = useColorScheme()
+  // The still frame, for a reader who does not get the live figure: drawn on a 2D canvas, from the same camera.
+  const stillCanvas = useRef<HTMLCanvasElement>(null)
+  const stillLabels = useRef<HTMLDivElement>(null)
+  const [stillReady, setStillReady] = useState(false)
+  const [stillKey, setStillKey] = useState(0)
+  /** The live figure has not drawn within FIRST_FRAME_MS: show the still frame while it may yet come. */
+  const [timedOut, setTimedOut] = useState(false)
   const [spoken, setSpoken] = useState('')
   // Pause holds the figure's own motion (the stream, the drift, the settle into depth), for the rest of the visit:
   // WCAG 2.2.2. It is read before the renderer exists, and the button only appears once it is live.
@@ -222,7 +230,9 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         release()
       }
       const slow = window.setTimeout(() => {
-        if (!liveRef.current) release()
+        if (liveRef.current) return
+        release()
+        setTimedOut(true)
       }, FIRST_FRAME_MS)
       import('./renderer')
         .then((m) => {
@@ -512,6 +522,51 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       .catch(() => setPermission('denied'))
   }
 
+  // Drawn whenever the live figure is not: from the table's numbers, which always match its inputs, again on a resize
+  // or a change of theme.
+  const stillMode = mounted && !live && (reduced || declined !== null || !eligible || timedOut)
+  useEffect(() => {
+    if (!stillMode) return
+    const cv = stillCanvas.current, lb = stillLabels.current
+    if (!cv || !lb) return
+    let cancel: (() => void) | null = null
+    let gone = false
+    import('./still')
+      .then((m) => {
+        if (gone) return
+        cancel = m.drawStill(cv, lb, { sigma: table.sigma, strike: table.strike, counts: table.counts, payoff: table.payoff, price: table.mean }, () =>
+          setStillReady(true),
+        )
+      })
+      .catch(() => {})
+    return () => {
+      gone = true
+      cancel?.()
+    }
+  }, [stillMode, table, scheme, stillKey])
+  useEffect(() => {
+    const el = box.current
+    if (!stillMode || !el) return
+    const size = () => `${Math.round(el.getBoundingClientRect().width)}x${Math.round(el.getBoundingClientRect().height)}`
+    let last = size()
+    let raf = 0
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const k = size()
+        if (k === last) return
+        last = k
+        setStillKey((x) => x + 1)
+      })
+    })
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(raf)
+    }
+  }, [stillMode, box])
+  const stillShown = stillMode && stillReady
+
   const exact = useMemo(() => bs(sigma, strike), [sigma, strike])
   const posterStrands = useMemo(() => strands(sigma, strike), [sigma, strike])
   const diff = Math.abs(shown.mean - exact)
@@ -681,10 +736,12 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           onPointerLeave={onLeave}
           onClick={onTap}
         >
-          <div data-futures-poster="" className="absolute inset-0" style={underlay(live)}>
+          <div data-futures-poster="" className="absolute inset-0" style={underlay(live || stillShown)}>
             <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={frame.stats.mean} />
           </div>
-          <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
+          <canvas ref={stillCanvas} data-still-canvas="" aria-hidden="true" className="absolute inset-0 size-full" style={fade(stillShown)} />
+          <div ref={stillLabels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(stillShown)} />
+          <canvas ref={canvas} data-live-canvas="" aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
           <div ref={labels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(live)} />
           {/* The cue: when this is on screen, so are today's price and the strike (61% of the frame), and the sequence
               may start. At 1440×900 it is on the first screen. */}

@@ -92,6 +92,17 @@ export function normals4(id: number, g: number, z: Float64Array | number[], seed
   z[3] = r1 * Math.sin(t1)
 }
 
+/**
+ * Path `id`'s depth lane: a clamped standard normal from the same generator,
+ * which spreads the drawn futures into a cone and carries no data. The shader
+ * computes the same (components/figures/futures/renderer.ts, lane), so the
+ * still frame puts every path where the live figure does.
+ */
+export function lane(id: number): number {
+  const h = pcg4d(id, 65535, MODEL.seed, SALT)
+  return Math.max(-2.5, Math.min(2.5, Math.sqrt(-2 * Math.log(unit(h[0]!))) * Math.cos(6.2831853 * unit(h[1]!))))
+}
+
 /** Per-step drift and volatility of log price. */
 export function stepCoefficients(sigma: number, m = MODEL) {
   const dt = m.T / m.steps
