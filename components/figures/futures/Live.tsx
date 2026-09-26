@@ -9,6 +9,7 @@ import { Flight } from '@/lib/futures/flight'
 import { MODEL, bs } from '@/lib/futures/mc'
 import { POSTER_PATHS, bands, fill, strands, summarize, type PosterFrame } from '@/lib/futures/poster'
 import { Timeline, isSkipInput } from '@/lib/futures/sequence'
+import { Lean } from '@/lib/futures/tilt'
 import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
 import type { FuturesRenderer, Stats } from './renderer'
@@ -34,6 +35,8 @@ import type { FuturesRenderer, Stats } from './renderer'
  */
 
 const SEEN = 'futures-seq'
+const PAUSED = 'futures-paused'
+type Permission = 'unasked' | 'granted' | 'denied' | 'none'
 const noop = () => () => {}
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US')
 /** Paths per second, as "71.9M" or "812k". */
@@ -67,6 +70,9 @@ interface Table {
   payoff: readonly number[]
 }
 
+/** A phone may draw this figure at two device pixels per CSS pixel: crisp ribbons on a phone as on a laptop. */
+const STAGE_OPTS = { maxQ: { mid: 3 } } as const
+
 /** Paths per CPU slice: about 3 ms on a laptop, well under a long task on a phone. */
 const SLICE = 1024
 /** If the live figure has not drawn by now, the finished poster shows instead of the empty frame it was waiting on. */
@@ -85,6 +91,21 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const [seq, setSeq] = useState<Seq>('off')
   const mounted = useSyncExternalStore(noop, () => true, () => false)
   const [spoken, setSpoken] = useState('')
+  // Pause holds the figure's own motion (the stream, the drift, the settle into depth), for the rest of the visit:
+  // WCAG 2.2.2. It is read before the renderer exists, and the button only appears once it is live.
+  const [paused, setPaused] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && sessionStorage.getItem(PAUSED) === '1'
+    } catch {
+      return false
+    }
+  })
+  const pausedRef = useRef(paused)
+  // The lean the reader asks for, from the pointer on a laptop or the tilt of a phone, each in −1…1.
+  const lean = useRef({ x: 0, y: 0 })
+  const leanFrom = useRef<'drift' | 'pointer' | 'tilt'>('drift')
+  const tilt = useRef(new Lean())
+  const [permission, setPermission] = useState<Permission>('unasked')
   // ?debug=1: a report a phone's owner can screenshot, loaded only when asked for.
   const [Debug, setDebug] = useState<ComponentType<{ read: () => LiveInfo }> | null>(null)
   const debugInfo = useRef<() => LiveInfo>(null)
@@ -214,6 +235,8 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
                 labels: labels.current,
                 sequence: () => (armed.current ? timeline.current.phases() : null),
                 camera: () => flight.current.p,
+                paused: () => pausedRef.current,
+                parallax: () => lean.current,
                 tick: onTick,
                 onStats,
                 onSequenceFrame,
@@ -262,11 +285,25 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     [onStats, onTick, onSequenceFrame, release],
   )
 
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create)
+  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, STAGE_OPTS)
   // The kit reports live once the renderer draws; from then the GPU owns the counter.
   useEffect(() => {
     liveRef.current = live
   }, [live])
+
+  // A phone's tilt leans the view: at once where the browser allows it, after the first tap where it asks (iOS).
+  useEffect(() => {
+    if (!live || reduced || typeof DeviceOrientationEvent === 'undefined' || !window.matchMedia('(pointer: coarse)').matches) return
+    const D = DeviceOrientationEvent as typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> }
+    if (typeof D.requestPermission === 'function' && permission !== 'granted') return
+    const onTilt = (e: DeviceOrientationEvent) => {
+      if (pausedRef.current) return
+      lean.current = tilt.current.read(e.beta, e.gamma, screen.orientation?.angle ?? 0)
+      leanFrom.current = 'tilt'
+    }
+    addEventListener('deviceorientation', onTilt)
+    return () => removeEventListener('deviceorientation', onTilt)
+  }, [live, reduced, permission])
   useEffect(() => {
     if (declined || (mounted && (!eligible || reduced))) release()
   }, [declined, eligible, reduced, mounted, release])
@@ -392,12 +429,20 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     flight.current.start()
     setFlying(true)
   }
+  const togglePause = () => {
+    const next = !pausedRef.current
+    pausedRef.current = next
+    setPaused(next)
+    try {
+      sessionStorage.setItem(PAUSED, next ? '1' : '0')
+    } catch {}
+  }
   const replay = () => {
     const r = renderer.current
     if (!r) return
     stopFlight()
     armed.current = true
-    r.fadeOut(200, () => {
+    r.rewind(() => {
       timeline.current.replay()
       timeline.current.start()
       setHistory([])
@@ -420,6 +465,13 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   }
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     if (!live) return
+    // A pointer that can hover leans the view toward itself.
+    if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
+      const r = e.currentTarget.getBoundingClientRect()
+      const c = (v: number) => Math.max(-1, Math.min(1, v))
+      lean.current = { x: c((e.clientX - r.left - r.width / 2) / (r.width / 2)), y: c(-(e.clientY - r.top - r.height / 2) / (r.height / 2)) }
+      leanFrom.current = 'pointer'
+    }
     const d = drag.current
     if (d && d.id === e.pointerId) {
       const dx = e.clientX - d.x
@@ -443,7 +495,22 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const onCancel = (e: PointerEvent<HTMLDivElement>) => {
     if (drag.current?.id === e.pointerId) drag.current = null
   }
-  const onLeave = () => renderer.current?.preview(null)
+  const onLeave = () => {
+    renderer.current?.preview(null)
+    if (leanFrom.current === 'pointer') lean.current = { x: 0, y: 0 }
+  }
+  // iOS asks before a page may read the tilt, and only from a tap: the first tap on the figure asks.
+  const onTap = () => {
+    if (permission !== 'unasked' || !live || reduced || !window.matchMedia('(pointer: coarse)').matches) return
+    const D = (typeof DeviceOrientationEvent === 'undefined' ? undefined : DeviceOrientationEvent) as
+      | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<'granted' | 'denied'> })
+      | undefined
+    if (typeof D?.requestPermission !== 'function') return
+    setPermission('denied')
+    D.requestPermission()
+      .then((r) => setPermission(r === 'granted' ? 'granted' : 'denied'))
+      .catch(() => setPermission('denied'))
+  }
 
   const exact = useMemo(() => bs(sigma, strike), [sigma, strike])
   const posterStrands = useMemo(() => strands(sigma, strike), [sigma, strike])
@@ -507,7 +574,17 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         reduced,
         saveData: saveData(),
         ua: navigator.userAgent,
-        renderer: renderer.current?.debug() ?? null,
+        renderer: renderer.current
+          ? {
+              ...renderer.current.debug(),
+              motion: `${pausedRef.current ? 'paused' : 'moving'} · lean from ${leanFrom.current} ${lean.current.x.toFixed(2)}, ${lean.current.y.toFixed(2)}`,
+              tilt: !window.matchMedia('(pointer: coarse)').matches
+                ? 'not used (fine pointer)'
+                : typeof (DeviceOrientationEvent as unknown as { requestPermission?: unknown })?.requestPermission === 'function'
+                  ? `permission ${permission}`
+                  : 'no permission needed',
+            }
+          : null,
       }
     }
   })
@@ -602,6 +679,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           onPointerUp={onUp}
           onPointerCancel={onCancel}
           onPointerLeave={onLeave}
+          onClick={onTap}
         >
           <div data-futures-poster="" className="absolute inset-0" style={underlay(live)}>
             <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={frame.stats.mean} />
@@ -683,6 +761,9 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2">
           {live && (
             <>
+              <button type="button" onClick={togglePause} className={CONTROL}>
+                {paused ? 'Resume' : 'Pause'}
+              </button>
               <button type="button" onClick={toggleFlight} className={CONTROL}>
                 {flying ? 'Stop' : 'Fly through'}
               </button>

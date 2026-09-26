@@ -171,7 +171,7 @@ export function posterData(sigma: number, K: number) {
 export const MARKS = {
   today: { x: Math.round(px(X0)), y: Math.round(py(wy(MODEL.s0))) },
   expiry: { x: Math.round(px(X1)) },
-  strikeX0: Math.round(px(X1 - 0.32)),
+  strikeX0: Math.round(px(X1)),
   strikeX1: Math.round(px(HX0 + HLEN + 0.04)),
   strikeY: (K: number) => Math.round(py(wy(K)) * 10) / 10,
 } as const

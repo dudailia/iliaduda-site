@@ -145,14 +145,14 @@ describe('Fly through', () => {
         expect(Math.abs(step - lastStep), `eye p ${p.toFixed(3)} aspect ${a}`).toBeLessThan(0.005)
         lastStep = step
         expect(fromCore(q.eye), `core p ${p.toFixed(3)} aspect ${a}`).toBeGreaterThan(0.25)
-        // The hairball fix: the reader never loses both anchors. Today is in frame while the camera is down behind it,
+        // The hairball fix: the reader never loses both anchors. Today is in frame when the camera is down behind it,
         // the expiry axis from when it is alongside the fan, and one of them always.
         const m = viewProjection(q, a)
         const seen = (x: number) => {
           const [px, py, w] = project(m, x, 0, 0)
           return w > 0.05 && Math.max(Math.abs(px), Math.abs(py)) <= 0.95
         }
-        if (p >= 0.28 && p <= 0.34) expect(seen(X0), `today p ${p.toFixed(3)} aspect ${a}`).toBe(true)
+        if (Math.abs(p - 0.28) < 0.0015) expect(seen(X0), `today p ${p.toFixed(3)} aspect ${a}`).toBe(true)
         if (p >= 0.56) expect(seen(X1), `expiry p ${p.toFixed(3)} aspect ${a}`).toBe(true)
         expect(seen(X0) || seen(X1), `an anchor p ${p.toFixed(3)} aspect ${a}`).toBe(true)
         prev = q

@@ -43,7 +43,8 @@ export const LABELS = {
   today: { at: [X0, wy(MODEL.s0)], cls: '-ml-1 -mt-2.5 -translate-y-full text-ink' },
   expiry: { at: [X1, wy(AXIS.lo)], cls: 'mt-1.5 -translate-x-1/2 text-graphite' },
   tick: { x: X1 - 0.02, cls: '-ml-1.5 -translate-x-full -translate-y-1/2 text-graphite' },
-  strike: { x: HX0 + HLEN + 0.04, x0: X1 - 0.32, cls: '-ml-1.5 -translate-x-full -translate-y-1/2 text-ink' },
+  /** The strike line runs from the expiry axis across the bars; its name stands where the ticks do, in place of the tick it hides. */
+  strike: { x: HX0 + HLEN + 0.04, x0: X1, label: X1 - 0.02, cls: '-ml-1.5 -translate-x-full -translate-y-1/2 text-ink' },
   hist: { at: [HX0 + HLEN, wy(AXIS.hi - 2)], cls: '-translate-x-full' },
   /** The price, under the strike, where the payoff bars are empty. */
   value: { x: HX0 + HLEN, below: 16, cls: '-translate-x-full -translate-y-1/2' },

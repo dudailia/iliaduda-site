@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { GPU, STAGE, canvasShown, contrast, errorsOf, fillOpacity, goLive, holdRenderer, luminance, num, patch, seen, seq } from './hero-kit'
+import { GPU, STAGE, canvasShown, contrast, darkest, errorsOf, fillOpacity, goLive, holdRenderer, luminance, num, patch, seen, seq } from './hero-kit'
 
 /**
  * Fig. 1 on the home page: a million simulated futures, priced on the GPU.
@@ -9,8 +9,9 @@ import { GPU, STAGE, canvasShown, contrast, errorsOf, fillOpacity, goLive, holdR
  * (ANGLE/Metal on a Mac; headless Chromium without one falls back to
  * SwiftShader, where the figure keeps its poster by design and says why);
  * land within a few standard errors of Black–Scholes; play its signature
- * sequence once per visit, finished by a click but not by a scroll, then fall
- * still; fly through on request; and survive what a real visitor does to a
+ * sequence once per visit, finished by a click but not by a scroll, then swing
+ * into depth and keep moving there (hero-motion.spec.ts: Pause, the pointer,
+ * the tilt); fly through on request; and survive what a real visitor does to a
  * live figure — a theme switch, a turn of the device, a lost GPU context, a
  * failed download, the back button, a finger that starts a scroll on it.
  */
@@ -150,19 +151,16 @@ test.describe('the signature sequence', () => {
     await expect(page.getByRole('slider', { name: 'Strike' })).toHaveValue('100')
   })
 
-  test('falls still when it is over: no frame is drawn while nothing changes', async ({ page }) => {
-    test.setTimeout(90_000)
+  test('at rest it keeps moving: the stream and the drift draw new frames', async ({ page }) => {
+    test.setTimeout(60_000)
     await page.goto('/')
     if (!(await goLive(page))) return test.skip(true, 'no GPU here')
     await expect.poll(() => seq(page), { timeout: 15_000 }).toBe('done')
-    await expect(page.locator('[data-paths]').first()).toHaveAttribute('data-paths', String(2 ** 28), { timeout: 60_000 })
-    await page.waitForTimeout(500)
+    await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 6_000 })
     const draws = async () => Number(await page.locator(`${STAGE} [data-draws]`).getAttribute('data-draws'))
     const before = await draws()
     await page.waitForTimeout(1500)
-    // A figure drawing every frame would add about 90 here. One or two are the
-    // frame-rate governor stepping quality, which redraws once at the new resolution.
-    expect((await draws()) - before).toBeLessThanOrEqual(2)
+    expect((await draws()) - before).toBeGreaterThan(20)
   })
 })
 
@@ -220,9 +218,12 @@ test('by day the paying paths are ink on paper, at least 3:1 against it', async 
   await page.goto('/')
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   await expect(page.locator('[data-paths]').first()).not.toHaveAttribute('data-paths', '0', { timeout: 15_000 })
-  await page.waitForTimeout(800)
-  // Just above the strike, half-way to expiry: the densest paying futures.
-  const pays = await patch(page, { x0: 0.3, y0: 0.5, x1: 0.42, y1: 0.56 })
+  await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 6_000 })
+  await page.getByRole('button', { name: 'Pause' }).click()
+  await page.waitForTimeout(400)
+  // The densest futures, wherever the camera has put them: the darkest patch on the fan's side of the stage, away from
+  // the bars on the wall.
+  const pays = await darkest(page, { x0: 0, y0: 0.1, x1: 0.6, y1: 0.9 })
   const paper = await patch(page, { x0: 0.02, y0: 0.02, x1: 0.08, y1: 0.08 })
   expect(contrast(pays, paper)).toBeGreaterThanOrEqual(3)
 })

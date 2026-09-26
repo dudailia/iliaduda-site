@@ -1,15 +1,12 @@
-import { MODEL } from './mc'
-import { AXIS, FRAME, HLEN, HX0, LABELS, X0, X1, wy } from './world'
+import { AXIS, FRAME, HLEN, HX0, X0, X1, wy } from './world'
 
 /**
  * The camera, as pure maths the renderer and the tests share: projection and
- * view matrices and the five poses of the optional flythrough. The clock that
- * flies it is lib/futures/flight.ts, kept apart so the figure's island, which
- * ships with the page, doesn't carry the camera the lazy renderer needs.
- *
- * The composed frame — what the figure rests on, and what the server's poster
- * draws — is the first pose. The flythrough leaves it only when the reader
- * presses Fly through, and comes back by itself.
+ * view matrices; the composed frame, which the server's poster draws; the
+ * resting three-quarter view the figure settles into, with its drift and the
+ * reader's parallax; and Fly through. The clock that flies it is
+ * lib/futures/flight.ts, kept apart so the figure's island, which ships with
+ * the page, doesn't carry the camera the lazy renderer needs.
  */
 
 export type V3 = [number, number, number]
@@ -63,9 +60,6 @@ export function project(m: M4, x: number, y: number, z: number): [number, number
   return [(m[0]! * x + m[4]! * y + m[8]! * z + m[12]!) / w, (m[1]! * x + m[5]! * y + m[9]! * z + m[13]!) / w, w]
 }
 
-/** Camera distance that fits a world rectangle on z = 0, looking straight at it. */
-const fitDist = (hw: number, hh: number, aspect: number) => Math.max(hh / TAN, hw / (TAN * aspect))
-
 const orbit = (t: V3, d: number, yaw: number, pitch: number): V3 => [
   t[0] + d * Math.sin(yaw) * Math.cos(pitch),
   t[1] + d * Math.sin(pitch),
@@ -78,35 +72,11 @@ const smooth = (a: number, b: number, x: number) => {
   return t * t * (3 - 2 * t)
 }
 
-/**
- * The flight, as five poses: the side-on fan the poster shows; a turn to
- * three-quarters so the cone reads as depth; up behind today, looking down
- * the time axis; lower, with the futures opening ahead; out to face the
- * expiry plane and its histogram.
- *
- * The lab's version plunged the camera into the cloud at 0.4–0.58 and lost
- * every anchor — a hairball. Here the camera stays behind today, so today's
- * price is in frame until the turn to expiry, and the expiry axis is in frame
- * from then on (tests/futures-flight.test.ts holds both at three aspects).
- */
-export function keys(aspect: number): { at: number; eye: V3; target: V3 }[] {
+/** The composed frame's camera: looking straight at FRAME, fitted on its height (see `stretch`). */
+function frameEye(): { eye: V3; target: V3 } {
   const cx = (FRAME.x0 + FRAME.x1) / 2, cy = (FRAME.y0 + FRAME.y1) / 2
   const hh = (FRAME.y1 - FRAME.y0) / 2
-  const y0 = wy(MODEL.s0)
-  // The first pose fills FRAME exactly (see `stretch`), so it is fitted on height.
-  const d0 = hh / TAN
-  // Aimed left of centre: the orbit swings today toward the edge, and this keeps it in.
-  const t1: V3 = [X0 + 1.2, cy - 0.05, 0]
-  const e4x0 = X1 - 0.95, e4x1 = LABELS.strike.x + 0.2
-  const t4: V3 = [(e4x0 + e4x1) / 2, cy, 0]
-  const d4 = fitDist((e4x1 - e4x0) / 2, hh, aspect)
-  return [
-    { at: 0.02, eye: [cx, cy, d0], target: [cx, cy, 0] },
-    { at: 0.2, eye: orbit(t1, fitDist(1.9, hh, aspect) * 0.95, -0.6, 0.28), target: t1 },
-    { at: 0.4, eye: [X0 - 2.1, y0 + 1.0, 1.3], target: [X0 + 0.9, y0 + 0.1, 0] },
-    { at: 0.62, eye: [X0 - 1.8, y0 + 0.3, 0.45], target: [(X0 + X1) / 2, y0, 0] },
-    { at: 0.78, eye: orbit(t4, d4, -0.2, 0.05), target: t4 },
-  ]
+  return { eye: [cx, cy, hh / TAN], target: [cx, cy, 0] }
 }
 
 /**
@@ -117,32 +87,6 @@ export function keys(aspect: number): { at: number; eye: V3; target: V3 }[] {
 export function stretch(p: number, aspect: number): number {
   const frameAspect = (FRAME.x1 - FRAME.x0) / (FRAME.y1 - FRAME.y0)
   return 1 + (aspect / frameAspect - 1) * (1 - smooth(0.02, 0.2, p))
-}
-
-function catmull(p0: number, p1: number, p2: number, p3: number, t: number) {
-  const t2 = t * t, t3 = t2 * t
-  return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
-}
-
-export function pose(p: number, aspect: number): { eye: V3; target: V3 } {
-  const k = keys(aspect)
-  if (p <= k[0]!.at) return k[0]!
-  const last = k[k.length - 1]!
-  if (p >= last.at) return last
-  let i = 0
-  while (p > k[i + 1]!.at) i++
-  const t = (p - k[i]!.at) / (k[i + 1]!.at - k[i]!.at)
-  const a = k[Math.max(0, i - 1)]!, b = k[i]!, c = k[i + 1]!, d = k[Math.min(k.length - 1, i + 2)]!
-  const f = (sel: 'eye' | 'target') => [0, 1, 2].map((j) => catmull(a[sel][j]!, b[sel][j]!, c[sel][j]!, d[sel][j]!, t)) as V3
-  return { eye: f('eye'), target: f('target') }
-}
-
-/** The first version's camera at flight progress `p`: projection (with the opening stretch) times view. */
-function legacyViewProjection(p: number, aspect: number): M4 {
-  const { eye, target } = pose(p, aspect)
-  const proj = perspective(aspect, 0.02, 40)
-  proj[0] = proj[0]! * stretch(p, aspect)
-  return mul(proj, lookAt(eye, target))
 }
 
 // ── The camera of the three-dimensional figure ──────────────────────────────
@@ -180,10 +124,8 @@ export const SCENE: readonly V3[] = [
 /** The expiry wall and the bars at full length: what the flight's last view must hold. */
 const WALL: readonly V3[] = SCENE.slice(1, 9)
 
-export function viewProjection(pose: Pose, aspect: number): M4
-export function viewProjection(p: number, aspect: number): M4
-export function viewProjection(a: Pose | number, aspect: number): M4 {
-  if (typeof a === 'number') return legacyViewProjection(a, aspect)
+/** The whole camera for a pose: projection (with its stretch) times view. */
+export function viewProjection(a: Pose, aspect: number): M4 {
   const proj = perspectiveFov(a.fov, aspect, 0.02, 60)
   proj[0] = proj[0]! * a.stretch
   return mul(proj, lookAt(a.eye, a.target))
@@ -199,7 +141,7 @@ function perspectiveFov(fov: number, aspect: number, near: number, far: number):
 
 /** The composed frame: the poster's rectangle, filling the box at any aspect. */
 export function framePose(aspect: number): Pose {
-  const k = keys(aspect)[0]!
+  const k = frameEye()
   return { eye: k.eye, target: k.target, stretch: stretch(0, aspect), fov: FOV_FRAME }
 }
 
@@ -292,7 +234,7 @@ function fit(yaw: number, pitch: number, target: V3, aspect: number, pts: readon
 /** The resting view's direction: a phone's tall stage turns further, so time recedes more and fills it. */
 const restDir = (aspect: number) => {
   const k = smooth(0.6, 1.8, aspect)
-  return { yaw: -0.62 + 0.22 * k, pitch: 0.3 - 0.1 * k }
+  return { yaw: -0.8 + 0.4 * k, pitch: 0.56 - 0.36 * k }
 }
 
 const restCache = new Map<number, Pose>()
@@ -301,8 +243,8 @@ function restBase(aspect: number): Pose {
   let p = restCache.get(key)
   if (!p) {
     const { yaw, pitch } = restDir(key)
-    // 0.83, not the tests' 0.88: the drift and the reader's parallax need the rest of the room.
-    p = fit(yaw, pitch, [0.45, 0.35, 0], key, SCENE, 0.83, FOV_REST)
+    // 0.8 (0.83 on a phone, whose parallax is gentler), not the tests' 0.88: the drift and the lean need the rest.
+    p = fit(yaw, pitch, [0.45, 0.35, 0], key, SCENE, 0.8 + 0.03 * (1 - smooth(0.6, 1.2, key)), FOV_REST)
     if (restCache.size > 64) restCache.clear()
     restCache.set(key, p)
   }
@@ -333,7 +275,14 @@ export function driftAt(t: number): Offsets {
 /** The resting view, with the drift and the reader's parallax (x and y in −1…1) added about its target. */
 export function restPose(aspect: number, drift: Offsets = ZERO, parallax: { x: number; y: number } = { x: 0, y: 0 }): Pose {
   const s = toSph(restBase(aspect))
-  return fromSph({ ...s, yaw: s.yaw + drift.yaw + 0.09 * parallax.x, pitch: s.pitch + drift.pitch + 0.055 * parallax.y, dist: s.dist * (1 + drift.dolly) })
+  // A phone's narrow stage has the least room to lean in: its parallax is gentler.
+  const lean = 0.65 + 0.35 * smooth(0.6, 1.2, aspect)
+  return fromSph({
+    ...s,
+    yaw: s.yaw + drift.yaw + 0.09 * lean * parallax.x,
+    pitch: s.pitch + drift.pitch + 0.055 * lean * parallax.y,
+    dist: s.dist * (1 + drift.dolly),
+  })
 }
 
 const endCache = new Map<number, Pose>()
@@ -361,10 +310,14 @@ export function flightPose(p: number, aspect: number, start: Pose): Pose {
   if (p <= 0) return start
   const end = endPose(aspect)
   if (p >= 0.8) return end
+  // Alongside the fan, a phone's narrow stage stands further off, so the futures do not fill it from edge to edge.
+  const back = 1 + 0.7 * (1 - smooth(0.6, 1.2, aspect))
+  const t2: V3 = [X1 - 0.35, 0.1, 0]
+  const e2: V3 = [t2[0] + (-0.2 - t2[0]) * back, t2[1] + (0.6 - t2[1]) * back, t2[2] + 1.6 * back]
   const k: { at: number; pose: Pose }[] = [
     { at: 0, pose: start },
     { at: 0.28, pose: { eye: [X0 - 1.25, 0.32, 0.55], target: [X0 + 2.0, -0.02, -0.25], stretch: 1, fov: FOV_REST } },
-    { at: 0.56, pose: { eye: [-0.2, 0.6, 1.6], target: [X1 - 0.35, 0.1, 0], stretch: 1, fov: FOV_REST } },
+    { at: 0.56, pose: { eye: e2, target: t2, stretch: 1, fov: FOV_REST } },
     { at: 0.8, pose: end },
   ]
   let i = 0
@@ -374,9 +327,14 @@ export function flightPose(p: number, aspect: number, start: Pose): Pose {
   const u = (p - a.at) / h
   const u2 = u * u, u3 = u2 * u
   const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2
-  // The slope at key j, per unit of p: none at the first and last keys.
+  // The slope at key j, per unit of p: none at the first and last keys; at the first inner key, toward the next key
+  // only, so wherever the rest was, the flight from behind today on is the same path.
   const slope = (j: number, sel: 'eye' | 'target', c: number) =>
-    j === 0 || j === k.length - 1 ? 0 : (k[j + 1]!.pose[sel][c]! - k[j - 1]!.pose[sel][c]!) / (k[j + 1]!.at - k[j - 1]!.at)
+    j === 0 || j === k.length - 1
+      ? 0
+      : j === 1
+        ? (k[2]!.pose[sel][c]! - k[1]!.pose[sel][c]!) / (k[2]!.at - k[1]!.at)
+        : (k[j + 1]!.pose[sel][c]! - k[j - 1]!.pose[sel][c]!) / (k[j + 1]!.at - k[j - 1]!.at)
   const at = (sel: 'eye' | 'target') =>
     [0, 1, 2].map((c) => h00 * a.pose[sel][c]! + h10 * h * slope(i, sel, c) + h01 * b.pose[sel][c]! + h11 * h * slope(i + 1, sel, c)) as V3
   return { eye: at('eye'), target: at('target'), stretch: lerp(a.pose.stretch, b.pose.stretch, u), fov: lerp(a.pose.fov, b.pose.fov, u) }

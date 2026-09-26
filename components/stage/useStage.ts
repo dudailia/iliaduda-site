@@ -82,7 +82,7 @@ export interface Stage {
   tier: Tier | null
 }
 
-export function useStage(create: Create, opts: { threshold?: number } = {}): Stage {
+export function useStage(create: Create, opts: { threshold?: number; maxQ?: Partial<Record<Tier, number>> } = {}): Stage {
   const box = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const reduced = useReducedMotion()
@@ -98,6 +98,8 @@ export function useStage(create: Create, opts: { threshold?: number } = {}): Sta
     createRef.current = create
   })
   const threshold = opts.threshold ?? 0.2
+  // A figure may let a tier go higher than the kit's default: the home figure lets a phone draw at two device pixels.
+  const tierMax = useRef(opts.maxQ)
 
   useEffect(() => {
     if (reduced) return
@@ -216,7 +218,7 @@ export function useStage(create: Create, opts: { threshold?: number } = {}): Sta
         return
       }
       const t = deviceTier(gl)
-      maxQ = MAX_Q[t]
+      maxQ = tierMax.current?.[t] ?? MAX_Q[t]
       q = Math.min(maxQ, 2)
       setTier(t)
       setQuality(q)

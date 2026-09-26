@@ -70,6 +70,44 @@ export async function patch(page: Page, box = { x0: 0, y0: 0, x1: 1, y1: 1 }) {
     { b64, box },
   )
 }
+/** The darkest `cell`-sized patch of a region of the stage (fractions of its box), from one screenshot. */
+export async function darkest(page: Page, box: { x0: number; y0: number; x1: number; y1: number }, cell = 0.05) {
+  const b64 = (await page.locator(STAGE).screenshot()).toString('base64')
+  return page.evaluate(
+    async ({ b64, box, cell }) => {
+      const img = new Image()
+      img.src = `data:image/png;base64,${b64}`
+      await img.decode()
+      const c = document.createElement('canvas')
+      c.width = img.width
+      c.height = img.height
+      const g = c.getContext('2d')!
+      g.drawImage(img, 0, 0)
+      const lin = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+      let best: [number, number, number] = [1, 1, 1], bestL = Infinity
+      const cw = Math.max(1, Math.round(img.width * cell)), ch = Math.max(1, Math.round(img.height * cell))
+      for (let x = Math.round(img.width * box.x0); x + cw <= Math.round(img.width * box.x1); x += cw)
+        for (let y = Math.round(img.height * box.y0); y + ch <= Math.round(img.height * box.y1); y += ch) {
+          const d = g.getImageData(x, y, cw, ch).data
+          let r = 0, gr = 0, bl = 0
+          for (let i = 0; i < d.length; i += 4) {
+            r += d[i]!
+            gr += d[i + 1]!
+            bl += d[i + 2]!
+          }
+          const n = d.length / 4
+          const m: [number, number, number] = [r / n / 255, gr / n / 255, bl / n / 255]
+          const l = 0.2126 * lin(m[0]) + 0.7152 * lin(m[1]) + 0.0722 * lin(m[2])
+          if (l < bestL) {
+            bestL = l
+            best = m
+          }
+        }
+      return best
+    },
+    { b64, box, cell },
+  )
+}
 export const luminance = ([r, g, b]: readonly number[]) => {
   const l = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
   return 0.2126 * l(r!) + 0.7152 * l(g!) + 0.0722 * l(b!)

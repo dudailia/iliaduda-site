@@ -28,7 +28,7 @@ export interface Slot {
   id: number
   /** How much of the path is drawn, 0 (a point at today) to 1 (to expiry). */
   reveal: number
-  alpha: number
+  opacity: number
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
@@ -40,13 +40,13 @@ const smooth = (u: number) => u * u * (3 - 2 * u)
 /** Slot i during the burst: its first path, its front easing out of today on the golden-ratio stagger. */
 export function burstSlot(i: number, burst: number): Slot {
   const u = clamp01((burst - frac(i * PHI) * BURST.launch) / BURST.front)
-  return { id: i, reveal: quint(u), alpha: 1 }
+  return { id: i, reveal: quint(u), opacity: 1 }
 }
 
 export class Stream {
   readonly ids: Float64Array
   readonly reveal: Float32Array
-  readonly alpha: Float32Array
+  readonly opacity: Float32Array
   /** The cycle each slot is in, whether it launches a path in it, and whether the path it fades exists. */
   private readonly cycleOf: Int32Array
   private readonly launches: Uint8Array
@@ -55,7 +55,7 @@ export class Stream {
   constructor(readonly n: number) {
     this.ids = Float64Array.from({ length: n }, (_, i) => i)
     this.reveal = new Float32Array(n).fill(1)
-    this.alpha = new Float32Array(n).fill(1)
+    this.opacity = new Float32Array(n).fill(1)
     this.cycleOf = new Int32Array(n).fill(-1)
     this.launches = new Uint8Array(n).fill(1)
     this.fades = new Uint8Array(n).fill(1)
@@ -70,7 +70,7 @@ export class Stream {
         // Still holding its first path, the one the burst drew.
         this.ids[i] = i
         this.reveal[i] = 1
-        this.alpha[i] = 1
+        this.opacity[i] = 1
         continue
       }
       const c = Math.floor(t / cycle)
@@ -85,16 +85,16 @@ export class Stream {
       if (u < fade) {
         this.ids[i] = c === 0 ? i : i + this.n * c
         this.reveal[i] = 1
-        this.alpha[i] = this.fades[i] ? 1 - smooth(u / fade) : 0
+        this.opacity[i] = this.fades[i] ? 1 - smooth(u / fade) : 0
       } else {
         this.ids[i] = i + this.n * (c + 1)
         this.reveal[i] = this.launches[i] ? quint((u - fade) / travel) : 0
-        this.alpha[i] = this.launches[i] ? 1 : 0
+        this.opacity[i] = this.launches[i] ? 1 : 0
       }
     }
   }
 
   slot(i: number): Slot {
-    return { id: this.ids[i]!, reveal: this.reveal[i]!, alpha: this.alpha[i]! }
+    return { id: this.ids[i]!, reveal: this.reveal[i]!, opacity: this.opacity[i]! }
   }
 }

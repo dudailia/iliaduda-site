@@ -15,7 +15,7 @@ const ink = (s: Stream) => {
   let t = 0
   for (let i = 0; i < N; i++) {
     const x = s.slot(i)
-    t += x.alpha * x.reveal
+    t += x.opacity * x.reveal
   }
   return t / N
 }
@@ -23,8 +23,8 @@ const ink = (s: Stream) => {
 describe('the burst', () => {
   it('reveals each slot’s first path on the golden-ratio stagger, all of them whole at its end', () => {
     for (const i of [0, 1, 7, 300]) {
-      expect(burstSlot(i, 0)).toEqual({ id: i, reveal: 0, alpha: 1 })
-      expect(burstSlot(i, 1)).toEqual({ id: i, reveal: 1, alpha: 1 })
+      expect(burstSlot(i, 0)).toEqual({ id: i, reveal: 0, opacity: 1 })
+      expect(burstSlot(i, 1)).toEqual({ id: i, reveal: 1, opacity: 1 })
     }
     // Slot 0 launches first; a slot whose stagger is later is still waiting.
     const late = [...Array(N).keys()].find((i) => ((i * 0.618034) % 1) > 0.9)!
@@ -38,10 +38,10 @@ describe('the stream', () => {
   it('begins exactly where the burst ended: every slot whole, on its first path', () => {
     const s = new Stream(N)
     s.update(0, N)
-    for (let i = 0; i < N; i++) expect(s.slot(i)).toEqual({ id: i, reveal: 1, alpha: 1 })
+    for (let i = 0; i < N; i++) expect(s.slot(i)).toEqual({ id: i, reveal: 1, opacity: 1 })
   })
 
-  it('never pops: a slot changes path only at zero alpha, and a new path starts from today', () => {
+  it('never pops: a slot changes path only at zero opacity, and a new path starts from today', () => {
     const s = new Stream(N)
     const last = Array.from({ length: N }, (_, i) => s.slot(i))
     let switches = 0
@@ -52,13 +52,13 @@ describe('the stream', () => {
         // Checked by hand: a million expect() calls would take the test's whole time budget.
         const at = `slot ${i} at ${t.toFixed(2)}s`
         if (now.id !== was.id) {
-          if (was.alpha >= 0.02) throw new Error(`${at}: switched path while visible (alpha ${was.alpha})`)
+          if (was.opacity >= 0.02) throw new Error(`${at}: switched path while visible (opacity ${was.opacity})`)
           // A point at today: a frame of the front's quintic ease-out is at most a step or two of its 64.
           if (now.reveal >= 0.05) throw new Error(`${at}: a new path appeared already ${now.reveal} long`)
           if (now.id - was.id !== N) throw new Error(`${at}: skipped from path ${was.id} to ${now.id}`)
           switches++
-        } else if (Math.abs(now.alpha - was.alpha) >= 0.05 || Math.abs(now.reveal - was.reveal) >= 0.05) {
-          throw new Error(`${at}: jumped (alpha ${was.alpha} → ${now.alpha}, reveal ${was.reveal} → ${now.reveal})`)
+        } else if (Math.abs(now.opacity - was.opacity) >= 0.05 || Math.abs(now.reveal - was.reveal) >= 0.05) {
+          throw new Error(`${at}: jumped (opacity ${was.opacity} → ${now.opacity}, reveal ${was.reveal} → ${now.reveal})`)
         }
         last[i] = now
       }
@@ -96,8 +96,8 @@ describe('the stream', () => {
       s.update(t, active)
       for (let i = 0; i < N; i++) {
         const now = s.slot(i), was = last[i]!
-        if (now.id === was.id && Math.abs(now.alpha - was.alpha) >= 0.05) throw new Error(`slot ${i} popped at ${t.toFixed(2)}s: ${was.alpha} → ${now.alpha}`)
-        if (now.id !== was.id && (was.alpha >= 0.02 || now.alpha * now.reveal >= 0.05)) throw new Error(`slot ${i} switched visibly at ${t.toFixed(2)}s`)
+        if (now.id === was.id && Math.abs(now.opacity - was.opacity) >= 0.05) throw new Error(`slot ${i} popped at ${t.toFixed(2)}s: ${was.opacity} → ${now.opacity}`)
+        if (now.id !== was.id && (was.opacity >= 0.02 || now.opacity * now.reveal >= 0.05)) throw new Error(`slot ${i} switched visibly at ${t.toFixed(2)}s`)
         last[i] = now
       }
     }
@@ -105,7 +105,7 @@ describe('the stream', () => {
     const t = new Stream(N)
     for (let x = 0; x < 2.5 * STREAM.cycle; x += 1 / 30) t.update(x, x > STREAM.cycle ? N / 2 : N)
     let off = 0
-    for (let i = 0; i < N; i++) if (t.slot(i).alpha === 0) off++
+    for (let i = 0; i < N; i++) if (t.slot(i).opacity === 0) off++
     expect(off).toBeGreaterThan(N * 0.4)
   })
 })

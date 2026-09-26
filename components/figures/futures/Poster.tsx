@@ -82,7 +82,7 @@ export function Poster({
             ${s}
           </Label>
         ))}
-        <Label x={px(LABELS.strike.x0)} y={ky} cls={LABELS.strike.cls}>
+        <Label x={px(LABELS.strike.label)} y={ky} cls={LABELS.strike.cls}>
           Strike ${strike}
         </Label>
         <Label x={w(LABELS.hist.at)[0]} y={w(LABELS.hist.at)[1]} cls={`${LABELS.hist.cls} text-ink`} fill>

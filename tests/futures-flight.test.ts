@@ -1,62 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { pose, project, viewProjection } from '@/lib/futures/camera'
 import { FLIGHT_MS, Flight, HOLD_MS, RETURN_MS, flightAt } from '@/lib/futures/flight'
-import { MODEL } from '@/lib/futures/mc'
-import { FRAME, X0, X1, wy } from '@/lib/futures/world'
 
 /**
- * The optional flythrough. The camera must travel smoothly; the first frame
- * must be the poster's rectangle exactly, so the crossfade from the server's
- * still lands on the same picture; and — the fix for the lab's mid-flight
- * "hairball", where the camera plunged into the cloud and lost every anchor —
- * today's price stays in frame until the camera turns to face expiry, and the
- * expiry axis stays in frame after that.
+ * The Fly-through clock: out, a hold on the payoff view, and home. The path
+ * the camera takes is tests/futures-camera.test.ts.
  */
-
-const ASPECTS = [0.7, 1.1, 1.6] as const
-const inFrame = (m: Float32Array, x: number, y: number, z = 0, margin = 0.95) => {
-  const [px, py, w] = project(m, x, y, z)
-  return w > 0.05 && Math.abs(px) <= margin && Math.abs(py) <= margin
-}
-const dist = (a: readonly number[], b: readonly number[]) => Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!)
-
-describe('the camera path', () => {
-  it('moves smoothly: no jump between neighbouring moments of the flight', () => {
-    for (const aspect of ASPECTS) {
-      let prev = pose(0, aspect)
-      for (let p = 0.001; p <= 1; p += 0.001) {
-        const q = pose(p, aspect)
-        expect(dist(q.eye, prev.eye), `eye at p=${p.toFixed(3)}, aspect ${aspect}`).toBeLessThan(0.05)
-        expect(dist(q.target, prev.target), `target at p=${p.toFixed(3)}, aspect ${aspect}`).toBeLessThan(0.05)
-        prev = q
-      }
-    }
-  })
-
-  it('opens on the poster’s rectangle exactly, at any aspect', () => {
-    for (const aspect of ASPECTS) {
-      const m = viewProjection(0, aspect)
-      const [ax, ay] = project(m, FRAME.x0, FRAME.y0, 0)
-      const [bx, by] = project(m, FRAME.x1, FRAME.y1, 0)
-      expect(ax).toBeCloseTo(-1, 1)
-      expect(ay).toBeCloseTo(-1, 1)
-      expect(bx).toBeCloseTo(1, 1)
-      expect(by).toBeCloseTo(1, 1)
-    }
-  })
-
-  it('keeps today’s price in frame until the camera turns to face expiry', () => {
-    for (const aspect of ASPECTS)
-      for (let p = 0; p <= 0.6; p += 0.01)
-        expect(inFrame(viewProjection(p, aspect), X0, wy(MODEL.s0)), `today at p=${p.toFixed(2)}, aspect ${aspect}`).toBe(true)
-  })
-
-  it('keeps the expiry axis in frame from then to the end', () => {
-    for (const aspect of ASPECTS)
-      for (let p = 0.6; p <= 1; p += 0.01)
-        expect(inFrame(viewProjection(p, aspect), X1, wy(MODEL.s0)), `expiry at p=${p.toFixed(2)}, aspect ${aspect}`).toBe(true)
-  })
-})
 
 describe('the flight clock', () => {
   it('flies out, holds on the payoff view, and comes home', () => {
