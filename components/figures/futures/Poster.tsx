@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { MARKS, type Bar, type Strand } from '@/lib/lab/a/poster'
-import { AXIS, LABELS, TICKS, TICK_CLEAR, VB, px, py, wy } from '@/lib/lab/a/world'
+import { MARKS, type Bar, type Strand } from '@/lib/futures/poster'
+import { AXIS, LABELS, TICKS, TICK_CLEAR, VB, px, py, wy } from '@/lib/futures/world'
 
 /**
  * The still frame, as SVG: the first strands of the ensemble and the terminal

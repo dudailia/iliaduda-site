@@ -2,14 +2,13 @@ import type { ReactNode } from 'react'
 import { Shell } from '../Layout'
 
 /**
- * The frame for one hero prototype: a lab bar to move between the three, the
+ * The frame for one hero prototype: a lab bar to move between them, the
  * hero itself at full width, and under it the plain-English caption a
  * recruiter reads in three seconds, then how it is computed for the reader
  * who wants to check.
  */
 
 const LAB = [
-  { slug: 'a', name: 'A million futures' },
   { slug: 'b', name: 'The order book as terrain' },
   { slug: 'c', name: 'The vol surface, reborn' },
 ] as const

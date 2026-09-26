@@ -8,7 +8,7 @@ import { FORBIDDEN } from '../forbidden'
  * poster first, reduced motion honoured, and the copy gates.
  */
 
-export const LAB = ['/lab/a', '/lab/b', '/lab/c'] as const
+export const LAB = ['/lab/b', '/lab/c'] as const
 
 test('robots.txt disallows /lab and the sitemap does not list it', async ({ request }) => {
   expect(await (await request.get('/robots.txt')).text()).toMatch(/Disallow: \/lab/)

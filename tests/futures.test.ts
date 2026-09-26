@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { RNG } from '@/lib/lab/a/glsl'
-import { Estimator, MODEL, SALT, bs, bsCall, discount, normals4, path, pcg4d, price, terminal, unit } from '@/lib/lab/a/mc'
-import { posterData } from '@/lib/lab/a/poster'
+import { RNG } from '@/lib/futures/glsl'
+import { Estimator, MODEL, SALT, bs, bsCall, discount, normals4, path, pcg4d, price, terminal, unit } from '@/lib/futures/mc'
+import { posterData } from '@/lib/futures/poster'
 
 /**
- * Lab A prices a call by Monte Carlo on the GPU. The GPU cannot be run here,
- * but its generator and step are mirrored exactly on the CPU (lib/lab/a/mc.ts),
+ * The home figure prices a call by Monte Carlo on the GPU. The GPU cannot be run here,
+ * but its generator and step are mirrored exactly on the CPU (lib/futures/mc.ts),
  * so these tests prove the estimator the page runs: its random numbers are
  * standard normal and independent, its paths have the log-return moments the
  * model says, its price lands within four standard errors of Black–Scholes,

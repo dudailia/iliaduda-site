@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { categorise, exportable, type Account, type Line, type Result, type Status } from '@/lib/closebooks'
 import { arrivedByMorph } from '@/lib/arrival'
-import { useOnceSeen, useReducedMotion } from '../surface/env'
+import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
 
 /**
  * One batch through the pipeline. Rows arrive in batch order — indexed from 0,

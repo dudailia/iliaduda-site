@@ -5,7 +5,7 @@ import { amplitude, LOOP, params, PEAK, phase, PHASE_TEXT, SIZE_MAX, SIZE_MIN, t
 import { all, numbers, probeText, text as format } from '@/lib/lab/c/readouts'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/lab/c/ssvi'
 import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/lab/c/view'
-import { fade, underlay, useStage, type Create, type Renderer } from '../useStage'
+import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
 import { AxisLabel, Frame, NoteMark } from './marks'
 import type { Probe, Sim } from './renderer'
 

@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { deviceTier, type GL, type Tier } from '@/lib/lab/gl'
-import { cssColor, saveData, supportsWebGL2, useColorScheme, useReducedMotion, whenIdle } from '../figures/surface/env'
+import { deviceTier, type GL, type Tier } from '@/lib/gl'
+import { cssColor, saveData, supportsWebGL2, useColorScheme, useReducedMotion, whenIdle } from './env'
 
 /**
  * The life cycle every lab hero shares.

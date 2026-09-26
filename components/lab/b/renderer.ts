@@ -1,8 +1,8 @@
-import { program, type GL } from '@/lib/lab/gl'
+import { program, type GL } from '@/lib/gl'
 import { HALF, HZ, LEVELS, ROWS, START, TICK, type Sim, type Stats } from '@/lib/lab/b/sim'
 import { fmt, readAt, type Reading } from '@/lib/lab/b/read'
 import { DX, DZ, H, POW, REF, REST, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, toScreen, view, type Camera, type M4 } from '@/lib/lab/b/view'
-import type { Palette, Renderer, StageEnv } from '../useStage'
+import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 
 /**
  * The order book as terrain, in raw WebGL2.

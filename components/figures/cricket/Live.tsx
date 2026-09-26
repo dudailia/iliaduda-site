@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { arrivedByMorph } from '@/lib/arrival'
-import { useOnceSeen, useReducedMotion } from '../surface/env'
+import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
 
 /**
  * A held-out match, replayed ball by ball: the model's calibrated probability

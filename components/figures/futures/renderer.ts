@@ -1,8 +1,8 @@
-import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Target } from '@/lib/lab/gl'
-import { RNG } from '@/lib/lab/a/glsl'
-import { CAP_LOG2, Estimator, GROUPS, HIST, MODEL, binWidth, discount, stepCoefficients } from '@/lib/lab/a/mc'
-import { AXIS, FRAME, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/lab/a/world'
-import type { Palette, Renderer, StageEnv } from '../useStage'
+import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Target } from '@/lib/gl'
+import { RNG } from '@/lib/futures/glsl'
+import { CAP_LOG2, Estimator, GROUPS, HIST, MODEL, binWidth, discount, stepCoefficients } from '@/lib/futures/mc'
+import { AXIS, FRAME, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
+import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 import { LABEL } from './Poster'
 
 /**

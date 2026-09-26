@@ -1,7 +1,7 @@
 import { cdf } from '@/lib/bs'
 
 /**
- * The CPU mirror of the GPU Monte Carlo in components/lab/a/renderer.ts.
+ * The CPU mirror of the GPU Monte Carlo in components/figures/futures/renderer.ts.
  *
  * Every random number on the page comes from one counter-based generator:
  * PCG4D (Jarzynski and Olano, "Hash Functions for GPU Rendering", JCGT 2020)

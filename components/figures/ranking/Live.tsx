@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
-import { useReducedMotion } from '../surface/env'
+import { useReducedMotion } from '@/components/stage/env'
 
 /**
  * The ranking, live: three treatments of one dataset, and the top of the

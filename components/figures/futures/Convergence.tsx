@@ -1,4 +1,4 @@
-import { CAP_LOG2 } from '@/lib/lab/a/mc'
+import { CAP_LOG2 } from '@/lib/futures/mc'
 
 /**
  * The estimate closing in on Black–Scholes: the Monte Carlo price minus the

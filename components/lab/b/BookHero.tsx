@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Shell } from '@/components/Layout'
-import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '../useStage'
+import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '@/components/stage/useStage'
 import { posterSim, type Sim, type Stats } from '@/lib/lab/b/sim'
 import { fmt, readAt, sentence, type Reading } from '@/lib/lab/b/read'
 import type { KeyProbe, Shared } from './renderer'
