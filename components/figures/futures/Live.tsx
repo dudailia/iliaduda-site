@@ -329,8 +329,14 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       const f = frameRef.current
       setShown({ ...f.stats, rate: 0, mode: 'server', done: true })
     }
+    // Given back, the stage builds the renderer again; the still frame gives way when it draws.
+    const onRestored = () => setDeclined(null)
     cv.addEventListener('webglcontextlost', onLost)
-    return () => cv.removeEventListener('webglcontextlost', onLost)
+    cv.addEventListener('webglcontextrestored', onRestored)
+    return () => {
+      cv.removeEventListener('webglcontextlost', onLost)
+      cv.removeEventListener('webglcontextrestored', onRestored)
+    }
   }, [canvas, release])
 
   // The sequence starts the first time the stage is on screen down to today's

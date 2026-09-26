@@ -268,6 +268,24 @@ test('a lost GPU context puts the finished poster back, without errors', async (
   expect(errors).toEqual([])
 })
 
+test('a lost context that the browser restores (as iOS does after an app switch) brings the live figure back', async ({ page }) => {
+  const errors = errorsOf(page)
+  await seen(page)
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.locator(`${STAGE} [data-live-canvas]`).evaluate((c) => {
+    const ext = (c as HTMLCanvasElement).getContext('webgl2')?.getExtension('WEBGL_lose_context')
+    ;(window as unknown as { __restore: () => void }).__restore = () => ext?.restoreContext()
+    ext?.loseContext()
+  })
+  await expect.poll(() => canvasShown(page), { timeout: 5_000 }).toBe(false)
+  await expect(page.getByText('Still frame: the graphics context was lost.')).toBeVisible()
+  await page.evaluate(() => (window as unknown as { __restore: () => void }).__restore())
+  await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
+  await expect(page.getByText('Still frame: the graphics context was lost.')).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
 test('a context lost before the first frame still leaves the finished poster', async ({ page }) => {
   const chunk = await holdRenderer(page)
   await page.goto('/', { waitUntil: 'load' })

@@ -261,6 +261,17 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
       setLive(false)
     }
     cv.addEventListener('webglcontextlost', onLost)
+    // The browser gave the context back (iOS Safari does after an app switch, or once memory is freed): build the
+    // renderer again on it, and go live again from its first frame.
+    const onRestored = () => {
+      if (disposed) return
+      started = false
+      first = false
+      t0 = 0
+      last = 0
+      start()
+    }
+    cv.addEventListener('webglcontextrestored', onRestored)
 
     return () => {
       disposed = true
@@ -270,6 +281,7 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
       ro.disconnect()
       document.removeEventListener('visibilitychange', onVis)
       cv.removeEventListener('webglcontextlost', onLost)
+      cv.removeEventListener('webglcontextrestored', onRestored)
       renderer?.dispose()
       rendererRef.current = null
       gl?.getExtension('WEBGL_lose_context')?.loseContext()
