@@ -70,6 +70,8 @@ export interface FuturesRenderer extends Renderer {
   priceAt(clientX: number, clientY: number): number | null
   /** Fade the futures out over `ms`, then call `then`: how Replay clears the page before the burst. */
   fadeOut(ms: number, then: () => void): void
+  /** For ?debug=1: what this renderer chose and how it is running. */
+  debug(): Record<string, string | number>
 }
 
 export { CAP }
@@ -909,6 +911,20 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         else hi = m
       }
       return (lo + hi) / 2
+    },
+    debug() {
+      const i = pricer.info()
+      // A finished run reports its average, as the readout does, not the idle window after it.
+      const rate = pricer.doneAt ? pricer.runPaths / Math.max(1e-3, pricer.doneAt - pricer.runStart) : pricer.rate()
+      return {
+        density,
+        strands: pathN,
+        grid: `${i.grid}² paths × ${i.batches} batches a frame`,
+        readback: `${i.readMs.toFixed(2)} ms`,
+        paths: `${est.n.toLocaleString('en-US')}${pricer.doneAt ? ' (complete)' : ''}`,
+        rate: rate > 0 ? `${(rate / 1e6).toFixed(1)}M paths/s` : 'measuring',
+        draws,
+      }
     },
     dispose() {
       for (const p of Object.values(P)) gl.deleteProgram(p.program)

@@ -135,6 +135,8 @@ export interface Pricer {
   collect(): boolean
   /** Reached a log-spaced count since the last call: the convergence trace wants a point. */
   marked(): boolean
+  /** For ?debug=1: the grid side, the batches allowed this frame, and what a readback costs this thread. */
+  info(): { grid: number; batches: number; readMs: number }
   dispose(): void
 }
 
@@ -422,6 +424,7 @@ export function createPricer(gl: GL, clock: Clock, phone: boolean): Pricer {
       marked = false
       return m
     },
+    info: () => ({ grid: W, batches: B, readMs }),
     dispose() {
       for (const p of self.programs) gl.deleteProgram(p.program)
       for (const t of [grid, results, hits, ...acc, ...chain]) disposeTarget(gl, t)

@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type PointerEvent } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
+import type { LiveInfo } from '@/lib/futures/debug'
 import { Flight } from '@/lib/futures/flight'
 import { MODEL, bs } from '@/lib/futures/mc'
 import { POSTER_PATHS, bands, fill, strands, summarize, type PosterFrame } from '@/lib/futures/poster'
@@ -84,6 +85,9 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const [seq, setSeq] = useState<Seq>('off')
   const mounted = useSyncExternalStore(noop, () => true, () => false)
   const [spoken, setSpoken] = useState('')
+  // ?debug=1: a report a phone's owner can screenshot, loaded only when asked for.
+  const [Debug, setDebug] = useState<ComponentType<{ read: () => LiveInfo }> | null>(null)
+  const debugInfo = useRef<() => LiveInfo>(null)
 
   const labels = useRef<HTMLDivElement>(null)
   const cue = useRef<HTMLDivElement>(null)
@@ -106,6 +110,14 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     setSeq(s)
   }, [])
   const playing = () => seqRef.current === 'pending' || seqRef.current === 'playing'
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('debug') !== '1') return
+    import('./Debug')
+      .then((m) => setDebug(() => m.DebugPanel))
+      .catch(() => {})
+  }, [])
+  const readDebug = useCallback((): LiveInfo => debugInfo.current!(), [])
 
   // Claim the figure for the pre-paint script, and read its decision.
   useEffect(() => {
@@ -477,6 +489,29 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const speedLabel = shown.mode === 'cpu' ? 'On this CPU' : shown.mode === 'gpu' ? 'On this GPU' : 'Speed'
   const years = MODEL.T === 1 ? 'one year' : `${MODEL.T} years`
 
+  useEffect(() => {
+    debugInfo.current = () => {
+      const st = box.current?.getBoundingClientRect()
+      const cv = canvas.current
+      return {
+        state: live ? 'live' : why ? 'declined' : mounted ? 'starting' : 'server',
+        reason: why,
+        tier,
+        quality,
+        fps,
+        dpr: window.devicePixelRatio,
+        stage: [st?.width ?? 0, st?.height ?? 0],
+        canvas: live && cv ? [cv.width, cv.height] : null,
+        seq,
+        flying,
+        reduced,
+        saveData: saveData(),
+        ua: navigator.userAgent,
+        renderer: renderer.current?.debug() ?? null,
+      }
+    }
+  })
+
   const rail = (
     <div className="text-meta font-mono lg:text-right">
       {/* The price, then the machine: two groups, one hairline apart. */}
@@ -534,135 +569,138 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   )
 
   return (
-    <FigureFrame
-      id="fig-futures"
-      number="Fig. 1"
-      className="mt-10 mb-12 lg:mt-10 lg:mb-16"
-      title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
-      subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
-      rail={rail}
-      railBelow={false}
-      hint={hint}
-      caption={
-        <>
-          Each line is a path of geometric Brownian motion, stepped exactly in log space; its random numbers come from a
-          counter-based hash, so any path can be regenerated on the CPU, where the tests check the estimator against
-          Black–Scholes. A call pays whatever the stock finishes above the strike, and its price is that payoff averaged
-          over every path and discounted to today: the indigo bars, what each ending pays weighted by how often it
-          happens, add up to it. The margin shows the estimate closing in on the formula as the paths pile up.
-        </>
-      }
-      table={tableView}
-    >
-      <div
-        ref={box}
-        data-seq={seq}
-        data-fps={fps}
-        data-quality={quality}
-        data-tier={tier ?? ''}
-        className={`relative -mx-6 h-[clamp(22rem,60svh,32rem)] overflow-hidden sm:mx-0 lg:h-[clamp(24rem,calc(100svh-31rem),38rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onCancel}
-        onPointerLeave={onLeave}
-      >
-        <div data-futures-poster="" className="absolute inset-0" style={underlay(live)}>
-          <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={frame.stats.mean} />
-        </div>
-        <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
-        <div ref={labels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(live)} />
-        {/* The cue: when this is on screen, so are today's price and the strike, and the sequence may start. */}
-        <div ref={cue} aria-hidden="true" className="pointer-events-none absolute left-0 h-px w-px" style={{ top: '66%' }} />
-      </div>
-      {/* The key sits under the plot, as a paper's does: no projected label can land on it, at any pose of the flight. */}
-      <p aria-hidden="true" className="text-meta mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-graphite">
-        <span>
-          <span className="mr-1.5 inline-block h-[3px] w-4 rounded-full bg-indigo align-middle" />
-          paths ending above the strike
-        </span>
-        <span>
-          <span className="mr-1.5 inline-block w-4 border-t-[1.5px] border-dashed border-ink align-middle" />
-          the strike
-        </span>
-      </p>
-
-      {/* A phone gets the numbers that tell the story; the margin has the rest. */}
-      <dl className="text-meta mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono lg:hidden">
-        <div className="min-w-0">
-          <dt className="text-graphite">Simulated ± 2 SE</dt>
-          <dd className="tabular text-indigo">{priced ? `${shown.mean.toFixed(3)} ± ${(2 * shown.se).toFixed(3)}` : '…'}</dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-graphite">Black–Scholes</dt>
-          <dd className="tabular text-ink">{exact.toFixed(3)}</dd>
-        </div>
-        <div className="col-span-2 min-w-0">
-          <dt className="text-graphite">{speedLabel}</dt>
-          <dd className="tabular text-ink">{speed}</dd>
-        </div>
-      </dl>
-
-      <div className="mt-4 grid grid-cols-2 gap-x-6">
-        <label className="block">
-          <span className="text-meta font-mono text-graphite">
-            Volatility{' '}
-            <span aria-hidden="true" className="tabular text-ink">
-              {pct(sigma)}
-            </span>
-          </span>
-          <input
-            type="range"
-            min={MODEL.sigmaMin * 100}
-            max={MODEL.sigmaMax * 100}
-            step={1}
-            value={Math.round(sigma * 100)}
-            aria-valuetext={`${pct(sigma)} a year`}
-            onChange={(e) => commit(Number(e.currentTarget.value) / 100, strike)}
-            className="mt-0.5 block h-6 w-full accent-[var(--color-indigo)]"
-          />
-        </label>
-        <label className="block">
-          <span className="text-meta font-mono text-graphite">
-            Strike{' '}
-            <span aria-hidden="true" className="tabular text-ink">
-              ${strike}
-            </span>
-          </span>
-          <input
-            type="range"
-            min={MODEL.strikeMin}
-            max={MODEL.strikeMax}
-            step={1}
-            value={strike}
-            aria-valuetext={`$${strike}`}
-            onChange={(e) => commit(sigma, Number(e.currentTarget.value))}
-            className="mt-0.5 block h-6 w-full accent-[var(--color-indigo)]"
-          />
-        </label>
-      </div>
-      {/* Room for the live controls is kept from the first paint, so nothing moves when the figure goes live;
-          where it never will (reduced motion, no WebGL2), the pre-paint script collapses it. */}
-      <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2">
-        {live && (
+    <>
+      <FigureFrame
+        id="fig-futures"
+        number="Fig. 1"
+        className="mt-10 mb-12 lg:mt-10 lg:mb-16"
+        title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
+        subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        rail={rail}
+        railBelow={false}
+        hint={hint}
+        caption={
           <>
-            <button type="button" onClick={toggleFlight} className={CONTROL}>
-              {flying ? 'Stop' : 'Fly through'}
-            </button>
-            <button type="button" onClick={replay} className={CONTROL}>
-              Replay
-            </button>
+            Each line is a path of geometric Brownian motion, stepped exactly in log space; its random numbers come from a
+            counter-based hash, so any path can be regenerated on the CPU, where the tests check the estimator against
+            Black–Scholes. A call pays whatever the stock finishes above the strike, and its price is that payoff averaged
+            over every path and discounted to today: the indigo bars, what each ending pays weighted by how often it
+            happens, add up to it. The margin shows the estimate closing in on the formula as the paths pile up.
           </>
-        )}
-        {changed && (
-          <button type="button" onClick={() => commit(MODEL.sigma, MODEL.strike)} className={CONTROL}>
-            Reset
-          </button>
-        )}
-      </div>
-      <p className="sr-only" aria-live="polite">
-        {spoken}
-      </p>
-    </FigureFrame>
+        }
+        table={tableView}
+      >
+        <div
+          ref={box}
+          data-seq={seq}
+          data-fps={fps}
+          data-quality={quality}
+          data-tier={tier ?? ''}
+          className={`relative -mx-6 h-[clamp(22rem,60svh,32rem)] overflow-hidden sm:mx-0 lg:h-[clamp(24rem,calc(100svh-31rem),38rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onCancel}
+          onPointerLeave={onLeave}
+        >
+          <div data-futures-poster="" className="absolute inset-0" style={underlay(live)}>
+            <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={frame.stats.mean} />
+          </div>
+          <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
+          <div ref={labels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(live)} />
+          {/* The cue: when this is on screen, so are today's price and the strike, and the sequence may start. */}
+          <div ref={cue} aria-hidden="true" className="pointer-events-none absolute left-0 h-px w-px" style={{ top: '66%' }} />
+        </div>
+        {/* The key sits under the plot, as a paper's does: no projected label can land on it, at any pose of the flight. */}
+        <p aria-hidden="true" className="text-meta mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-graphite">
+          <span>
+            <span className="mr-1.5 inline-block h-[3px] w-4 rounded-full bg-indigo align-middle" />
+            paths ending above the strike
+          </span>
+          <span>
+            <span className="mr-1.5 inline-block w-4 border-t-[1.5px] border-dashed border-ink align-middle" />
+            the strike
+          </span>
+        </p>
+
+        {/* A phone gets the numbers that tell the story; the margin has the rest. */}
+        <dl className="text-meta mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono lg:hidden">
+          <div className="min-w-0">
+            <dt className="text-graphite">Simulated ± 2 SE</dt>
+            <dd className="tabular text-indigo">{priced ? `${shown.mean.toFixed(3)} ± ${(2 * shown.se).toFixed(3)}` : '…'}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">Black–Scholes</dt>
+            <dd className="tabular text-ink">{exact.toFixed(3)}</dd>
+          </div>
+          <div className="col-span-2 min-w-0">
+            <dt className="text-graphite">{speedLabel}</dt>
+            <dd className="tabular text-ink">{speed}</dd>
+          </div>
+        </dl>
+
+        <div className="mt-4 grid grid-cols-2 gap-x-6">
+          <label className="block">
+            <span className="text-meta font-mono text-graphite">
+              Volatility{' '}
+              <span aria-hidden="true" className="tabular text-ink">
+                {pct(sigma)}
+              </span>
+            </span>
+            <input
+              type="range"
+              min={MODEL.sigmaMin * 100}
+              max={MODEL.sigmaMax * 100}
+              step={1}
+              value={Math.round(sigma * 100)}
+              aria-valuetext={`${pct(sigma)} a year`}
+              onChange={(e) => commit(Number(e.currentTarget.value) / 100, strike)}
+              className="mt-0.5 block h-6 w-full accent-[var(--color-indigo)]"
+            />
+          </label>
+          <label className="block">
+            <span className="text-meta font-mono text-graphite">
+              Strike{' '}
+              <span aria-hidden="true" className="tabular text-ink">
+                ${strike}
+              </span>
+            </span>
+            <input
+              type="range"
+              min={MODEL.strikeMin}
+              max={MODEL.strikeMax}
+              step={1}
+              value={strike}
+              aria-valuetext={`$${strike}`}
+              onChange={(e) => commit(sigma, Number(e.currentTarget.value))}
+              className="mt-0.5 block h-6 w-full accent-[var(--color-indigo)]"
+            />
+          </label>
+        </div>
+        {/* Room for the live controls is kept from the first paint, so nothing moves when the figure goes live;
+            where it never will (reduced motion, no WebGL2), the pre-paint script collapses it. */}
+        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2">
+          {live && (
+            <>
+              <button type="button" onClick={toggleFlight} className={CONTROL}>
+                {flying ? 'Stop' : 'Fly through'}
+              </button>
+              <button type="button" onClick={replay} className={CONTROL}>
+                Replay
+              </button>
+            </>
+          )}
+          {changed && (
+            <button type="button" onClick={() => commit(MODEL.sigma, MODEL.strike)} className={CONTROL}>
+              Reset
+            </button>
+          )}
+        </div>
+        <p className="sr-only" aria-live="polite">
+          {spoken}
+        </p>
+      </FigureFrame>
+      {Debug && <Debug read={readDebug} />}
+    </>
   )
 }
