@@ -345,6 +345,37 @@ function arrived(s: { x: number; v: number }, target: number, eps: number) {
   return true
 }
 
+/**
+ * Vertex data reused frame to frame: the bars and hairlines are rebuilt every
+ * frame, and building them in fresh arrays left a phone ~100 kB of garbage a
+ * frame to collect, mid-motion.
+ */
+class Floats {
+  a = new Float32Array(1 << 15)
+  n = 0
+  private room(k: number) {
+    if (this.n + k <= this.a.length) return
+    const b = new Float32Array(this.a.length * 2)
+    b.set(this.a)
+    this.a = b
+  }
+  put6(a: number, b: number, c: number, d: number, e: number, f: number) {
+    this.room(6)
+    const x = this.a, i = this.n
+    x[i] = a; x[i + 1] = b; x[i + 2] = c; x[i + 3] = d; x[i + 4] = e; x[i + 5] = f
+    this.n = i + 6
+  }
+  put7(a: number, b: number, c: number, d: number, e: number, f: number, g: number) {
+    this.room(7)
+    const x = this.a, i = this.n
+    x[i] = a; x[i + 1] = b; x[i + 2] = c; x[i + 3] = d; x[i + 4] = e; x[i + 5] = f; x[i + 6] = g
+    this.n = i + 7
+  }
+  view() {
+    return this.a.subarray(0, this.n)
+  }
+}
+
 /** Where the flight turns the histogram into payoff: once it faces the wall (lib/futures/camera.ts, flightPose). */
 const flightMorph = (p: number) => EASE_IN_OUT(clamp01((p - 0.8) / 0.14))
 /** Labels step aside while the camera is in among the futures. */
@@ -750,10 +781,17 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   }
 
   // The bars, as slabs: each bin a box behind the z = 0 plane, its front face the flat bar of the composed frame.
-  const solid: number[] = []
+  const solid = new Floats()
   const mixc = (a: readonly number[], b: readonly number[], t: number) => [a[0]! + (b[0]! - a[0]!) * t, a[1]! + (b[1]! - a[1]!) * t, a[2]! + (b[2]! - a[2]!) * t]
-  function face(a: V3, b: V3, c: V3, d: V3, col: number[]) {
-    for (const v of [a, b, c, a, c, d]) solid.push(v[0], v[1], v[2], col[0]!, col[1]!, col[2]!, 1)
+  /** A quad as two triangles, corners counter-clockwise from outside, so back faces are culled. */
+  function face(ax: number, ay: number, az: number, bx: number, by: number, bz: number, cx: number, cy: number, cz: number, dx: number, dy: number, dz: number, c: readonly number[]) {
+    const r = c[0]!, g = c[1]!, b = c[2]!
+    solid.put7(ax, ay, az, r, g, b, 1)
+    solid.put7(bx, by, bz, r, g, b, 1)
+    solid.put7(cx, cy, cz, r, g, b, 1)
+    solid.put7(ax, ay, az, r, g, b, 1)
+    solid.put7(cx, cy, cz, r, g, b, 1)
+    solid.put7(dx, dy, dz, r, g, b, 1)
   }
   function slab(x0: number, x1: number, y0: number, y1: number, base: number[]) {
     const z0 = -2 * BAR_D, z1 = 0
@@ -762,13 +800,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     const top = mixc(base, dark ? palette.ink : palette.paper, dark ? 0.2 : 0.24)
     const end = mixc(base, dark ? palette.paper : palette.ink, dark ? 0.3 : 0.14)
     const low = mixc(base, dark ? palette.paper : palette.ink, dark ? 0.45 : 0.24)
-    // Counter-clockwise from outside, so the back faces are culled.
-    face([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], base) // front, z+
-    face([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], top) // top, y+
-    face([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], end) // far end, x+
-    face([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], low) // base at the wall, x−
-    face([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], low) // back, z−
-    face([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], low) // underside, y−
+    face(x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, base) // front, z+
+    face(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, top) // top, y+
+    face(x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, end) // far end, x+
+    face(x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, low) // base at the wall, x−
+    face(x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0, low) // back, z−
+    face(x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, low) // underside, y−
   }
 
   /** New histogram data, or a previewed strike, gives the bars new targets. */
@@ -792,7 +829,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   }
 
   function drawBars(dt: number) {
-    solid.length = 0
+    solid.n = 0
     if (barsReady) {
       // A new run clears the GPU histogram and its first batch is noisy, so the
       // bars on screen ease toward each new target (a 50ms exponential follow)
@@ -822,10 +859,10 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixc(palette.paper, pays ? palette.indigo : palette.graphite, a))
       }
     }
-    if (!solid.length) return
+    if (!solid.n) return
     gl.bindVertexArray(solidVao)
     gl.bindBuffer(gl.ARRAY_BUFFER, solidBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(solid), gl.STREAM_DRAW)
+    gl.bufferData(gl.ARRAY_BUFFER, solid.view(), gl.STREAM_DRAW)
     if (!solidBound) {
       solidBound = true
       const pl = gl.getAttribLocation(P.solid.program, 'aPos'), cl = gl.getAttribLocation(P.solid.program, 'aCol')
@@ -840,42 +877,49 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.depthFunc(gl.LEQUAL)
     gl.enable(gl.CULL_FACE)
     gl.cullFace(gl.BACK)
-    gl.drawArrays(gl.TRIANGLES, 0, solid.length / 7)
+    gl.drawArrays(gl.TRIANGLES, 0, solid.n / 7)
     gl.disable(gl.CULL_FACE)
     gl.disable(gl.DEPTH_TEST)
     gl.bindVertexArray(null)
   }
 
-  // Flat overlay: hairlines and dashes built on the CPU in clip space.
-  const flat: number[] = []
-  const rgba = (c: readonly number[], a: number) => [c[0]!, c[1]!, c[2]!, a]
-  function tri(a: number[], b: number[], c: number[], col: number[]) {
-    flat.push(a[0]!, a[1]!, ...col, b[0]!, b[1]!, ...col, c[0]!, c[1]!, ...col)
+  // Flat overlay: hairlines and dashes built on the CPU in clip space, without an array per point.
+  const flat = new Floats()
+  let sx = 0, sy = 0, sw = 0
+  /** Project a world point into sx, sy (clip) and sw (w). */
+  function pj(x: number, y: number, z: number) {
+    const m = vp
+    const w = m[3]! * x + m[7]! * y + m[11]! * z + m[15]!
+    sx = (m[0]! * x + m[4]! * y + m[8]! * z + m[12]!) / w
+    sy = (m[1]! * x + m[5]! * y + m[9]! * z + m[13]!) / w
+    sw = w
   }
-  function segment(a: V3, b: V3, px: number, col: number[]) {
-    const pa = project(vp, ...a), pb = project(vp, ...b)
-    if (pa[2] < 0.05 || pb[2] < 0.05) return
-    const dx = (pb[0] - pa[0]) * cw, dy = (pb[1] - pa[1]) * ch
+  function segment(ax: number, ay: number, az: number, bx: number, by: number, bz: number, px: number, c: readonly number[], alpha: number) {
+    pj(ax, ay, az)
+    const x0 = sx, y0 = sy, w0 = sw
+    pj(bx, by, bz)
+    if (w0 < 0.05 || sw < 0.05) return
+    const x1 = sx, y1 = sy
+    const dx = (x1 - x0) * cw, dy = (y1 - y0) * ch
     const l = Math.hypot(dx, dy) || 1
     const nx = (-dy / l) * (px / cw), ny = (dx / l) * (px / ch)
-    const A = [pa[0] + nx, pa[1] + ny], Bq = [pa[0] - nx, pa[1] - ny], C = [pb[0] + nx, pb[1] + ny], D = [pb[0] - nx, pb[1] - ny]
-    tri(A, Bq, C, col)
-    tri(C, Bq, D, col)
+    const r = c[0]!, g = c[1]!, b = c[2]!
+    flat.put6(x0 + nx, y0 + ny, r, g, b, alpha)
+    flat.put6(x0 - nx, y0 - ny, r, g, b, alpha)
+    flat.put6(x1 + nx, y1 + ny, r, g, b, alpha)
+    flat.put6(x1 + nx, y1 + ny, r, g, b, alpha)
+    flat.put6(x0 - nx, y0 - ny, r, g, b, alpha)
+    flat.put6(x1 - nx, y1 - ny, r, g, b, alpha)
   }
-  function dashes(a: V3, b: V3, n: number, px: number, col: number[]) {
+  function dashes(ax: number, ay: number, az: number, bx: number, by: number, bz: number, n: number, px: number, c: readonly number[], alpha: number) {
     for (let i = 0; i < n; i++) {
       const u0 = i / n, u1 = (i + 0.6) / n
-      segment(
-        [a[0] + (b[0] - a[0]) * u0, a[1] + (b[1] - a[1]) * u0, a[2] + (b[2] - a[2]) * u0],
-        [a[0] + (b[0] - a[0]) * u1, a[1] + (b[1] - a[1]) * u1, a[2] + (b[2] - a[2]) * u1],
-        px,
-        col,
-      )
+      segment(ax + (bx - ax) * u0, ay + (by - ay) * u0, az + (bz - az) * u0, ax + (bx - ax) * u1, ay + (by - ay) * u1, az + (bz - az) * u1, px, c, alpha)
     }
   }
 
   function drawOverlay() {
-    flat.length = 0
+    flat.n = 0
     const dpr = cw / Math.max(1, cssW)
     const hair = 0.5 * dpr
     const dark = palette.dark
@@ -884,16 +928,16 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     // The frame (the expiry wall, its ticks, the strike) never fades: Replay clears only the futures.
     const vis = labelU
     const g = palette.graphite
-    segment([X1, lo, z], [X1, hi, z], hair, rgba(g, 0.5 * vis))
+    segment(X1, lo, z, X1, hi, z, hair, g, 0.5 * vis)
     if (depthU > 0.01) {
       // The wall: its outline, and a guide across it at each tick, as faint as graph paper.
       const a = depthU * vis
-      segment([X1, lo, -z], [X1, hi, -z], hair, rgba(g, 0.32 * a))
-      segment([X1, lo, -z], [X1, lo, z], hair, rgba(g, 0.32 * a))
-      segment([X1, hi, -z], [X1, hi, z], hair, rgba(g, 0.32 * a))
-      for (const s of TICKS) segment([X1, wy(s), -z], [X1, wy(s), z], hair, rgba(g, (dark ? 0.16 : 0.13) * a))
+      segment(X1, lo, -z, X1, hi, -z, hair, g, 0.32 * a)
+      segment(X1, lo, -z, X1, lo, z, hair, g, 0.32 * a)
+      segment(X1, hi, -z, X1, hi, z, hair, g, 0.32 * a)
+      for (const s of TICKS) segment(X1, wy(s), -z, X1, wy(s), z, hair, g, (dark ? 0.16 : 0.13) * a)
     }
-    for (const s of TICKS) segment([X1 - 0.03, wy(s), z], [X1, wy(s), z], hair, rgba(g, 0.8 * vis))
+    for (const s of TICKS) segment(X1 - 0.03, wy(s), z, X1, wy(s), z, hair, g, 0.8 * vis)
     // The distribution itself, left as a hairline outline once the claim has
     // taken its place, drawn on the bars' front faces. Bins under half a
     // percent of the tallest are the thin tail; the outline closes to the
@@ -901,7 +945,6 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     if (barsReady) {
       const outlineA = (dark ? 0.6 : 0.55) * morph.x * vis * fadeMul
       if (outlineA > 0.005) {
-        const col = rgba(g, outlineA)
         const land = landing()
         let prevX = -1
         for (let b = 0; b < HIST.bins; b++) {
@@ -909,11 +952,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
           const y0 = wy(blo), y1 = wy(blo + binWidth)
           if (cLen[b]! > 0.005) {
             const x = HX0 + HLEN * land * cLen[b]!
-            segment([prevX >= 0 ? prevX : HX0, y0, 0], [x, y0, 0], hair, col)
-            segment([x, y0, 0], [x, y1, 0], hair, col)
+            segment(prevX >= 0 ? prevX : HX0, y0, 0, x, y0, 0, hair, g, outlineA)
+            segment(x, y0, 0, x, y1, 0, hair, g, outlineA)
             prevX = x
           } else if (prevX >= 0) {
-            segment([prevX, y0, 0], [HX0, y0, 0], hair, col)
+            segment(prevX, y0, 0, HX0, y0, 0, hair, g, outlineA)
             prevX = -1
           }
         }
@@ -921,12 +964,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     }
     // The strike: a dashed ink reference line across the expiry region, and across the wall's depth once it has one.
     const y = wy(kv.x)
-    dashes([LABELS.strike.x0, y, 0], [LABELS.strike.x, y, 0], 30, 0.75 * dpr, rgba(palette.ink, 0.9))
-    if (depthU > 0.01) dashes([X1, y, -z], [X1, y, z], 12, 0.6 * dpr, rgba(palette.ink, 0.55 * depthU))
-    if (!flat.length) return
+    dashes(LABELS.strike.x0, y, 0, LABELS.strike.x, y, 0, 30, 0.75 * dpr, palette.ink, 0.9)
+    if (depthU > 0.01) dashes(X1, y, -z, X1, y, z, 12, 0.6 * dpr, palette.ink, 0.55 * depthU)
+    if (!flat.n) return
     gl.bindVertexArray(flatVao)
     gl.bindBuffer(gl.ARRAY_BUFFER, flatBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(flat), gl.STREAM_DRAW)
+    gl.bufferData(gl.ARRAY_BUFFER, flat.view(), gl.STREAM_DRAW)
     if (!flatBound) {
       flatBound = true
       const pl = gl.getAttribLocation(P.flat.program, 'aPos'), cl = gl.getAttribLocation(P.flat.program, 'aCol')
@@ -938,7 +981,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     P.flat.use()
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-    gl.drawArrays(gl.TRIANGLES, 0, flat.length / 6)
+    gl.drawArrays(gl.TRIANGLES, 0, flat.n / 6)
     gl.disable(gl.BLEND)
     gl.bindVertexArray(null)
   }
