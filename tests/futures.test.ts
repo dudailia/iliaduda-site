@@ -156,4 +156,34 @@ describe('the poster', () => {
     expect(d.strands.length).toBeGreaterThan(50)
     expect(d.bars.length).toBeGreaterThan(20)
   })
+
+  it('draws payoff bars only where the option pays', () => {
+    const d = posterData(0.25, 110)
+    expect(d.payBars.length).toBeGreaterThan(10)
+    // Every payoff bar sits wholly above the strike on the price axis.
+    for (const b of d.payBars) expect(b.lo).toBeGreaterThanOrEqual(110 - 2.5)
+  })
+
+  it('is honest about its claim: the payoff bars, discounted, are the price', () => {
+    // The figure says the indigo area, averaged and discounted, is the price.
+    // Summed from the histogram's own bins, it matches the estimator to within
+    // the payoff of the few futures that end past the last bin, $240: under 1%
+    // at these strikes (0.87% at K = 130, where the far tail matters most). A
+    // wrong sum — counts for payoffs, or payoff below the strike — misses by
+    // far more than that.
+    for (const K of [80, 100, 130]) {
+      const d = posterData(0.25, K)
+      const disc = Math.exp(-MODEL.r * MODEL.T)
+      const fromBins = (disc * d.payoff.reduce((a, b) => a + b, 0)) / d.stats.n
+      expect(Math.abs(fromBins - d.stats.mean) / d.stats.mean, `K = ${K}`).toBeLessThan(0.01)
+    }
+  })
+
+  it('counts every path that lands inside the histogram exactly once', () => {
+    const d = posterData(0.25, 100)
+    const inside = d.counts.reduce((a, b) => a + b, 0)
+    expect(inside).toBeLessThanOrEqual(d.stats.n)
+    // At 25% volatility almost nothing lands outside $20–$240.
+    expect(inside / d.stats.n).toBeGreaterThan(0.999)
+  })
 })

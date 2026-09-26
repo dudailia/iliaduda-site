@@ -33,6 +33,28 @@ export interface Summary {
   se: number
 }
 
+/** A bar of what one histogram bin pays: count × payoff, the claim the figure makes. */
+export interface PayBar {
+  x: number
+  y: number
+  w: number
+  h: number
+  /** The bin's lower price edge, in dollars. */
+  lo: number
+}
+
+/** What the page's summary and its screen-reader table need, and what the poster draws. */
+export interface Frame {
+  stats: Summary
+  bars: Bar[]
+  /** Paths ending in each bin, and the payoff they sum to, bin by bin. */
+  counts: number[]
+  payoff: number[]
+  payBars: PayBar[]
+  /** The distribution as a step outline (poster units): the context behind the claim. */
+  outline: string
+}
+
 export function strands(sigma: number, K: number, n = POSTER_STRANDS): Strand[] {
   const out: Strand[] = []
   for (let id = 0; id < n; id++) {
@@ -62,10 +84,11 @@ export function ensemble(sigma: number, n = POSTER_PATHS): Float32Array {
   return t
 }
 
-/** Price and histogram bars for strike K from a set of terminal prices. */
-export function summarize(t: Float32Array, K: number, n = t.length): { stats: Summary; bars: Bar[] } {
+/** Price, histogram, payoff bars and outline for strike K from a set of terminal prices. */
+export function summarize(t: Float32Array, K: number, n = t.length): Frame {
   const e = new Estimator(discount())
   const counts = new Float64Array(HIST.bins)
+  const pay = new Float64Array(HIST.bins)
   let s = 0, s2 = 0, sS = 0
   for (let i = 0; i < n; i++) {
     const ST = t[i]!
@@ -74,28 +97,67 @@ export function summarize(t: Float32Array, K: number, n = t.length): { stats: Su
     s2 += p * p
     sS += ST
     const b = Math.floor((ST - HIST.lo) / binWidth)
-    if (b >= 0 && b < HIST.bins) counts[b]!++
+    if (b >= 0 && b < HIST.bins) {
+      counts[b]!++
+      pay[b]! += p
+    }
   }
   e.add(s, s2, sS, n)
-  let max = 0
-  for (const c of counts) max = Math.max(max, c)
+  let max = 0, maxPay = 0
+  for (let b = 0; b < HIST.bins; b++) {
+    max = Math.max(max, counts[b]!)
+    maxPay = Math.max(maxPay, pay[b]!)
+  }
   const bars: Bar[] = []
+  const payBars: PayBar[] = []
   const x = Math.round(px(HX0))
+  const top = (lo: number) => Math.round(py(wy(lo + binWidth)) * 10) / 10
+  const bottom = (lo: number) => Math.round(py(wy(lo)) * 10) / 10
   for (let b = 0; b < HIST.bins; b++) {
     const c = counts[b]!
     if (!c) continue
     const lo = HIST.lo + b * binWidth
-    const top = Math.round(py(wy(lo + binWidth)) * 10) / 10
-    const bottom = Math.round(py(wy(lo)) * 10) / 10
-    bars.push({
-      x,
-      y: top,
-      w: Math.max(1, Math.round((c / max) * HLEN * PS)),
-      h: Math.round((bottom - top - 0.8) * 10) / 10,
-      pays: lo + binWidth / 2 > K,
-    })
+    const y = top(lo)
+    const h = Math.round((bottom(lo) - y - 0.8) * 10) / 10
+    bars.push({ x, y, w: Math.max(1, Math.round((c / max) * HLEN * PS)), h, pays: lo + binWidth / 2 > K })
+    if (pay[b]! > 0) payBars.push({ x, y, w: Math.max(1, Math.round((pay[b]! / maxPay) * HLEN * PS)), h, lo })
   }
-  return { stats: { n, mean: e.mean, se: e.se }, bars }
+  // The outline climbs bin by bin up the price axis, then closes back to the baseline.
+  let first = -1, last = -1
+  for (let b = 0; b < HIST.bins; b++) {
+    if (!counts[b]) continue
+    if (first < 0) first = b
+    last = b
+  }
+  let outline = ''
+  if (first >= 0) {
+    const xr = (b: number) => Math.round((px(HX0) + (counts[b]! / max) * HLEN * PS) * 10) / 10
+    outline = `M${x} ${bottom(HIST.lo + first * binWidth)}`
+    for (let b = first; b <= last; b++) {
+      const lo = HIST.lo + b * binWidth
+      outline += `L${xr(b)} ${bottom(lo)}L${xr(b)} ${top(lo)}`
+    }
+    outline += `L${x} ${top(HIST.lo + last * binWidth)}`
+  }
+  return { stats: { n, mean: e.mean, se: e.se }, bars, counts: Array.from(counts), payoff: Array.from(pay), payBars, outline }
+}
+
+/**
+ * The histogram in `groups` equal bands of price, for the screen-reader table:
+ * each band's share of all the futures, and what the option pays there on average.
+ */
+export function bands(f: Frame, groups = 11): { lo: number; hi: number; share: number; payoff: number }[] {
+  const per = Math.ceil(HIST.bins / groups)
+  const out: { lo: number; hi: number; share: number; payoff: number }[] = []
+  for (let g = 0; g < groups; g++) {
+    let c = 0, p = 0
+    for (let b = g * per; b < Math.min(HIST.bins, (g + 1) * per); b++) {
+      c += f.counts[b]!
+      p += f.payoff[b]!
+    }
+    out.push({ lo: HIST.lo + g * per * binWidth, hi: HIST.lo + Math.min(HIST.bins, (g + 1) * per) * binWidth, share: f.stats.n ? c / f.stats.n : 0, payoff: c ? p / c : 0 })
+  }
+  return out
 }
 
 export function posterData(sigma: number, K: number) {

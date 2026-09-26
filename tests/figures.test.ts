@@ -48,6 +48,7 @@ const PROJECT_OF: Readonly<Record<string, string>> = {
   'SettlementInstrument.tsx': 'dg',
   'VolSurfaceLive.tsx': 'iv',
   'OfzCurve.tsx': 'bc',
+  'Futures.tsx': 'fu',
 }
 
 function ownValues(file: string): Set<string> {
