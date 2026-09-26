@@ -739,7 +739,18 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           <div data-futures-poster="" className="absolute inset-0" style={underlay(live || stillShown)}>
             <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={frame.stats.mean} />
           </div>
-          <canvas ref={stillCanvas} data-still-canvas="" aria-hidden="true" className="absolute inset-0 size-full" style={fade(stillShown)} />
+          {/* It arrives over a flat poster framed differently, so a 2px blur bridges the two pictures while it fades in. */}
+          <canvas
+            ref={stillCanvas}
+            data-still-canvas=""
+            aria-hidden="true"
+            className="absolute inset-0 size-full"
+            style={{
+              ...fade(stillShown),
+              filter: stillShown ? 'blur(0)' : 'blur(2px)',
+              transition: `${fade(stillShown).transition}, filter 240ms cubic-bezier(0.23, 1, 0.32, 1)`,
+            }}
+          />
           <div ref={stillLabels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(stillShown)} />
           <canvas ref={canvas} data-live-canvas="" aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
           <div ref={labels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(live)} />

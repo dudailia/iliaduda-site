@@ -279,8 +279,9 @@ export function restPose(aspect: number, drift: Offsets = ZERO, parallax: { x: n
   const lean = 0.65 + 0.35 * smooth(0.6, 1.2, aspect)
   return fromSph({
     ...s,
-    yaw: s.yaw + drift.yaw + 0.09 * lean * parallax.x,
-    pitch: s.pitch + drift.pitch + 0.055 * lean * parallax.y,
+    // Enough to feel the depth move with the hand, little enough that the labels riding it stay under the reader's eye.
+    yaw: s.yaw + drift.yaw + 0.07 * lean * parallax.x,
+    pitch: s.pitch + drift.pitch + 0.045 * lean * parallax.y,
     dist: s.dist * (1 + drift.dolly),
   })
 }

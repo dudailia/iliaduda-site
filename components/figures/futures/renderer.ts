@@ -1095,11 +1095,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       const k0 = Math.round(kv.x)
       spring(kv, previewK ?? strike, dt, 30)
       if (Math.round(kv.x) !== k0) setStrikeText()
-      // The reader leans the view; paused, it holds where it was.
+      // The reader leans the view, on a critically damped spring (ω 4: a heavy scene that visibly follows, 95% in
+      // about 1.2s); paused, it holds where it was.
       if (!paused) {
         const lean = o.parallax()
-        spring(par.x, lean.x, dt, 3)
-        spring(par.y, lean.y, dt, 3)
+        spring(par.x, lean.x, dt, 4)
+        spring(par.y, lean.y, dt, 4)
       }
       const aspect = cssW / Math.max(1, cssH)
       pose = moveCamera(dt, aspect)
