@@ -1,7 +1,7 @@
 import { fact, value } from '@/content/facts'
-import { contour, pathD } from '@/lib/contours'
+import { levels } from '@/lib/surfaceLevels'
 import { DOMAIN, iv } from '@/lib/svi'
-import { EXPIRY_TICKS, LABELLED, LEVELS, STRIKE_TICKS, cssPct, expiryLabel, wholePct as pct } from '@/lib/surfaceView'
+import { EXPIRY_TICKS, LABELLED, STRIKE_TICKS, cssPct, expiryLabel, wholePct as pct } from '@/lib/surfaceView'
 import { U, fx, fy } from './surface/frames'
 import { VolSurfaceLive } from './VolSurfaceLive'
 
@@ -18,51 +18,6 @@ import { VolSurfaceLive } from './VolSurfaceLive'
  */
 
 const NARROW_HIDDEN = new Set<number>([STRIKE_TICKS[1], STRIKE_TICKS[5]])
-
-const NK = 71
-const NT = 49
-
-function sample(): Float64Array {
-  const out = new Float64Array(NK * NT)
-  for (let j = 0; j < NT; j++) {
-    const T = DOMAIN.tMin + ((DOMAIN.tMax - DOMAIN.tMin) * j) / (NT - 1)
-    for (let i = 0; i < NK; i++) {
-      const k = DOMAIN.kMin + ((DOMAIN.kMax - DOMAIN.kMin) * i) / (NK - 1)
-      out[j * NK + i] = iv(k, T)
-    }
-  }
-  return out
-}
-
-/** Grid coordinates (i over strike, j over expiry) to plot units. */
-const gx = (i: number) => (i / (NK - 1)) * U
-const gy = (j: number) => (j / (NT - 1)) * U
-
-interface Level {
-  readonly level: number
-  readonly d: string
-  /** Where its label sits, as fractions of the plot, or null if unlabelled. */
-  readonly label: { x: number; y: number } | null
-}
-
-export function levels(): readonly Level[] {
-  const field = sample()
-  return LEVELS.map((level) => {
-    const lines = contour(field, NK, NT, level)
-    const d = lines.map((l) => pathD(l.map(([i, j]) => [gx(i), gy(j)] as const))).join('')
-    let label: Level['label'] = null
-    if (LABELLED.has(level)) {
-      // Prefer where the line leaves through the long-expiry (bottom) edge;
-      // lines that never reach it leave through the low-strike (left) edge.
-      const pts = lines.flat()
-      const top = pts.filter(([, j]) => j > NT - 1.01).sort((a, b) => a[0] - b[0])[0]
-      const left = pts.filter(([i]) => i < 0.01).sort((a, b) => b[1] - a[1])[0]
-      const p = top ?? left
-      if (p) label = { x: p[0] / (NK - 1), y: p[1] / (NT - 1) }
-    }
-    return { level, d, label }
-  })
-}
 
 /** The prose a screen reader gets in place of the picture, with real values. */
 export function surfaceDescription(): string {

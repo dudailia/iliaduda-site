@@ -1,11 +1,12 @@
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 import { EASE_IN_OUT, EASE_OUT } from '@/lib/ease'
-import { project, viewProjection, type M4, type V3 } from '@/lib/futures/flight'
+import { project, viewProjection, type M4, type V3 } from '@/lib/futures/camera'
 import { RNG } from '@/lib/futures/glsl'
 import { CAP_LOG2, Estimator, GROUPS, HIST, MODEL, binWidth, discount, stepCoefficients } from '@/lib/futures/mc'
 import { BURST, type Phases } from '@/lib/futures/sequence'
 import { AXIS, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
-import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Tier, type Target } from '@/lib/gl'
+import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Target } from '@/lib/gl'
+import type { Tier } from '@/lib/tier'
 import { LABEL } from './Poster'
 
 /**
@@ -316,7 +317,7 @@ function arrived(s: { x: number; v: number }, target: number, eps: number) {
   return true
 }
 
-/** Where the flight turns the histogram into payoff: once it faces expiry (lib/futures/flight.ts keys). */
+/** Where the flight turns the histogram into payoff: once it faces expiry (lib/futures/camera.ts keys). */
 const flightMorph = (p: number) => EASE_IN_OUT(clamp01((p - 0.8) / 0.14))
 /** Labels step aside while the camera is in among the futures. */
 const outside = (p: number) => 1 - smooth(0.24, 0.34, p) + smooth(0.68, 0.78, p)

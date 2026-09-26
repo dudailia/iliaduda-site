@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { deviceTier, type GL, type Tier } from '@/lib/gl'
+import type { GL } from '@/lib/gl'
+import { deviceTier, type Tier } from '@/lib/tier'
 import { cssColor, saveData, supportsWebGL2, useColorScheme, useReducedMotion, whenIdle } from './env'
 
 /**

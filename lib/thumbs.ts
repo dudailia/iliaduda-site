@@ -1,4 +1,4 @@
-import { levels } from '@/components/figures/VolSurface'
+import { levels } from './surfaceLevels'
 import { chart, feed } from '@/content/data/closebooks-feed'
 import replay from '@/content/data/cricket-final.json'
 import ranking from '@/content/data/startup-ranking.json'

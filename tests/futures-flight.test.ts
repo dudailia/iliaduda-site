@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { FLIGHT_MS, Flight, HOLD_MS, RETURN_MS, flightAt, pose, project, viewProjection } from '@/lib/futures/flight'
+import { pose, project, viewProjection } from '@/lib/futures/camera'
+import { FLIGHT_MS, Flight, HOLD_MS, RETURN_MS, flightAt } from '@/lib/futures/flight'
 import { MODEL } from '@/lib/futures/mc'
 import { FRAME, X0, X1, wy } from '@/lib/futures/world'
 
