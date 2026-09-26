@@ -8,7 +8,7 @@ import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
 import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
-import type { LabRenderer, Stats } from './renderer'
+import type { FuturesRenderer, Stats } from './renderer'
 
 /**
  * Lab A. The page arrives with the poster — a real frame computed on the
@@ -53,7 +53,7 @@ export function Hero({ initial }: { initial: { stats: Summary; bars: Bar[] } }) 
   const section = useRef<HTMLElement>(null)
   const caption = useRef<HTMLElement>(null)
   const labels = useRef<HTMLDivElement>(null)
-  const renderer = useRef<LabRenderer | null>(null)
+  const renderer = useRef<FuturesRenderer | null>(null)
   const progress = useRef(0)
   const params = useRef({ sigma, strike })
   const liveRef = useRef(false)
@@ -83,14 +83,14 @@ export function Hero({ initial }: { initial: { stats: Summary; bars: Bar[] } }) 
         setDeclined('float')
         return null
       }
-      let real: LabRenderer | null = null
+      let real: FuturesRenderer | null = null
       let size: [number, number, number, number] | null = null
       let quality = 2
       let palette = env.palette
       let gone = false
       void import('./renderer').then((m) => {
         if (gone || !labels.current) return
-        real = m.createRenderer({ ...env, palette }, { labels: labels.current, progress: () => progress.current, onStats })
+        real = m.createRenderer({ ...env, palette }, { labels: labels.current, sequence: () => null, camera: () => 0, tick: () => {}, onStats, onSequenceFrame: () => {} })
         real.setQuality!(quality)
         if (size) real.resize(...size)
         real.setParams(params.current.sigma, params.current.strike)

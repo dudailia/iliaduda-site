@@ -1,8 +1,11 @@
-import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Target } from '@/lib/gl'
+import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
+import { EASE_IN_OUT, EASE_OUT } from '@/lib/ease'
+import { project, viewProjection, type M4, type V3 } from '@/lib/futures/flight'
 import { RNG } from '@/lib/futures/glsl'
 import { CAP_LOG2, Estimator, GROUPS, HIST, MODEL, binWidth, discount, stepCoefficients } from '@/lib/futures/mc'
-import { AXIS, FRAME, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
-import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
+import type { Phases } from '@/lib/futures/sequence'
+import { AXIS, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
+import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Target } from '@/lib/gl'
 import { LABEL } from './Poster'
 
 /**
@@ -21,9 +24,17 @@ import { LABEL } from './Poster'
  * The drawing job shows a few thousand members of the same ensemble — the
  * same generator, the same ids — as line strips accumulated into a float
  * density buffer (paths that finish above the strike in one channel, the rest
- * in another), bloomed, and tone-mapped into the site palette. Each strand
- * streams out of today, lives a few seconds and is replaced by the next
- * member of the ensemble.
+ * in another), bloomed, and composited into the site palette: a glow at
+ * night, ink absorbed into paper by day.
+ *
+ * The signature sequence (lib/futures/sequence.ts) drives the reveal: while it
+ * plays, the strand clock stands still, so every strand is one fixed future
+ * whose front eases out of today on a golden-ratio stagger; the histogram
+ * rises as the GPU's own counts land; the counts become payoff × probability;
+ * the price appears. Pricing restarts when the sequence does, so the numbers
+ * really are converging while the reader watches. After it, each strand keeps
+ * the future it was showing until that life ends, then the quiet stream takes
+ * over — nothing pops.
  */
 
 export interface Stats {
@@ -38,23 +49,38 @@ export interface Stats {
 
 export interface Options {
   labels: HTMLElement
-  /** Scroll progress through the hero, 0…1. */
-  progress: () => number
+  /** The signature sequence's phases, or null when this visit has none. */
+  sequence: () => Phases | null
+  /** Where the flight is, 0 being the composed frame. */
+  camera: () => number
+  /** A frame was drawn, taking this long: the clocks that move only on drawn frames advance. */
+  tick: (dtMs: number) => void
   onStats: (s: Stats) => void
+  /** The sequence's first frame is on screen. */
+  onSequenceFrame: () => void
 }
 
-export interface LabRenderer extends Renderer {
+export interface FuturesRenderer extends Renderer {
   setParams(sigma: number, strike: number): void
   /** A strike under the pointer, drawn but not priced; null returns to the committed one. */
   preview(strike: number | null): void
   /** The price under a point on the canvas, on the expiry plane, or null. */
   priceAt(clientX: number, clientY: number): number | null
+  /** Fade the futures out over `ms`, then call `then`: how Replay clears the page before the burst. */
+  fadeOut(ms: number, then: () => void): void
 }
 
 export const CAP = 2 ** CAP_LOG2
 const MAXB = 64
 const PERIOD = 6.5
 const REVEAL = 0.42
+/**
+ * The burst, in units of the sequence's burst phase (1224 ms): strands launch
+ * over its first 63% and each front takes the remaining 37% to reach expiry —
+ * 0.78 s of launches, 0.45 s per front.
+ */
+const LAUNCH_B = 0.632
+const FRONT_B = 0.368
 const STRANDS = [320, 900, 2048, 4096] as const
 // Pricing is governed by its own fences, so above the software tier it is
 // not tied to the drawing quality: a phone that draws fewer strands can still
@@ -140,17 +166,38 @@ void main() {
   o = vec4(x, 0.0, 0.0, 1.0);
 }`
 
+// Where a strand is, how much of it is showing, and how alive it is.
+//   In the sequence (uSeq = 1): the strand clock is frozen, each strand is one
+//   fixed future, and its front eases out of today on the burst's stagger.
+//   After it: a strand still in the life it had at the hand-off (uHand) keeps
+//   its whole path and fades only over what is left of that life; every later
+//   life streams out of today and fades near its end, the lab's quiet stream.
 const STRAND = `
 uniform sampler2D uPath; uniform int uN, uH; uniform float uTime, uK, uS0, uGain;
+uniform float uSeq, uBurst, uHand;
 uniform mat4 uVP;
 float lr(int i, int j) { return texelFetch(uPath, ivec2((i / uH) * 65 + j, i % uH), 0).r; }
-struct St { vec3 p; float age; float front; bool pays; };
+struct St { vec3 p; float age; float front; float reveal; float alive; bool first; bool pays; };
 St strand(int i, float jWant) {
-  float ph = uTime / ${PERIOD.toFixed(2)} + fract(float(i) * 0.618034);
+  float off = fract(float(i) * 0.618034);
+  float ph = uTime / ${PERIOD.toFixed(2)} + off;
   uint id = (uint(floor(ph)) * 4096u + uint(i)) & 0x0FFFFFFFu;
   St s;
   s.age = fract(ph);
-  s.front = clamp(s.age / ${REVEAL.toFixed(2)}, 0.0, 1.0) * 64.0;
+  float r;
+  if (uSeq > 0.5) {
+    float u = clamp((uBurst - off * ${LAUNCH_B.toFixed(3)}) / ${FRONT_B.toFixed(3)}, 0.0, 1.0);
+    r = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
+    s.alive = 1.0;
+    s.first = false;
+  } else {
+    float phH = uHand / ${PERIOD.toFixed(2)} + off;
+    s.first = abs(floor(ph) - floor(phH)) < 0.5;
+    r = s.first ? 1.0 : clamp(s.age / ${REVEAL.toFixed(2)}, 0.0, 1.0);
+    s.alive = 1.0 - smoothstep(s.first ? max(fract(phH), 0.7) : 0.7, 1.0, s.age);
+  }
+  s.reveal = r;
+  s.front = r * 64.0;
   float jj = min(jWant, s.front);
   int j0 = int(floor(jj));
   int j1 = min(j0 + 1, 64);
@@ -173,17 +220,22 @@ void main() {
   int seg = v / 2;
   St s = strand(i, float(seg + (v & 1)));
   vPays = s.pays ? 1 : 0;
-  vW = float(seg) < s.front ? uGain * (1.0 - smoothstep(0.7, 1.0, s.age)) : 0.0;
+  vW = float(seg) < s.front ? uGain * s.alive : 0.0;
   gl_Position = uVP * vec4(s.p, 1.0);
 }`
 
+// A head rides each front while it travels: brighter in the burst, never on a
+// strand that has not launched, and never on one kept whole at the hand-off.
 const HEAD_VS = `${HEAD}${RNG}${STRAND}
 uniform float uSize;
 out float vW; flat out int vPays;
 void main() {
   St s = strand(gl_VertexID, 64.0);
   vPays = s.pays ? 1 : 0;
-  vW = uGain * 3.0 * (1.0 - smoothstep(${REVEAL.toFixed(2)}, ${(REVEAL + 0.1).toFixed(2)}, s.age));
+  float travelling = uSeq > 0.5
+    ? step(0.001, s.reveal) * (1.0 - smoothstep(0.97, 1.0, s.reveal)) * 1.5
+    : (s.first ? 0.0 : 1.0 - smoothstep(${REVEAL.toFixed(2)}, ${(REVEAL + 0.1).toFixed(2)}, s.age));
+  vW = uGain * 3.0 * travelling * s.alive;
   gl_PointSize = uSize;
   gl_Position = uVP * vec4(s.p, 1.0);
 }`
@@ -216,27 +268,41 @@ void main() {
     + (texture(uSrc, vUv + b) + texture(uSrc, vUv - b)) * 0.0702702703;
 }`
 
+// Night: the density glows toward the palette's indigo, a notch dimmer than
+// the lab's, so the densest cores no longer wash out to white.
+// Day: ink on paper. Each strand absorbs light — Beer–Lambert, in linear
+// light, with absorption set so one unit of density is exactly the token's
+// colour — so where the futures crowd, the page goes deep indigo toward ink
+// instead of pastel, and the bloom becomes a soft shadow of the crowd.
 const COMPOSITE_FS = `${HEAD}
 in vec2 vUv;
 uniform sampler2D uDen, uB1, uB2;
 uniform vec3 uPaper, uInk, uGraphite, uIndigo, uWash;
-uniform float uDark, uBloom, uTone;
+uniform float uDark, uBloom, uTone, uFade;
 out vec4 o;
+vec3 lin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+vec3 srgb(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
 void main() {
-  vec2 d = texture(uDen, vUv).rg;
-  vec2 b = uBloom > 0.5 ? texture(uB1, vUv).rg * 0.7 + texture(uB2, vUv).rg * 1.1 : vec2(0.0);
-  float pays = 1.0 - exp(-uTone * d.r);
-  float not_ = 1.0 - exp(-uTone * d.g);
-  float halo = (uDark > 0.5 ? 1.0 : 0.55) * (1.0 - exp(-1.4 * (b.r + 0.4 * b.g)));
-  vec3 c = mix(uPaper, uWash, halo);
-  c = mix(c, uGraphite, not_ * (uDark > 0.5 ? 0.7 : 0.5));
-  c = mix(c, uIndigo, pays);
+  vec2 d = texture(uDen, vUv).rg * uFade;
+  vec2 b = uBloom > 0.5 ? (texture(uB1, vUv).rg * 0.7 + texture(uB2, vUv).rg * 1.1) * uFade : vec2(0.0);
   if (uDark > 0.5) {
-    // Night: dense cores glow toward light.
-    c += uIndigo * 0.3 * (1.0 - exp(-1.2 * b.r));
-    c = mix(c, uInk, 0.8 * smoothstep(0.35, 1.0, 1.0 - exp(-uTone * 0.08 * d.r)));
+    b *= 0.78;
+    float pays = 1.0 - exp(-uTone * d.r);
+    float not_ = 1.0 - exp(-uTone * d.g);
+    float halo = 1.0 - exp(-1.4 * (b.r + 0.4 * b.g));
+    vec3 c = mix(uPaper, uWash, halo);
+    c = mix(c, uGraphite, not_ * 0.7);
+    c = mix(c, uIndigo, pays);
+    c += uIndigo * 0.22 * (1.0 - exp(-1.2 * b.r));
+    c = mix(c, uInk, 0.6 * smoothstep(0.35, 1.0, 1.0 - exp(-uTone * 0.08 * d.r)));
+    o = vec4(min(c, vec3(1.0)), 1.0);
+  } else {
+    vec3 P = lin(uPaper);
+    vec3 aPay = -log(clamp(lin(uIndigo) / P, vec3(1e-3), vec3(1.0)));
+    vec3 aNot = -log(clamp(lin(uGraphite) / P, vec3(1e-3), vec3(1.0)));
+    vec3 tau = aPay * (uTone * d.r + 0.28 * b.r) + aNot * (0.55 * uTone * d.g + 0.12 * b.g);
+    o = vec4(srgb(P * exp(-tau)), 1.0);
   }
-  o = vec4(min(c, vec3(1.0)), 1.0);
 }`
 
 const FLAT_VS = `${HEAD}
@@ -246,132 +312,8 @@ const FLAT_FS = `${HEAD}
 in vec4 vCol; out vec4 o;
 void main() { o = vCol; }`
 
-// ── camera ───────────────────────────────────────────────────────────────────
+// ── motion helpers ───────────────────────────────────────────────────────────
 
-type V3 = [number, number, number]
-type M4 = Float32Array
-const FOV = (34 * Math.PI) / 180
-const TAN = Math.tan(FOV / 2)
-
-function perspective(aspect: number, near: number, far: number): M4 {
-  const f = 1 / TAN
-  const m = new Float32Array(16)
-  m[0] = f / aspect
-  m[5] = f
-  m[10] = (far + near) / (near - far)
-  m[11] = -1
-  m[14] = (2 * far * near) / (near - far)
-  return m
-}
-
-function lookAt(e: V3, t: V3): M4 {
-  let zx = e[0] - t[0], zy = e[1] - t[1], zz = e[2] - t[2]
-  let l = Math.hypot(zx, zy, zz)
-  zx /= l; zy /= l; zz /= l
-  // x = up × z, up = (0, 1, 0)
-  let xx = zz, xz = -zx
-  l = Math.hypot(xx, xz) || 1
-  xx /= l; xz /= l
-  const yx = zy * xz, yy = zz * xx - zx * xz, yz = -zy * xx
-  return new Float32Array([
-    xx, yx, zx, 0,
-    0, yy, zy, 0,
-    xz, yz, zz, 0,
-    -(xx * e[0] + xz * e[2]), -(yx * e[0] + yy * e[1] + yz * e[2]), -(zx * e[0] + zy * e[1] + zz * e[2]), 1,
-  ])
-}
-
-function mul(a: M4, b: M4): M4 {
-  const o = new Float32Array(16)
-  for (let c = 0; c < 4; c++)
-    for (let r = 0; r < 4; r++) {
-      let s = 0
-      for (let k = 0; k < 4; k++) s += a[k * 4 + r]! * b[c * 4 + k]!
-      o[c * 4 + r] = s
-    }
-  return o
-}
-
-function project(m: M4, x: number, y: number, z: number): [number, number, number] {
-  const w = m[3]! * x + m[7]! * y + m[11]! * z + m[15]!
-  return [(m[0]! * x + m[4]! * y + m[8]! * z + m[12]!) / w, (m[1]! * x + m[5]! * y + m[9]! * z + m[13]!) / w, w]
-}
-
-/** Camera distance that fits a world rectangle on z = 0, looking straight at it. */
-const fitDist = (hw: number, hh: number, aspect: number) => Math.max(hh / TAN, hw / (TAN * aspect))
-
-const orbit = (t: V3, d: number, yaw: number, pitch: number): V3 => [
-  t[0] + d * Math.sin(yaw) * Math.cos(pitch),
-  t[1] + d * Math.sin(pitch),
-  t[2] + d * Math.cos(yaw) * Math.cos(pitch),
-]
-
-/**
- * The flight, as five poses: the side-on fan the poster shows; a turn to
- * three-quarters so the cone reads as depth; in behind today; through the
- * cloud along the time axis; out to face the expiry plane and its histogram.
- */
-function keys(aspect: number): { at: number; eye: V3; target: V3 }[] {
-  const cx = (FRAME.x0 + FRAME.x1) / 2, cy = (FRAME.y0 + FRAME.y1) / 2
-  const hh = (FRAME.y1 - FRAME.y0) / 2
-  // The first pose fills FRAME exactly (see `stretch`), so it is fitted on height.
-  const d0 = hh / TAN
-  const t1: V3 = [0.1, cy - 0.05, 0]
-  const e4x0 = X1 - 0.95, e4x1 = LABELS.strike.x + 0.2
-  const t4: V3 = [(e4x0 + e4x1) / 2, cy, 0]
-  const d4 = fitDist((e4x1 - e4x0) / 2, hh, aspect)
-  return [
-    { at: 0.02, eye: [cx, cy, d0], target: [cx, cy, 0] },
-    { at: 0.2, eye: orbit(t1, fitDist(1.9, hh, aspect) * 0.95, -0.6, 0.28), target: t1 },
-    { at: 0.4, eye: [X0 - 0.55, wy(100) + 1.0, 1.05], target: [-0.1, wy(96), 0] },
-    { at: 0.58, eye: [0.25, wy(100) + 0.6, 1.3], target: [X1 - 0.25, wy(100), 0] },
-    { at: 0.74, eye: orbit(t4, d4, -0.2, 0.05), target: t4 },
-  ]
-}
-
-/**
- * Horizontal stretch of the projection. At the first pose FRAME fills the box
- * exactly, as the poster does; it relaxes to a true aspect as the camera
- * turns away, and stays true for the rest of the flight.
- */
-function stretch(p: number, aspect: number) {
-  const frameAspect = (FRAME.x1 - FRAME.x0) / (FRAME.y1 - FRAME.y0)
-  return 1 + (aspect / frameAspect - 1) * (1 - smooth(0.02, 0.2, p))
-}
-
-function catmull(p0: number, p1: number, p2: number, p3: number, t: number) {
-  const t2 = t * t, t3 = t2 * t
-  return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
-}
-
-function pose(p: number, aspect: number): { eye: V3; target: V3 } {
-  const k = keys(aspect)
-  if (p <= k[0]!.at) return k[0]!
-  const last = k[k.length - 1]!
-  if (p >= last.at) return last
-  let i = 0
-  while (p > k[i + 1]!.at) i++
-  const t = (p - k[i]!.at) / (k[i + 1]!.at - k[i]!.at)
-  const a = k[Math.max(0, i - 1)]!, b = k[i]!, c = k[i + 1]!, d = k[Math.min(k.length - 1, i + 2)]!
-  const f = (sel: 'eye' | 'target') => [0, 1, 2].map((j) => catmull(a[sel][j]!, b[sel][j]!, c[sel][j]!, d[sel][j]!, t)) as V3
-  return { eye: f('eye'), target: f('target') }
-}
-
-/** CSS cubic-bezier(x1, y1, x2, y2) at x = t, by bisection. */
-function bezier(x1: number, y1: number, x2: number, y2: number) {
-  const b = (u: number, p1: number, p2: number) => 3 * u * (1 - u) * (1 - u) * p1 + 3 * u * u * (1 - u) * p2 + u * u * u
-  return (t: number) => {
-    let lo = 0, hi = 1
-    for (let i = 0; i < 20; i++) {
-      const m = (lo + hi) / 2
-      if (b(m, x1, x2) < t) lo = m
-      else hi = m
-    }
-    return b((lo + hi) / 2, y1, y2)
-  }
-}
-/** The one morph: an on-screen object changing state. */
-const morphEase = bezier(0.77, 0, 0.175, 1)
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 const smooth = (a: number, b: number, x: number) => {
   const t = clamp01((x - a) / (b - a))
@@ -387,9 +329,16 @@ function spring(s: { x: number; v: number }, target: number, dt: number, omega: 
   s.v = (s.v - omega * c * dt) * e
 }
 
+/** Where the flight turns the histogram into payoff: once it faces expiry (lib/futures/flight.ts keys). */
+const flightMorph = (p: number) => EASE_IN_OUT(clamp01((p - 0.8) / 0.14))
+/** Labels step aside while the camera is in among the futures. */
+const outside = (p: number) => 1 - smooth(0.24, 0.34, p) + smooth(0.68, 0.78, p)
+
+type SeqState = 'none' | 'pending' | 'playing' | 'done'
+
 // ── the renderer ─────────────────────────────────────────────────────────────
 
-export function createRenderer(env: StageEnv, o: Options): LabRenderer {
+export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   const gl: GL = env.gl
   gl.getExtension('EXT_color_buffer_float')
   gl.getExtension('EXT_float_blend')
@@ -462,11 +411,13 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
   const readBuf = new Float32Array(MAXB * 4)
   const histData = new Float32Array(HIST.bins * 4)
   let histGen = -1
+  // Normalised bar lengths: the counts, and what each bin pays (count × payoff).
   const barC = new Float32Array(HIST.bins)
   const barG = new Float32Array(HIST.bins)
-  const barLen = new Float32Array(HIST.bins)
+  // What is on screen, easing toward those: a new run's first batch is noisy.
+  const cLen = new Float32Array(HIST.bins)
+  const gLen = new Float32Array(HIST.bins)
   let barsReady = false
-  let lastBarT = performance.now()
   let runStart = 0, runPaths = 0, doneAt = 0
   let rateT = 0, rateN = 0, rate = 0
   let statsAt = 0
@@ -477,8 +428,19 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
   const sig = { x: sigma, v: 0 }
   const kv = { x: strike, v: 0 }
   const prog = { x: 0, v: 0 }
+  const morph = { x: 0, v: 0 }
   let vp: M4 = new Float32Array(16)
-  let time = 0
+  /** The strand clock, seconds. It stands still while the sequence plays. */
+  let clock = 0
+  /** The strand clock at the hand-off from the sequence to the stream. */
+  let hand = -1e6
+  let seq: SeqState = 'none'
+  let ph: Phases | null = null
+  let lastCam = 0
+  let returning = false
+  let fade: { t: number; ms: number; then: () => void } | null = null
+  let fadeMul = 1
+  let firstFrame = true
 
   // Labels
   // `side`: which way the label extends from its point (from its translate
@@ -495,29 +457,29 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     labels.push({ el, at, show, side: cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0, w: -1, text: '' })
     return el
   }
-  const outside = (p: number) => 1 - smooth(0.24, 0.34, p) + smooth(0.64, 0.72, p)
-  const early = (p: number) => 1 - smooth(0.12, 0.22, p)
   const at2 = (a: readonly number[]): V3 => [a[0]!, a[1]!, 0]
-  label('Today · $100', LABELS.today.cls, () => at2(LABELS.today.at), early)
+  const inSeq = () => seq === 'pending' || seq === 'playing'
+  const landing = () => (inSeq() ? EASE_OUT(ph!.landing) : 1)
+  // Today stays named until the camera turns to expiry, where it leaves the frame.
+  label(`Today · $${MODEL.s0}`, LABELS.today.cls, () => at2(LABELS.today.at), (p) => 1 - smooth(0.5, 0.6, p))
   label('One year out', LABELS.expiry.cls, () => at2(LABELS.expiry.at), outside)
   for (const s of TICKS) label(`$${s}`, LABELS.tick.cls, () => [LABELS.tick.x, wy(s), 0], (p) => (Math.abs(s - kv.x) < TICK_CLEAR ? 0 : outside(p)))
   // The strike stays named through the whole flight: it is what the colours mean.
   const strikeEl = label('', LABELS.strike.cls, () => [LABELS.strike.x0, wy(kv.x), 0], () => 1)
-  // One label for the histogram; its words change halfway through the morph.
-  const histEl = label('Where the futures end', `${LABELS.hist.cls} text-ink`, () => at2(LABELS.hist.at), (p) => outside(p) * (0.4 + 0.6 * Math.abs(2 * morph(p) - 1)))
+  // One label for the histogram. Its words change halfway through the morph,
+  // and it dips to nothing there, so one text never crossfades into another.
+  const histEl = label('Where the futures end', `${LABELS.hist.cls} text-ink`, () => at2(LABELS.hist.at), (p) =>
+    outside(p) * landing() * smooth(0.02, 0.22, Math.abs(2 * morph.x - 1)),
+  )
   let histText = 0
   // The climax: the payoff bars, averaged and discounted, are the price. The
   // number is the live Monte Carlo estimate, not a restatement of the formula.
   const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.value.x, wy(kv.x - LABELS.value.below), 0], (p) =>
-    est.n > 0 ? outside(p) * smooth(0.55, 1, morph(p)) : 0,
+    est.n > 0 ? outside(p) * smooth(0.55, 1, morph.x) * (inSeq() ? EASE_OUT(clamp01(ph!.price / 0.24)) : 1) : 0,
   )
   let valueText = ''
   const setStrikeText = () => (strikeEl.textContent = `Strike $${Math.round(kv.x)}`)
   setStrikeText()
-
-  function morph(p: number) {
-    return morphEase(clamp01((p - 0.76) / 0.16))
-  }
 
   // ── resources that depend on quality and size ──
 
@@ -720,8 +682,24 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     }
   }
 
+  /** The option's price from the histogram at a strike the GPU has not priced: approximate, and labelled so. */
+  function binnedPrice(K: number) {
+    let n = 0, s = 0
+    for (let b = 0; b < HIST.bins; b++) {
+      const c = histData[b * 4]!
+      n += c
+      s += c * Math.max(HIST.lo + (b + 0.5) * binWidth - K, 0)
+    }
+    return n ? (discount() * s) / n : NaN
+  }
+
   function report(force = false) {
-    const v = est.n > 0 ? `Average, discounted to today: $${est.mean.toFixed(2)}` : ''
+    const v =
+      previewK != null && histGen === gen
+        ? `At strike $${Math.round(kv.x)}: about $${binnedPrice(kv.x).toFixed(2)}`
+        : est.n > 0
+          ? `Average, discounted to today: $${est.mean.toFixed(2)}`
+          : ''
     if (v !== valueText) valueEl.textContent = valueText = v
     if (now - rateT > 0.5) {
       // A window with no readbacks (idle, or a run just restarted) keeps the last rate.
@@ -752,7 +730,7 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     P.path.use()
     gl.uniform1i(P.path.u('uN'), pathN)
     gl.uniform1i(P.path.u('uH'), pathH)
-    gl.uniform1f(P.path.u('uTime'), time)
+    gl.uniform1f(P.path.u('uTime'), clock)
     gl.uniform1f(P.path.u('uDrift'), drift)
     gl.uniform1f(P.path.u('uVol'), vol)
     drawFullscreen(gl)
@@ -764,16 +742,20 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     gl.blendFunc(gl.ONE, gl.ONE)
     const scale = den.w / Math.max(1, cssW)
     const gain = (palette.dark ? 0.2 : 0.155) * Math.sqrt(2048 / pathN) / scale
+    const inS = inSeq()
     for (const [p, point] of [[P.line, 0], [P.head, 1]] as const) {
       p.use()
       tex(0, pathT)
       gl.uniform1i(p.u('uPath'), 0)
       gl.uniform1i(p.u('uN'), pathN)
       gl.uniform1i(p.u('uH'), pathH)
-      gl.uniform1f(p.u('uTime'), time)
+      gl.uniform1f(p.u('uTime'), clock)
       gl.uniform1f(p.u('uK'), kv.x)
       gl.uniform1f(p.u('uS0'), MODEL.s0)
       gl.uniform1f(p.u('uGain'), gain)
+      gl.uniform1f(p.u('uSeq'), inS ? 1 : 0)
+      gl.uniform1f(p.u('uBurst'), inS ? ph!.burst : 1)
+      gl.uniform1f(p.u('uHand'), hand)
       gl.uniform1f(p.u('uPoint'), point)
       gl.uniformMatrix4fv(p.u('uVP'), false, vp)
       gl.bindVertexArray(empty)
@@ -825,6 +807,7 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     gl.uniform1f(P.composite.u('uDark'), palette.dark ? 1 : 0)
     gl.uniform1f(P.composite.u('uBloom'), bloom ? 1 : 0)
     gl.uniform1f(P.composite.u('uTone'), 1.1)
+    gl.uniform1f(P.composite.u('uFade'), fadeMul)
     gl.bindVertexArray(empty)
     drawFullscreen(gl)
   }
@@ -853,48 +836,64 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     tri([a[0], a[1]], [c[0], c[1]], [d[0], d[1]], col)
   }
 
-  function drawOverlay(p: number) {
+  function drawOverlay(p: number, dt: number) {
     flat.length = 0
     const dpr = cw / Math.max(1, cssW)
     const hair = 0.5 * dpr
     const dark = palette.dark
-    const vis = outside(p)
+    const vis = outside(p) * fadeMul
     // Expiry plane and its price ticks.
     segment([X1, wy(AXIS.lo), 0], [X1, wy(AXIS.hi), 0], hair, rgba(palette.graphite, 0.5 * vis))
     for (const s of TICKS) segment([X1 - 0.03, wy(s), 0], [X1, wy(s), 0], hair, rgba(palette.graphite, 0.8 * vis))
-    // The histogram: counts, morphing into what each bin pays.
-    // A new commit clears the GPU histogram, and the first batch back is
-    // noisy. So the bars on screen keep their last lengths and ease toward
-    // each new target (a 50ms exponential follow) instead of blinking out on
-    // every step of a volatility drag; the numbers stay instant.
-    const tNow = performance.now()
-    const follow = 1 - Math.exp(-Math.min(0.1, (tNow - lastBarT) / 1000) * 20)
-    lastBarT = tNow
-    const w = morph(p)
+    // The histogram. A new run clears the GPU histogram and its first batch
+    // is noisy, so the bars on screen ease toward each new target (a 50ms
+    // exponential follow) instead of blinking out on every step of a
+    // volatility drag; the numbers stay instant.
+    const follow = 1 - Math.exp(-Math.min(0.1, dt) * 20)
     if (histGen === gen) {
       let maxC = 0, maxG = 0
+      const K = kv.x
       for (let b = 0; b < HIST.bins; b++) {
-        maxC = Math.max(maxC, histData[b * 4]!)
-        maxG = Math.max(maxG, histData[b * 4 + 1]!)
+        const c = histData[b * 4]!
+        // While a strike is only previewed, what each bin pays is taken from
+        // the counts at that strike, so the bars agree with the line.
+        const g = previewK != null ? c * Math.max(HIST.lo + (b + 0.5) * binWidth - K, 0) : histData[b * 4 + 1]!
+        barG[b] = g
+        maxC = Math.max(maxC, c)
+        maxG = Math.max(maxG, g)
       }
       for (let b = 0; b < HIST.bins; b++) {
-        const c = histData[b * 4]!, g = histData[b * 4 + 1]!
-        barC[b] = maxC ? c / maxC : 0
-        barG[b] = maxG ? g / maxG : 0
+        barC[b] = maxC ? histData[b * 4]! / maxC : 0
+        barG[b] = maxG ? barG[b]! / maxG : 0
       }
       barsReady = true
     }
     if (barsReady) {
+      const w = morph.x
+      const land = landing()
+      const outlineA = (dark ? 0.6 : 0.55) * w * vis
+      let prevX = -1
       for (let b = 0; b < HIST.bins; b++) {
-        const target = (1 - w) * barC[b]! + w * barG[b]!
-        barLen[b] = barLen[b]! + (target - barLen[b]!) * follow
-        const len = barLen[b]!
-        if (len < 1e-4) continue
+        cLen[b] = cLen[b]! + (barC[b]! - cLen[b]!) * follow
+        gLen[b] = gLen[b]! + (barG[b]! - gLen[b]!) * follow
         const lo = HIST.lo + b * binWidth
+        const y0 = wy(lo), y1 = wy(lo + binWidth)
+        // The claim: what each bin pays (indigo), grown out of the counts.
+        const len = land * ((1 - w) * cLen[b]! + w * gLen[b]!)
         const pays = lo + binWidth / 2 > kv.x
-        // Bars where the option pays are indigo, like their strands; the rest are graphite.
-        const a = (1 - w) * (pays ? (dark ? 0.62 : 0.5) : dark ? 0.4 : 0.28) + w * 0.95
-        quad(HX0, wy(lo) + 0.0025, HX0 + HLEN * len, wy(lo + binWidth) - 0.0025, rgba(pays ? palette.indigo : palette.graphite, a))
+        if (len > 1e-4) {
+          const a = ((1 - w) * (pays ? (dark ? 0.62 : 0.5) : dark ? 0.4 : 0.28) + w * 0.95) * fadeMul
+          quad(HX0, y0 + 0.0025, HX0 + HLEN * len, y1 - 0.0025, rgba(pays ? palette.indigo : palette.graphite, a))
+        }
+        // The context: the distribution itself, left as a hairline outline once the claim has taken its place.
+        if (outlineA > 0.005) {
+          const x = HX0 + HLEN * land * cLen[b]!
+          if (cLen[b]! > 1e-3 || prevX > HX0 + 1e-3) {
+            segment([x, y0, 0], [x, y1, 0], hair, rgba(palette.graphite, outlineA))
+            if (prevX >= 0) segment([prevX, y0, 0], [x, y0, 0], hair, rgba(palette.graphite, outlineA))
+          }
+          prevX = x
+        }
       }
     }
     // The strike: a dashed ink reference line across the expiry region.
@@ -903,7 +902,7 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     const n = 30
     for (let i = 0; i < n; i++) {
       const a = x0 + ((x1 - x0) * i) / n
-      segment([a, y, 0], [a + ((x1 - x0) / n) * 0.6, y, 0], 0.75 * dpr, rgba(palette.ink, 0.9))
+      segment([a, y, 0], [a + ((x1 - x0) / n) * 0.6, y, 0], 0.75 * dpr, rgba(palette.ink, 0.9 * fadeMul))
     }
     if (!flat.length) return
     gl.bindVertexArray(flatVao)
@@ -927,7 +926,7 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
 
   function placeLabels(p: number) {
     for (const l of labels) {
-      const a = l.show(p)
+      const a = l.show(p) * fadeMul
       const [x, y, z] = l.at()
       const s = project(vp, x, y, z)
       const on = a > 0.01 && s[2] > 0.05 && Math.abs(s[0]) < 1.05 && Math.abs(s[1]) < 1.05
@@ -946,33 +945,72 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
     }
   }
 
-  const r: LabRenderer = {
+  /** Where the sequence is, from its phases: none, waiting to start, playing, or played. */
+  function advanceSequence(dt: number) {
+    ph = o.sequence()
+    const prev = seq
+    seq = !ph ? 'none' : ph.price >= 1 ? 'done' : ph.burst > 0 ? 'playing' : 'pending'
+    if (seq === 'playing' && prev !== 'playing') {
+      // A new sequence prices from nothing, so the histogram really fills and
+      // the estimate really converges while the reader watches.
+      gen++
+      o.onSequenceFrame()
+    }
+    if (seq === 'done' && (prev === 'playing' || prev === 'pending')) hand = clock
+    if (seq === 'none' || seq === 'done') clock += dt
+  }
+
+  const r: FuturesRenderer = {
     frame(t, dt) {
       if (!ready) {
         if (!programs.every((p) => p.ready())) return false
         ready = true
       }
       now = t
-      time = t
       frameNo++
       dtEma = dtEma * 0.9 + dt * 0.1
       vsync = Math.min(vsync * 1.0005, Math.max(1 / 240, dtEma))
+      o.tick(dt * 1000)
+      if (fade) {
+        fade.t += dt * 1000
+        fadeMul = 1 - EASE_OUT(Math.min(1, fade.t / fade.ms))
+        if (fade.t >= fade.ms) {
+          const then = fade.then
+          fade = null
+          then()
+        }
+      } else fadeMul = 1
+      advanceSequence(dt)
+      if (firstFrame) {
+        firstFrame = false
+        // A visit without a sequence opens on the finished picture: payoff bars and the price.
+        if (seq === 'none' || seq === 'done') morph.x = 1
+      }
       spring(sig, sigma, dt, 30)
       const k0 = Math.round(kv.x)
       spring(kv, previewK ?? strike, dt, 30)
       if (Math.round(kv.x) !== k0) setStrikeText()
-      spring(prog, o.progress(), dt, 16)
+      // Heading home (the flight's return, or a stop) keeps the payoff picture:
+      // the story is told on the way out, not unwound on the way back.
+      const cam = o.camera()
+      if (cam === 0) returning = false
+      else if (cam < lastCam - 1e-9) returning = true
+      else if (cam > lastCam + 1e-9) returning = false
+      lastCam = cam
+      spring(prog, cam, dt, 16)
       const p = prog.x
-      const aspect = cssW / Math.max(1, cssH)
-      const { eye, target: tg } = pose(p, aspect)
-      const proj = perspective(aspect, 0.02, 40)
-      proj[0] = proj[0]! * stretch(p, aspect)
-      vp = mul(proj, lookAt(eye, tg))
+      // The morph: the sequence's own clock while it plays; the flight's once
+      // it faces expiry; and the finished payoff picture at rest or on the way home.
+      if (inSeq()) {
+        morph.x = EASE_IN_OUT(ph!.morph)
+        morph.v = 0
+      } else spring(morph, cam > 0 && !returning ? flightMorph(p) : 1, dt, 12)
+      vp = viewProjection(p, cssW / Math.max(1, cssH))
 
       collect()
       drawStrands()
-      drawOverlay(p)
-      const ht = morph(p) >= 0.5 ? 1 : 0
+      drawOverlay(p, dt)
+      const ht = morph.x >= 0.5 ? 1 : 0
       if (ht !== histText) {
         histText = ht
         histEl.textContent = ht ? 'Payoff × how often it happens' : 'Where the futures end'
@@ -1007,6 +1045,9 @@ export function createRenderer(env: StageEnv, o: Options): LabRenderer {
       sigma = s
       strike = k
       gen++
+    },
+    fadeOut(ms, then) {
+      fade = { t: 0, ms, then }
     },
     priceAt(x, y) {
       const rect = o.labels.getBoundingClientRect()
