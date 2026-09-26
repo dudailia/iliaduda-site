@@ -283,3 +283,24 @@ test('a renderer that fails to download leaves the finished poster, and says so'
   expect(await canvasShown(page)).toBe(false)
   await expect(page.getByText('Still frame: the live figure could not start here.')).toBeVisible()
 })
+
+test('the stage is big: about 576px tall on a laptop, most of a phone screen and its full width', async ({ page, isMobile }) => {
+  await page.goto('/')
+  const b = (await page.locator(STAGE).boundingBox())!
+  const vp = page.viewportSize()!
+  if (isMobile) {
+    expect(b.width).toBe(vp.width)
+    expect(b.height).toBeGreaterThanOrEqual(0.66 * vp.height)
+  } else {
+    expect(b.height).toBeGreaterThanOrEqual(560)
+    expect(b.height).toBeLessThanOrEqual(600)
+  }
+})
+
+test('on a laptop the sequence starts on the first screen, without a scroll', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a phone reader scrolls to the figure')
+  await page.goto('/')
+  if (!(await page.evaluate(() => document.documentElement.dataset.futuresSeq === '1'))) return test.skip(true, 'no sequence on this machine')
+  // No scroll: the cue must already be on screen at 1440×900.
+  await expect.poll(() => seq(page), { timeout: 20_000, intervals: [100] }).not.toBe('pending')
+})

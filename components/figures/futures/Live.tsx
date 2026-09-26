@@ -596,7 +596,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           data-fps={fps}
           data-quality={quality}
           data-tier={tier ?? ''}
-          className={`relative -mx-6 h-[clamp(22rem,60svh,32rem)] overflow-hidden sm:mx-0 lg:h-[clamp(24rem,calc(100svh-31rem),38rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
+          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden sm:mx-0 sm:h-[clamp(28rem,62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -608,8 +608,9 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           </div>
           <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
           <div ref={labels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(live)} />
-          {/* The cue: when this is on screen, so are today's price and the strike, and the sequence may start. */}
-          <div ref={cue} aria-hidden="true" className="pointer-events-none absolute left-0 h-px w-px" style={{ top: '66%' }} />
+          {/* The cue: when this is on screen, so are today's price and the strike (61% of the frame), and the sequence
+              may start. At 1440×900 it is on the first screen. */}
+          <div ref={cue} aria-hidden="true" className="pointer-events-none absolute left-0 h-px w-px" style={{ top: '63%' }} />
         </div>
         {/* The key sits under the plot, as a paper's does: no projected label can land on it, at any pose of the flight. */}
         <p aria-hidden="true" className="text-meta mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-graphite">
