@@ -1,32 +1,31 @@
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 import { EASE_IN_OUT, EASE_OUT } from '@/lib/ease'
 import { project, viewProjection, type M4, type V3 } from '@/lib/futures/camera'
+import { DENSITY_SCALE, densityFormat, glOverride, type Density } from '@/lib/futures/caps'
 import { RNG } from '@/lib/futures/glsl'
-import { CAP_LOG2, Estimator, GROUPS, HIST, MODEL, binWidth, discount, stepCoefficients } from '@/lib/futures/mc'
+import { aggregate, binnedPrice } from '@/lib/futures/hist'
+import { GROUPS, HIST, MODEL, binWidth, stepCoefficients } from '@/lib/futures/mc'
 import { BURST, type Phases } from '@/lib/futures/sequence'
 import { AXIS, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
-import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Target } from '@/lib/gl'
+import { FULLSCREEN_VS, disposeTarget, drawFullscreen, probeHalfFloat, program, renderable, target, type GL, type Program, type Target } from '@/lib/gl'
 import type { Tier } from '@/lib/tier'
 import { LABEL } from './Poster'
+import { CAP, createPricer } from './pricing'
 
 /**
  * A million futures, live. Raw WebGL2.
  *
- * Two jobs share one context. The pricing job runs a fragment shader over a
- * W×W grid, one path per fragment, 64 exact log-space steps each, and writes
- * (payoff, payoff², S_T, 1). Four-by-four summing passes reduce the grid to
- * one texel per batch; the terminal prices are also scattered, with additive
- * blending, into a histogram. Results come back through a pixel-pack buffer
- * and a fence, never a stalling readPixels, and are summed in float64 on the
- * CPU. As many batches run per frame as the frame budget allows: the count
- * grows while fences come back within a frame or two and backs off when they
- * do not.
+ * Two jobs share one context. The pricing job (./pricing.ts) simulates paths
+ * a grid at a time and sums them on the GPU, keeping its floats as raw bits in
+ * integer targets, so it needs no float render target and runs on a phone.
  *
  * The drawing job shows a few thousand fixed members of the same ensemble —
  * the same generator, the same ids the poster draws the first ninety of — as
- * line strips accumulated into a float density buffer (paths that finish above
- * the strike in one channel, the rest in another), bloomed, and composited into
- * the site palette: a glow at night, ink absorbed into paper by day.
+ * line strips accumulated into a density buffer (paths that finish above the
+ * strike in one channel, the rest in another), bloomed, and composited into
+ * the site palette: a glow at night, ink absorbed into paper by day. The
+ * density is half float where the device renders and blends it, and eight-bit
+ * otherwise (lib/futures/caps.ts).
  *
  * The signature sequence (lib/futures/sequence.ts) drives the reveal: each
  * strand's front eases out of today on a golden-ratio stagger; the histogram
@@ -73,18 +72,12 @@ export interface FuturesRenderer extends Renderer {
   fadeOut(ms: number, then: () => void): void
 }
 
-export const CAP = 2 ** CAP_LOG2
-const MAXB = 64
+export { CAP }
 /**
  * Strands drawn, fixed for the device: a quality step changes resolution and
  * bloom, never the number of futures on screen, so nothing pops in or out.
  */
 const STRANDS: Record<Tier, number> = { software: 320, low: 900, mid: 2048, high: 4096 }
-// Pricing is governed by its own fences, so above the software tier it is
-// not tied to the drawing quality: a phone that draws fewer strands can still
-// price as fast as its GPU allows.
-const GRID = [64, 256, 256, 256] as const
-const BATCHES = [1, 48, 64, 64] as const
 /** The stage area the gains are tuned at (the lg stage, 710 × 404). A smaller stage packs the same futures tighter. */
 const REF_AREA = 710 * 404
 
@@ -93,63 +86,21 @@ const REF_AREA = 710 * 404
 const HEAD = `#version 300 es
 precision highp float;
 precision highp int;
+precision highp sampler2D;
+precision highp usampler2D;
 `
-
-const KERNEL_FS = `${HEAD}${RNG}
-uniform uint uOffset; uniform int uW; uniform float uDrift, uVol, uS0, uK;
-out vec4 o;
-void main() {
-  ivec2 f = ivec2(gl_FragCoord.xy);
-  uint id = uOffset + uint(f.y * uW + f.x);
-  float x = 0.0;
-  for (uint g = 0u; g < ${GROUPS}u; g++) {
-    vec4 z = normals4(id, g);
-    x += 4.0 * uDrift + uVol * (z.x + z.y + z.z + z.w);
-  }
-  float s = uS0 * exp(x);
-  float p = max(s - uK, 0.0);
-  o = vec4(p, p * p, s, 1.0);
-}`
-
-const REDUCE_FS = `${HEAD}
-uniform sampler2D uSrc; uniform ivec2 uSize; uniform ivec2 uOrigin;
-out vec4 o;
-void main() {
-  ivec2 b = (ivec2(gl_FragCoord.xy) - uOrigin) * 4;
-  vec4 s = vec4(0.0);
-  for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) {
-    ivec2 p = b + ivec2(x, y);
-    if (p.x < uSize.x && p.y < uSize.y) s += texelFetch(uSrc, p, 0);
-  }
-  o = s;
-}`
-
-const SCATTER_VS = `${HEAD}
-uniform sampler2D uSrc; uniform int uW; uniform float uLo, uBin; uniform int uBins;
-out float vPay;
-void main() {
-  vec4 s = texelFetch(uSrc, ivec2(gl_VertexID % uW, gl_VertexID / uW), 0);
-  float b = floor((s.b - uLo) / uBin);
-  vPay = s.r;
-  gl_PointSize = 1.0;
-  gl_Position = (b < 0.0 || b >= float(uBins)) ? vec4(2.0, 2.0, 2.0, 1.0) : vec4((b + 0.5) / float(uBins) * 2.0 - 1.0, 0.0, 0.0, 1.0);
-}`
-
-const SCATTER_FS = `${HEAD}
-in float vPay; out vec4 o;
-void main() { o = vec4(1.0, vPay, 0.0, 0.0); }`
 
 // One fragment per (strand, step): the log return of ensemble member i up to
 // that step. Member i is the same path lib/futures/mc.ts's path(i) gives.
 const PATH_FS = `${HEAD}${RNG}
 uniform int uN, uH; uniform float uDrift, uVol;
-out vec4 o;
+out uvec4 o;
 void main() {
   ivec2 f = ivec2(gl_FragCoord.xy);
   int block = f.x / 65;
   int j = f.x - block * 65;
   int i = block * uH + f.y;
-  if (i >= uN) { o = vec4(0.0); return; }
+  if (i >= uN) { o = uvec4(0u); return; }
   uint id = uint(i);
   float x = 0.0;
   for (int g = 0; g < ${GROUPS}; g++) {
@@ -159,7 +110,7 @@ void main() {
     vec4 m = vec4(greaterThan(vec4(rem), vec4(0.0, 1.0, 2.0, 3.0)));
     x += uDrift * dot(m, vec4(1.0)) + uVol * dot(m, z);
   }
-  o = vec4(x, 0.0, 0.0, 1.0);
+  o = uvec4(floatBitsToUint(x), 0u, 0u, 0u);
 }`
 
 // Where strand i is and how much of it is showing. Its front eases out of
@@ -167,9 +118,9 @@ void main() {
 // closest to the site's cubic-bezier(0.23, 1, 0.32, 1). Outside the sequence
 // uBurst is 1 and every path is whole.
 const STRAND = `
-uniform sampler2D uPath; uniform int uN, uH; uniform float uK, uS0, uGain, uBurst;
+uniform usampler2D uPath; uniform int uN, uH; uniform float uK, uS0, uGain, uBurst;
 uniform mat4 uVP;
-float lr(int i, int j) { return texelFetch(uPath, ivec2((i / uH) * 65 + j, i % uH), 0).r; }
+float lr(int i, int j) { return uintBitsToFloat(texelFetch(uPath, ivec2((i / uH) * 65 + j, i % uH), 0).r); }
 struct St { vec3 p; float reveal; float front; bool pays; };
 St strand(int i, float jWant) {
   St s;
@@ -192,13 +143,14 @@ St strand(int i, float jWant) {
 }`
 
 const LINE_VS = `${HEAD}${RNG}${STRAND}
-out float vW; flat out int vPays;
+out float vW; flat out int vPays; flat out int vId;
 void main() {
   int i = gl_VertexID / 128;
   int v = gl_VertexID - i * 128;
   int seg = v / 2;
   St s = strand(i, float(seg + (v & 1)));
   vPays = s.pays ? 1 : 0;
+  vId = i;
   vW = float(seg) < s.front ? uGain : 0.0;
   gl_Position = uVP * vec4(s.p, 1.0);
 }`
@@ -206,22 +158,31 @@ void main() {
 // A head rides each front while it travels, and is gone once the path is whole.
 const HEAD_VS = `${HEAD}${RNG}${STRAND}
 uniform float uSize;
-out float vW; flat out int vPays;
+out float vW; flat out int vPays; flat out int vId;
 void main() {
   St s = strand(gl_VertexID, 64.0);
   vPays = s.pays ? 1 : 0;
+  vId = gl_VertexID;
   vW = uGain * 4.5 * step(0.001, s.reveal) * (1.0 - smoothstep(0.97, 1.0, s.reveal));
   gl_PointSize = uSize;
   gl_Position = uVP * vec4(s.p, 1.0);
 }`
 
-const DENSITY_FS = `${HEAD}
-in float vW; flat in int vPays; uniform float uPoint;
+// Density is stored × uScale. In an eight-bit buffer each fragment's
+// rounding is dithered (by fragment, strand and frame), so a faint path still
+// adds its share on average instead of rounding away.
+const DENSITY_FS = `${HEAD}${RNG}
+in float vW; flat in int vPays; flat in int vId; uniform float uPoint, uScale, uDither; uniform uint uFrame;
 out vec4 o;
 void main() {
   float w = vW;
   if (uPoint > 0.5) w *= 1.0 - smoothstep(0.15, 0.5, length(gl_PointCoord - 0.5));
-  o = vPays == 1 ? vec4(w, 0.0, 0.0, 0.0) : vec4(0.0, w, 0.0, 0.0);
+  vec4 c = (vPays == 1 ? vec4(w, 0.0, 0.0, 0.0) : vec4(0.0, w, 0.0, 0.0)) * uScale;
+  if (uDither > 0.5) {
+    uvec4 h = pcg4d(uvec4(uvec2(gl_FragCoord.xy), uint(vId), uFrame));
+    c.rg += (vec2(unit(h.x), unit(h.y)) - 0.5) / 255.0;
+  }
+  o = c;
 }`
 
 const DOWN_FS = `${HEAD}
@@ -251,17 +212,20 @@ void main() {
 // proportion), so where every future crosses, at today, the paper goes deep
 // indigo-slate, never black, and keeps its hue. The bloom is a faint shadow of
 // the crowd.
-const COMPOSITE_FS = `${HEAD}
+const COMPOSITE_FS = `${HEAD}${RNG}
 in vec2 vUv;
 uniform sampler2D uDen, uB1, uB2;
 uniform vec3 uPaper, uInk, uGraphite, uIndigo, uWash;
-uniform float uDark, uBloom, uTone, uFade;
+uniform float uDark, uBloom, uTone, uFade, uScale;
+uniform uint uFrame;
 out vec4 o;
 vec3 lin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
 vec3 srgb(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
 void main() {
-  vec2 d = texture(uDen, vUv).rg * uFade;
-  vec2 b = uBloom > 0.5 ? (texture(uB1, vUv).rg * 0.7 + texture(uB2, vUv).rg * 1.1) * uFade : vec2(0.0);
+  vec2 d = texture(uDen, vUv).rg / uScale * uFade;
+  vec2 b = uBloom > 0.5 ? (texture(uB1, vUv).rg * 0.7 + texture(uB2, vUv).rg * 1.1) / uScale * uFade : vec2(0.0);
+  // A half-step of noise on the way out, so the glow's long gradients never band.
+  float n = (unit(pcg4d(uvec4(uvec2(gl_FragCoord.xy), uFrame, 7u)).x) - 0.5) / 255.0;
   if (uDark > 0.5) {
     b *= 0.78;
     float pays = 1.0 - exp(-uTone * d.r);
@@ -272,7 +236,7 @@ void main() {
     c = mix(c, uIndigo, pays);
     c += uIndigo * 0.18 * (1.0 - exp(-1.2 * b.r));
     c = mix(c, uInk, 0.15 * smoothstep(0.5, 1.0, 1.0 - exp(-uTone * 0.08 * d.r)));
-    o = vec4(min(c, vec3(1.0)), 1.0);
+    o = vec4(min(c, vec3(1.0)) + n, 1.0);
   } else {
     vec3 P = lin(uPaper);
     vec3 aPay = -log(clamp(lin(uIndigo) / P, vec3(1e-3), vec3(1.0)));
@@ -282,7 +246,7 @@ void main() {
     float s = dp + dn;
     float k = s > 1e-4 ? 1.2 * (1.0 - exp(-s / 1.2)) / s : 1.0;
     vec3 tau = (aPay * dp + aNot * dn) * k;
-    o = vec4(srgb(P * exp(-tau)), 1.0);
+    o = vec4(srgb(P * exp(-tau)) + n, 1.0);
   }
 }`
 
@@ -326,16 +290,27 @@ type SeqState = 'none' | 'pending' | 'playing' | 'done'
 
 // ── the renderer ─────────────────────────────────────────────────────────────
 
+/**
+ * Why this device cannot run the live figure, or null if it can. Everything it
+ * renders to is a WebGL2 core format, so this fails only on a broken driver.
+ */
+export function cannotRun(gl: GL): 'targets' | null {
+  return renderable(gl, 'rgba32ui') && renderable(gl, 'r32ui') && renderable(gl, 'rgba8') ? null : 'targets'
+}
+
 export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   const gl: GL = env.gl
-  gl.getExtension('EXT_color_buffer_float')
-  gl.getExtension('EXT_float_blend')
-  gl.getExtension('OES_texture_float_linear')
+  gl.disable(gl.DITHER)
+  const override = glOverride(location.search)
+  const density: Density = densityFormat({ half: override !== 'rgba8' && probeHalfFloat(gl) }, override)
+  const dScale = DENSITY_SCALE[density]
+  o.labels.dataset.density = density
+
+  const clock = { frameNo: 0, dtEma: 1 / 60, vsync: 1 / 60, now: 0 }
+  const pricer = createPricer(gl, clock, env.tier !== 'high')
+  const est = pricer.est
 
   const P = {
-    kernel: program(gl, FULLSCREEN_VS, KERNEL_FS),
-    reduce: program(gl, FULLSCREEN_VS, REDUCE_FS),
-    scatter: program(gl, SCATTER_VS, SCATTER_FS),
     path: program(gl, FULLSCREEN_VS, PATH_FS),
     line: program(gl, LINE_VS, DENSITY_FS),
     head: program(gl, HEAD_VS, DENSITY_FS),
@@ -344,7 +319,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     composite: program(gl, FULLSCREEN_VS, COMPOSITE_FS),
     flat: program(gl, FLAT_VS, FLAT_FS),
   }
-  const programs: Program[] = Object.values(P)
+  const programs: Program[] = [...Object.values(P), ...pricer.programs]
   let ready = false
 
   const empty = gl.createVertexArray()
@@ -356,53 +331,17 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let q = 2
   /** A quality step asked for while the sequence plays waits until it is over. */
   let pendingQ: number | null = null
-  let W = 0
-  let chain: Target[] = []
-  let grid: Target | null = null
-  const results = target(gl, MAXB, 1, { float: 'f32' })
-  const hist = target(gl, HIST.bins, 1, { float: 'f32' })
   const pathN = STRANDS[env.tier]
   const pathH = Math.min(pathN, 1024)
-  // R32F, one channel: 65 steps per strand, strands in columns of pathH.
-  const pathT = target(gl, 65 * Math.ceil(pathN / pathH), pathH, { float: 'f32', channels: 1 })
+  // One 32-bit channel of float bits: 65 steps per strand, strands in columns of pathH.
+  const pathT = target(gl, 65 * Math.ceil(pathN / pathH), pathH, 'r32ui')
   let den: Target | null = null
   let bl: Target[] = []
   let cw = 1, ch = 1, cssW = 1, cssH = 1
 
-  // Pricing state
+  // Pricing inputs, as committed
   let sigma: number = MODEL.sigma, strike: number = MODEL.strike
   let previewK: number | null = null
-  let gen = 0, runGen = -1
-  let offset = 0
-  const est = new Estimator(discount())
-  let B = 1
-  let frameNo = 0
-  let dtEma = 1 / 60
-  // The display's own frame interval, learned: the shortest smoothed frame seen,
-  // relaxing slowly so a change of display is picked up.
-  let vsync = 1 / 60
-  const phone = env.tier !== 'high'
-  let readMs = 0
-  // A ring of pack-buffer pairs: one for the batch sums, one for the
-  // histogram. Each buffer is written once per fence and read once after it
-  // has signalled. Usage is DYNAMIC_COPY, not a READ usage: Chromium keeps a
-  // "shadow copy" of READ buffers that, measured in Chrome 154 on ANGLE/Metal,
-  // made no read cheaper and logged a performance warning on every reuse.
-  const RING = 4
-  const buffer = (bytes: number) => {
-    const b = gl.createBuffer()!
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, b)
-    gl.bufferData(gl.PIXEL_PACK_BUFFER, bytes, gl.DYNAMIC_COPY)
-    return b
-  }
-  type Pair = { sums: WebGLBuffer; hist: WebGLBuffer }
-  const pbos: Pair[] = Array.from({ length: RING }, () => ({ sums: buffer(MAXB * 16), hist: buffer(HIST.bins * 16) }))
-  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
-  const free = pbos.slice()
-  const pending: { sync: WebGLSync; pbo: Pair; batches: number; gen: number; at: number; seen: number }[] = []
-  const readBuf = new Float32Array(MAXB * 4)
-  const histData = new Float32Array(HIST.bins * 4)
-  let histGen = -1
   // Normalised bar lengths: the counts, and what each bin pays (count × payoff).
   const barC = new Float32Array(HIST.bins)
   const barG = new Float32Array(HIST.bins)
@@ -411,12 +350,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   const gLen = new Float32Array(HIST.bins)
   let barsReady = false
   let barsMoving = true
-  let runStart = 0, runPaths = 0, doneAt = 0
-  let rateT = 0, rateN = 0, rate = 0
   let statsAt = 0
   let histAt = -1
-  let mark = 4096
-  let now = 0
 
   // Visual state
   const sig = { x: sigma, v: 0 }
@@ -433,7 +368,6 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let firstFrame = true
   /** Something changed that a still frame does not show yet. */
   let dirty = true
-  let fresh = false
   let draws = 0
 
   // Labels
@@ -494,27 +428,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
 
   // ── resources that depend on quality and size ──
 
-  function buildGrid() {
-    const w = GRID[q]!
-    if (w === W) return
-    disposeTarget(gl, grid)
-    chain.forEach((t) => disposeTarget(gl, t))
-    W = w
-    grid = target(gl, W, W, { float: 'f32' })
-    chain = []
-    let s = W
-    while (Math.ceil(s / 4) > 1) {
-      s = Math.ceil(s / 4)
-      chain.push(target(gl, s, s, { float: 'f32' }))
-    }
-    // A new batch size starts a new run, so every batch in a run is the same size.
-    gen++
-  }
-
   function applyQuality(level: number) {
     q = Math.max(0, Math.min(3, level))
-    buildGrid()
-    B = Math.min(B, BATCHES[q]!)
+    pricer.setQuality(q)
     dirty = true
   }
 
@@ -523,16 +439,16 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     bl.forEach((t) => disposeTarget(gl, t))
     const scale = Math.min(1.5, cw / Math.max(1, cssW))
     const dw = Math.max(1, Math.round(cssW * scale)), dh = Math.max(1, Math.round(cssH * scale))
-    den = target(gl, dw, dh, { float: 'f16', linear: true })
+    den = target(gl, dw, dh, density, true)
     const h2 = [Math.max(1, dw >> 1), Math.max(1, dh >> 1)] as const
     const h4 = [Math.max(1, dw >> 2), Math.max(1, dh >> 2)] as const
     const h8 = [Math.max(1, dw >> 3), Math.max(1, dh >> 3)] as const
     bl = [
-      target(gl, h2[0], h2[1], { float: 'f16', linear: true }),
-      target(gl, h4[0], h4[1], { float: 'f16', linear: true }),
-      target(gl, h4[0], h4[1], { float: 'f16', linear: true }),
-      target(gl, h8[0], h8[1], { float: 'f16', linear: true }),
-      target(gl, h8[0], h8[1], { float: 'f16', linear: true }),
+      target(gl, h2[0], h2[1], density, true),
+      target(gl, h4[0], h4[1], density, true),
+      target(gl, h4[0], h4[1], density, true),
+      target(gl, h8[0], h8[1], density, true),
+      target(gl, h8[0], h8[1], density, true),
     ]
   }
 
@@ -545,201 +461,35 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.bindTexture(gl.TEXTURE_2D, t.tex)
   }
 
-  // ── pricing ──
-
-  function price() {
-    if (!grid) return
-    if (runGen !== gen) {
-      runGen = gen
-      offset = 0
-      est.reset()
-      runStart = now
-      runPaths = 0
-      doneAt = 0
-      rateT = now
-      rateN = 0
-      // `rate` is kept: the device is as fast as it was a moment ago.
-      B = Math.min(B, BATCHES[q]!)
-      bind(hist)
-      gl.clearColor(0, 0, 0, 0)
-      gl.clear(gl.COLOR_BUFFER_BIT)
-      histGen = -1
-      histAt = -1
-      mark = 4096
-    }
-    if (offset >= CAP || !free.length) return
-    const { drift, vol } = stepCoefficients(sigma)
-    const n = Math.min(B, BATCHES[q]!, (CAP - offset) / (W * W))
-    gl.disable(gl.BLEND)
-    for (let b = 0; b < n; b++) {
-      // Simulate W×W paths.
-      bind(grid)
-      P.kernel.use()
-      gl.uniform1ui(P.kernel.u('uOffset'), offset)
-      gl.uniform1i(P.kernel.u('uW'), W)
-      gl.uniform1f(P.kernel.u('uDrift'), drift)
-      gl.uniform1f(P.kernel.u('uVol'), vol)
-      gl.uniform1f(P.kernel.u('uS0'), MODEL.s0)
-      gl.uniform1f(P.kernel.u('uK'), strike)
-      drawFullscreen(gl)
-      // Sum them, four by four, into this batch's texel of `results`.
-      P.reduce.use()
-      gl.uniform1i(P.reduce.u('uSrc'), 0)
-      let src: Target = grid
-      for (let c = 0; c <= chain.length; c++) {
-        const last = c === chain.length
-        if (last) {
-          gl.bindFramebuffer(gl.FRAMEBUFFER, results.fbo)
-          gl.viewport(b, 0, 1, 1)
-          gl.uniform2i(P.reduce.u('uOrigin'), b, 0)
-        } else {
-          bind(chain[c]!)
-          gl.uniform2i(P.reduce.u('uOrigin'), 0, 0)
-        }
-        tex(0, src)
-        gl.uniform2i(P.reduce.u('uSize'), src.w, src.h)
-        drawFullscreen(gl)
-        if (!last) src = chain[c]!
-      }
-      // Scatter the terminal prices into the histogram.
-      bind(hist)
-      gl.enable(gl.BLEND)
-      gl.blendFunc(gl.ONE, gl.ONE)
-      P.scatter.use()
-      tex(0, grid)
-      gl.uniform1i(P.scatter.u('uSrc'), 0)
-      gl.uniform1i(P.scatter.u('uW'), W)
-      gl.uniform1f(P.scatter.u('uLo'), HIST.lo)
-      gl.uniform1f(P.scatter.u('uBin'), binWidth)
-      gl.uniform1i(P.scatter.u('uBins'), HIST.bins)
-      gl.bindVertexArray(empty)
-      gl.drawArrays(gl.POINTS, 0, W * W)
-      gl.disable(gl.BLEND)
-      offset += W * W
-    }
-    // Read both back without waiting: into a pack buffer, fenced.
-    const pbo = free.shift()!
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo.sums)
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, results.fbo)
-    gl.readPixels(0, 0, n, 1, gl.RGBA, gl.FLOAT, 0)
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo.hist)
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, hist.fbo)
-    gl.readPixels(0, 0, HIST.bins, 1, gl.RGBA, gl.FLOAT, 0)
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null)
-    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
-    if (sync) pending.push({ sync, pbo, batches: n, gen, at: frameNo, seen: 0 })
-    else free.push(pbo)
-  }
-
-  function collect() {
-    while (pending.length) {
-      const r = pending[0]!
-      if (!r.seen) {
-        if (gl.getSyncParameter(r.sync, gl.SYNC_STATUS) !== gl.SIGNALED) {
-          // The GPU is more than a few frames behind: ask for less.
-          if (frameNo - r.at > RING + 1) B = Math.max(1, Math.floor(B * 0.7))
-          break
-        }
-        r.seen = frameNo
-      }
-      // Read one frame after the fence is seen, never in the frame that wrote.
-      if (frameNo <= r.seen) break
-      pending.shift()
-      const t0 = performance.now()
-      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.pbo.sums)
-      gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, readBuf)
-      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.pbo.hist)
-      gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, histData)
-      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
-      gl.deleteSync(r.sync)
-      free.push(r.pbo)
-      // What the read cost this thread. Some drivers make a mapped read wait
-      // for the whole queue, however long ago the fence passed; when that
-      // happens the page is paying for the GPU's backlog, so the backlog shrinks.
-      const cost = performance.now() - t0
-      readMs = readMs * 0.7 + cost * 0.3
-      // The governor: more batches while fences come back before the ring runs out
-      // and frames hold the display's rate; fewer the moment they do not.
-      const lag = r.seen - r.at
-      // Read cost limits. On a desktop GPU it is judged against the frame:
-      // under half of it, with frames at the display's rate, is fine. On a
-      // phone the main thread is the scarce thing, so the limits are absolute
-      // and small (a slow CPU turns a few milliseconds into a long task).
-      const budget = vsync * 1000
-      const [grow, shrink, cut] = phone ? [0.6, 1.2, 4] : [budget * 0.45, budget * 0.6, budget]
-      if (dtEma > vsync * 1.25 || cost > cut) B = Math.max(1, Math.floor(B * 0.6))
-      else if (readMs > shrink) B = Math.max(1, B - 1)
-      else if (lag < RING && dtEma < vsync * 1.08 && readMs < grow) B = Math.min(BATCHES[q]!, B + 1)
-      if (r.gen !== gen) continue
-      let paths = 0
-      for (let b = 0; b < r.batches; b++) {
-        const i = b * 4
-        est.add(readBuf[i]!, readBuf[i + 1]!, readBuf[i + 2]!, readBuf[i + 3]!)
-        paths += readBuf[i + 3]!
-      }
-      histGen = gen
-      fresh = true
-      runPaths += paths
-      rateN += paths
-      if (est.n >= CAP && !doneAt) doneAt = now
-      // Report at log-spaced counts too, so the convergence trace has its early points.
-      if (est.n >= mark) {
-        while (mark <= est.n) mark *= 1.25
-        report(true)
-      }
-    }
-  }
-
-  /** The option's price from the histogram at a strike the GPU has not priced: approximate, and labelled so. */
-  function binnedPrice(K: number) {
-    let n = 0, s = 0
-    for (let b = 0; b < HIST.bins; b++) {
-      const c = histData[b * 4]!
-      n += c
-      s += c * Math.max(HIST.lo + (b + 0.5) * binWidth - K, 0)
-    }
-    return n ? (discount() * s) / n : NaN
-  }
-
   function report(force = false) {
     const narrow = cssW < 520
+    const now = clock.now
     const v =
-      previewK != null && histGen === gen
-        ? `Call at $${Math.round(kv.x)}: about $${binnedPrice(kv.x).toFixed(2)}`
+      previewK != null && pricer.ready()
+        ? `Call at $${Math.round(kv.x)}: about $${binnedPrice(pricer.fine, kv.x).toFixed(2)}`
         : est.n > 0
           ? narrow
             ? `Call price: $${est.mean.toFixed(2)}`
             : `Call price, the average discounted payoff: $${est.mean.toFixed(2)}`
           : ''
     if (v !== valueText) valueEl.textContent = valueText = v
-    if (now - rateT > 0.5) {
-      // A window with no readbacks (idle, or a run just restarted) keeps the last rate.
-      if (rateN > 0) rate = rateN / (now - rateT)
-      rateT = now
-      rateN = 0
-    }
+    const rate = pricer.rate()
     if (!force && now - statsAt < 0.1) return
     statsAt = now
+    const doneAt = pricer.doneAt
     const done = !!doneAt
     // The histogram goes out once a second, and once more when the run completes.
     let h: Stats['hist'] = null
-    if (histGen === gen && (now - histAt > 1 || (done && histAt < doneAt))) {
+    if (pricer.ready() && (now - histAt > 1 || (done && histAt < doneAt))) {
       histAt = now
-      const counts: number[] = []
-      const payoff: number[] = []
-      for (let b = 0; b < HIST.bins; b++) {
-        counts.push(histData[b * 4]!)
-        payoff.push(histData[b * 4 + 1]!)
-      }
-      h = { counts, payoff }
+      h = aggregate(pricer.fine, strike)
     }
     o.onStats({
       n: est.n,
       mean: est.mean,
       se: est.se,
       forward: est.forward,
-      rate: done ? runPaths / Math.max(1e-3, doneAt - runStart) : rate,
+      rate: done ? pricer.runPaths / Math.max(1e-3, doneAt - pricer.runStart) : rate,
       done,
       hist: h,
     })
@@ -784,6 +534,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       gl.uniform1f(p.u('uGain'), gain)
       gl.uniform1f(p.u('uBurst'), burst)
       gl.uniform1f(p.u('uPoint'), point)
+      gl.uniform1f(p.u('uScale'), dScale)
+      gl.uniform1f(p.u('uDither'), density === 'rgba8' ? 1 : 0)
+      gl.uniform1ui(p.u('uFrame'), clock.frameNo)
       gl.uniformMatrix4fv(p.u('uVP'), false, vp)
       gl.bindVertexArray(empty)
       if (point) {
@@ -809,7 +562,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
           gl.uniform1f(P.down.u('uThresh'), th)
         })
       const blur = (src: Target, dst: Target, x: number, y: number) => pass(P.blur, src, dst, () => gl.uniform2f(P.blur.u('uDir'), x / src.w, y / src.h))
-      down(den, bl[0]!, 0.35)
+      down(den, bl[0]!, 0.35 * dScale)
       down(bl[0]!, bl[1]!)
       blur(bl[1]!, bl[2]!, 1, 0)
       blur(bl[2]!, bl[1]!, 0, 1)
@@ -835,6 +588,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform1f(P.composite.u('uBloom'), bloom ? 1 : 0)
     gl.uniform1f(P.composite.u('uTone'), palette.dark ? 0.9 : 1.1)
     gl.uniform1f(P.composite.u('uFade'), fadeMul)
+    gl.uniform1f(P.composite.u('uScale'), dScale)
+    gl.uniform1ui(P.composite.u('uFrame'), clock.frameNo)
     gl.bindVertexArray(empty)
     drawFullscreen(gl)
   }
@@ -866,12 +621,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   /** New histogram data, or a previewed strike, gives the bars new targets. */
   function barTargets() {
     let maxC = 0, maxG = 0
-    const K = kv.x
+    // A previewed strike is priced from the same counts, so the bars agree with its line.
+    const { counts, payoff } = aggregate(pricer.fine, previewK ?? strike)
     for (let b = 0; b < HIST.bins; b++) {
-      const c = histData[b * 4]!
-      // While a strike is only previewed, what each bin pays is taken from
-      // the counts at that strike, so the bars agree with the line.
-      const g = previewK != null ? c * Math.max(HIST.lo + (b + 0.5) * binWidth - K, 0) : histData[b * 4 + 1]!
+      const c = counts[b]!
+      const g = payoff[b]!
       barC[b] = c
       barG[b] = g
       maxC = Math.max(maxC, c)
@@ -1007,7 +761,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     if (seq === 'playing' && prev !== 'playing') {
       // A new sequence prices from nothing, so the histogram really fills and
       // the estimate really converges while the reader watches.
-      gen++
+      pricer.gen++
       o.onSequenceFrame()
     }
     // A quality step held back during the sequence lands once it is over.
@@ -1023,10 +777,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         if (!programs.every((p) => p.ready())) return false
         ready = true
       }
-      now = t
-      frameNo++
-      dtEma = dtEma * 0.9 + dt * 0.1
-      vsync = Math.min(vsync * 1.0005, Math.max(1 / 240, dtEma))
+      clock.now = t
+      clock.frameNo++
+      clock.dtEma = clock.dtEma * 0.9 + dt * 0.1
+      // The display's own frame interval, learned: the shortest smoothed frame
+      // seen, relaxing slowly so a change of display is picked up.
+      clock.vsync = Math.min(clock.vsync * 1.0005, Math.max(1 / 240, clock.dtEma))
       o.tick(dt * 1000)
       if (fade) {
         fade.t += dt * 1000
@@ -1067,12 +823,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         spring(morph, morphTarget, dt, 12)
       }
 
-      collect()
-      if (fresh && histGen === gen) {
+      if (pricer.collect()) {
         barTargets()
         barsMoving = true
       }
-      fresh = false
+      const markedNow = pricer.marked()
       // A still frame is not drawn again: only what is changing is.
       const still =
         !dirty &&
@@ -1098,9 +853,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         dirty = false
         o.labels.dataset.draws = String(++draws)
       }
-      price()
+      pricer.price()
       gl.flush()
-      report()
+      report(markedNow)
       return true
     },
     resize(w, h, cw2, ch2) {
@@ -1124,14 +879,14 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     preview(k) {
       if (k === previewK) return
       previewK = k
-      if (histGen === gen) barTargets()
+      if (pricer.ready()) barTargets()
       dirty = true
     },
     setParams(s, k) {
       if (s === sigma && k === strike) return
       sigma = s
       strike = k
-      gen++
+      pricer.setParams(s, k)
       dirty = true
     },
     fadeOut(ms, then) {
@@ -1156,13 +911,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       return (lo + hi) / 2
     },
     dispose() {
-      for (const p of programs) gl.deleteProgram(p.program)
-      for (const t of [grid, results, hist, pathT, den, ...chain, ...bl]) disposeTarget(gl, t)
-      for (const b of pbos) {
-        gl.deleteBuffer(b.sums)
-        gl.deleteBuffer(b.hist)
-      }
-      for (const r of pending) gl.deleteSync(r.sync)
+      for (const p of Object.values(P)) gl.deleteProgram(p.program)
+      pricer.dispose()
+      for (const t of [pathT, den, ...bl]) disposeTarget(gl, t)
       gl.deleteBuffer(flatBuf)
       gl.deleteVertexArray(flatVao)
       gl.deleteVertexArray(empty)

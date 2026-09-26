@@ -1,7 +1,7 @@
 /**
- * The small WebGL2 toolkit the lab heroes share: compile and link with the
- * errors surfaced, a full-screen triangle, render targets that know whether
- * this device can render to float, and a device tier.
+ * The small WebGL2 toolkit the live figures share: compile and link with the
+ * errors surfaced, a full-screen triangle, and render targets by format, with
+ * probes for what this device can render to.
  *
  * No library. Each hero owns its own shaders and passes; this is only what
  * every one of them would otherwise write again.
@@ -81,31 +81,34 @@ export interface Target {
 }
 
 /**
- * A render target. `float` asks for 32-bit float when the device can render
- * to it (EXT_color_buffer_float), else 16-bit float, else 8-bit — the caller
- * reads `kind` and decides whether its maths still holds at that precision.
+ * The texture formats the figures render to. The integer formats are
+ * colour-renderable in WebGL2 itself, on every device, which is why pricing
+ * keeps its floats in them as raw bits; rgba16f needs EXT_color_buffer_float
+ * or EXT_color_buffer_half_float enabled (see `probeHalfFloat`); rgba8 is
+ * always there.
  */
-export function target(
-  gl: GL,
-  w: number,
-  h: number,
-  opts: { float?: 'f32' | 'f16'; channels?: 1 | 4; linear?: boolean } = {},
-): Target & { kind: 'f32' | 'f16' | 'u8' } {
-  const f32 = !!gl.getExtension('EXT_color_buffer_float')
-  const f16 = f32 || !!gl.getExtension('EXT_color_buffer_half_float')
-  const want = opts.float
-  const kind: 'f32' | 'f16' | 'u8' = want === 'f32' && f32 ? 'f32' : want && f16 ? 'f16' : 'u8'
-  const one = opts.channels === 1
-  const [internal, format, type] =
-    kind === 'f32'
-      ? [one ? gl.R32F : gl.RGBA32F, one ? gl.RED : gl.RGBA, gl.FLOAT]
-      : kind === 'f16'
-        ? [one ? gl.R16F : gl.RGBA16F, one ? gl.RED : gl.RGBA, gl.HALF_FLOAT]
-        : [gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE]
+export type Format = 'rgba32ui' | 'r32ui' | 'rgba16f' | 'rgba8'
+
+function spec(gl: GL, f: Format): [number, number, number] {
+  switch (f) {
+    case 'rgba32ui':
+      return [gl.RGBA32UI, gl.RGBA_INTEGER, gl.UNSIGNED_INT]
+    case 'r32ui':
+      return [gl.R32UI, gl.RED_INTEGER, gl.UNSIGNED_INT]
+    case 'rgba16f':
+      return [gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT]
+    case 'rgba8':
+      return [gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE]
+  }
+}
+
+/** A render target. Integer formats are never filtered (a linear integer texture is incomplete). */
+export function target(gl: GL, w: number, h: number, format: Format, linear = false): Target {
+  const [internal, fmt, type] = spec(gl, format)
   const tex = gl.createTexture()!
   gl.bindTexture(gl.TEXTURE_2D, tex)
-  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, null)
-  const filter = opts.linear && (kind !== 'f32' || gl.getExtension('OES_texture_float_linear')) ? gl.LINEAR : gl.NEAREST
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, fmt, type, null)
+  const filter = linear && (format === 'rgba16f' || format === 'rgba8') ? gl.LINEAR : gl.NEAREST
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
@@ -114,7 +117,80 @@ export function target(
   gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0)
   gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-  return { fbo, tex, w, h, kind }
+  return { fbo, tex, w, h }
+}
+
+/** Whether a target of this format can be rendered to here: a framebuffer that is complete. */
+export function renderable(gl: GL, format: Format): boolean {
+  const t = target(gl, 1, 1, format)
+  gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo)
+  const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+  disposeTarget(gl, t)
+  return ok
+}
+
+const PROBE_ADD = `#version 300 es
+precision highp float;
+uniform float uV;
+out vec4 o;
+void main() { o = vec4(uV); }`
+const PROBE_READ = `#version 300 es
+precision highp float;
+uniform sampler2D uSrc;
+out vec4 o;
+void main() { o = texture(uSrc, vec2(0.5)) / 2.0; }`
+
+/**
+ * Whether half float can be rendered to, blended and sampled here, checked by
+ * doing it: 0.75 is added twice to a half-float texel (1.5, past what an
+ * eight-bit buffer holds), the texel is sampled into an eight-bit one at half
+ * strength, and the byte must come back as 0.75. A framebuffer can report
+ * complete and still blend wrongly, so completeness alone is not trusted.
+ */
+export function probeHalfFloat(gl: GL): boolean {
+  if (!gl.getExtension('EXT_color_buffer_float') && !gl.getExtension('EXT_color_buffer_half_float')) return false
+  if (!renderable(gl, 'rgba16f')) return false
+  const add = program(gl, FULLSCREEN_VS, PROBE_ADD)
+  const read = program(gl, FULLSCREEN_VS, PROBE_READ)
+  const half = target(gl, 1, 1, 'rgba16f', true)
+  const byte = target(gl, 1, 1, 'rgba8')
+  const vao = gl.createVertexArray()
+  let ok = false
+  try {
+    gl.bindVertexArray(vao)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, half.fbo)
+    gl.viewport(0, 0, 1, 1)
+    gl.clearColor(0, 0, 0, 0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.ONE, gl.ONE)
+    add.use()
+    gl.uniform1f(add.u('uV'), 0.75)
+    drawFullscreen(gl)
+    drawFullscreen(gl)
+    gl.disable(gl.BLEND)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, byte.fbo)
+    read.use()
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, half.tex)
+    gl.uniform1i(read.u('uSrc'), 0)
+    drawFullscreen(gl)
+    const px = new Uint8Array(4)
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px)
+    ok = Math.abs(px[0]! - 0.75 * 255) <= 3 && gl.getError() === gl.NO_ERROR
+  } catch {
+    ok = false
+  } finally {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    gl.bindVertexArray(null)
+    gl.deleteVertexArray(vao)
+    gl.deleteProgram(add.program)
+    gl.deleteProgram(read.program)
+    disposeTarget(gl, half)
+    disposeTarget(gl, byte)
+  }
+  return ok
 }
 
 export function disposeTarget(gl: GL, t: Target | null | undefined) {

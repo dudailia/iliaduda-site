@@ -26,8 +26,8 @@ import type { FuturesRenderer, Stats } from './renderer'
  * itself (a control, a strike, Fly through) ends it at once. Fly through is the
  * optional flight along the paths; Replay plays the sequence again.
  *
- * Without the live renderer (reduced motion, a software rasteriser, no float
- * render targets, a failed load, a lost context) the inputs still work: the
+ * Without the live renderer (reduced motion, a software rasteriser, a driver
+ * that cannot render its targets, a failed load, a lost context) the inputs still work: the
  * still frame is redrawn and repriced on the CPU, in slices small enough never
  * to block the page.
  */
@@ -46,7 +46,7 @@ const CONTROL =
 
 type Mode = 'server' | 'cpu' | 'gpu'
 type Seq = 'off' | 'pending' | 'playing' | 'done'
-type Declined = 'software' | 'float' | 'load' | 'error' | 'lost' | null
+type Declined = 'software' | 'targets' | 'load' | 'error' | 'lost' | null
 interface Shown {
   n: number
   mean: number
@@ -172,10 +172,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         setDeclined('software')
         return null
       }
-      if (!gl.getExtension('EXT_color_buffer_float') || !gl.getExtension('EXT_float_blend') || !labels.current) {
-        setDeclined('float')
-        return null
-      }
+      if (!labels.current) return null
       let real: FuturesRenderer | null = null
       let size: [number, number, number, number] | null = null
       let quality = 2
@@ -185,7 +182,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       // Whatever becomes of it — a failed load, a shader that will not link, a
       // renderer that throws — the reader is left with the finished picture,
       // never an empty frame waiting on a figure that will not come.
-      const fail = (why: 'load' | 'error') => {
+      const fail = (why: 'targets' | 'load' | 'error') => {
         if (gone || broken) return
         broken = true
         setDeclined(why)
@@ -197,6 +194,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       import('./renderer')
         .then((m) => {
           if (gone || !labels.current) return
+          if (m.cannotRun(gl)) return fail('targets')
           try {
             real = m.createRenderer(
               { ...env, palette },
@@ -459,8 +457,8 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       ? 'Still frame: your system asks for reduced motion.'
       : declined === 'software'
         ? 'Still frame: this browser draws WebGL in software.'
-        : declined === 'float'
-          ? 'Still frame: this browser offers no float render targets.'
+        : declined === 'targets'
+          ? 'Still frame: this browser cannot render to a target the live figure needs.'
           : declined === 'lost'
             ? 'Still frame: the graphics context was lost.'
             : declined === 'load' || declined === 'error'
