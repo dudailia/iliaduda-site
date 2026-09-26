@@ -111,7 +111,7 @@ The site is set as a short journal issue. A masthead carries the front matter, C
 
 Density is literary rather than dashboard-like. There is one text column at a fixed measure, a margin to its left that holds headings, figure numbers and readouts, and generous vertical space between sections. Everything is typographic: no cards, no icons, no photographs except one small portrait in the margin of /about. Colour is almost absent, which is what lets the one accent mean something.
 
-It is calm everywhere except once. The home page's implied-volatility surface gets a single orchestrated entrance. Two figures replay once when first seen (the cricket match and the CloseBooks batch). Everything else changes state only in direct response to the reader.
+It is calm everywhere except once. The home page's Fig. 1, a million simulated futures for one stock, plays a single signature sequence per visit and then keeps a quiet stream of futures moving while it is on screen. Two figures replay once when first seen (the cricket match and the CloseBooks batch). Everything else changes state only in direct response to the reader.
 
 **Key Characteristics:**
 - One serif family for all prose and headings, one mono for labels, data and measurement. No third face, no display weight.
@@ -173,7 +173,7 @@ Vertical rhythm: sections are 2.5rem apart (3.5rem at lg), figures 3rem (4rem at
 
 ## Elevation & Depth
 
-Flat. There are no shadows anywhere. Depth comes from hairlines (1px `rule`), the rail's offset from the text, and tone: labels over a plot sit on a paper-coloured fill, and value labels in a figure carry a 4px paper halo (`paint-order: stroke`) so they read over a band or a threshold line. The only three-dimensional object is the WebGL implied-volatility surface, and its depth is geometry, not effect.
+Flat. There are no shadows anywhere. Depth comes from hairlines (1px `rule`), the rail's offset from the text, and tone: labels over a plot sit on a paper-coloured fill, and value labels in a figure carry a 4px paper halo (`paint-order: stroke`) so they read over a band or a threshold line. Two figures are three-dimensional — the home page's futures, which the reader can fly through, and the implied-volatility surface — and their depth is geometry, not effect. By day the futures are ink absorbed into paper; by night they glow, a notch below washing out.
 
 ### Named Rules
 **The Hairline Is the Only Edge Rule.** Separation is a 1px rule or white space. No shadow, no card, no raised surface. When two ruled blocks meet, one rule is enough.
@@ -204,7 +204,11 @@ Square and ruled. Text blocks have no containers at all. The one rounded shape i
 - **Frame** (`FigureFrame`): the number in the rail; a title in note ink over a graphite mono subtitle and a hairline; the plot; readouts (rail on wide screens, a grid below on narrow ones); a mono hint line; a graphite caption; and an sr-only table.
 - **Marks:** context in `rule`, claim in indigo, thresholds in ink (dashed where they are references), the previous state as a dashed indigo ghost, and axes as HTML labels in graphite mono.
 - **Interaction:** native range inputs (accent indigo, 24px hit height), radio groups with roving tabindex, and keyboard parity everywhere. Values are announced through `aria-valuetext`. A live region speaks only for changes the reader did not make on the control itself.
-- **Motion:** nothing moves unless the reader acts, with three exceptions, each once. The hero entrance is a 240ms crossfade and a 900ms tilt at cubic-bezier(0.77, 0, 0.175, 1). The cricket replay is linear over 4.2s. The CloseBooks batch staggers rows 45ms apart and settles each over 240ms ease-out. A figure entered through the Contents morph skips its replay. Reduced motion: everything is static and there is no canvas.
+- **Motion:** nothing moves unless the reader acts, with three exceptions, each once.
+  - The home figure's signature sequence, once per visit, the first time a third of its stage is on screen: 3.6s in four phases — the futures burst out of today (launches over 0.78s, each front easing out over 0.45s on cubic-bezier(0.23, 1, 0.32, 1)), the terminal histogram rises as the GPU's counts land, the counts become payoff × probability (0.94s on cubic-bezier(0.77, 0, 0.175, 1)), and the price appears. The numbers are real throughout; pricing restarts with the sequence, so the estimate really converges while it plays. A click, a key or a control finishes what is left in 240ms on the ease-out; scrolling does not. Off screen it waits. Afterwards a quiet stream of futures keeps moving while the figure is on screen.
+  - Two reader-started motions on the same figure: Fly through (9s out on easeInOutQuad, cubic-bezier(0.45, 0, 0.55, 1), 1.2s on the payoff view, 900ms home; Stop, Escape or a touch springs it home) and Replay (the futures fade out over 200ms and the sequence plays again).
+  - The cricket replay is linear over 4.2s. The CloseBooks batch staggers rows 45ms apart and settles each over 240ms ease-out. A figure entered through the Contents morph skips its replay.
+  - Reduced motion: everything is static and there is no canvas; every control still works on the still frame.
 
 ### Contents entry
 - A typeset list separated by hairlines, not cards: title (title type), mono byline, note-size abstract, and a 9rem miniature of the paper's Fig. 1. The thumbnail morphs into the paper's figure through a cross-document view transition (380ms, same curve); the page underneath crossfades in 180ms.
@@ -225,6 +229,6 @@ Square and ruled. Text blocks have no containers at all. The one rounded shape i
 - **Don't** use indigo outside a figure, or for anything in a figure except the claimed value.
 - **Don't** add cards, shadows, icons, emoji, gradients, badges or a hero-metric block. This is a paper.
 - **Don't** put a label above a heading. The byline goes under the title.
-- **Don't** add motion that plays by itself beyond the three existing moments, and never without a reduced-motion path.
+- **Don't** add motion that plays by itself beyond the moments listed under Figures › Motion, and never without a reduced-motion path.
 - **Don't** position anything absolutely inside the CV sheet. Chromium writes the PDF text layer in paint order, and positioned boxes paint last.
 - **Don't** load anything from another origin: no CDN, fonts, analytics or scripts.

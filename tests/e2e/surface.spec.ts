@@ -1,22 +1,21 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * The hero figure is the one place on the site with synthetic data and the one
- * place with motion, so both promises are asserted: it says synthetic where it
- * is drawn, it works from the keyboard, and reduced motion means a still
- * figure — the contour map — never the WebGL surface.
+ * The IV paper's Fig. 1 (it was the home hero until the futures took over): it
+ * says synthetic where it is drawn, it works from the keyboard, and reduced
+ * motion means a still figure — the contour map — never the WebGL surface.
  */
 
-for (const route of ['/', '/iv-surface']) {
-  test(`${route}: the surface is labelled synthetic where it is drawn`, async ({ page }) => {
-    await page.goto(route)
-    const fig = page.locator('#fig-surface')
-    await expect(fig).toContainText(/synthetic parameters, set by hand · not market data/)
-  })
-}
+const ROUTE = '/iv-surface'
+
+test('the surface is labelled synthetic where it is drawn', async ({ page }) => {
+  await page.goto(ROUTE)
+  const fig = page.locator('#fig-surface')
+  await expect(fig).toContainText(/synthetic parameters, set by hand · not market data/)
+})
 
 test('the arrow keys move the probe and the margin follows', async ({ page }) => {
-  await page.goto('/')
+  await page.goto(ROUTE)
   const group = page.getByRole('group', { name: /Implied volatility surface/ })
   const strike = page.locator('#fig-surface dl:visible dd').first()
   const before = await strike.textContent()
@@ -29,7 +28,7 @@ test('the arrow keys move the probe and the margin follows', async ({ page }) =>
 })
 
 test('the live region announces the committed probe', async ({ page }) => {
-  await page.goto('/')
+  await page.goto(ROUTE)
   await page.getByRole('group', { name: /Implied volatility surface/ }).focus()
   await page.keyboard.press('ArrowDown')
   await expect(page.locator('#fig-surface [aria-live="polite"]')).toHaveText(/implied volatility \d+\.\d%/)
@@ -41,7 +40,7 @@ test.describe('reduced motion', () => {
     // did not reach the page under this config, and the test passed a canvas
     // that was fully live — a gate that cannot fail is not a gate.
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.goto('/')
+    await page.goto(ROUTE)
     await page.waitForTimeout(2500)
     const canvas = page.locator('#fig-surface canvas')
     expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true)

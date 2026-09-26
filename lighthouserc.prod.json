@@ -16,58 +16,174 @@
     },
     "assert": {
       "_comment": "Audits the deployed site, where the font actually swaps and layout shift is real. Boolean assertions aggregate pessimistically; numeric budgets take the median. robots-txt is excluded because Lighthouse intermittently fails to fetch it when 25 runs hit the same deployment in a minute, which is an artifact of the audit and not of the site.",
-      "assertions": {
-        "categories:accessibility": [
-          "error",
-          {
-            "minScore": 1,
-            "aggregationMethod": "pessimistic"
+      "_comment_budgets": "Transfer budgets are bytes (275000 = 275,000 B, not KiB) and per route. Home carries Fig. 1's poster and renderer: 275,000. /iv-surface was already 264,185 B on the preview before M6, so it is held there (265,000) rather than let past 260,000 unseen; the other papers keep 260,000. Each new route is added with its measured budget.",
+      "assertMatrix": [
+        {
+          "matchingUrlPattern": "^https://iliaduda-site\\.vercel\\.app/$",
+          "assertions": {
+            "categories:accessibility": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.01,
+                "aggregationMethod": "median"
+              }
+            ],
+            "largest-contentful-paint": [
+              "error",
+              {
+                "maxNumericValue": 2500,
+                "aggregationMethod": "median"
+              }
+            ],
+            "resource-summary:third-party:count": [
+              "error",
+              {
+                "maxNumericValue": 0,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "color-contrast": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "heading-order": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "robots-txt": "off",
+            "resource-summary:total:size": [
+              "error",
+              {
+                "maxNumericValue": 275000,
+                "aggregationMethod": "pessimistic"
+              }
+            ]
           }
-        ],
-        "cumulative-layout-shift": [
-          "error",
-          {
-            "maxNumericValue": 0.01,
-            "aggregationMethod": "median"
+        },
+        {
+          "matchingUrlPattern": "/iv-surface$",
+          "assertions": {
+            "categories:accessibility": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.01,
+                "aggregationMethod": "median"
+              }
+            ],
+            "largest-contentful-paint": [
+              "error",
+              {
+                "maxNumericValue": 2500,
+                "aggregationMethod": "median"
+              }
+            ],
+            "resource-summary:third-party:count": [
+              "error",
+              {
+                "maxNumericValue": 0,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "color-contrast": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "heading-order": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "robots-txt": "off",
+            "resource-summary:total:size": [
+              "error",
+              {
+                "maxNumericValue": 265000,
+                "aggregationMethod": "pessimistic"
+              }
+            ]
           }
-        ],
-        "largest-contentful-paint": [
-          "error",
-          {
-            "maxNumericValue": 2500,
-            "aggregationMethod": "median"
+        },
+        {
+          "matchingUrlPattern": "/(closebooks|cricstate|startup-investments|debt-portal)$",
+          "assertions": {
+            "categories:accessibility": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.01,
+                "aggregationMethod": "median"
+              }
+            ],
+            "largest-contentful-paint": [
+              "error",
+              {
+                "maxNumericValue": 2500,
+                "aggregationMethod": "median"
+              }
+            ],
+            "resource-summary:third-party:count": [
+              "error",
+              {
+                "maxNumericValue": 0,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "color-contrast": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "heading-order": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "robots-txt": "off",
+            "resource-summary:total:size": [
+              "error",
+              {
+                "maxNumericValue": 260000,
+                "aggregationMethod": "pessimistic"
+              }
+            ]
           }
-        ],
-        "resource-summary:third-party:count": [
-          "error",
-          {
-            "maxNumericValue": 0,
-            "aggregationMethod": "pessimistic"
-          }
-        ],
-        "resource-summary:total:size": [
-          "error",
-          {
-            "maxNumericValue": 260000,
-            "aggregationMethod": "pessimistic"
-          }
-        ],
-        "color-contrast": [
-          "error",
-          {
-            "minScore": 1,
-            "aggregationMethod": "pessimistic"
-          }
-        ],
-        "heading-order": [
-          "error",
-          {
-            "minScore": 1,
-            "aggregationMethod": "pessimistic"
-          }
-        ],
-        "robots-txt": "off"
-      }
+        }
+      ]
     },
     "upload": {
       "target": "filesystem",

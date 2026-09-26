@@ -3,6 +3,10 @@
 Ilia Duda's résumé and portfolio, set as a working paper whose figures are
 alive. Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, on Vercel.
 
+The home page opens on Fig. 1: a million simulated futures for one stock,
+priced by Monte Carlo on the reader's GPU and checked live against
+Black–Scholes.
+
 Five papers, each built around one live figure: an implied-volatility surface
 drawn in raw WebGL2, CloseBooks' categorisation pipeline, a T20 World Cup final
 replayed ball by ball, a startup-segment ranking under three treatments of the
@@ -37,7 +41,8 @@ build image has no browser.
 
 | Figure | Data | Written by |
 |---|---|---|
-| IV surface (hero, `/iv-surface`) | synthetic SSVI parameters, labelled synthetic | `content/synthetic.ts`, `lib/svi.ts` |
+| Futures (home Fig. 1) | synthetic GBM parameters, labelled simulated | `content/synthetic.ts`, `lib/futures/mc.ts` |
+| IV surface (`/iv-surface`) | synthetic SSVI parameters, labelled synthetic | `content/synthetic.ts`, `lib/svi.ts` |
 | cricstate replay | the 2026 Men's T20 World Cup final | `scripts/cricket_replay.py`, run inside the cricstate repo; asserts the paper's test NLL |
 | startup ranking | the capstone notebook's own cells | `scripts/startup_ranking.py`; asserts variant A reproduces the notebook |
 | CloseBooks pipeline | a synthetic feed through the product's ported rules | `content/data/closebooks-feed.ts`, `lib/closebooks.ts` |

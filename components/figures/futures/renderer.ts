@@ -293,14 +293,21 @@ void main() {
     vec3 c = mix(uPaper, uWash, halo);
     c = mix(c, uGraphite, not_ * 0.7);
     c = mix(c, uIndigo, pays);
-    c += uIndigo * 0.22 * (1.0 - exp(-1.2 * b.r));
-    c = mix(c, uInk, 0.6 * smoothstep(0.35, 1.0, 1.0 - exp(-uTone * 0.08 * d.r)));
+    c += uIndigo * 0.18 * (1.0 - exp(-1.2 * b.r));
+    c = mix(c, uInk, 0.35 * smoothstep(0.5, 1.0, 1.0 - exp(-uTone * 0.08 * d.r)));
     o = vec4(min(c, vec3(1.0)), 1.0);
   } else {
     vec3 P = lin(uPaper);
     vec3 aPay = -log(clamp(lin(uIndigo) / P, vec3(1e-3), vec3(1.0)));
     vec3 aNot = -log(clamp(lin(uGraphite) / P, vec3(1e-3), vec3(1.0)));
-    vec3 tau = aPay * (uTone * d.r + 0.28 * b.r) + aNot * (0.55 * uTone * d.g + 0.12 * b.g);
+    float dp = uTone * d.r + 0.12 * b.r;
+    float dn = 0.55 * uTone * d.g + 0.06 * b.g;
+    // Ink saturates: the total depth is capped, and shared between the two
+    // inks in proportion, so where every future crosses (today) the paper
+    // goes deep indigo-slate, never black, and keeps its hue.
+    float s = dp + dn;
+    float k = s > 1e-4 ? 1.2 * (1.0 - exp(-s / 1.2)) / s : 1.0;
+    vec3 tau = (aPay * dp + aNot * dn) * k;
     o = vec4(srgb(P * exp(-tau)), 1.0);
   }
 }`
@@ -885,14 +892,20 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
           const a = ((1 - w) * (pays ? (dark ? 0.62 : 0.5) : dark ? 0.4 : 0.28) + w * 0.95) * fadeMul
           quad(HX0, y0 + 0.0025, HX0 + HLEN * len, y1 - 0.0025, rgba(pays ? palette.indigo : palette.graphite, a))
         }
-        // The context: the distribution itself, left as a hairline outline once the claim has taken its place.
+        // The context: the distribution itself, left as a hairline outline once
+        // the claim has taken its place. Bins under half a percent of the tallest
+        // are the thin tail; the outline closes to the baseline around them.
         if (outlineA > 0.005) {
-          const x = HX0 + HLEN * land * cLen[b]!
-          if (cLen[b]! > 1e-3 || prevX > HX0 + 1e-3) {
-            segment([x, y0, 0], [x, y1, 0], hair, rgba(palette.graphite, outlineA))
-            if (prevX >= 0) segment([prevX, y0, 0], [x, y0, 0], hair, rgba(palette.graphite, outlineA))
+          const col = rgba(palette.graphite, outlineA)
+          if (cLen[b]! > 0.005) {
+            const x = HX0 + HLEN * land * cLen[b]!
+            segment([prevX >= 0 ? prevX : HX0, y0, 0], [x, y0, 0], hair, col)
+            segment([x, y0, 0], [x, y1, 0], hair, col)
+            prevX = x
+          } else if (prevX >= 0) {
+            segment([prevX, y0, 0], [HX0, y0, 0], hair, col)
+            prevX = -1
           }
-          prevX = x
         }
       }
     }

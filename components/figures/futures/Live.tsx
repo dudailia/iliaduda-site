@@ -20,7 +20,7 @@ import type { FuturesRenderer, Stats } from './renderer'
  * the paths simulated and the rate this device simulates them at, all read
  * back from the GPU.
  *
- * Once per visit, the first time the stage is half on screen, it plays the
+ * Once per visit, the first time a third of the stage is on screen, it plays the
  * signature sequence (lib/futures/sequence.ts). A click, a key or any control
  * finishes it at once; scrolling does not. Fly through is the optional flight
  * along the futures; Replay plays the sequence again.
@@ -212,15 +212,17 @@ export function FuturesLive({ initial }: { initial: Frame }) {
     if (declined || (mounted && (!eligible || reduced))) release()
   }, [declined, eligible, reduced, mounted, release])
 
-  // The sequence starts the first time the stage is half on screen.
+  // The sequence starts the first time a good third of the stage is on
+  // screen: enough to see the futures leave today, and early enough that a
+  // laptop's first screen does not sit on an empty frame.
   useEffect(() => {
     const el = box.current
     if (!el) return
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e && e.intersectionRatio >= 0.5 && armed.current && !timeline.current.started) timeline.current.start()
+        if (e && e.intersectionRatio >= 0.35 && armed.current && !timeline.current.started) timeline.current.start()
       },
-      { threshold: [0.5] },
+      { threshold: [0.35] },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -487,23 +489,13 @@ export function FuturesLive({ initial }: { initial: Frame }) {
       }
       table={table}
     >
-      <p aria-hidden="true" className="text-meta flex flex-wrap gap-x-4 gap-y-1 font-mono text-graphite">
-        <span>
-          <span className="mr-1.5 inline-block h-[3px] w-4 rounded-full bg-indigo align-middle" />
-          futures where it pays
-        </span>
-        <span>
-          <span className="mr-1.5 inline-block w-4 border-t-[1.5px] border-dashed border-ink align-middle" />
-          the strike
-        </span>
-      </p>
       <div
         ref={box}
         data-seq={seq}
         data-fps={fps}
         data-quality={quality}
         data-tier={tier ?? ''}
-        className={`relative -mx-6 mt-3 h-[clamp(22rem,60svh,32rem)] overflow-hidden sm:mx-0 lg:h-[clamp(28rem,70svh,44rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
+        className={`relative -mx-6 h-[clamp(22rem,60svh,32rem)] overflow-hidden sm:mx-0 lg:h-[clamp(26rem,56svh,38rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
@@ -515,12 +507,23 @@ export function FuturesLive({ initial }: { initial: Frame }) {
         </div>
         <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
         <div ref={labels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(live)} />
+        {/* The legend sits in the plot's one empty corner, under the fan, in label type, with no panel behind it. */}
+        <p aria-hidden="true" className="text-meta pointer-events-none absolute bottom-2 left-6 flex flex-wrap gap-x-4 gap-y-1 font-mono text-graphite sm:left-0">
+          <span>
+            <span className="mr-1.5 inline-block h-[3px] w-4 rounded-full bg-indigo align-middle" />
+            futures where it pays
+          </span>
+          <span>
+            <span className="mr-1.5 inline-block w-4 border-t-[1.5px] border-dashed border-ink align-middle" />
+            the strike
+          </span>
+        </p>
       </div>
 
       {/* A phone gets the three numbers that tell the story; the margin has the rest. */}
       <dl className="text-meta mt-3 grid grid-cols-3 gap-x-4 border-t border-rule pt-3 font-mono lg:hidden">
         <div className="min-w-0">
-          <dt className="text-graphite">Simulated price</dt>
+          <dt className="text-graphite">Simulated</dt>
           <dd className="tabular text-indigo">{priced ? shown.mean.toFixed(3) : '…'}</dd>
         </div>
         <div className="min-w-0">
