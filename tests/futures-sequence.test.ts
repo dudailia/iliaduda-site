@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SEQ_MS, SKIP_MS, Timeline, isSkipInput, phaseAt, type Phases } from '@/lib/futures/sequence'
+import { BURST, SEQ_MS, SKIP_MS, Timeline, isSkipInput, phaseAt, type Phases } from '@/lib/futures/sequence'
 
 /**
  * The home figure's one orchestrated moment: the futures burst out of today,
@@ -33,15 +33,26 @@ describe('phaseAt', () => {
   })
 
   it('opens the phases in story order: paths, then landing, then the morph, then the price', () => {
-    // Landing waits for the first futures to reach expiry; the morph waits for
-    // a histogram worth morphing; the price waits for the payoff bars.
+    // The morph waits for a histogram worth morphing; the price waits for the payoff bars.
     expect(phaseAt(1).burst).toBeGreaterThan(0)
-    expect(phaseAt(648).landing).toBe(0)
-    expect(phaseAt(700).landing).toBeGreaterThan(0)
     expect(phaseAt(1872).morph).toBe(0)
     expect(phaseAt(1900).morph).toBeGreaterThan(0)
     expect(phaseAt(2592).price).toBe(0)
     expect(phaseAt(2620).price).toBeGreaterThan(0)
+  })
+
+  it('fills the histogram from the moment the first future reaches expiry', () => {
+    // Inside the burst, the first strand launches at once and its front takes
+    // BURST.front of the burst to arrive; nothing can have landed before then.
+    const burstMs = SEQ_MS * 0.34
+    const firstLanding = burstMs * BURST.front
+    expect(firstLanding).toBeGreaterThan(300)
+    expect(phaseAt(firstLanding - 1).landing).toBe(0)
+    expect(phaseAt(firstLanding + 20).landing).toBeGreaterThan(0)
+    // Every strand has launched by BURST.launch of the burst and landed by its end.
+    expect(BURST.launch + BURST.front).toBeCloseTo(1, 9)
+    // The last future lands before the histogram has finished filling.
+    expect(phaseAt(burstMs).landing).toBeLessThan(1)
   })
 
   it('finishes the burst before the morph starts, and the landing before the price', () => {

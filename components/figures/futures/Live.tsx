@@ -6,7 +6,7 @@ import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
 import { Flight } from '@/lib/futures/flight'
 import { MODEL, bs } from '@/lib/futures/mc'
-import { POSTER_PATHS, bands, fill, strands, summarize, type Frame } from '@/lib/futures/poster'
+import { POSTER_PATHS, bands, fill, strands, summarize, type PosterFrame } from '@/lib/futures/poster'
 import { Timeline, isSkipInput } from '@/lib/futures/sequence'
 import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
@@ -38,9 +38,9 @@ const fmtRate = (r: number) => (r >= 1e6 ? `${(r / 1e6).toFixed(r >= 1e8 ? 0 : 1
 const pct = (x: number) => `${Math.round(x * 100)}%`
 const dollars = (x: number) => `$${x.toFixed(2)}`
 
-/** A figure control: quiet, 4px corners, the border goes to ink on hover. */
+/** A figure control: quiet, 4px corners, the border goes to ink on hover, and a press is felt. */
 const CONTROL =
-  'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-colors duration-150 ease-out hover:border-ink'
+  'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
 
 type Mode = 'server' | 'cpu' | 'gpu'
 type Seq = 'off' | 'pending' | 'playing' | 'done'
@@ -58,11 +58,11 @@ const SLICE = 1024
 
 const priceLine = (mean: number) => `Average, discounted to today: ${dollars(mean)}`
 
-export function FuturesLive({ initial }: { initial: Frame }) {
+export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const [sigma, setSigma] = useState<number>(MODEL.sigma)
   const [strike, setStrike] = useState<number>(MODEL.strike)
   const [shown, setShown] = useState<Shown>({ ...initial.stats, rate: 0, mode: 'server', done: true })
-  const [frame, setFrame] = useState<Frame>(initial)
+  const [frame, setFrame] = useState<PosterFrame>(initial)
   const [history, setHistory] = useState<Point[]>([])
   // Why the live renderer declined, when it did.
   const [declined, setDeclined] = useState<'software' | 'float' | null>(null)
@@ -442,7 +442,10 @@ export function FuturesLive({ initial }: { initial: Frame }) {
           {speed}
         </dd>
       </dl>
-      {live && <Convergence points={history} exact={exact} />}
+      {/* Its room is kept from the first paint, and it fades in with the canvas it reports on. */}
+      <div style={fade(live)}>
+        <Convergence points={history} exact={exact} />
+      </div>
     </div>
   )
 

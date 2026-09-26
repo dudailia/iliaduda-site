@@ -32,10 +32,20 @@ export interface Phases {
   price: number
 }
 
+/**
+ * Inside the burst: strands launch over its first 63.2% on a golden-ratio
+ * stagger, and each front takes the remaining 36.8% to reach expiry — so at
+ * 3.6s, 0.78s of launches and 0.45s per front.
+ */
+export const BURST = { launch: 0.632, front: 0.368 } as const
+const BURST_END = 0.34
+/** The first future reaches expiry here, and the histogram starts to fill: cause and effect in one frame. */
+const FIRST_LANDING = BURST_END * BURST.front
+
 /** Each phase's window, as fractions of the sequence. The renderer eases within them. */
 const WINDOWS: Readonly<Record<keyof Phases, readonly [number, number]>> = {
-  burst: [0, 0.34],
-  landing: [0.18, 0.56],
+  burst: [0, BURST_END],
+  landing: [FIRST_LANDING, 0.45],
   morph: [0.52, 0.78],
   price: [0.72, 1],
 }

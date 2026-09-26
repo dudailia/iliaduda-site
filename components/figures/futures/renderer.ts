@@ -3,7 +3,7 @@ import { EASE_IN_OUT, EASE_OUT } from '@/lib/ease'
 import { project, viewProjection, type M4, type V3 } from '@/lib/futures/flight'
 import { RNG } from '@/lib/futures/glsl'
 import { CAP_LOG2, Estimator, GROUPS, HIST, MODEL, binWidth, discount, stepCoefficients } from '@/lib/futures/mc'
-import type { Phases } from '@/lib/futures/sequence'
+import { BURST, type Phases } from '@/lib/futures/sequence'
 import { AXIS, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
 import { FULLSCREEN_VS, disposeTarget, drawFullscreen, program, target, type GL, type Program, type Target } from '@/lib/gl'
 import { LABEL } from './Poster'
@@ -74,13 +74,6 @@ export const CAP = 2 ** CAP_LOG2
 const MAXB = 64
 const PERIOD = 6.5
 const REVEAL = 0.42
-/**
- * The burst, in units of the sequence's burst phase (1224 ms): strands launch
- * over its first 63% and each front takes the remaining 37% to reach expiry —
- * 0.78 s of launches, 0.45 s per front.
- */
-const LAUNCH_B = 0.632
-const FRONT_B = 0.368
 const STRANDS = [320, 900, 2048, 4096] as const
 // Pricing is governed by its own fences, so above the software tier it is
 // not tied to the drawing quality: a phone that draws fewer strands can still
@@ -186,8 +179,10 @@ St strand(int i, float jWant) {
   s.age = fract(ph);
   float r;
   if (uSeq > 0.5) {
-    float u = clamp((uBurst - off * ${LAUNCH_B.toFixed(3)}) / ${FRONT_B.toFixed(3)}, 0.0, 1.0);
-    r = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
+    // The front eases out on a quintic, the power curve closest to the site's cubic-bezier(0.23, 1, 0.32, 1).
+    float u = clamp((uBurst - off * ${BURST.launch.toFixed(3)}) / ${BURST.front.toFixed(3)}, 0.0, 1.0);
+    float v = 1.0 - u;
+    r = 1.0 - v * v * v * v * v;
     s.alive = 1.0;
     s.first = false;
   } else {
@@ -453,15 +448,17 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // `side`: which way the label extends from its point (from its translate
   // class), so it can be kept inside the box; `w` is its measured width, taken
   // again only when its words change.
-  type Label = { el: HTMLSpanElement; at: () => V3; show: (p: number) => number; side: -1 | -0.5 | 0; w: number; text: string }
+  // `data`: the label belongs to the futures (the histogram's name, the price), so Replay fades it with them;
+  // the frame's labels (today, expiry, ticks, the strike) stay.
+  type Label = { el: HTMLSpanElement; at: () => V3; show: (p: number) => number; side: -1 | -0.5 | 0; w: number; text: string; data: boolean }
   const labels: Label[] = []
-  const label = (text: string, cls: string, at: () => V3, show: (p: number) => number) => {
+  const label = (text: string, cls: string, at: () => V3, show: (p: number) => number, data = false) => {
     const el = document.createElement('span')
     el.textContent = text
     el.className = `${LABEL} left-0 top-0 ${cls}`
     el.style.opacity = '0'
     o.labels.appendChild(el)
-    labels.push({ el, at, show, side: cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0, w: -1, text: '' })
+    labels.push({ el, at, show, side: cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0, w: -1, text: '', data })
     return el
   }
   const at2 = (a: readonly number[]): V3 => [a[0]!, a[1]!, 0]
@@ -477,12 +474,14 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // and it dips to nothing there, so one text never crossfades into another.
   const histEl = label('Where the futures end', `${LABELS.hist.cls} text-ink`, () => at2(LABELS.hist.at), (p) =>
     outside(p) * landing() * smooth(0.02, 0.22, Math.abs(2 * morph.x - 1)),
+    true,
   )
   let histText = 0
   // The climax: the payoff bars, averaged and discounted, are the price. The
   // number is the live Monte Carlo estimate, not a restatement of the formula.
   const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.value.x, wy(kv.x - LABELS.value.below), 0], (p) =>
     est.n > 0 ? outside(p) * smooth(0.55, 1, morph.x) * (inSeq() ? EASE_OUT(clamp01(ph!.price / 0.24)) : 1) : 0,
+    true,
   )
   let valueText = ''
   const setStrikeText = () => (strikeEl.textContent = `Strike $${Math.round(kv.x)}`)
@@ -848,7 +847,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     const dpr = cw / Math.max(1, cssW)
     const hair = 0.5 * dpr
     const dark = palette.dark
-    const vis = outside(p) * fadeMul
+    // The frame (the expiry axis, its ticks, the strike) never fades: Replay clears only the futures.
+    const vis = outside(p)
     // Expiry plane and its price ticks.
     segment([X1, wy(AXIS.lo), 0], [X1, wy(AXIS.hi), 0], hair, rgba(palette.graphite, 0.5 * vis))
     for (const s of TICKS) segment([X1 - 0.03, wy(s), 0], [X1, wy(s), 0], hair, rgba(palette.graphite, 0.8 * vis))
@@ -878,7 +878,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     if (barsReady) {
       const w = morph.x
       const land = landing()
-      const outlineA = (dark ? 0.6 : 0.55) * w * vis
+      const outlineA = (dark ? 0.6 : 0.55) * w * vis * fadeMul
       let prevX = -1
       for (let b = 0; b < HIST.bins; b++) {
         cLen[b] = cLen[b]! + (barC[b]! - cLen[b]!) * follow
@@ -915,7 +915,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     const n = 30
     for (let i = 0; i < n; i++) {
       const a = x0 + ((x1 - x0) * i) / n
-      segment([a, y, 0], [a + ((x1 - x0) / n) * 0.6, y, 0], 0.75 * dpr, rgba(palette.ink, 0.9 * fadeMul))
+      segment([a, y, 0], [a + ((x1 - x0) / n) * 0.6, y, 0], 0.75 * dpr, rgba(palette.ink, 0.9))
     }
     if (!flat.length) return
     gl.bindVertexArray(flatVao)
@@ -939,7 +939,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
 
   function placeLabels(p: number) {
     for (const l of labels) {
-      const a = l.show(p) * fadeMul
+      const a = l.show(p) * (l.data ? fadeMul : 1)
       const [x, y, z] = l.at()
       const s = project(vp, x, y, z)
       const on = a > 0.01 && s[2] > 0.05 && Math.abs(s[0]) < 1.05 && Math.abs(s[1]) < 1.05

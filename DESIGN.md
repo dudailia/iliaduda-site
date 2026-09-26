@@ -189,7 +189,7 @@ Square and ruled. Text blocks have no containers at all. The one rounded shape i
 - **Shape:** gently squared (4px), 1px border.
 - **Default:** mono label size, ink text on paper, graphite border, 32–36px tall for touch.
 - **Selected:** ink fill, paper text: the state of a radio group ("Both fixed") or the chosen debt amount.
-- **Hover / Focus / Active:** the border goes to ink over 150ms ease-out. Focus is the global ring (2px ink outline, 3px offset). Active scales to 0.97 on the settlement controls only.
+- **Hover / Focus / Active:** the border goes to ink over 150ms ease-out. Focus is the global ring (2px ink outline, 3px offset). Controls that act (the settlement controls, CloseBooks' Approve and Map, the IV paper's reset, the home figure's Fly through and Replay) scale to 0.97 while pressed; radio-group selections change fill instead.
 
 ### Links
 - **Style:** inherit the text colour, with a 1px underline in `rule` at 0.22em offset that goes to ink on hover (hover-capable pointers only), over 120ms.

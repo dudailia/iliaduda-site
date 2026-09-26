@@ -142,11 +142,14 @@ export function summarize(t: Float32Array, K: number, n = t.length): Frame {
   return { stats: { n, mean: e.mean, se: e.se }, bars, counts: Array.from(counts), payoff: Array.from(pay), payBars, outline }
 }
 
+/** What the page ships to the browser: the frame without the count bars, which the finished picture no longer draws. */
+export type PosterFrame = Omit<Frame, 'bars'>
+
 /**
  * The histogram in `groups` equal bands of price, for the screen-reader table:
  * each band's share of all the futures, and what the option pays there on average.
  */
-export function bands(f: Frame, groups = 11): { lo: number; hi: number; share: number; payoff: number }[] {
+export function bands(f: PosterFrame, groups = 11): { lo: number; hi: number; share: number; payoff: number }[] {
   const per = Math.ceil(HIST.bins / groups)
   const out: { lo: number; hi: number; share: number; payoff: number }[] = []
   for (let g = 0; g < groups; g++) {

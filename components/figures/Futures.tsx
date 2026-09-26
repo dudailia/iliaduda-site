@@ -22,11 +22,11 @@ import { FuturesLive } from './futures/Live'
 const PREPAINT = `try{var d=document.documentElement;if(!sessionStorage.getItem('futures-seq')&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&'WebGL2RenderingContext' in window&&!(navigator.connection&&navigator.connection.saveData)){d.dataset.futuresSeq='1';setTimeout(function(){if(!d.dataset.futuresLive)delete d.dataset.futuresSeq},8000)}}catch(e){}`
 
 export function FuturesFigure() {
-  const frame = summarize(ensemble(value('fuSigma'), POSTER_PATHS), value('fuStrike'))
+  const { stats, counts, payoff, payBars, outline } = summarize(ensemble(value('fuSigma'), POSTER_PATHS), value('fuStrike'))
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: PREPAINT }} />
-      <FuturesLive initial={frame} />
+      <FuturesLive initial={{ stats, counts, payoff, payBars, outline }} />
     </>
   )
 }
