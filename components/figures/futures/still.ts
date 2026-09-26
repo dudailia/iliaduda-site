@@ -85,7 +85,6 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     const z0 = -2 * BAR_D, z1 = 0
     const top = mixc(base, dark ? pal.ink : pal.paper, dark ? 0.2 : 0.24)
     const end = mixc(base, dark ? pal.paper : pal.ink, dark ? 0.3 : 0.14)
-    const low = mixc(base, dark ? pal.paper : pal.ink, dark ? 0.45 : 0.24)
     const quad = (vs: V3[], col: RGB) => {
       const p = vs.map((v) => toPx(v[0], v[1], v[2]))
       // Only the faces turned toward the eye: counter-clockwise on screen (y runs down).
@@ -99,11 +98,15 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     quad([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], base)
     quad([[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]], top)
     quad([[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], end)
-    quad([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], low)
+    // The base at the wall in the front's tone, as the live figure's: all bases lie in one plane.
+    quad([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], base)
   }
+  // Bars shorter than two pixels are the thin tail, as in the live figure: drawn, they climb into the labels.
+  const [ax, ay] = toPx(HX0, 0, 0), [bx, by] = toPx(HX0 + HLEN, 0, 0)
+  const minLen = (2 * dpr) / Math.max(1, Math.hypot(bx - ax, by - ay))
   for (let b = 0; b < HIST.bins; b++) {
     const len = input.payoff[b]! / maxPay
-    if (len < 0.004) continue
+    if (len < minLen) continue
     const lo = HIST.lo + b * binWidth
     slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixc(pal.paper, pal.indigo, 0.95))
   }
@@ -164,6 +167,14 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
   const finish = () => {
     g.globalCompositeOperation = 'source-over'
     g.globalAlpha = 1
+    // The ink stops at the token, as the live figure's does: every stroke crosses at today, where they would
+    // otherwise multiply to black by day and add up to white by night.
+    const img = g.getImageData(0, 0, W, H)
+    const d = img.data
+    const cap = pal.indigo.map((v) => Math.round(v * 255))
+    for (let i = 0; i < d.length; i += 4)
+      for (let c = 0; c < 3; c++) d[i + c] = dark ? Math.min(d[i + c]!, cap[c]!) : Math.max(d[i + c]!, cap[c]!)
+    g.putImageData(img, 0, 0)
     const line = (a: V3, b: V3, width: number, col: string, dash?: number[]) => {
       const p = toPx(...a), q = toPx(...b)
       g.strokeStyle = col
@@ -183,7 +194,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     line([X1, lo, -z], [X1, lo, z], hair, css(pal.graphite, 0.32))
     line([X1, hi, -z], [X1, hi, z], hair, css(pal.graphite, 0.32))
     for (const s of TICKS) {
-      line([X1, wy(s), -z], [X1, wy(s), z], hair, css(pal.graphite, dark ? 0.16 : 0.13))
+      line([X1, wy(s), -z], [X1, wy(s), z], hair, css(pal.graphite, dark ? 0.3 : 0.26))
       line([X1 - 0.03, wy(s), z], [X1, wy(s), z], hair, css(pal.graphite, 0.8))
     }
     // The distribution, as a hairline outline on the bars' front faces.

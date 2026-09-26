@@ -164,7 +164,7 @@ vec3 at(int i, float ln, float jj) {
 // A ribbon: two vertices per step, pushed apart across the path's direction on
 // screen. Width follows distance from the eye; ink per unit length does not.
 const RIBBON_VS = `${HEAD}${RNG}${STRAND}
-uniform vec2 uPx; uniform float uWidth, uRef, uFar; uniform vec3 uFade;
+uniform vec2 uPx; uniform float uWidth, uRef, uFar, uEdge; uniform vec3 uFade;
 out float vD; out float vHalf; out float vA; flat out int vPays; flat out uint vId;
 void main() {
   int i = gl_InstanceID;
@@ -183,6 +183,9 @@ void main() {
   float dl = length(d);
   vec2 n = dl > 1e-5 ? vec2(-d.y, d.x) / dl : vec2(0.0, 1.0);
   float depth = max(c.w, 1e-3);
+  // In among the futures (a flight), they fade out toward the stage's edges, so the frame never shows as a rectangle.
+  vec2 ndc = abs(c.xy / depth);
+  float edge = mix(1.0, smoothstep(1.0, 0.8, max(ndc.x, ndc.y)), uEdge);
   float w = clamp(uWidth * uRef / depth, 0.85, 2.6);
   float reach = past ? 0.0 : w * 0.5 + 1.0;
   c.xy += n * side * reach * 2.0 / uPx * c.w;
@@ -190,7 +193,7 @@ void main() {
   vHalf = w * 0.5;
   float near = smoothstep(uFade.x, uFade.y, depth);
   float far = mix(1.0, uFar, smoothstep(uRef, uFade.z, depth));
-  vA = s.opacity * near * far * (1.2 / max(w, 1.2));
+  vA = s.opacity * near * far * edge * (1.2 / max(w, 1.2));
   vPays = uS0 * exp(lr(i, 64)) > uK ? 1 : 0;
   vId = s.id;
   gl_Position = c;
@@ -471,6 +474,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // Focus: facing the wall at the end of a flight, the futures step back so the histogram carries the view. The paths
   // there run close past the eye, and at full strength they would wash the frame and cost a burst of fill.
   const focus = { x: 1, v: 0 }
+  /** How much the futures fade toward the stage's edges: only in among them. */
+  const edgeK = { x: 0, v: 0 }
   let vp: M4 = new Float32Array(16)
   let pose: Pose | null = null
   let seq: SeqState = 'none'
@@ -733,6 +738,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform1f(P.ribbon.u('uWidth'), 1.15 * dpr)
     gl.uniform1f(P.ribbon.u('uRef'), ref)
     gl.uniform1f(P.ribbon.u('uFar'), palette.dark ? 0.6 : DAY.far)
+    gl.uniform1f(P.ribbon.u('uEdge'), edgeK.x)
     gl.uniform1f(P.ribbon.u('uDither'), density === 'rgba8' ? 1 : 0)
     gl.uniform1ui(P.ribbon.u('uFrame'), clock.frameNo)
     gl.bindVertexArray(empty)
@@ -817,14 +823,16 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   function slab(x0: number, x1: number, y0: number, y1: number, base: number[]) {
     const z0 = -2 * BAR_D, z1 = 0
     const dark = palette.dark
-    // Lit from above and in front: the top catches the light, the far end and the base fall away from it.
+    // Lit from above and in front: the top catches the light, the far end and the back fall away from it. The
+    // base at the wall takes the front's tone: every bar's base lies in one plane, and shaded apart they stacked
+    // into a column that read as a tower rather than a distribution.
     const top = mixc(base, dark ? palette.ink : palette.paper, dark ? 0.2 : 0.24)
     const end = mixc(base, dark ? palette.paper : palette.ink, dark ? 0.3 : 0.14)
     const low = mixc(base, dark ? palette.paper : palette.ink, dark ? 0.45 : 0.24)
     face(x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, base) // front, z+
     face(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, top) // top, y+
     face(x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, end) // far end, x+
-    face(x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, low) // base at the wall, x−
+    face(x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, base) // base at the wall, x−
     face(x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0, low) // back, z−
     face(x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, low) // underside, y−
   }
@@ -953,12 +961,13 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     const g = palette.graphite
     segment(X1, lo, z, X1, hi, z, hair, g, 0.5 * vis)
     if (depthU > 0.01) {
-      // The wall: its outline, and a guide across it at each tick, as faint as graph paper.
+      // The wall: its outline, and a guide across it at each tick, firm enough to carry the eye from a price on the
+      // scale to the bar at that price, and still under the outline.
       const a = depthU * vis
       segment(X1, lo, -z, X1, hi, -z, hair, g, 0.32 * a)
       segment(X1, lo, -z, X1, lo, z, hair, g, 0.32 * a)
       segment(X1, hi, -z, X1, hi, z, hair, g, 0.32 * a)
-      for (const s of TICKS) segment(X1, wy(s), -z, X1, wy(s), z, hair, g, (dark ? 0.16 : 0.13) * a)
+      for (const s of TICKS) segment(X1, wy(s), -z, X1, wy(s), z, hair, g, (dark ? 0.3 : 0.26) * a)
     }
     for (const s of TICKS) segment(X1 - 0.03, wy(s), z, X1, wy(s), z, hair, g, 0.8 * vis)
     // The distribution itself, left as a hairline outline once the claim has
@@ -1111,7 +1120,10 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       }
       const aspect = cssW / Math.max(1, cssH)
       pose = moveCamera(dt, aspect)
-      spring(focus, cam === 'flight' ? 1 - 0.25 * smooth(0.3, 0.5, flightP) - 0.3 * smooth(0.6, 0.8, flightP) : 1, dt, 5)
+      // Alongside the fan the futures step back by half, so the camera is among them without drowning in them; at
+      // the wall a little more, and the bars carry the view.
+      spring(focus, cam === 'flight' ? 1 - 0.5 * smooth(0.28, 0.45, flightP) - 0.05 * smooth(0.6, 0.8, flightP) : 1, dt, 5)
+      spring(edgeK, cam === 'flight' ? smooth(0.2, 0.3, flightP) : 0, dt, 6)
       if (firstFrame) {
         firstFrame = false
         // A visit without a sequence opens on the finished picture: payoff bars and the price.
@@ -1154,7 +1166,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       if (inSeq()) why.push('sequence')
       if (fadeTo || director.rewinding || fadeMul < 1) why.push('replay')
       if (barsMoving) why.push('bars')
-      if (!arrived(focus, 1, 1e-4)) why.push('focus')
+      if (!arrived(focus, 1, 1e-4) || !arrived(edgeK, 0, 1e-4)) why.push('focus')
       if (!arrived(sig, sigma, 1e-6) || !arrived(kv, previewK ?? strike, 1e-3)) why.push('inputs')
       if (!arrived(morph, morphTarget, 1e-5)) why.push('morph')
       drawnFor = why.join(' ')

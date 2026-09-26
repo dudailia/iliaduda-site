@@ -108,10 +108,10 @@ export async function darkest(page: Page, box: { x0: number; y0: number; x1: num
     { b64, box, cell },
   )
 }
-/** The spread of the ink's tone on the stage (light mode): luminance percentiles of the pixels darker than 0.6. */
-export async function inkTones(page: Page) {
+/** The ink's tone on the stage (light mode): luminance percentiles of the pixels darker than 0.6 in its left `part`. */
+export async function inkTones(page: Page, part = 1) {
   const b64 = (await page.locator(STAGE).screenshot()).toString('base64')
-  return page.evaluate(async (b64) => {
+  return page.evaluate(async ({ b64, part }) => {
     const img = new Image()
     img.src = `data:image/png;base64,${b64}`
     await img.decode()
@@ -123,14 +123,17 @@ export async function inkTones(page: Page) {
     const d = g.getImageData(0, 0, img.width, img.height).data
     const lin = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
     const ink: number[] = []
-    for (let i = 0; i < d.length; i += 12) {
-      const l = 0.2126 * lin(d[i]! / 255) + 0.7152 * lin(d[i + 1]! / 255) + 0.0722 * lin(d[i + 2]! / 255)
-      if (l < 0.6) ink.push(l)
-    }
+    const w = Math.round(img.width * part)
+    for (let y = 0; y < img.height; y++)
+      for (let x = 0; x < w; x += 3) {
+        const i = (y * img.width + x) * 4
+        const l = 0.2126 * lin(d[i]! / 255) + 0.7152 * lin(d[i + 1]! / 255) + 0.0722 * lin(d[i + 2]! / 255)
+        if (l < 0.6) ink.push(l)
+      }
     ink.sort((a, b) => a - b)
     const q = (t: number) => ink[Math.floor(t * (ink.length - 1))] ?? 1
     return { p05: q(0.05), p25: q(0.25), n: ink.length }
-  }, b64)
+  }, { b64, part })
 }
 export const luminance = ([r, g, b]: readonly number[]) => {
   const l = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)

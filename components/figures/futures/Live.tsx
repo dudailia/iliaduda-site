@@ -10,6 +10,7 @@ import { MODEL, bs } from '@/lib/futures/mc'
 import { POSTER_PATHS, bands, fill, strands, summarize, type PosterFrame } from '@/lib/futures/poster'
 import { Timeline, isSkipInput } from '@/lib/futures/sequence'
 import { Lean } from '@/lib/futures/tilt'
+import { withError } from '@/lib/futures/format'
 import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
 import type { FuturesRenderer, Stats } from './renderer'
@@ -598,14 +599,9 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const priced = hasMean && fresh
   const changed = sigma !== MODEL.sigma || strike !== MODEL.strike
 
-  const speed =
-    (shown.mode === 'gpu' || shown.mode === 'cpu') && shown.rate > 0
-      ? `${fmtRate(shown.rate)} paths/s`
-      : shown.mode === 'gpu' || shown.mode === 'cpu'
-        ? 'measuring…'
-        : mounted && eligible && !reduced && !declined
-          ? 'starting'
-          : 'computed at build'
+  const running = shown.mode === 'gpu' || shown.mode === 'cpu'
+  const starting = mounted && eligible && !reduced && !declined
+  const speed = running ? (shown.rate > 0 ? `${fmtRate(shown.rate)} paths/s` : 'measuring…') : starting ? 'starting…' : 'at build time'
   const coarse = mounted && window.matchMedia('(pointer: coarse)').matches
   // Said only once the browser has answered; the server cannot know.
   const why = !mounted
@@ -629,9 +625,9 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
                 : null
   const hint = why ?? `${coarse ? 'Tap' : 'Click'} a price at expiry to set the strike · drag sideways for volatility.`
 
-  const mc = priced ? `${shown.mean.toFixed(4)} ± ${(2 * shown.se).toFixed(4)}` : '…'
+  const mc = priced ? withError(shown.mean, shown.se) : '…'
   const paths = fresh ? fmtInt(shown.n) : '…'
-  const speedLabel = shown.mode === 'cpu' ? 'On this CPU' : shown.mode === 'gpu' ? 'On this GPU' : 'Speed'
+  const speedLabel = shown.mode === 'cpu' ? 'On this CPU' : running || starting ? 'On this GPU' : 'Priced'
   const years = MODEL.T === 1 ? 'one year' : `${MODEL.T} years`
 
   useEffect(() => {
@@ -702,7 +698,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const tableView = (
     <table>
       <caption>
-        {`Where ${fmtInt(table.n)} simulated paths of a $${MODEL.s0} stock end after ${years} at ${pct(table.sigma)} volatility, and what a call struck at $${table.strike} pays there. Priced by simulation at ${table.mean.toFixed(4)} ± ${(2 * table.se).toFixed(4)}; the Black–Scholes formula gives ${bs(table.sigma, table.strike).toFixed(4)}.`}
+        {`Where ${fmtInt(table.n)} simulated paths of a $${MODEL.s0} stock end after ${years} at ${pct(table.sigma)} volatility, and what a call struck at $${table.strike} pays there. Priced by simulation at ${withError(table.mean, table.se)}; the Black–Scholes formula gives ${bs(table.sigma, table.strike).toFixed(4)}.`}
       </caption>
       <thead>
         <tr>
@@ -794,11 +790,11 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         <dl className="text-meta mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono lg:hidden">
           <div className="min-w-0">
             <dt className="text-graphite">Simulated ± 2 SE</dt>
-            <dd className="tabular text-indigo">{priced ? `${shown.mean.toFixed(3)} ± ${(2 * shown.se).toFixed(3)}` : '…'}</dd>
+            <dd className="tabular text-indigo">{mc}</dd>
           </div>
           <div className="min-w-0">
             <dt className="text-graphite">Black–Scholes</dt>
-            <dd className="tabular text-ink">{exact.toFixed(3)}</dd>
+            <dd className="tabular text-ink">{exact.toFixed(4)}</dd>
           </div>
           <div className="col-span-2 min-w-0">
             <dt className="text-graphite">{speedLabel}</dt>

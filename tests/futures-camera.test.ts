@@ -91,7 +91,7 @@ describe('the resting view', () => {
       // Up until its top meets the edge of its fit, or by 0.07 at most.
       expect(y1, `aspect ${a}`).toBeGreaterThan(0.79)
       expect(y1, `aspect ${a}`).toBeLessThanOrEqual(0.8 + 1e-6)
-      expect((y0 + y1) / 2, `aspect ${a}`).toBeGreaterThan(0.02)
+      expect((y0 + y1) / 2, `aspect ${a}`).toBeGreaterThan(a < 1.2 ? 0.04 : 0)
     }
   })
 

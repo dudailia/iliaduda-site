@@ -252,7 +252,7 @@ test('by day the paying paths are ink on paper, at least 3:1 against it', async 
   expect(contrast(pays, paper)).toBeGreaterThanOrEqual(3)
 })
 
-test('by day the futures have depth: deep ink at the core, lighter toward the wall, not one flat tone', async ({ browser, isMobile }) => {
+test('by day the core of the futures is a deep indigo, not ink-black: the bundle keeps a tone to read into', async ({ browser, isMobile }) => {
   test.skip(isMobile, 'measured once, at a laptop’s and a phone’s own pixel density')
   test.setTimeout(90_000)
   for (const opts of [
@@ -267,11 +267,13 @@ test('by day the futures have depth: deep ink at the core, lighter toward the wa
     await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 8_000 })
     await page.getByRole('button', { name: 'Pause' }).click()
     await page.waitForTimeout(1_000)
-    const t = await inkTones(page)
+    // The left half: today and the body of the fan, clear of the wall and its bars.
+    const t = await inkTones(page, 0.5)
     await ctx.close()
     expect(t.n).toBeGreaterThan(1000)
-    // Saturated, the bundle's darker quarter sat within about 1.4–1.65× of its darkest ink; with depth it spreads out.
-    expect(t.p25 / t.p05, `${opts.viewport.width}px`).toBeGreaterThan(1.8)
+    // Saturated, the darkest twentieth of the fan's ink sat at 0.044–0.048, the floor the ink tends to; it stays well
+    // above it now.
+    expect(t.p05, `${opts.viewport.width}px`).toBeGreaterThan(0.07)
   }
 })
 

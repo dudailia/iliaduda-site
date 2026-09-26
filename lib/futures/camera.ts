@@ -110,8 +110,8 @@ const FOV_REST = (38 * Math.PI) / 180
 
 /** Half-depth of the expiry wall: the widest lane at expiry is about ±0.7. */
 export const ZWALL = 0.78
-/** Half-depth of a histogram bar: a slab, standing out from the wall. */
-export const BAR_D = 0.08
+/** Half-depth of a histogram bar: a thin slab, standing out from the wall; deeper, the bars read as one block. */
+export const BAR_D = 0.035
 
 /** What the resting view must hold: today, the expiry wall, the bars at full length, and the fan at its widest mid-way. */
 export const SCENE: readonly V3[] = [
@@ -322,12 +322,12 @@ export function restPose(aspect: number, drift: Offsets = ZERO, parallax: { x: n
 }
 
 const endCache = new Map<number, Pose>()
-/** Fly through's last view: the expiry wall and its bars, seen from a little to the left, all of them in frame. */
+/** Fly through's last view: the expiry wall and its bars, three-quarters on from the left and a little above, so the bars keep their depth, all of them in frame. */
 export function endPose(aspect: number): Pose {
   const key = Math.round(aspect * 1000) / 1000
   let p = endCache.get(key)
   if (!p) {
-    p = fit(-0.22, 0.1, [(X1 + HX0 + HLEN) / 2, wy((AXIS.lo + AXIS.hi) / 2), 0], key, WALL, 0.84, FOV_REST)
+    p = fit(-0.45, 0.22, [(X1 + HX0 + HLEN) / 2, wy((AXIS.lo + AXIS.hi) / 2), 0], key, WALL, 0.84, FOV_REST)
     if (endCache.size > 64) endCache.clear()
     endCache.set(key, p)
   }

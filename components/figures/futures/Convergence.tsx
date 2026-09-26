@@ -50,7 +50,8 @@ export function Convergence({ points, exact }: { points: Point[]; exact: number 
         <span>{count(2 ** N0)}</span>
         <span>{count(2 ** CAP_LOG2)} paths</span>
       </p>
-      <p className="mt-1">The estimate and its ±2 SE band as paths pile up (log scale); dashed: the formula</p>
+      {/* A sentence, so it is set as the other captions are: mono is for the numbers above it. */}
+      <p className="text-note mt-1.5 font-serif text-graphite">The estimate and its ±2 SE band as paths pile up (log scale); dashed: the formula.</p>
     </div>
   )
 }
