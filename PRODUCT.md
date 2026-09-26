@@ -58,7 +58,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 
 1. Hiring essentials first: name, positioning, availability, résumé and contact are above the fold on every screen size.
 2. Every number has provenance; synthetic data is labelled synthetic where it is shown.
-3. Figures are real and interactive, and respond to the reader rather than performing at them.
+3. Figures are real and interactive, and respond to the reader rather than performing at them. The one exception is the home figure, which stays alive at rest (the ensemble streaming by, the view drifting and leaning with the reader) and has a Pause.
 4. Confidentiality outranks impressiveness.
 5. Fast and accessible is part of the argument, and it is measured, not asserted.
 

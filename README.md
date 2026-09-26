@@ -5,7 +5,11 @@ alive. Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, on Vercel.
 
 The home page opens on Fig. 1: a million simulated futures for one stock,
 priced by Monte Carlo on the reader's GPU and checked live against
-Black–Scholes.
+Black–Scholes, drawn in three dimensions with the terminal histogram on the
+expiry wall. Pricing keeps its floats as bits in integer render targets, so it
+runs on any WebGL2 device, iPhones included; `?debug=1` reports what the figure
+chose on this device and why. Readers without the live figure get the same
+view as a still frame on a 2D canvas.
 
 Five papers, each built around one live figure: an implied-volatility surface
 drawn in raw WebGL2, CloseBooks' categorisation pipeline, a T20 World Cup final

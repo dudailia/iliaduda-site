@@ -111,7 +111,7 @@ The site is set as a short journal issue. A masthead carries the front matter, C
 
 Density is literary rather than dashboard-like. There is one text column at a fixed measure, a margin to its left that holds headings, figure numbers and readouts, and generous vertical space between sections. Everything is typographic: no cards, no icons, no photographs except one small portrait in the margin of /about. Colour is almost absent, which is what lets the one accent mean something.
 
-It is calm everywhere except once. The home page's Fig. 1, a million simulated futures for one stock, plays a single signature sequence per visit and then falls still. Two figures replay once when first seen (the cricket match and the CloseBooks batch). Everything else changes state only in direct response to the reader.
+It is calm everywhere except once. The home page's Fig. 1, a million simulated futures for one stock, plays a single signature sequence per visit and then swings into depth, where it stays alive: new futures keep streaming from today and the view drifts slowly, leaning toward the reader's pointer or with a phone's tilt, until the reader presses Pause. Two figures replay once when first seen (the cricket match and the CloseBooks batch). Everything else changes state only in direct response to the reader.
 
 **Key Characteristics:**
 - One serif family for all prose and headings, one mono for labels, data and measurement. No third face, no display weight.
@@ -173,7 +173,7 @@ Vertical rhythm: sections are 2.5rem apart (3.5rem at lg), figures 3rem (4rem at
 
 ## Elevation & Depth
 
-Flat. There are no shadows anywhere. Depth comes from hairlines (1px `rule`), the rail's offset from the text, and tone: labels over a plot sit on a paper-coloured fill, and value labels in a figure carry a 4px paper halo (`paint-order: stroke`) so they read over a band or a threshold line. Two figures are three-dimensional — the home page's futures, which the reader can fly through, and the implied-volatility surface — and their depth is geometry, not effect. By day the futures are ink absorbed into paper; by night they glow, a notch below washing out.
+Flat. There are no shadows anywhere. Depth comes from hairlines (1px `rule`), the rail's offset from the text, and tone: labels over a plot sit on a paper-coloured fill, and value labels in a figure carry a 4px paper halo (`paint-order: stroke`) so they read over a band or a threshold line. Two figures are three-dimensional — the home page's futures and the implied-volatility surface — and their depth is geometry, not effect: the futures rest in a three-quarter view where time recedes into the scene, as anti-aliased ribbons that thin and fade with distance, and the terminal histogram stands on the expiry wall as slabs lit from above. By day the futures are ink absorbed into paper; by night they glow, a notch below washing out.
 
 ### Named Rules
 **The Hairline Is the Only Edge Rule.** Separation is a 1px rule or white space. No shadow, no card, no raised surface. When two ruled blocks meet, one rule is enough.
@@ -189,7 +189,7 @@ Square and ruled. Text blocks have no containers at all. The one rounded shape i
 - **Shape:** gently squared (4px), 1px border.
 - **Default:** mono label size, ink text on paper, graphite border, 32–36px tall for touch.
 - **Selected:** ink fill, paper text: the state of a radio group ("Both fixed") or the chosen debt amount.
-- **Hover / Focus / Active:** the border goes to ink over 150ms ease-out. Focus is the global ring (2px ink outline, 3px offset). Controls that act (the settlement controls, CloseBooks' Approve and Map, the IV paper's reset, the home figure's Fly through and Replay) scale to 0.97 while pressed; radio-group selections change fill instead.
+- **Hover / Focus / Active:** the border goes to ink over 150ms ease-out. Focus is the global ring (2px ink outline, 3px offset). Controls that act (the settlement controls, CloseBooks' Approve and Map, the IV paper's reset, the home figure's Pause, Fly through and Replay) scale to 0.97 while pressed; radio-group selections change fill instead.
 
 ### Links
 - **Style:** inherit the text colour, with a 1px underline in `rule` at 0.22em offset that goes to ink on hover (hover-capable pointers only), over 120ms.
@@ -204,8 +204,8 @@ Square and ruled. Text blocks have no containers at all. The one rounded shape i
 - **Frame** (`FigureFrame`): the number in the rail; a title in note ink over a graphite mono subtitle and a hairline; the plot; readouts (rail on wide screens, a grid below on narrow ones); a mono hint line; a graphite caption; and an sr-only table.
 - **Marks:** context in `rule`, claim in indigo, thresholds in ink (dashed where they are references), the previous state as a dashed indigo ghost, and axes as HTML labels in graphite mono.
 - **Interaction:** native range inputs (accent indigo, 24px hit height), radio groups with roving tabindex, and keyboard parity everywhere. Values are announced through `aria-valuetext`. A live region speaks only for changes the reader did not make on the control itself.
-- **Motion:** nothing moves unless the reader acts, with three exceptions, each once.
-  - The home figure's signature sequence, once per visit, the first time its stage is on screen down to today's price: 3.6s in four phases.
+- **Motion:** nothing moves unless the reader acts, with these exceptions.
+  - The home figure's signature sequence, once per visit, the first time its stage is on screen down to today's price: 3.6s in four phases, in the composed frame the poster registers with.
     - The paths burst out of today: launches over 0.78s, each front easing out over 0.45s on a quintic, the power curve closest to cubic-bezier(0.23, 1, 0.32, 1).
     - The terminal histogram fills as they land, from the frame the first one reaches expiry.
     - The counts become payoff × probability: 0.94s on cubic-bezier(0.77, 0, 0.175, 1).
@@ -213,12 +213,16 @@ Square and ruled. Text blocks have no containers at all. The one rounded shape i
     - The numbers are real throughout: pricing restarts with the sequence, so the estimate really converges while it plays.
     - A click or a key finishes what is left in 240ms on the ease-out. Scrolling does not, by wheel, finger or key, and neither does any input before its first frame. Using the figure itself (a slider, a strike, Fly through) ends it at once.
     - Off screen it waits.
-    - Afterwards the figure falls still: frames are drawn only while something changes, and nothing loops, so there is nothing to pause (WCAG 2.2.2).
+  - Then the home figure lives in depth (the one continuous motion on the site, and it can be paused):
+    - Once the payoff has appeared, the camera swings from the composed frame into a three-quarter view where time recedes into the scene, over 1.8s on easeInOutQuad, around the futures in spherical coordinates, never through them. A visit that has seen the sequence opens on the frame and swings the same way.
+    - At rest the view drifts on two sines each in yaw and pitch at periods that never line up (53, 23, 41 and 17s), within a tenth of a radian, and follows the reader: a fine pointer over the stage leans it toward itself, a phone's tilt leans it (iOS asks on the first tap on the figure), both on a critically damped spring.
+    - The futures keep coming: each drawn slot fades its path over 0.6s and launches the next member of the ensemble from today, its front reaching expiry in 2.6s on the burst's quintic; a cycle is 10s, on a golden-ratio stagger, so the picture's weight holds. Nothing pops.
+    - Pause (WCAG 2.2.2) holds the stream, the drift, the lean and the settle for the rest of the visit, and a paused figure draws nothing: its bars take new counts as a table refreshes, once a second, while the estimate in the margin converges.
   - Two reader-started motions on the same figure:
-    - Fly through: 9s out on easeInOutQuad, cubic-bezier(0.45, 0, 0.55, 1); 1.2s on the payoff view; 900ms home. Stop, Escape or a touch springs it home.
-    - Replay: only the paths, bars and their labels fade out over 200ms (the axes and strike stay), and the sequence plays again.
+    - Fly through: 9s out on easeInOutQuad, cubic-bezier(0.45, 0, 0.55, 1): down behind today looking along the time axis, alongside the fan, out to the expiry wall, where the futures step back to 45% so the histogram carries the view; 1.2s there; 900ms home by the shortest arc. Stop, Escape or a touch brings it home.
+    - Replay: the paths, bars and their labels fade out over 240ms while the camera swings back to the composed frame (900ms), and the sequence plays again.
   - The cricket replay is linear over 4.2s. The CloseBooks batch staggers rows 45ms apart and settles each over 240ms ease-out. A figure entered through the Contents morph skips its replay.
-  - Reduced motion: everything is static and there is no canvas; every control still works on the still frame.
+  - Reduced motion: everything is static, and the home figure is a still frame of its resting view, drawn once on a 2D canvas and shown whole (the same frame every reader without the live figure gets); every control still works and redraws it.
 
 ### Contents entry
 - A typeset list separated by hairlines, not cards: title (title type), mono byline, note-size abstract, and a 9rem miniature of the paper's Fig. 1. The thumbnail morphs into the paper's figure through a cross-document view transition (380ms, same curve); the page underneath crossfades in 180ms.
