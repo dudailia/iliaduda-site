@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BAR_D, SCENE, ZWALL, blend, driftAt, endPose, flightPose, framePose, project, restPose, viewProjection, type Pose } from '@/lib/futures/camera'
+import { BAR_D, SCENE, ZWALL, blend, driftAt, endPose, flightPose, framePose, project, restPose, viewProjection, wallPrice, type Pose } from '@/lib/futures/camera'
 import { AXIS, FRAME, HLEN, HX0, X0, X1, wy } from '@/lib/futures/world'
 
 /**
@@ -67,6 +67,31 @@ describe('the resting view', () => {
     for (const a of ASPECTS) {
       const s = spanOf(restPose(a), a, SCENE)
       expect(Math.max(s.w, s.h), `aspect ${a}`).toBeGreaterThan(0.72)
+    }
+  })
+
+  it('on a phone, fills the height of its tall stage too, not only its width', () => {
+    // A phone's stage: 390×591 (0.66) to 402×500 (0.8, an iPhone with Safari's bars) and a little wider.
+    for (const a of [0.6, 0.66, 0.75, 0.8, 0.85]) {
+      const s = spanOf(restPose(a), a, SCENE)
+      expect(s.h, `aspect ${a}`).toBeGreaterThan(0.72)
+      expect(s.w, `aspect ${a}`).toBeGreaterThan(0.68)
+    }
+  })
+
+  it('on a laptop, sits high in its frame, where the first screen shows it, with the room it had to spare', () => {
+    for (const a of [1.12, 1.3]) {
+      const m = viewProjection(restPose(a), a)
+      let y0 = Infinity, y1 = -Infinity
+      for (const p of SCENE) {
+        const y = project(m, p[0]!, p[1]!, p[2]!)[1]
+        y0 = Math.min(y0, y)
+        y1 = Math.max(y1, y)
+      }
+      // Up until its top meets the edge of its fit, or by 0.07 at most.
+      expect(y1, `aspect ${a}`).toBeGreaterThan(0.79)
+      expect(y1, `aspect ${a}`).toBeLessThanOrEqual(0.8 + 1e-6)
+      expect((y0 + y1) / 2, `aspect ${a}`).toBeGreaterThan(0.02)
     }
   })
 
@@ -158,6 +183,44 @@ describe('Fly through', () => {
         prev = q
       }
       expect(dist(flightPose(1, a, start).eye, endPose(a).eye)).toBeLessThan(1e-9)
+    }
+  })
+})
+
+describe('picking a price on the expiry wall', () => {
+  // Where a point of the wall lands on the screen, in clip space.
+  const at = (pose: Pose, a: number, s: number, z: number) => {
+    const [x, y] = project(viewProjection(pose, a), X1, wy(s), z)
+    return [x, y] as const
+  }
+
+  it('at rest, finds the price drawn at that point of the wall: at the scale on its front edge, mid-wall, or further in', () => {
+    for (const a of [0.66, 1.12, 1.6]) {
+      const pose = restPose(a)
+      for (const s of [60, 100, 140, 180, 220])
+        for (const z of [ZWALL, 0, -ZWALL / 2]) {
+          const [nx, ny] = at(pose, a, s, z)
+          expect(wallPrice(pose, a, nx, ny, ZWALL), `$${s} at z ${z}, aspect ${a}`).toBeCloseTo(s, 0)
+        }
+    }
+  })
+
+  it('in the composed frame, where the wall is seen edge-on, reads the price from the height of the scale', () => {
+    for (const a of [0.66, 1.12, 1.6]) {
+      const pose = framePose(a)
+      for (const s of [60, 100, 140, 180]) {
+        const [nx, ny] = at(pose, a, s, 0)
+        expect(wallPrice(pose, a, nx, ny, 0)).toBeCloseTo(s, 0)
+      }
+    }
+  })
+
+  it('stays on the scale all through the swing into depth, as the scale moves out to the front edge', () => {
+    const a = 1.12
+    for (let u = 0; u <= 1.0001; u += 0.05) {
+      const pose = blend(framePose(a), restPose(a), u)
+      const [nx, ny] = at(pose, a, 150, ZWALL * u)
+      expect(wallPrice(pose, a, nx, ny, ZWALL * u)).toBeCloseTo(150, 0)
     }
   })
 })

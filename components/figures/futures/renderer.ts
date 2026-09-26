@@ -1,7 +1,8 @@
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
-import { EASE_IN_OUT, EASE_IN_OUT_QUAD, EASE_OUT } from '@/lib/ease'
-import { BAR_D, ZWALL, blend, driftAt, flightPose, framePose, project, restPose, viewProjection, type M4, type Pose, type V3 } from '@/lib/futures/camera'
+import { EASE_IN_OUT, EASE_OUT } from '@/lib/ease'
+import { BAR_D, ZWALL, driftAt, project, restPose, viewProjection, wallPrice, type M4, type Pose, type V3 } from '@/lib/futures/camera'
 import { DENSITY_SCALE, densityFormat, glOverride, type Density } from '@/lib/futures/caps'
+import { Director, type CamMode } from '@/lib/futures/director'
 import { RNG } from '@/lib/futures/glsl'
 import { aggregate, binnedPrice } from '@/lib/futures/hist'
 import { GROUPS, HIST, MODEL, binWidth, stepCoefficients } from '@/lib/futures/mc'
@@ -88,13 +89,19 @@ export { CAP }
  * bloom, and at the lowest level rests a share of the stream's slots, which
  * leave and return the way every stream path does, so nothing pops.
  */
+/** Paused, pricing holds from here: an estimate within about a cent of the formula, a smooth histogram. */
+const HOLD_N = 1 << 20
+/**
+ * Ink by day. Absorption per unit of density; the most the ink may add up to
+ * (the core at today stays a deep indigo, not the token's full strength, so
+ * the bundle keeps a tone to read into); how far the futures fade toward the
+ * wall, which is the recession a 3D picture on paper has in place of a glow;
+ * and how much of the soft halo darkens the paper around the core.
+ */
+const DAY = { tone: 0.8, cap: 0.9, far: 0.35, halo: 0.16 } as const
 const STRANDS: Record<Tier, number> = { software: 320, low: 1536, mid: 3072, high: 4096 }
 /** The stage area the gains are tuned at (the lg stage, 647 × 576). A smaller stage packs the same futures tighter. */
 const REF_AREA = 647 * 576
-/** The swing from the composed frame into depth, the way back for Replay, and a flight's return home. */
-const SETTLE_MS = 1800
-const REWIND_MS = 900
-const RETURN_MS = 900
 /** Slots texture width. */
 const SW = 1024
 
@@ -157,7 +164,7 @@ vec3 at(int i, float ln, float jj) {
 // A ribbon: two vertices per step, pushed apart across the path's direction on
 // screen. Width follows distance from the eye; ink per unit length does not.
 const RIBBON_VS = `${HEAD}${RNG}${STRAND}
-uniform vec2 uPx; uniform float uWidth, uRef; uniform vec3 uFade;
+uniform vec2 uPx; uniform float uWidth, uRef, uFar; uniform vec3 uFade;
 out float vD; out float vHalf; out float vA; flat out int vPays; flat out uint vId;
 void main() {
   int i = gl_InstanceID;
@@ -182,7 +189,7 @@ void main() {
   vD = side * reach;
   vHalf = w * 0.5;
   float near = smoothstep(uFade.x, uFade.y, depth);
-  float far = mix(1.0, 0.6, smoothstep(uRef, uFade.z, depth));
+  float far = mix(1.0, uFar, smoothstep(uRef, uFade.z, depth));
   vA = s.opacity * near * far * (1.2 / max(w, 1.2));
   vPays = uS0 * exp(lr(i, 64)) > uK ? 1 : 0;
   vId = s.id;
@@ -258,7 +265,7 @@ void main() {
 // than washing out to white.
 // Day: ink on paper. Each strand absorbs light — Beer–Lambert, in linear light,
 // with absorption per unit of density set from the token's colour — and the
-// total depth saturates (at most 1.2 units, shared between the two inks in
+// total depth saturates (at most 0.9 units, shared between the two inks in
 // proportion), so where every future crosses, at today, the paper goes deep
 // indigo-slate, never black, and keeps its hue. Emitted as the transmittance
 // per channel, blended (ZERO, SRC_COLOR): exact over paper, ink over ink on a bar.
@@ -266,7 +273,7 @@ const COMPOSITE_FS = `${HEAD}${RNG}
 in vec2 vUv;
 uniform sampler2D uDen, uB1, uB2;
 uniform vec3 uPaper, uInk, uGraphite, uIndigo, uWash;
-uniform float uDark, uBloom, uTone, uFade, uScale;
+uniform float uDark, uBloom, uTone, uFade, uScale, uCap, uHalo;
 uniform uint uFrame;
 out vec4 o;
 vec3 lin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
@@ -296,10 +303,10 @@ void main() {
     vec3 P = lin(uPaper);
     vec3 aPay = -log(clamp(lin(uIndigo) / P, vec3(1e-3), vec3(1.0)));
     vec3 aNot = -log(clamp(lin(uGraphite) / P, vec3(1e-3), vec3(1.0)));
-    float dp = uTone * d.r + 0.06 * b.r;
-    float dn = 0.55 * uTone * d.g + 0.03 * b.g;
+    float dp = uTone * d.r + uHalo * b.r;
+    float dn = 0.55 * uTone * d.g + 0.5 * uHalo * b.g;
     float s = dp + dn;
-    float k = s > 1e-4 ? 1.2 * (1.0 - exp(-s / 1.2)) / s : 1.0;
+    float k = s > 1e-4 ? uCap * (1.0 - exp(-s / uCap)) / s : 1.0;
     vec3 tau = (aPay * dp + aNot * dn) * k;
     o = vec4(clamp((srgb(P * exp(-tau)) + n) / max(uPaper, vec3(1e-3)), 0.0, 1.0), 1.0);
   }
@@ -378,11 +385,8 @@ class Floats {
 
 /** Where the flight turns the histogram into payoff: once it faces the wall (lib/futures/camera.ts, flightPose). */
 const flightMorph = (p: number) => EASE_IN_OUT(clamp01((p - 0.8) / 0.14))
-/** Labels step aside while the camera is in among the futures. */
-const outside = (p: number) => 1 - smooth(0.24, 0.34, p) + smooth(0.68, 0.78, p)
 
 type SeqState = 'none' | 'pending' | 'playing' | 'done'
-type Cam = 'frame' | 'settle' | 'rest' | 'flight' | 'return'
 
 // ── the renderer ─────────────────────────────────────────────────────────────
 
@@ -471,13 +475,10 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let pose: Pose | null = null
   let seq: SeqState = 'none'
   let ph: Phases | null = null
-  let cam: Cam = 'frame'
-  let camT = 0
-  let from: Pose | null = null
-  let flightFrom: Pose | null = null
-  let lastFlight = 0
+  /** The camera's place in the story (lib/futures/director.ts); `cam` and `flightP` are its reading this frame. */
+  const director = new Director()
+  let cam: CamMode = 'frame'
   let flightP = 0
-  let rewinding: (() => void) | null = null
   let fadeTo: { t: number; ms: number } | null = null
   let streamT = 0
   let driftT = 0
@@ -490,6 +491,16 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let timeK = -1
   let fadeMul = 1
   let firstFrame = true
+  /** The one batch priced while the sequence waits has gone out. */
+  let warmed = false
+  /**
+   * Everything the figure draws and reads has been used once: the first
+   * readback is back (or 1.5s have passed). A GPU builds a pipeline the first
+   * time it is used, which can hold a frame for a long moment on a phone; the
+   * sequence and the settle wait for it, so none of that lands on the motion.
+   */
+  let warm = false
+  let firstAt = -1
   /** Something changed that a still frame does not show yet. */
   let dirty = true
   let draws = 0
@@ -509,7 +520,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     at: () => V3
     show: () => number
     side: -1 | -0.5 | 0
-    vside: -1 | -0.5 | 0
+    vside: -1 | -0.5 | 0 | 1
     w: number
     h: number
     text: string
@@ -523,7 +534,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     el.style.opacity = '0'
     o.labels.appendChild(el)
     const side = cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0
-    const vside = cls.includes('-translate-y-full') ? -1 : cls.includes('-translate-y-1/2') ? -0.5 : 0
+    const vside = cls.includes('-translate-y-full') ? -1 : cls.includes('translate-y-full') ? 1 : cls.includes('-translate-y-1/2') ? -0.5 : 0
     labels.push({ el, at, show, side, vside, w: -1, h: -1, text: '', data })
     return el
   }
@@ -551,7 +562,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // The number is the live Monte Carlo estimate, not a restatement of the formula.
   // In the composed frame it stands under the strike line, where the payoff bars are empty; in depth, a point further
   // along the time axis rises on screen, so it moves under the strike's own name on the wall's edge, stacked.
-  const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.value.x + (LABELS.strike.label - LABELS.value.x) * depthU, wy(kv.x - LABELS.value.below * (1 + 0.4 * depthU)), zEdge()], () =>
+  const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.hist.at[0], LABELS.hist.at[1], 0], () =>
     est.n > 0 ? labelU * smooth(0.55, 1, morph.x) * (inSeq() ? EASE_OUT(clamp01(ph!.price / 0.24)) : 1) : 0,
     true,
   )
@@ -595,6 +606,13 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   }
 
   function report(force = false) {
+    // Waiting, the margin claims nothing: no paths are being priced for the reader yet.
+    if (seq === 'pending') {
+      if (!force && clock.now - statsAt < 0.1) return
+      statsAt = clock.now
+      o.onStats({ n: 0, mean: 0, se: 0, forward: 0, rate: 0, done: false, hist: null })
+      return
+    }
     const narrow = cssW < 520
     const now = clock.now
     const v =
@@ -714,6 +732,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform2f(P.ribbon.u('uPx'), den.w / 2, den.h / 2)
     gl.uniform1f(P.ribbon.u('uWidth'), 1.15 * dpr)
     gl.uniform1f(P.ribbon.u('uRef'), ref)
+    gl.uniform1f(P.ribbon.u('uFar'), palette.dark ? 0.6 : DAY.far)
     gl.uniform1f(P.ribbon.u('uDither'), density === 'rgba8' ? 1 : 0)
     gl.uniform1ui(P.ribbon.u('uFrame'), clock.frameNo)
     gl.bindVertexArray(empty)
@@ -768,7 +787,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform3fv(P.composite.u('uWash'), palette.wash)
     gl.uniform1f(P.composite.u('uDark'), palette.dark ? 1 : 0)
     gl.uniform1f(P.composite.u('uBloom'), bloom ? 1 : 0)
-    gl.uniform1f(P.composite.u('uTone'), palette.dark ? 0.9 : 1.1)
+    gl.uniform1f(P.composite.u('uTone'), palette.dark ? 0.9 : DAY.tone)
+    gl.uniform1f(P.composite.u('uCap'), DAY.cap)
+    gl.uniform1f(P.composite.u('uHalo'), DAY.halo)
     gl.uniform1f(P.composite.u('uFade'), fadeMul)
     gl.uniform1f(P.composite.u('uScale'), dScale)
     gl.uniform1ui(P.composite.u('uFrame'), clock.frameNo)
@@ -859,6 +880,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixc(palette.paper, pays ? palette.indigo : palette.graphite, a))
       }
     }
+    // The first frame builds the bars' pipeline with one slab far off screen, before any bar is due.
+    if (!solid.n && !solidBound) slab(1e3, 1e3 + 1, 1e3, 1e3 + 1, [...palette.paper])
     if (!solid.n) return
     gl.bindVertexArray(solidVao)
     gl.bindBuffer(gl.ARRAY_BUFFER, solidBuf)
@@ -894,7 +917,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     sy = (m[1]! * x + m[5]! * y + m[9]! * z + m[13]!) / w
     sw = w
   }
-  function segment(ax: number, ay: number, az: number, bx: number, by: number, bz: number, px: number, c: readonly number[], alpha: number) {
+  function segment(ax: number, ay: number, az: number, bx: number, by: number, bz: number, px: number, c: readonly number[], opacity: number) {
     pj(ax, ay, az)
     const x0 = sx, y0 = sy, w0 = sw
     pj(bx, by, bz)
@@ -904,17 +927,17 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     const l = Math.hypot(dx, dy) || 1
     const nx = (-dy / l) * (px / cw), ny = (dx / l) * (px / ch)
     const r = c[0]!, g = c[1]!, b = c[2]!
-    flat.put6(x0 + nx, y0 + ny, r, g, b, alpha)
-    flat.put6(x0 - nx, y0 - ny, r, g, b, alpha)
-    flat.put6(x1 + nx, y1 + ny, r, g, b, alpha)
-    flat.put6(x1 + nx, y1 + ny, r, g, b, alpha)
-    flat.put6(x0 - nx, y0 - ny, r, g, b, alpha)
-    flat.put6(x1 - nx, y1 - ny, r, g, b, alpha)
+    flat.put6(x0 + nx, y0 + ny, r, g, b, opacity)
+    flat.put6(x0 - nx, y0 - ny, r, g, b, opacity)
+    flat.put6(x1 + nx, y1 + ny, r, g, b, opacity)
+    flat.put6(x1 + nx, y1 + ny, r, g, b, opacity)
+    flat.put6(x0 - nx, y0 - ny, r, g, b, opacity)
+    flat.put6(x1 - nx, y1 - ny, r, g, b, opacity)
   }
-  function dashes(ax: number, ay: number, az: number, bx: number, by: number, bz: number, n: number, px: number, c: readonly number[], alpha: number) {
+  function dashes(ax: number, ay: number, az: number, bx: number, by: number, bz: number, n: number, px: number, c: readonly number[], opacity: number) {
     for (let i = 0; i < n; i++) {
       const u0 = i / n, u1 = (i + 0.6) / n
-      segment(ax + (bx - ax) * u0, ay + (by - ay) * u0, az + (bz - az) * u0, ax + (bx - ax) * u1, ay + (by - ay) * u1, az + (bz - az) * u1, px, c, alpha)
+      segment(ax + (bx - ax) * u0, ay + (by - ay) * u0, az + (bz - az) * u0, ax + (bx - ax) * u1, ay + (by - ay) * u1, az + (bz - az) * u1, px, c, opacity)
     }
   }
 
@@ -1032,80 +1055,18 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   }
 
   /**
-   * The camera: the composed frame while the sequence plays (and for a visit
-   * without one, its first frame); a swing into depth once the payoff has
-   * appeared; rest, drifting and leaning with the reader; the flight and its
-   * return; and Replay's way back to the frame.
+   * The camera, from the director: the composed frame while the sequence
+   * waits and plays, the swing into depth after it, rest (drifting and leaning
+   * with the reader), the flight and its way home, and Replay's rewind.
    */
   function moveCamera(dt: number, aspect: number): Pose {
     const rest = restPose(aspect, driftAt(driftT), { x: par.x.x, y: par.y.x })
-    const p = o.camera()
-    if (rewinding) {
-      camT += dt * 1000
-      const u = EASE_IN_OUT(clamp01(camT / REWIND_MS))
-      depthU = 1 - u
-      labelU = 1
-      const next = blend(from ?? rest, framePose(aspect), u)
-      if (camT >= REWIND_MS) {
-        cam = 'frame'
-        const then = rewinding
-        rewinding = null
-        then()
-      }
-      return next
-    }
-    // A flight begins, from wherever the camera is.
-    if (p > 0 && lastFlight === 0 && (cam === 'rest' || cam === 'settle' || cam === 'return')) {
-      flightFrom = pose ?? rest
-      cam = 'flight'
-    }
-    // It turns back (the flight's own return, or a stop): home by the shortest arc, not back through the keys.
-    if (cam === 'flight' && p < lastFlight - 1e-9) {
-      from = pose ?? rest
-      cam = 'return'
-      camT = 0
-    }
-    lastFlight = p
-    flightP = p
-    if (inSeq()) {
-      if (cam === 'frame' && ph!.price > 0.35) {
-        cam = 'settle'
-        camT = 0
-      }
-    } else if (cam === 'frame' && !firstFrame) {
-      cam = 'settle'
-      camT = 0
-    }
-    switch (cam) {
-      case 'frame':
-        depthU = 0
-        labelU = 1
-        return framePose(aspect)
-      case 'settle': {
-        camT += dt * 1000 * timeK
-        const u = EASE_IN_OUT_QUAD(clamp01(camT / SETTLE_MS))
-        depthU = u
-        labelU = 1
-        if (camT >= SETTLE_MS) cam = 'rest'
-        return blend(framePose(aspect), rest, u)
-      }
-      case 'rest':
-        depthU = 1
-        labelU = 1
-        return rest
-      case 'flight':
-        depthU = 1
-        labelU = outside(p)
-        return flightPose(p, aspect, flightFrom ?? rest)
-      case 'return': {
-        camT += dt * 1000
-        const u = EASE_IN_OUT(clamp01(camT / RETURN_MS))
-        depthU = 1
-        labelU = Math.max(labelU, smooth(0.3, 0.8, u))
-        if (camT >= RETURN_MS) cam = 'rest'
-        return blend(from ?? rest, rest, u)
-      }
-    }
+    const next = director.step({ dt, aspect, rest, flight: o.camera(), sequence: inSeq(), speed: warm ? timeK : 0 })
+    cam = director.mode
+    depthU = director.depth
+    labelU = director.labels
+    flightP = director.flightP
+    return next
   }
 
   const r: FuturesRenderer = {
@@ -1120,17 +1081,20 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       // The display's own frame interval, learned: the shortest smoothed frame
       // seen, relaxing slowly so a change of display is picked up.
       clock.vsync = Math.min(clock.vsync * 1.0005, Math.max(1 / 240, clock.dtEma))
-      o.tick(dt * 1000)
+      if (firstAt < 0) firstAt = t
+      if (!warm && (pricer.ready() || t - firstAt > 1.5)) warm = true
+      // The reader's clocks (the sequence, the flight) move on drawn frames; the sequence waits for a warm figure.
+      o.tick(warm || !inSeq() ? dt * 1000 : 0)
       if (fadeTo) {
         fadeTo.t += dt * 1000
         fadeMul = 1 - EASE_OUT(Math.min(1, fadeTo.t / fadeTo.ms))
         if (fadeTo.t >= fadeTo.ms) fadeTo = null
-      } else if (!rewinding) fadeMul = 1
+      } else if (!director.rewinding) fadeMul = Math.min(1, fadeMul + dt / 0.24)
       advanceSequence()
       const paused = o.paused()
       if (timeK < 0) timeK = paused ? 0 : 1
       timeK = paused ? Math.max(0, timeK - dt / 0.24) : Math.min(1, timeK + dt / 0.4)
-      if (!inSeq() && !rewinding) {
+      if (!inSeq() && !director.rewinding) {
         streamT += dt * timeK
         driftT += dt * timeK
       }
@@ -1188,7 +1152,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       if (timeK > 0) why.push('moving')
       if (cam === 'flight' || cam === 'return') why.push('flight')
       if (inSeq()) why.push('sequence')
-      if (fadeTo || rewinding) why.push('replay')
+      if (fadeTo || director.rewinding || fadeMul < 1) why.push('replay')
       if (barsMoving) why.push('bars')
       if (!arrived(focus, 1, 1e-4)) why.push('focus')
       if (!arrived(sig, sigma, 1e-6) || !arrived(kv, previewK ?? strike, 1e-3)) why.push('inputs')
@@ -1216,7 +1180,13 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         o.labels.dataset.draws = String(++draws)
         o.labels.dataset.camera = cam
       }
-      pricer.price()
+      // Waiting for its reader, the figure prices one batch, which builds and warms everything pricing uses (so the
+      // burst does not stall on it), then holds until the sequence restarts the run from nothing. Paused, it holds
+      // once it has an estimate worth showing, so the numbers stop with the picture (WCAG 2.2.2).
+      if (seq === 'pending' ? !warmed : !(paused && est.n >= HOLD_N)) {
+        pricer.price()
+        warmed = true
+      }
       gl.flush()
       report(markedNow)
       return true
@@ -1254,30 +1224,20 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     },
     rewind(then) {
       // A second press while it is already on its way back changes nothing.
-      if (rewinding) return
-      from = pose
-      camT = 0
-      rewinding = () => {
+      if (director.rewinding) return
+      director.rewind(() => {
         streamT = 0
         then()
-      }
+      })
       fadeTo = { t: 0, ms: 240 }
     },
     priceAt(x, y) {
       const rect = o.labels.getBoundingClientRect()
+      const nx = ((x - rect.left) / rect.width) * 2 - 1
       const ny = 1 - ((y - rect.top) / rect.height) * 2
-      if (x < rect.left || x > rect.right || ny < -1 || ny > 1) return null
-      // Screen height rises with price on the expiry plane: bisect for it.
-      let lo = 1, hi = 400
-      const at = (s: number) => project(vp, X1, wy(s), 0)
-      if (at(lo)[2] < 0.05 || at(hi)[2] < 0.05) return null
-      if (ny < at(lo)[1] || ny > at(hi)[1]) return null
-      for (let i = 0; i < 30; i++) {
-        const m = (lo + hi) / 2
-        if (at(m)[1] < ny) lo = m
-        else hi = m
-      }
-      return (lo + hi) / 2
+      if (!pose || nx < -1 || nx > 1 || ny < -1 || ny > 1) return null
+      // On the wall, where the scale, the strike's line and the bars' base are drawn (lib/futures/camera.ts).
+      return wallPrice(pose, cssW / Math.max(1, cssH), nx, ny, zEdge())
     },
     debug() {
       const i = pricer.info()

@@ -119,7 +119,6 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const debugInfo = useRef<() => LiveInfo>(null)
 
   const labels = useRef<HTMLDivElement>(null)
-  const cue = useRef<HTMLDivElement>(null)
   const renderer = useRef<FuturesRenderer | null>(null)
   const params = useRef({ sigma, strike })
   const liveRef = useRef(false)
@@ -339,20 +338,38 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     }
   }, [canvas, release])
 
-  // The sequence starts the first time the stage is on screen down to today's
-  // price (the cue sits just below it), so the reader sees the paths leave it.
+  // The sequence starts once the reader can see enough of the stage: a third
+  // of it (on a laptop's first screen, most of it is), or a fifth held for
+  // 1.2s — a short window, a zoomed page — so nobody is left looking at an
+  // empty frame waiting for a scroll.
   useEffect(() => {
-    const el = cue.current
+    const el = box.current
     if (!el) return
+    let wait = 0
+    const go = () => {
+      if (armed.current && !timeline.current.started) timeline.current.start()
+    }
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e?.isIntersecting && armed.current && !timeline.current.started) timeline.current.start()
+        const seen = e?.isIntersecting ? e.intersectionRatio : 0
+        if (seen >= 0.35 || seen < 0.2) {
+          clearTimeout(wait)
+          wait = 0
+          if (seen >= 0.35) go()
+        } else if (!wait)
+          wait = window.setTimeout(() => {
+            wait = 0
+            go()
+          }, 1200)
       },
-      { threshold: [1], rootMargin: '0px 0px -2% 0px' },
+      { threshold: [0, 0.2, 0.35] },
     )
     io.observe(el)
-    return () => io.disconnect()
-  }, [])
+    return () => {
+      io.disconnect()
+      clearTimeout(wait)
+    }
+  }, [box])
 
   // A click or a key finishes the sequence; Escape also ends a flight. A return
   // through the back-forward cache finishes a sequence that was interrupted.
@@ -711,7 +728,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
       <FigureFrame
         id="fig-futures"
         number="Fig. 1"
-        className="mt-10 mb-12 lg:mt-10 lg:mb-16"
+        className="mt-10 mb-12 lg:mt-6 lg:mb-16"
         title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
         subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
@@ -760,9 +777,6 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           <div ref={stillLabels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(stillShown)} />
           <canvas ref={canvas} data-live-canvas="" aria-hidden="true" className="absolute inset-0 size-full" style={fade(live)} />
           <div ref={labels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(live)} />
-          {/* The cue: when this is on screen, so are today's price and the strike (61% of the frame), and the sequence
-              may start. At 1440×900 it is on the first screen. */}
-          <div ref={cue} aria-hidden="true" className="pointer-events-none absolute left-0 h-px w-px" style={{ top: '63%' }} />
         </div>
         {/* The key sits under the plot, as a paper's does: no projected label can land on it, at any pose of the flight. */}
         <p aria-hidden="true" className="text-meta mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-graphite">

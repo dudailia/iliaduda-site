@@ -46,8 +46,8 @@ export const LABELS = {
   /** The strike line runs from the expiry axis across the bars; its name stands where the ticks do, in place of the tick it hides. */
   strike: { x: HX0 + HLEN + 0.04, x0: X1, label: X1 - 0.02, cls: '-ml-1.5 -translate-x-full -translate-y-1/2 text-ink' },
   hist: { at: [HX0 + HLEN, wy(AXIS.hi - 2)], cls: '-translate-x-full' },
-  /** The price, under the strike, where the payoff bars are empty. */
-  value: { x: HX0 + HLEN, below: 16, cls: '-translate-x-full -translate-y-1/2' },
+  /** The price, directly under the histogram's name: what its bars add up to. It hangs from the same point. */
+  value: { cls: '-translate-x-full translate-y-full' },
 } as const
 
 /** Poster units per world unit. The viewBox is FRAME at this scale. */

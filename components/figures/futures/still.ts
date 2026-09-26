@@ -226,7 +226,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
       el.className = `${LABEL} left-0 top-0 ${cls}`
       labels.appendChild(el)
       const side = cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0
-      const vside = cls.includes('-translate-y-full') ? -1 : cls.includes('-translate-y-1/2') ? -0.5 : 0
+      const vside = cls.includes('-translate-y-full') ? -1 : cls.includes('translate-y-full') ? 1 : cls.includes('-translate-y-1/2') ? -0.5 : 0
       let px = ((sx + 1) / 2) * cssW
       let py = ((1 - sy) / 2) * cssH
       // Kept inside the stage both ways, 4px in.
@@ -247,7 +247,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     put(
       narrow ? `Call price: $${input.price.toFixed(2)}` : `Call price, the average discounted payoff: $${input.price.toFixed(2)}`,
       `${LABELS.value.cls} text-indigo`,
-      [LABELS.strike.label, wy(input.strike - LABELS.value.below * 1.4), ZWALL],
+      [LABELS.hist.at[0], LABELS.hist.at[1], 0],
     )
   }
 

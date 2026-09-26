@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { GPU, STAGE, canvasShown, contrast, darkest, errorsOf, fillOpacity, goLive, holdRenderer, luminance, num, patch, seen, seq } from './hero-kit'
+import { GPU, STAGE, canvasShown, contrast, darkest, errorsOf, fillOpacity, goLive, holdRenderer, inkTones, luminance, num, patch, seen, seq } from './hero-kit'
 
 /**
  * Fig. 1 on the home page: a million simulated futures, priced on the GPU.
@@ -186,6 +186,24 @@ test('Fly through flies, and Stop or Escape brings it home', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Fly through' })).toBeVisible()
 })
 
+test('at rest, a click on the price scale sets the strike to the price printed there', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse')
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 8_000 })
+  // Held still, so the scale stays where it was read.
+  await page.getByRole('button', { name: 'Pause' }).click()
+  await page.waitForTimeout(600)
+  const tick = page.locator(`${STAGE} [data-camera] span`, { hasText: /^\$150$/ })
+  const b = (await tick.boundingBox())!
+  // The tick's own point is just right of its label, on the wall's front edge.
+  await page.mouse.click(b.x + b.width + 6, b.y + b.height / 2)
+  const k = Number(await page.getByRole('slider', { name: 'Strike' }).inputValue())
+  expect(Math.abs(k - 150)).toBeLessThanOrEqual(2)
+})
+
 test('a finger that starts a scroll on the figure sets nothing', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'touch')
   await seen(page)
@@ -232,6 +250,29 @@ test('by day the paying paths are ink on paper, at least 3:1 against it', async 
   const pays = await darkest(page, { x0: 0, y0: 0.1, x1: 0.6, y1: 0.9 })
   const paper = await patch(page, { x0: 0.02, y0: 0.02, x1: 0.08, y1: 0.08 })
   expect(contrast(pays, paper)).toBeGreaterThanOrEqual(3)
+})
+
+test('by day the futures have depth: deep ink at the core, lighter toward the wall, not one flat tone', async ({ browser, isMobile }) => {
+  test.skip(isMobile, 'measured once, at a laptop’s and a phone’s own pixel density')
+  test.setTimeout(90_000)
+  for (const opts of [
+    { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
+    { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
+  ]) {
+    const ctx = await browser.newContext({ ...opts, colorScheme: 'light' })
+    const page = await ctx.newPage()
+    await seen(page)
+    await page.goto('/')
+    if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+    await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 8_000 })
+    await page.getByRole('button', { name: 'Pause' }).click()
+    await page.waitForTimeout(1_000)
+    const t = await inkTones(page)
+    await ctx.close()
+    expect(t.n).toBeGreaterThan(1000)
+    // Saturated, the bundle's darker quarter sat within about 1.4–1.65× of its darkest ink; with depth it spreads out.
+    expect(t.p25 / t.p05, `${opts.viewport.width}px`).toBeGreaterThan(1.8)
+  }
 })
 
 test('stays live, in the new palette, through a theme switch and a turn of the device', async ({ page }) => {
@@ -324,8 +365,32 @@ test('the stage is big: about 576px tall on a laptop, most of a phone screen and
 
 test('on a laptop the sequence starts on the first screen, without a scroll', async ({ page, isMobile }) => {
   test.skip(isMobile, 'a phone reader scrolls to the figure')
+  // A 13-inch laptop's window: its screen, less the browser's bars and the Dock.
+  for (const [width, height] of [[1440, 789], [1280, 720], [1440, 900]] as const) {
+    await page.setViewportSize({ width, height })
+    await page.goto('/')
+    await page.evaluate(() => sessionStorage.removeItem('futures-seq'))
+    await page.reload()
+    if (!(await page.evaluate(() => document.documentElement.dataset.futuresSeq === '1'))) return test.skip(true, 'no sequence on this machine')
+    await expect.poll(() => seq(page), { timeout: 20_000, intervals: [100] }).toMatch(/^(playing|done)$/)
+  }
+})
+
+test('a stage only partly in view plays after a moment, and its margin claims no paths while it waits', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a laptop window')
+  test.setTimeout(60_000)
+  // A short window: a quarter of the stage shows.
+  await page.setViewportSize({ width: 1440, height: 610 })
   await page.goto('/')
   if (!(await page.evaluate(() => document.documentElement.dataset.futuresSeq === '1'))) return test.skip(true, 'no sequence on this machine')
-  // No scroll: the cue must already be on screen at 1440×900.
-  await expect.poll(() => seq(page), { timeout: 20_000, intervals: [100] }).not.toBe('pending')
+  // Live where it stands: no scroll into view.
+  const live = await expect.poll(() => canvasShown(page), { timeout: 20_000 }).toBe(true).then(() => true, () => false)
+  if (!live) return test.skip(true, 'no GPU here')
+  const waiting: number[] = []
+  for (let i = 0; i < 25 && (await seq(page)) === 'pending'; i++) {
+    waiting.push(await num(page, '[data-paths]', 'data-paths'))
+    await page.waitForTimeout(100)
+  }
+  expect(waiting.filter((n) => n !== 0)).toEqual([])
+  await expect.poll(() => seq(page), { timeout: 4_000 }).toMatch(/^(playing|done)$/)
 })

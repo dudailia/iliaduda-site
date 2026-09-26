@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { GPU, STAGE, errorsOf, goLive, seen } from './hero-kit'
+import { GPU, STAGE, errorsOf, goLive, num, seen } from './hero-kit'
 
 /**
  * The home figure at rest is in motion: new futures stream from today and the
@@ -36,6 +36,24 @@ test('Pause holds the figure, so nothing is drawn; the pause lasts the visit, an
   await page.waitForTimeout(1500)
   expect((await draws(page)) - before).toBeGreaterThan(20)
   expect(errors).toEqual([])
+})
+
+test('paused, the numbers hold too, once there is an estimate to show', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.addInitScript(() => sessionStorage.setItem('futures-paused', '1'))
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const paths = () => num(page, '[data-paths]', 'data-paths')
+  await expect.poll(paths, { timeout: 20_000 }).toBeGreaterThanOrEqual(1_048_576)
+  await page.waitForTimeout(500)
+  const held = await paths()
+  await page.waitForTimeout(1500)
+  expect(await paths()).toBe(held)
+  expect(held).toBeLessThan(268_435_456)
+  // Resumed, the run carries on to the end.
+  await page.getByRole('button', { name: 'Resume' }).click()
+  await expect.poll(paths, { timeout: 30_000 }).toBe(268_435_456)
 })
 
 test('a laptop’s pointer leans the view toward itself, and leaving lets it go', async ({ page, isMobile }) => {

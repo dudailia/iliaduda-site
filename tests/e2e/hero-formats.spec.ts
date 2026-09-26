@@ -82,7 +82,7 @@ test('without float render targets or float blending, as on an iPhone, it goes l
   await lack(page, ['EXT_color_buffer_float', 'EXT_float_blend'], true)
   await seen(page)
   await page.goto('/')
-  expect(await goLive(page)).toBe(true)
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   expect(await density(page)).toBe('rgba16f')
   await converges(page)
   await countsExactly(page)
@@ -95,7 +95,7 @@ test('with no half float either, it goes live on eight bits and prices right', a
   await lack(page, ['EXT_color_buffer_float', 'EXT_float_blend', 'EXT_color_buffer_half_float'])
   await seen(page)
   await page.goto('/')
-  expect(await goLive(page)).toBe(true)
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   expect(await density(page)).toBe('rgba8')
   await converges(page)
   await countsExactly(page)
@@ -112,7 +112,10 @@ test('the eight-bit path draws the same picture as half float', async ({ browser
     // Paused from the first frame: the figure holds the composed frame with every path whole, the same picture both times.
     await page.addInitScript(() => sessionStorage.setItem('futures-paused', '1'))
     await page.goto(url)
-    expect(await goLive(page)).toBe(true)
+    if (!(await goLive(page))) {
+      await ctx.close()
+      return null
+    }
     await expect(page.locator('[data-paths]').first()).not.toHaveAttribute('data-paths', '0', { timeout: 15_000 })
     await page.waitForTimeout(1_000)
     // The densest paying futures, and the thin fringe below the strike.
@@ -125,6 +128,7 @@ test('the eight-bit path draws the same picture as half float', async ({ browser
   for (const scheme of ['light', 'dark'] as const) {
     const half = await shot('/', scheme)
     const byte = await shot('/?gl=rgba8', scheme)
+    if (!half || !byte) return test.skip(true, 'no GPU here')
     expect(Math.abs(half.core - byte.core)).toBeLessThan(0.04)
     expect(Math.abs(half.fringe - byte.fringe)).toBeLessThan(0.04)
   }

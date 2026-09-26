@@ -1,4 +1,4 @@
-import { AXIS, FRAME, HLEN, HX0, X0, X1, wy } from './world'
+import { AXIS, FRAME, HLEN, HX0, X0, X1, priceOfY, wy } from './world'
 
 /**
  * The camera, as pure maths the renderer and the tests share: projection and
@@ -231,10 +231,42 @@ function fit(yaw: number, pitch: number, target: V3, aspect: number, pts: readon
   return { eye: orbit(t, hi, yaw, pitch), target: t, stretch: 1, fov }
 }
 
-/** The resting view's direction: a phone's tall stage turns further, so time recedes more and fills it. */
+/**
+ * The resting view's direction. A wide stage looks across the fan; a tall one
+ * (a phone) turns further toward the time axis and looks down more, so the
+ * futures run from today at the bottom corner up to the wall, and the scene
+ * fills the stage's height as well as its width.
+ */
 const restDir = (aspect: number) => {
   const k = smooth(0.6, 1.8, aspect)
-  return { yaw: -0.8 + 0.4 * k, pitch: 0.56 - 0.36 * k }
+  const tall = 1 - smooth(0.7, 1.05, aspect)
+  return { yaw: -0.8 + 0.4 * k - 0.3 * tall, pitch: 0.56 - 0.36 * k + 0.14 * tall }
+}
+
+/**
+ * The fitted view, raised in its frame by whatever height it has to spare, up
+ * to `lift` of clip space: on a laptop the stage runs past the first screen,
+ * and what is high in it is what is seen.
+ */
+function raise(pose: Pose, aspect: number, pts: readonly V3[], limit: number, lift: number): Pose {
+  const m = viewProjection(pose, aspect)
+  let y0 = Infinity, y1 = -Infinity
+  for (const p of pts) {
+    const y = project(m, p[0], p[1], p[2])[1]
+    y0 = Math.min(y0, y)
+    y1 = Math.max(y1, y)
+  }
+  const by = Math.min(lift, limit - y1)
+  if (!(by > 1e-4)) return pose
+  // Moving the camera down (eye and target together, along its own up) moves the picture up.
+  const f = [pose.target[0] - pose.eye[0], pose.target[1] - pose.eye[1], pose.target[2] - pose.eye[2]]
+  const fl = Math.hypot(f[0]!, f[1]!, f[2]!)
+  const rl = Math.hypot(f[0]!, f[2]!) || 1
+  const right = [-f[2]! / rl, 0, f[0]! / rl]
+  const up = [right[1]! * (f[2]! / fl) - right[2]! * (f[1]! / fl), right[2]! * (f[0]! / fl) - right[0]! * (f[2]! / fl), right[0]! * (f[1]! / fl) - right[1]! * (f[0]! / fl)]
+  const d = fl * Math.tan(pose.fov / 2) * by
+  const move = (v: V3): V3 => [v[0] - up[0]! * d, v[1] - up[1]! * d, v[2] - up[2]! * d]
+  return { ...pose, eye: move(pose.eye), target: move(pose.target) }
 }
 
 const restCache = new Map<number, Pose>()
@@ -243,8 +275,11 @@ function restBase(aspect: number): Pose {
   let p = restCache.get(key)
   if (!p) {
     const { yaw, pitch } = restDir(key)
-    // 0.8 (0.83 on a phone, whose parallax is gentler), not the tests' 0.88: the drift and the lean need the rest.
-    p = fit(yaw, pitch, [0.45, 0.35, 0], key, SCENE, 0.8 + 0.03 * (1 - smooth(0.6, 1.2, key)), FOV_REST)
+    // 0.8, not the tests' 0.88: the drift and the lean need the rest. A phone's gentler parallax gives back a little
+    // (0.83); its view along the time axis puts today and the wall in opposite corners, where a turn tells most, and
+    // takes more (0.78).
+    const limit = 0.8 + 0.03 * (1 - smooth(0.6, 1.2, key)) - 0.05 * (1 - smooth(0.7, 1.05, key))
+    p = raise(fit(yaw, pitch, [0.45, 0.35, 0], key, SCENE, limit, FOV_REST), key, SCENE, limit, 0.07)
     if (restCache.size > 64) restCache.clear()
     restCache.set(key, p)
   }
@@ -339,4 +374,75 @@ export function flightPose(p: number, aspect: number, start: Pose): Pose {
   const at = (sel: 'eye' | 'target') =>
     [0, 1, 2].map((c) => h00 * a.pose[sel][c]! + h10 * h * slope(i, sel, c) + h01 * b.pose[sel][c]! + h11 * h * slope(i + 1, sel, c)) as V3
   return { eye: at('eye'), target: at('target'), stretch: lerp(a.pose.stretch, b.pose.stretch, u), fov: lerp(a.pose.fov, b.pose.fov, u) }
+}
+
+/** The inverse of a column-major 4×4, by cofactors; null if it has none. */
+function invert(m: M4): number[] | null {
+  const [a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33] = m as unknown as number[]
+  const b00 = a00! * a11! - a01! * a10!, b01 = a00! * a12! - a02! * a10!, b02 = a00! * a13! - a03! * a10!
+  const b03 = a01! * a12! - a02! * a11!, b04 = a01! * a13! - a03! * a11!, b05 = a02! * a13! - a03! * a12!
+  const b06 = a20! * a31! - a21! * a30!, b07 = a20! * a32! - a22! * a30!, b08 = a20! * a33! - a23! * a30!
+  const b09 = a21! * a32! - a22! * a31!, b10 = a21! * a33! - a23! * a31!, b11 = a22! * a33! - a23! * a32!
+  const det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06
+  if (!det) return null
+  const k = 1 / det
+  return [
+    (a11! * b11 - a12! * b10 + a13! * b09) * k, (a02! * b10 - a01! * b11 - a03! * b09) * k, (a31! * b05 - a32! * b04 + a33! * b03) * k, (a22! * b04 - a21! * b05 - a23! * b03) * k,
+    (a12! * b08 - a10! * b11 - a13! * b07) * k, (a00! * b11 - a02! * b08 + a03! * b07) * k, (a32! * b02 - a30! * b05 - a33! * b01) * k, (a20! * b05 - a22! * b02 + a23! * b01) * k,
+    (a10! * b10 - a11! * b08 + a13! * b06) * k, (a01! * b08 - a00! * b10 - a03! * b06) * k, (a30! * b04 - a31! * b02 + a33! * b00) * k, (a21! * b02 - a20! * b04 - a23! * b00) * k,
+    (a11! * b07 - a10! * b09 - a12! * b06) * k, (a00! * b09 - a01! * b07 + a02! * b06) * k, (a31! * b01 - a30! * b03 - a32! * b00) * k, (a20! * b03 - a21! * b01 + a22! * b00) * k,
+  ]
+}
+
+/**
+ * The price under a point of the screen (clip-space x and y) for a reader
+ * picking a strike. At rest the expiry wall faces the camera, and everything
+ * drawn on it — the price scale at its front edge, the strike's line across
+ * it, the bars' base — sits on the plane x = X1, where height is price at any
+ * depth: so the pick is where the ray through the pointer meets that plane.
+ * In the composed frame the wall is seen edge-on and has no face to hit; there
+ * the price is read off the height of the scale, at depth `zFront`, where the
+ * scale is drawn. Between the two (the swing into depth) the picks blend, and
+ * both agree on the scale itself.
+ */
+export function wallPrice(pose: Pose, aspect: number, nx: number, ny: number, zFront: number): number | null {
+  const vp = viewProjection(pose, aspect)
+  // Along the scale: screen height rises with price.
+  let alongScale: number | null = null
+  const on = (s: number) => project(vp, X1, wy(s), zFront)
+  let lo = 1, hi = 400
+  if (on(lo)[2] > 0.05 && on(hi)[2] > 0.05 && ny >= on(lo)[1] && ny <= on(hi)[1]) {
+    for (let i = 0; i < 40; i++) {
+      const m = (lo + hi) / 2
+      if (on(m)[1] < ny) lo = m
+      else hi = m
+    }
+    alongScale = (lo + hi) / 2
+  }
+  // On the wall's face.
+  let onFace: number | null = null
+  const inv = invert(vp)
+  if (inv) {
+    const un = (z: number) => {
+      const x = inv[0]! * nx + inv[4]! * ny + inv[8]! * z + inv[12]!
+      const y = inv[1]! * nx + inv[5]! * ny + inv[9]! * z + inv[13]!
+      const zz = inv[2]! * nx + inv[6]! * ny + inv[10]! * z + inv[14]!
+      const w = inv[3]! * nx + inv[7]! * ny + inv[11]! * z + inv[15]!
+      return [x / w, y / w, zz / w] as const
+    }
+    const n = un(-1), f = un(1)
+    const dx = f[0] - n[0]
+    const t = Math.abs(dx) > 1e-9 ? (X1 - n[0]) / dx : -1
+    if (t >= 0 && t <= 1) {
+      const s = priceOfY(n[1] + t * (f[1] - n[1]))
+      if (s >= 1 && s <= 400) onFace = s
+    }
+  }
+  // How squarely the camera faces the wall: 0 edge-on, 1 head-on.
+  const fx = pose.target[0] - pose.eye[0]
+  const facing = Math.abs(fx) / Math.hypot(fx, pose.target[1] - pose.eye[1], pose.target[2] - pose.eye[2])
+  const w = smooth(0.05, 0.2, facing)
+  if (onFace == null || w <= 0) return alongScale
+  if (alongScale == null || w >= 1) return onFace
+  return alongScale + (onFace - alongScale) * w
 }
