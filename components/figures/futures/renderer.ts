@@ -450,6 +450,13 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let fadeTo: { t: number; ms: number } | null = null
   let streamT = 0
   let driftT = 0
+  /**
+   * How fast the figure's own motion runs, 0…1. Pause does not freeze it in a
+   * frame: its speed falls to nothing over 240ms (so the paths coast to a stop),
+   * and Resume brings it back over 400ms. A linear ramp in speed is an ease-out
+   * in position, and a second press retargets from wherever the ramp is.
+   */
+  let timeK = -1
   let fadeMul = 1
   let firstFrame = true
   /** Something changed that a still frame does not show yet. */
@@ -987,7 +994,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
    * appeared; rest, drifting and leaning with the reader; the flight and its
    * return; and Replay's way back to the frame.
    */
-  function moveCamera(dt: number, aspect: number, paused: boolean): Pose {
+  function moveCamera(dt: number, aspect: number): Pose {
     const rest = restPose(aspect, driftAt(driftT), { x: par.x.x, y: par.y.x })
     const p = o.camera()
     if (rewinding) {
@@ -1032,7 +1039,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         labelU = 1
         return framePose(aspect)
       case 'settle': {
-        if (!paused) camT += dt * 1000
+        camT += dt * 1000 * timeK
         const u = EASE_IN_OUT_QUAD(clamp01(camT / SETTLE_MS))
         depthU = u
         labelU = 1
@@ -1078,9 +1085,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       } else if (!rewinding) fadeMul = 1
       advanceSequence()
       const paused = o.paused()
-      if (!inSeq() && !paused && !rewinding) {
-        streamT += dt
-        driftT += dt
+      if (timeK < 0) timeK = paused ? 0 : 1
+      timeK = paused ? Math.max(0, timeK - dt / 0.24) : Math.min(1, timeK + dt / 0.4)
+      if (!inSeq() && !rewinding) {
+        streamT += dt * timeK
+        driftT += dt * timeK
       }
       spring(sig, sigma, dt, 30)
       const k0 = Math.round(kv.x)
@@ -1093,7 +1102,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         spring(par.y, lean.y, dt, 3)
       }
       const aspect = cssW / Math.max(1, cssH)
-      pose = moveCamera(dt, aspect, paused)
+      pose = moveCamera(dt, aspect)
       spring(focus, cam === 'flight' ? 1 - 0.25 * smooth(0.3, 0.5, flightP) - 0.3 * smooth(0.6, 0.8, flightP) : 1, dt, 5)
       if (firstFrame) {
         firstFrame = false
@@ -1132,7 +1141,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       const why: string[] = []
       if (dirty) why.push('changed')
       if (!(dt > 0)) why.push('redraw')
-      if (!paused) why.push('moving')
+      if (timeK > 0) why.push('moving')
       if (cam === 'flight' || cam === 'return') why.push('flight')
       if (inSeq()) why.push('sequence')
       if (fadeTo || rewinding) why.push('replay')

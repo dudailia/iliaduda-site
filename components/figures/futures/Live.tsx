@@ -830,7 +830,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
             </>
           )}
           {changed && (
-            <button type="button" onClick={() => commit(MODEL.sigma, MODEL.strike)} className={CONTROL}>
+            <button type="button" data-reset="" onClick={() => commit(MODEL.sigma, MODEL.strike)} className={CONTROL}>
               Reset
             </button>
           )}
