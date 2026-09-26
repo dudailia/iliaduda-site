@@ -1,3 +1,4 @@
+import { syntheticValue } from '@/content/synthetic'
 import { cdf } from '@/lib/bs'
 
 /**
@@ -13,26 +14,27 @@ import { cdf } from '@/lib/bs'
  *
  * Model: geometric Brownian motion under the risk-neutral measure, stepped
  * exactly in log space, so the only error in the price is Monte Carlo error.
- * The parameters are synthetic round numbers, labelled so wherever shown.
+ * The parameters are synthetic round numbers, read from content/synthetic.ts
+ * (kind synthetic, with provenance) and labelled so wherever shown.
  */
 
 export const MODEL = {
   /** Today's price. */
-  s0: 100,
+  s0: syntheticValue('fuS0'),
   /** Years to expiry. */
-  T: 1,
+  T: syntheticValue('fuT'),
   /** Continuously compounded risk-free rate. */
-  r: 0.03,
-  /** Time steps per path. The pricing kernel walks all of them. */
-  steps: 64,
+  r: syntheticValue('fuRate'),
+  /** Time steps per path. The pricing kernel walks all of them, four at a time. */
+  steps: syntheticValue('fuSteps'),
   /** Defaults for the two inputs. */
-  sigma: 0.25,
-  strike: 100,
+  sigma: syntheticValue('fuSigma'),
+  strike: syntheticValue('fuStrike'),
   /** Input ranges. */
-  sigmaMin: 0.05,
-  sigmaMax: 0.8,
-  strikeMin: 60,
-  strikeMax: 160,
+  sigmaMin: syntheticValue('fuSigmaMin'),
+  sigmaMax: syntheticValue('fuSigmaMax'),
+  strikeMin: syntheticValue('fuStrikeMin'),
+  strikeMax: syntheticValue('fuStrikeMax'),
   /** The generator's fixed seed: the ensemble is the same on every device. */
   seed: 0x2f3a8c,
 } as const

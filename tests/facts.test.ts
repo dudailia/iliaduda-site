@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { facts, type Fact } from '../content/facts'
 
@@ -34,7 +36,11 @@ describe('synthetic values say so', () => {
   const synthetic = entries.filter(([, f]) => f.kind === 'synthetic')
 
   it.each(synthetic)('%s names the module that uses it and calls itself synthetic', (_key, f) => {
-    expect(f.source).toMatch(/^lib\/[\w-]+\.ts\b/)
+    // A module anywhere under lib/, and one that exists: a source naming a
+    // file that was moved or deleted is provenance nobody can follow.
+    const cited = /^(lib\/[\w/-]+\.ts)\b/.exec(f.source)?.[1]
+    expect(cited, `source must start with the lib/ module that uses it: "${f.source}"`).toBeDefined()
+    expect(existsSync(join(process.cwd(), cited!)), `${cited} does not exist`).toBe(true)
     expect(f.source).toMatch(/\bsynthetic\b/)
   })
 

@@ -64,6 +64,80 @@ export const synthetic = {
     kind: 'synthetic',
   },
 
+  // The home figure's model: one stock, one year, geometric Brownian motion
+  // under the risk-neutral measure. Round numbers chosen for the reader, not
+  // fitted to anything; the figure labels itself simulated.
+  fuS0: {
+    value: 100,
+    unit: 'none',
+    label: 'today’s price of the simulated stock, dollars',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuT: {
+    value: 1,
+    unit: 'years',
+    label: 'time to expiry of the simulated option',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuRate: {
+    value: 0.03,
+    unit: 'none',
+    label: 'risk-free rate, continuously compounded',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuSteps: {
+    value: 64,
+    unit: 'count',
+    label: 'time steps in each simulated path',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuSigma: {
+    value: 0.25,
+    unit: 'none',
+    label: 'default volatility of the simulated stock',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuStrike: {
+    value: 100,
+    unit: 'none',
+    label: 'default strike of the simulated option, dollars',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuSigmaMin: {
+    value: 0.05,
+    unit: 'none',
+    label: 'lowest volatility the figure offers',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuSigmaMax: {
+    value: 0.8,
+    unit: 'none',
+    label: 'highest volatility the figure offers',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuStrikeMin: {
+    value: 60,
+    unit: 'none',
+    label: 'lowest strike the figure offers, dollars',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  fuStrikeMax: {
+    value: 160,
+    unit: 'none',
+    label: 'highest strike the figure offers, dollars',
+    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+
   // Illustrative settlement terms for the debt-portal figure. The client's
   // real discount ladder is a commercial decision that was never in the
   // portal's code; these are invented, and labelled so wherever shown.
