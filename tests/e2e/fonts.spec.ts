@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test'
+import { codepoints } from './fontset'
+import { ROUTES } from './routes'
 
 /**
  * Both font naming collisions this project hit were invisible on screen: one
@@ -21,4 +23,39 @@ test('the self-hosted faces are the ones actually in use', async ({ page }) => {
   expect(info.mono).toMatch(/^sourceCodePro\b/)
   expect(info.loaded).toContain('sourceSerif')
   expect(info.loaded).toContain('sourceCodePro')
+})
+
+/**
+ * The faces are subsets, so a character outside them is drawn in whatever the
+ * system falls back to: σ was, in the hero's subtitle, a heavier glyph from
+ * another family. Every character a page shows must be in the site's fonts.
+ * The papers below still use characters the subsets lack; they are listed
+ * here until a lazily loaded supplement carries them (M7, with the IV paper),
+ * and the list may not name a character the fonts already have.
+ */
+const PENDING: Record<string, string> = {
+  '/iv-surface': 'θρφηγκ≥≤∂',
+  '/startup-investments': 'ρ∅',
+  '/closebooks': '→',
+  '/debt-portal': '₽',
+  '/nucarbon': '₂',
+}
+
+test('every character a page shows is in the site\'s fonts', async ({ page }) => {
+  const have = new Set([
+    ...codepoints('public/fonts/source-serif-4-latin-var.woff2'),
+    ...codepoints('public/fonts/source-code-pro-latin-var.woff2'),
+  ])
+  for (const [route, chars] of Object.entries(PENDING)) for (const ch of chars) expect(have.has(ch.codePointAt(0)!), `${ch} on ${route} is in the fonts now`).toBe(false)
+  const missing = new Map<string, Set<string>>()
+  for (const route of ROUTES) {
+    await page.goto(route)
+    const text = await page.evaluate(() => document.body.innerText + [...document.querySelectorAll('svg text')].map((t) => t.textContent).join(''))
+    for (const ch of new Set(text)) {
+      if (/\s/.test(ch) || have.has(ch.codePointAt(0)!) || PENDING[route]?.includes(ch)) continue
+      missing.set(ch, (missing.get(ch) ?? new Set()).add(route))
+    }
+  }
+  const found = [...missing].map(([ch, routes]) => `${ch} U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')} on ${[...routes].join(', ')}`)
+  expect(found).toEqual([])
 })
