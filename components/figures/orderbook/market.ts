@@ -23,11 +23,28 @@ export class PageMarket {
   private building: Promise<Flow> | null = null
   private owed = 0
   private at = -1
-  private held: boolean | null = null
+  private stopped: boolean | null = null
   private readonly subs = new Set<() => void>()
   private stillFig = false
+  private holds = new Set<string>()
   /** The event selected in Fig. 2, which Fig. 1 marks on its terrain: its price, in ticks, and its time. */
   highlight: { price: number; t: number } | null = null
+
+  /**
+   * Held while the reader is reading Fig. 2 (a mouse over its strips, or its keyboard focus): a soft pause, so the
+   * order pointed at stays where it was pointed at; the market carries on from there afterwards, never jumping ahead.
+   * Unlike Pause, it is not kept for the visit.
+   */
+  get held(): boolean {
+    return this.holds.size > 0
+  }
+
+  hold(by: string, on: boolean) {
+    const was = this.held
+    if (on) this.holds.add(by)
+    else this.holds.delete(by)
+    if (this.held !== was) for (const s of this.subs) s()
+  }
 
   /**
    * Fig. 1 shows its still frame here (it will not go live): Fig. 2 then draws that same moment, still, rather than a
@@ -72,18 +89,18 @@ export class PageMarket {
 
   /** Whether the reader has paused it; kept for the visit. */
   get paused(): boolean {
-    if (this.held === null) {
+    if (this.stopped === null) {
       try {
-        this.held = sessionStorage.getItem(PAUSED) === '1'
+        this.stopped = sessionStorage.getItem(PAUSED) === '1'
       } catch {
-        this.held = false
+        this.stopped = false
       }
     }
-    return this.held
+    return this.stopped
   }
 
   setPaused(p: boolean) {
-    this.held = p
+    this.stopped = p
     try {
       sessionStorage.setItem(PAUSED, p ? '1' : '0')
     } catch {}
@@ -99,7 +116,7 @@ export class PageMarket {
     if (now === this.at) return 0
     const dt = this.at < 0 ? 0 : Math.min(MAX_DT, Math.max(0, (now - this.at) / 1000))
     this.at = now
-    if (this.paused) return 0
+    if (this.paused || this.held) return 0
     this.owed += dt
     return this.flow.advance(this.owed)
   }
@@ -113,6 +130,7 @@ export class PageMarket {
   getPaused = () => this.paused
   getReady = () => this.ready
   getStill = () => this.still
+  getHeld = () => this.held
 }
 
 export const market = new PageMarket()

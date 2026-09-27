@@ -81,6 +81,46 @@ test.describe('where Fig. 1 cannot go live', () => {
   })
 })
 
+test('its margin reads the title’s claim: the share of market orders set off by earlier ones, against the model', async ({ page }) => {
+  await page.goto('/order-book')
+  const rail = page.locator(FIG)
+  await expect(rail.getByText('Market orders set off, 10 s').first()).toBeAttached()
+  const value = rail.locator('dt', { hasText: 'Market orders set off, 10 s' }).first().locator('xpath=following-sibling::dd[1]')
+  expect(pct((await value.textContent())!)[0]).toBeGreaterThan(50)
+})
+
+test('pointing at the strips holds them still to read, and moving away lets the market run on', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse')
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/order-book')
+  await page.locator(FIG).scrollIntoViewIfNeeded()
+  await expect.poll(() => canvas(page).getAttribute('data-draws').then(Number), { timeout: 10_000 }).toBeGreaterThan(10)
+  const box = (await canvas(page).boundingBox())!
+  await page.mouse.move(box.x + box.width * 0.6, box.y + 40)
+  await page.waitForTimeout(300)
+  const t0 = await simT(page)
+  await page.waitForTimeout(1_000)
+  expect(await simT(page)).toBe(t0)
+  await page.mouse.move(box.x + box.width * 0.6, box.y - 120)
+  await expect.poll(() => simT(page), { timeout: 3_000 }).toBeGreaterThan(t0 + 0.3)
+})
+
+test('a pinned order stays readable after the strips move past it, and says so', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a keyboard')
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/order-book')
+  const stage = page.locator(`${FIG} [role="group"]`)
+  await stage.focus()
+  await expect(reading(page)).toContainText(/Market buy · \d+ shares? at \$\d+\.\d{2}/)
+  const first = await reading(page).locator('dd').first().innerText()
+  // Focus moves on to the figure's own Pause, so the market runs again with the figure in view; the order stays pinned.
+  await page.locator(FIG).getByRole('button', { name: 'Pause' }).focus()
+  await expect(reading(page)).toContainText('off the strip', { timeout: 15_000 })
+  expect((await reading(page).locator('dd').first().innerText()).split(' · ').slice(0, 2)).toEqual(first.split(' · ').slice(0, 2))
+})
+
 test('reads an order from the keyboard: what it was, and what set it off, adding up to all of it', async ({ page }) => {
   await seen(page)
   await page.goto('/order-book')

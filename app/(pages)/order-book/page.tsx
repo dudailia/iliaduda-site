@@ -94,7 +94,7 @@ export default function OrderBook() {
             Which earlier order set off a given one is never observed, only probable. Just before an order, its intensity
             is its baseline plus one decaying term for each earlier order; each term’s share of the total is the
             probability that that order was its parent, and the baseline’s share is the chance it came on its own. Fig. 2
-            draws the flow the terrain is built from, and reads the likeliest parent of any order you choose.
+            draws the flow the terrain is built from, and reads what set off any order you choose, by the kind of earlier order.
           </p>
         </Section>
 

@@ -98,6 +98,13 @@ describe('the order-flow strips', () => {
     expect(frame.own).toBeGreaterThan(0.3)
     expect(frame.own).toBeLessThan(0.8)
   })
+
+  it('read the same share for the market orders alone, the ones the title is about: most of them are set off', () => {
+    const market = events.filter((e) => f.ev.type[e] === MARKET_BUY || f.ev.type[e] === MARKET_SELL)
+    const own = market.reduce((s, e) => s + HAWKES.mu[f.ev.type[e]!]! / f.ev.lam[e]!, 0) / market.length
+    expect(frame.ownMarket).toBeCloseTo(own, 12)
+    expect(1 - frame.ownMarket).toBeGreaterThan(0.5)
+  })
 })
 
 describe('drawing the strips every frame', () => {

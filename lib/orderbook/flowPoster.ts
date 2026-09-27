@@ -26,10 +26,10 @@ export function flowPosterSvg(f: Flow): string {
     'path{vector-effect:non-scaling-stroke}' +
     // Limit orders and cancels are the texture; market orders, the ones that trade, are ink.
     '.o1,.o2,.o3{fill:var(--g)}.o1{opacity:.18}.o2{opacity:.3}.o3{opacity:.45}.m1,.m2,.m3{fill:var(--k)}' +
-    // The part of each intensity that comes on its own (μ) in grey, the part set off by earlier orders in wash.
-    '.own{fill:var(--r)}.set{fill:var(--w)}.lam{fill:none;stroke:var(--k);stroke-width:1;stroke-linejoin:round}' +
+    // The part of each intensity that comes on its own (μ) in grey, the part set off by earlier orders in indigo.
+    '.own{fill:var(--r)}.set{fill:var(--i);fill-opacity:.35}.lam{fill:none;stroke:var(--k);stroke-width:1;stroke-linejoin:round}' +
     '.a{fill:var(--r);stroke:var(--g);stroke-width:1;stroke-linejoin:round}' +
-    '.gone{fill:none;stroke:var(--i);stroke-width:1.5}'
+    '.gone{fill:none;stroke:var(--k);stroke-width:1.5}'
   let body = ''
 
   // Orders: a mark per column with events in it, fainter for one or two, merged into runs.
@@ -63,7 +63,7 @@ export function flowPosterSvg(f: Flow): string {
       const x = r1((c + 0.5) * CW)
       d += `${c ? 'L' : 'M'}${x} ${r1(lamY(i, E.max[c]!))}L${x} ${r1(lamY(i, E.min[c]!))}L${x} ${r1(lamY(i, E.last[c]!))}`
     }
-    // The wash between μ and the curve, then the curve itself: only the intensity is inked.
+    // The indigo between μ and the curve, then the curve itself: only the intensity is inked.
     body += `<path class="set" d="M0 ${r1(lamY(i, mu))}L${d.slice(1)}L${W} ${r1(lamY(i, E.last[COLS - 1]!))}V${r1(lamY(i, mu))}z"/>`
     body += `<path class="lam ${i === 0 ? 'b' : 's'}" d="${d}"/>`
   })

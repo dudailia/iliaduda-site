@@ -8,10 +8,11 @@ import { LANES } from './flowview'
  * touch, and the time axis.
  */
 
-/** Room above the lanes for the arc from an event to its likeliest parent, and its label. */
-export const ARC = 30
-export const LANE_H = 14
-export const LANE_GAP = 4
+/** Room above the lanes: a hairline of paper, and the selected order's ring. */
+export const ARC = 8
+/** A lane and the paper between lanes: tall enough to aim at an order with a finger. */
+export const LANE_H = 18
+export const LANE_GAP = 5
 export const ORDERS_H = LANES.length * (LANE_H + LANE_GAP) - LANE_GAP
 /** A strip's title line. */
 export const TITLE_H = 34
@@ -51,7 +52,7 @@ export function laneAt(y: number): number {
  * hang below, so the buying side is above in both.
  */
 export const LAM_MID = Y.intensity + INTENSITY_H / 2
-export const lamY = (d: number, v: number) => LAM_MID + (d === 0 ? -1 : 1) * (INTENSITY_H / 2) * Math.min(1, Math.max(0, v / LAM_MAX))
+export const lamY = (d: number, v: number) => LAM_MID + (d === 0 ? 1 : -1) * (INTENSITY_H / 2) * Math.min(1, Math.max(0, v / LAM_MAX))
 /** The centre line of the queue strip: the bid's queue rises above it, the ask's hangs below. */
 export const QUEUE_MID = Y.queue + QUEUE_H / 2
 export const queueY = (side: 0 | 1, q: number) => QUEUE_MID + (side === 0 ? -1 : 1) * (QUEUE_H / 2) * Math.min(1, Math.max(0, q / QUEUE_MAX))

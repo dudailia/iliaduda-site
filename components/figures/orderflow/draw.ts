@@ -53,9 +53,9 @@ export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dp
       const back = Math.min(sx - x0, (3 / k.beta / SECONDS) * pw)
       if (back < 1) continue
       const g = ctx.createLinearGradient(sx, 0, sx - back, 0)
-      g.addColorStop(0, look.indigo)
-      g.addColorStop(1, look.indigo.replace(')', ' / 0)'))
-      ctx.globalAlpha = 0.14 + 0.26 * (k.p / strongest)
+      g.addColorStop(0, look.ink)
+      g.addColorStop(1, look.ink.replace(')', ' / 0)'))
+      ctx.globalAlpha = 0.06 + 0.12 * (k.p / strongest)
       ctx.fillStyle = g
       ctx.fillRect(sx - back, laneTop(k.lane) - 2, back, LANE_H + 4)
     }
@@ -88,7 +88,8 @@ export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dp
   })
   ctx.globalAlpha = 1
 
-  // Intensities, mirrored: μ in grey, the part set off by earlier orders in wash, the intensity itself inked.
+  // Intensities, mirrored: μ in grey, the part set off by earlier orders in indigo (the claim), the intensity itself
+  // inked.
   fr.lam.forEach((E, d) => {
     const muY = lamY(d, HAWKES.mu[d === 0 ? MARKET_BUY : MARKET_SELL]!)
     ctx.fillStyle = look.rule
@@ -113,8 +114,10 @@ export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dp
     set.lineTo(x0 + pw, lamY(d, E.last[cols - 1]!))
     set.lineTo(x0 + pw, muY)
     set.closePath()
-    ctx.fillStyle = look.wash
+    ctx.fillStyle = look.indigo
+    ctx.globalAlpha = 0.35
     ctx.fill(set)
+    ctx.globalAlpha = 1
     ctx.strokeStyle = look.ink
     ctx.lineWidth = 1
     ctx.lineJoin = 'round'
@@ -138,19 +141,19 @@ export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dp
     ctx.stroke()
   })
 
-  // The claim: each moment a queue was emptied and the price stepped.
+  // Each moment a queue was emptied and the price stepped.
   ctx.beginPath()
   for (const m of fr.emptied) {
     const x = Math.round(x0 + ((m.t - fr.t0) / (fr.t1 - fr.t0)) * pw) + 0.5
     ctx.moveTo(x, QUEUE_MID)
     ctx.lineTo(x, QUEUE_MID + (m.side === 0 ? -1 : 1) * QUEUE_H * 0.46)
   }
-  ctx.strokeStyle = look.indigo
+  ctx.strokeStyle = look.ink
   ctx.lineWidth = 1.5
   ctx.stroke()
 
   if (!sel) return
-  // The selected event: a hairline at its moment through every strip, a ring on it, and the arc to its parent.
+  // The selected event: a hairline at its moment through every strip, and a ring on it.
   const x = Math.round(xAgo(sel.ago)) + 0.5
   const y = laneMid(sel.lane)
   ctx.strokeStyle = look.ink

@@ -30,7 +30,8 @@ import { drawFlow, plot, type Look, type Selected } from './draw'
 export interface Initial {
   buys: number
   sells: number
-  own: number
+  /** Of the window's market orders, the share set off by earlier orders; and the model's long-run share. */
+  setOff: number
   theory: number
   emptied: number
 }
@@ -49,7 +50,10 @@ type Ref = { e: number; t: number }
 type Read = { type: number; price: number; size: number; t: number; own: number; byKind: { type: number; p: number }[] }
 
 const ageOf = (f: Flow, e: number) => (((f.eventHead - e) % EVENTS) + EVENTS) % EVENTS
-const alive = (f: Flow, r: Ref | null): r is Ref => !!r && f.ev.t[r.e] === r.t && f.t - r.t <= SECONDS
+/** Still in the market's ring of recent orders (about 27 simulated seconds), so it can be read. */
+const alive = (f: Flow, r: Ref | null): r is Ref => !!r && f.ev.t[r.e] === r.t
+/** And inside the strips' ten seconds, so it can be drawn. */
+const onStrip = (f: Flow, r: Ref | null): r is Ref => alive(f, r) && f.t - r.t <= SECONDS
 const rgb = (name: string) => `rgb(${cssColor(name).map((v) => Math.round(v * 255)).join(' ')})`
 const upper = (s: string) => `${s[0]!.toUpperCase()}${s.slice(1)}`
 
@@ -65,6 +69,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
   const paused = useSyncExternalStore(market.subscribe, market.getPaused, () => false)
   const ready = useSyncExternalStore(market.subscribe, market.getReady, () => false)
   const still = useSyncExternalStore(market.subscribe, market.getStill, () => false)
+  const held = useSyncExternalStore(market.subscribe, market.getHeld, () => false)
   const [drawn, setDrawn] = useState(false)
   const [spoken, setSpoken] = useState('')
   /** The pinned order (a click, a tap, the keyboard) and the one under the mouse; the mouse's wins while it is there. */
@@ -109,7 +114,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       }
       const x = read(f, r)
       write('ev', upper(NAMES[x.type]!))
-      write('ev-more', `· ${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)} s ago`)
+      // A pinned order the strips have moved past stays readable, and says so.
+      write('ev-more', `· ${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)} s ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
       write('par', setOff(x))
       write('own-one', fmt.pct(x.own))
       market.highlight = { price: x.price, t: x.t }
@@ -128,7 +134,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       }
       write('buys', perSecond(count(MARKET_BUY)))
       write('sells', perSecond(count(MARKET_SELL)))
-      write('own', `${fmt.pct(fr.own)}`)
+      write('own', fmt.pct(1 - fr.ownMarket))
       write('emptied', String(fr.emptied.length))
     },
     [write],
@@ -147,7 +153,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     const ctx = cv.getContext('2d')
     if (!ctx) return
     const look: Look = { ink: rgb('--color-ink'), paper: rgb('--color-paper'), graphite: rgb('--color-graphite'), rule: rgb('--color-rule'), indigo: rgb('--color-indigo'), wash: rgb('--color-indigo-wash') }
-    let w = 0, dpr = 1, raf = 0, statsAt = -1e9, draws = 0
+    let w = 0, dpr = 1, raf = 0, statsAt = -1e9, draws = 0, first = false
     const size = () => {
       w = st.clientWidth
       dpr = Math.min(2, window.devicePixelRatio || 1)
@@ -167,10 +173,10 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         frCols = cols
       }
       if (pinned.current && !alive(f, pinned.current)) pinned.current = null
-      if (hovered.current && !alive(f, hovered.current)) hovered.current = null
+      if (hovered.current && !onStrip(f, hovered.current)) hovered.current = null
       const r = hovered.current ?? pinned.current
       let sel: Selected | null = null
-      if (r) {
+      if (r && onStrip(f, r)) {
         const x = read(f, r)
         sel = { ago: f.t - x.t, lane: LANE_OF[x.type]!, wake: x.byKind.map((k) => ({ lane: LANE_OF[k.type]!, p: k.p, beta: HAWKES.decay[k.type]! })) }
       }
@@ -184,11 +190,19 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         writeStats(fr, cols)
         writeReading(f)
       }
-      setDrawn(true)
+      if (!first) {
+        first = true
+        setDrawn(true)
+      }
     }
+    // A change the reader made (a pointer, a key): drawn in the next frame, once, however many arrive before it.
+    let asked = 0
     redraw.current = () => {
       statsAt = -1e9
-      draw()
+      if (!asked) asked = requestAnimationFrame(() => {
+        asked = 0
+        draw()
+      })
     }
     size()
     const ro = new ResizeObserver(() => {
@@ -201,14 +215,15 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       draw()
       raf = requestAnimationFrame(loop)
     }
-    if (inView && shown && !reduced && !paused && !still) raf = requestAnimationFrame(loop)
-    else if (inView || reduced || still) draw()
+    if (inView && shown && !reduced && !paused && !still && !held) raf = requestAnimationFrame(loop)
+    else if (inView || reduced || still || held) draw()
     return () => {
       cancelAnimationFrame(raf)
+      cancelAnimationFrame(asked)
       ro.disconnect()
       redraw.current = () => {}
     }
-  }, [mounted, ready, inView, shown, reduced, paused, still, scheme, read, writeReading, writeStats])
+  }, [mounted, ready, inView, shown, reduced, paused, still, held, scheme, read, writeReading, writeStats])
 
   // Reading an order, by pointer or by key.
   const under = (e: PointerEvent<HTMLDivElement>): Ref | null => {
@@ -330,15 +345,26 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           aria-describedby="fig-order-flow-reading"
           onKeyDown={onKey}
           onFocus={() => {
+            // Stepping through orders from the keyboard holds the strips too, until focus moves on.
+            market.hold('focus', true)
             if (pinned.current) return
             if (market.ready) return pin(newest(LANES.indexOf(MARKET_BUY)))
             void market.prepare().then(() => {
               if (!pinned.current && document.activeElement === stage.current) pin(newest(LANES.indexOf(MARKET_BUY)))
             })
           }}
+          onPointerEnter={(e) => {
+            if (e.pointerType === 'mouse') market.hold('pointer', true)
+          }}
           onPointerMove={onMove}
-          onPointerLeave={onLeave}
-          onPointerUp={(e) => pin(under(e))}
+          onPointerLeave={(e) => {
+            market.hold('pointer', false)
+            onLeave()
+            void e
+          }}
+          onBlur={() => market.hold('focus', false)}
+          // A click pins the order being read, the one under the pointer a moment ago, not whatever slid under it.
+          onPointerUp={(e) => pin(e.pointerType === 'mouse' && hovered.current && alive(market.flow, hovered.current) ? hovered.current : under(e))}
           className="peer relative cursor-crosshair touch-pan-y select-none [--g:0px] focus-visible:outline-none @min-[520px]:[--g:124px]"
           style={{ height: HEIGHT }}
         >
@@ -351,11 +377,11 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         <FocusRing />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
         {/* Room kept for the longest reading, so choosing an order never moves the page below it. */}
         <dl
           id="fig-order-flow-reading"
-          className="text-meta grid min-h-[6.6rem] min-w-0 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[3.9rem]"
+          className="text-meta grid min-h-[6.6rem] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[3.9rem]"
           aria-label="Reading"
         >
           <dt className="text-graphite">Order</dt>
@@ -374,7 +400,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
             —
           </dd>
         </dl>
-        <div data-orderflow-controls="" className="flex min-h-8 flex-wrap gap-2">
+        <div data-orderflow-controls="" className="flex min-h-8 shrink-0 gap-2">
           {live && !reduced && !still ? (
             <button type="button" onClick={() => market.setPaused(!market.paused)} aria-pressed={paused} className={`${CONTROL} min-w-[4.5rem]`}>
               {paused ? 'Resume' : 'Pause'}
@@ -399,16 +425,19 @@ function Stats({ initial, set, suffix, across = false }: { initial: Initial; set
   const rows = [
     { label: 'Market buys, 10 s', value: <span ref={set(`buys${suffix}`)}>{perSecond(initial.buys)}</span> },
     { label: 'Market sells, 10 s', value: <span ref={set(`sells${suffix}`)}>{perSecond(initial.sells)}</span> },
-    { label: 'Arrived on their own', value: <span ref={set(`own${suffix}`)}>{`${fmt.pct(initial.own)}`}</span> },
-    { label: 'In theory', value: `${fmt.pct(initial.theory)}` },
+    { label: 'Market orders set off, 10 s', value: <span ref={set(`own${suffix}`)}>{fmt.pct(initial.setOff)}</span> },
+    { label: 'In theory', value: fmt.pct(initial.theory) },
     { label: 'Queues emptied, 10 s', value: <span ref={set(`emptied${suffix}`)}>{String(initial.emptied)}</span> },
   ]
   return <Readouts rows={rows} across={across} />
 }
 
-/** What set an order off, by the kind of earlier order, likeliest first (the three likeliest kinds). */
+/** What set an order off, by the kind of earlier order, likeliest first: the three likeliest kinds, and the rest. */
 function setOff(x: Read): string {
-  return x.byKind.length ? x.byKind.slice(0, 3).map((k) => `${LANE_NAMES[LANE_OF[k.type]!]!.toLowerCase()} ${fmt.pct(k.p)}`).join(' · ') : 'no earlier order'
+  if (!x.byKind.length) return 'no earlier order'
+  const kinds = x.byKind.slice(0, 3).map((k) => `${LANE_NAMES[LANE_OF[k.type]!]!.toLowerCase()} ${fmt.pct(k.p)}`)
+  const rest = x.byKind.slice(3).reduce((s, k) => s + k.p, 0)
+  return [...kinds, ...(rest >= 0.0005 ? [`others ${fmt.pct(rest)}`] : [])].join(' · ')
 }
 
 /**
@@ -435,13 +464,13 @@ function Labels() {
 
       {/* One line where there is room; on a phone two, so none runs off the frame. */}
       <span className={`${text} hidden text-ink @min-[520px]:block @min-[520px]:left-(--g)`} style={top(Y.intensity - 17)}>
-        Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo-wash" /> set off
+        Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/35" /> set off
         <span className="hidden @min-[600px]:inline"> by earlier orders</span>
       </span>
-      <span className={`${text} left-1.5 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 32)}>
+      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-1.5 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 34)}>
         Market orders a second:
         <br />
-        <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo-wash" /> set off by others
+        <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/35" /> set off by others
       </span>
       <span className={gutter} style={top(lamY(0, LAM_MAX / 2) - 6.5)}>
         Buys

@@ -359,8 +359,10 @@
 :root[data-orderbook-seq] [data-orderbook-poster] [data-fill] {
   opacity: 0;
 }
-/* Its live controls arrive as the hero's do: rising 4px into place, 40ms apart; under reduced motion they only fade. */
-[data-orderbook-controls] > button {
+/* Its live controls, and Fig. 2's, arrive as the hero's do: rising 4px into place, 40ms apart; under reduced motion
+   they only fade. */
+[data-orderbook-controls] > button,
+[data-orderflow-controls] > button {
   transition:
     border-color 150ms ease-out,
     scale 150ms ease-out,
@@ -375,7 +377,8 @@
   --arrive: 40ms;
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-orderbook-controls] > button {
+  [data-orderbook-controls] > button,
+  [data-orderflow-controls] > button {
     @starting-style {
       opacity: 0;
       translate: none;

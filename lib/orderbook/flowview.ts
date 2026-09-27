@@ -60,6 +60,8 @@ export interface FlowFrame {
   events: number
   /** Mean over the window's events of μ/λ(t⁻): the share expected to have arrived on their own, not set off. */
   own: number
+  /** The same, over its market orders alone. */
+  ownMarket: number
 }
 
 /** The decay rates the model uses, each with the source types that decay at it: two exponentials per value, not six. */
@@ -149,13 +151,17 @@ export function flowFrame(f: Flow, win: Win, p: HawkesParams, into?: FlowFrame):
   if (oldest >= 0) for (let a = oldest; a >= newest; a--) ages.push(a)
 
   // Events: counts per lane and column, the moments a touch was emptied, and the share arriving on their own.
-  let own = 0
+  let own = 0, ownM = 0, nM = 0
   for (const a of ages) {
     const e = f.event(a)
     const u = f.ev.type[e]!
     const i = LANE_OF[u]! * cols + colOf(f.ev.t[e]!)
     counts[i] = counts[i]! + 1
     own += p.mu[u]! / f.ev.lam[e]!
+    if (u === MARKET_BUY || u === MARKET_SELL) {
+      ownM += p.mu[u]! / f.ev.lam[e]!
+      nM++
+    }
     if (takes(u) && f.ev.moved[e] === 1) emptied.push({ t: f.ev.t[e]!, side: bidSide(u) ? 0 : 1, age: a })
   }
 
@@ -223,12 +229,13 @@ export function flowFrame(f: Flow, win: Win, p: HawkesParams, into?: FlowFrame):
     put(Q, cols - 1, q)
   }
 
-  const events = ages.length, share = events ? own / events : 0
-  if (!reuse) return { t0, t1, counts, lam, queue, emptied, events, own: share }
+  const events = ages.length, share = events ? own / events : 0, shareM = nM ? ownM / nM : 0
+  if (!reuse) return { t0, t1, counts, lam, queue, emptied, events, own: share, ownMarket: shareM }
   reuse.t0 = t0
   reuse.t1 = t1
   reuse.events = events
   reuse.own = share
+  reuse.ownMarket = shareM
   return reuse
 }
 
