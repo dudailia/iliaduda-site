@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type Reac
 import { Shell } from '@/components/Layout'
 import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '@/components/stage/useStage'
 import { posterFlow, type Flow, type Stats } from '@/lib/market/flow'
-import { fmt, readAt, sentence, type Reading } from '@/lib/lab/b/read'
+import { fmt, readAt, sentence, type Reading } from '@/lib/orderbook/read'
 import type { KeyProbe, Shared } from './renderer'
 
 /**
@@ -34,7 +34,7 @@ const MAX_DP = 60
 
 type Mod = typeof import('./renderer')
 
-export function BookHero({ posterWide, posterNarrow, initial }: { posterWide: ReactNode; posterNarrow: ReactNode; initial: Initial }) {
+export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWide: ReactNode; posterNarrow: ReactNode; initial: Initial }) {
   const labels = useRef<HTMLDivElement>(null)
   const out = useRef<Record<string, HTMLElement | null>>({})
   const shared = useRef<Shared | null>(null)

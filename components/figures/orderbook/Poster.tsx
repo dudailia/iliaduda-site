@@ -1,5 +1,5 @@
 import type { Flow } from '@/lib/market/flow'
-import { posterGeometry } from '@/lib/lab/b/poster'
+import { posterGeometry } from '@/lib/orderbook/poster'
 
 /**
  * A real frame of the simulation, drawn on the server: the book's history as

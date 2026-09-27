@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import { LabPage } from '@/components/lab/LabPage'
-import { BookHero } from '@/components/lab/b/BookHero'
-import { Poster } from '@/components/lab/b/Poster'
+import { OrderBookLive } from '@/components/figures/orderbook/Live'
+import { Poster } from '@/components/figures/orderbook/Poster'
 import { HZ, ROWS, posterFlow } from '@/lib/market/flow'
-import { fmt } from '@/lib/lab/b/read'
+import { fmt } from '@/lib/orderbook/read'
 
 export const metadata: Metadata = { title: 'Lab B — The order book as terrain' }
 
@@ -19,7 +19,7 @@ export default function LabB() {
   return (
     <LabPage
       slug="b"
-      hero={<BookHero posterWide={<Poster sim={sim} variant="wide" label={label} />} posterNarrow={<Poster sim={sim} variant="narrow" label={label} />} initial={initial} />}
+      hero={<OrderBookLive posterWide={<Poster sim={sim} variant="wide" label={label} />} posterNarrow={<Poster sim={sim} variant="narrow" label={label} />} initial={initial} />}
       headline="Buyers wait on one side, sellers on the other, and the price runs between them."
       caption={
         <>

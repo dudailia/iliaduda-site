@@ -16,8 +16,11 @@ export const DZ = 0.013
 export const Z_NOW = 1.25
 /** Height of the walls at the reference depth. */
 export const H = 0.7
-/** Cumulative depth, in shares, drawn at height H; above it the walls keep rising, slower. */
-export const REF = 320
+/**
+ * Cumulative depth, in shares, drawn at height H; above it the walls keep rising, slower. The calibrated book holds
+ * about 350 shares within ten ticks of the touch and 1,000 within sixty, so H falls around forty ticks out.
+ */
+export const REF = 800
 
 /** Height of a wall with `cum` shares between it and the touch. A concave power keeps the thin book near the price legible. */
 /** Exponent of the height curve; the shader reads the same constant. */

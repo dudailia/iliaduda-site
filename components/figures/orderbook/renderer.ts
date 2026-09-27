@@ -1,7 +1,7 @@
 import { program, type GL } from '@/lib/gl'
 import { HALF, HZ, LEVELS, ROWS, START, TICK, type Flow, type Stats } from '@/lib/market/flow'
-import { fmt, readAt, type Reading } from '@/lib/lab/b/read'
-import { DX, DZ, H, POW, REF, REST, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, toScreen, view, type Camera, type M4 } from '@/lib/lab/b/view'
+import { fmt, readAt, type Reading } from '@/lib/orderbook/read'
+import { DX, DZ, H, POW, REF, REST, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 
 /**
@@ -349,6 +349,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   let pDirty = false
   // Times are stored relative to the renderer's start, so float32 keeps millisecond precision for hours.
   const T0 = sim.t
+  /** The market time the frames have paid for so far. */
+  let owed = sim.t
   const addTrade = (price: number, size: number, t: number) => {
     const r = sim.row(0)
     const y = r >= 0 ? height(sim.depthAt(r, price)) : 0
@@ -512,8 +514,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   const setVec = (p: Prog, name: string, c: readonly number[]) => gl.uniform3f(p.u(name), c[0]!, c[1]!, c[2]!)
 
   const draw = (dt: number): boolean => {
-    // Advance the market. dt is capped by the stage, so a slice is at most 0.1 s: ~1–2 events.
-    const newRows = first && !sh.paused ? sim.advance(sim.t + dt) : 0
+    // Advance the market by the time the frames owe it. It moves in whole 1/60 s quanta, so the fraction a frame
+    // leaves over is carried, never dropped: at 120 Hz each frame owes half a quantum. dt is capped by the stage.
+    if (first && !sh.paused) owed += dt
+    const newRows = first && !sh.paused ? sim.advance(owed) : 0
     if (newRows) uploadRows(newRows)
     if (pDirty) {
       gl.bindBuffer(gl.ARRAY_BUFFER, pBuf)
