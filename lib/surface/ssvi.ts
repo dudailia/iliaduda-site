@@ -98,6 +98,15 @@ export function wT(p: Params, k: number, T: number): number {
 }
 
 /**
+ * Dupire's local volatility, in total variance: the calendar slope of w over
+ * Durrleman's g. The volatility a diffusion would need at this strike and time
+ * to reproduce every price on the surface.
+ */
+export function localVol(p: Params, k: number, T: number): number {
+  return Math.sqrt(wT(p, k, T) / g(p, k, T))
+}
+
+/**
  * Gatheral and Jacquier's two butterfly inequalities at one θ (Theorem 4.2's
  * hypotheses, checked directly rather than trusted): θφ(1+|ρ|) < 4 and
  * θφ²(1+|ρ|) ≤ 4. Returns the larger of the two ratios to 4, so < 1 passes.

@@ -1,5 +1,5 @@
 import { black, FORWARD } from '@/lib/bs'
-import { check, iv, type Check, type Params } from './ssvi'
+import { check, iv, localVol, type Check, type Params } from './ssvi'
 
 /**
  * What the readouts under the surface say, computed from the parameters on
@@ -56,4 +56,35 @@ export function probeText(p: Params, k: number, T: number): { where: string; vol
   const m = T * 12
   const when = m < 11.5 ? `${m.toFixed(m < 3 ? 1 : 0)} months` : `${T.toFixed(1)} years`
   return { where: `strike ${Math.round(K * 100)}%, ${when}`, vol: pct(iv(p, k, T)) }
+}
+
+export interface Row {
+  readonly id: string
+  readonly label: string
+  readonly value: string
+}
+
+const signed = (x: number, d: number) => `${x < 0 ? '−' : ''}${Math.abs(x).toFixed(d)}`
+
+/**
+ * Everything the margin says about one point on the surface, from the parameters on screen: where it is, its
+ * implied and local volatility, and a call on Black's formula with its Greeks. Greeks are sticky-strike: σ is held
+ * at the point's own implied volatility while each is taken.
+ */
+export function pointRows(p: Params, at: { k: number; T: number }): readonly Row[] {
+  const K = FORWARD * Math.exp(at.k)
+  const sigma = iv(p, at.k, at.T)
+  const b = black(FORWARD, K, at.T, sigma)
+  const months = at.T * 12
+  return [
+    { id: 'strike', label: 'Strike', value: `${K.toFixed(1)} · ${pct(K / FORWARD, 0)} of F` },
+    { id: 'expiry', label: 'Expiry', value: months < 23.95 ? `${months.toFixed(1)} months` : `${at.T.toFixed(2)} years` },
+    { id: 'iv', label: 'Implied vol', value: pct(sigma) },
+    { id: 'lv', label: 'Local vol', value: pct(localVol(p, at.k, at.T)) },
+    { id: 'call', label: 'Call price', value: b.call.toFixed(2) },
+    { id: 'delta', label: 'Delta', value: b.delta.toFixed(3) },
+    { id: 'gamma', label: 'Gamma', value: b.gamma.toFixed(4) },
+    { id: 'vega', label: 'Vega, per vol pt', value: b.vega.toFixed(3) },
+    { id: 'theta', label: 'Theta, per day', value: signed(b.theta, 4) },
+  ]
 }
