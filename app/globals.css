@@ -260,6 +260,26 @@
   opacity: 0;
 }
 
+/* The supplement to the site's two faces: the Greek and mathematical characters the papers use (scripts/subset-
+   fonts.py). Declared as further faces of the same families, with a unicode-range, so a browser fetches one only on a
+   page that shows one of its characters; the home page, whose only Greek letter (σ) is in the main faces, never does. */
+@font-face {
+  font-family: sourceSerif;
+  src: url('/fonts/source-serif-4-extra-var.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
+}
+@font-face {
+  font-family: sourceCodePro;
+  src: url('/fonts/source-code-pro-extra-var.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
+}
+
 /* The home figure's live controls arrive with the canvas they drive: 240ms on the crossfade's curve, rising 4px into
    place one after another, 40ms apart. The rise is `translate`, so a press's `scale` keeps its own quick 150ms, and
    only the arrival waits its turn: a hover or a press never does. Reset, which appears as the reader first moves an

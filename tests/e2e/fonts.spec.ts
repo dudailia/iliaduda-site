@@ -28,23 +28,22 @@ test('the self-hosted faces are the ones actually in use', async ({ page }) => {
 /**
  * The faces are subsets, so a character outside them is drawn in whatever the
  * system falls back to: σ was, in the hero's subtitle, a heavier glyph from
- * another family. Every character a page shows must be in the site's fonts.
- * The papers below still use characters the subsets lack; they are listed
- * here until a lazily loaded supplement carries them (M7, with the IV paper),
- * and the list may not name a character the fonts already have.
+ * another family. Every character a page shows must be in the site's fonts:
+ * the main faces, or the supplement of Greek and mathematical characters that
+ * a page fetches only when it shows one (app/globals.css). ∅ is in neither
+ * Source face and waits for a change of copy; the list may not name a
+ * character the fonts already have.
  */
 const PENDING: Record<string, string> = {
-  '/iv-surface': 'θρφηγκ≥≤∂',
-  '/startup-investments': 'ρ∅',
-  '/closebooks': '→',
-  '/debt-portal': '₽',
-  '/nucarbon': '₂',
+  '/startup-investments': '∅',
 }
 
 test('every character a page shows is in the site\'s fonts', async ({ page }) => {
   const have = new Set([
     ...codepoints('public/fonts/source-serif-4-latin-var.woff2'),
     ...codepoints('public/fonts/source-code-pro-latin-var.woff2'),
+    ...codepoints('public/fonts/source-serif-4-extra-var.woff2'),
+    ...codepoints('public/fonts/source-code-pro-extra-var.woff2'),
   ])
   for (const [route, chars] of Object.entries(PENDING)) for (const ch of chars) expect(have.has(ch.codePointAt(0)!), `${ch} on ${route} is in the fonts now`).toBe(false)
   const missing = new Map<string, Set<string>>()
