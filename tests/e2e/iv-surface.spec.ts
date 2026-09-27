@@ -65,6 +65,26 @@ test('goes live, forms and takes its shock once per visit: a reload does not rep
   expect(errors).toEqual([])
 })
 
+test('a story the page starts while the figure is paused still plays through, and the figure stays paused', async ({ page }) => {
+  test.setTimeout(60_000)
+  // Paused in an earlier look at the page, before its story was ever seen.
+  await page.addInitScript(() => sessionStorage.setItem('surface-paused', '1'))
+  await page.goto('/iv-surface')
+  // A quarter of the stage in view: enough for the figure to go live and settle, and for its story to start a
+  // moment later (a fifth held for 1.2 s), with nothing else on the page changing.
+  await page.locator(STAGE).evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    window.scrollBy(0, r.top - (innerHeight - r.height * 0.25))
+  })
+  const live = await expect
+    .poll(() => canvasShown(page), { timeout: 20_000 })
+    .toBe(true)
+    .then(() => true, () => false)
+  if (!live) return test.skip(true, 'no GPU here')
+  await expect.poll(() => seq(page), { timeout: 12_000 }).toBe('done')
+  await expect(page.locator(FIG).getByRole('button', { name: 'Resume' })).toBeVisible()
+})
+
 test('a click finishes the signature at once; a scroll does not', async ({ page, isMobile }) => {
   test.skip(isMobile, 'a mouse and a wheel')
   test.setTimeout(60_000)
@@ -160,7 +180,7 @@ test('Replay sinks the surface into the page rather than cutting it, forms it ag
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   await page.getByRole('slider', { name: /shock/i }).fill('1.5')
   await page.waitForTimeout(600)
-  // Three frames after the press, the sheet is still (almost all) standing: it sinks over a third of a second.
+  // A frame after the press the sheet is on its way down, not gone: it sinks over a third of a second.
   const after = await page.evaluate(async () => {
     const fig = document.querySelector('#fig-iv-surface')!
     const c = fig.querySelector('canvas') as HTMLCanvasElement
@@ -169,10 +189,10 @@ test('Replay sinks the surface into the page rather than cutting it, forms it ag
     const frame = () => new Promise((r) => requestAnimationFrame(r))
     await frame()
     await frame()
-    await frame()
     return Number(c.dataset.rise)
   })
   expect(after).toBeGreaterThan(0.5)
+  expect(after).toBeLessThan(1)
   const rise = () => page.locator(`${STAGE} canvas`).evaluate((c) => Number((c as HTMLCanvasElement).dataset.rise))
   await expect.poll(rise, { timeout: 2_000 }).toBeLessThan(0.05)
   await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('done')
@@ -277,6 +297,22 @@ test('on a first visit a lost context shows the finished poster, not an empty st
   await page.evaluate(() => (window as unknown as { __lose: WEBGL_lose_context }).__lose.restoreContext())
   await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
   await expect(page.locator(FIG)).not.toContainText('Still frame: the graphics context was lost.')
+  expect(errors).toEqual([])
+})
+
+test('reduced motion turned on and off again while the page is open: still, then live again, without an error', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await seen(page)
+  await page.goto('/iv-surface')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect.poll(() => canvasShown(page), { timeout: 5_000 }).toBe(false)
+  await expect(page.locator(FIG)).toContainText('Still frame: your system asks for reduced motion.')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
+  const n = await draws(page)
+  await expect.poll(() => draws(page), { timeout: 5_000 }).toBeGreaterThan(n + 5)
   expect(errors).toEqual([])
 })
 

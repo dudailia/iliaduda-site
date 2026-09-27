@@ -844,7 +844,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
               <button type="button" onClick={toggleFlight} className={CONTROL}>
                 {flying ? 'Stop' : 'Fly through'}
               </button>
-              <button type="button" onClick={replay} className={CONTROL}>
+              <button type="button" data-replay="" onClick={replay} className={CONTROL}>
                 Replay
               </button>
             </>

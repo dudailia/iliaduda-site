@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SKIP_MS, Sequence } from '@/lib/stage/sequence'
+import { SKIP_MS, Sequence, isSkipInput } from '@/lib/stage/sequence'
 
 /**
  * Every figure's signature moment runs on one clock with the hero's rules:
@@ -94,5 +94,20 @@ describe('a signature sequence', () => {
   it('refuses a window outside the sequence', () => {
     expect(() => new Sequence(1000, { a: [0.5, 0.4] })).toThrow()
     expect(() => new Sequence(1000, { a: [-0.1, 0.4] })).toThrow()
+  })
+})
+
+describe('what counts as asking to get on with it', () => {
+  const on = (replay: boolean) => ({ closest: (sel: string) => (replay && sel === '[data-replay]' ? {} : null) })
+  it('is not a press on Replay: that starts the story over, it does not ask to finish it', () => {
+    expect(isSkipInput({ type: 'pointerdown', pointerType: 'mouse', target: on(true) })).toBe(false)
+    expect(isSkipInput({ type: 'click', target: on(true) })).toBe(false)
+    expect(isSkipInput({ type: 'keydown', key: 'Enter', target: on(true) })).toBe(false)
+  })
+  it('is any other click, key or mouse press, wherever it lands', () => {
+    expect(isSkipInput({ type: 'pointerdown', pointerType: 'mouse', target: on(false) })).toBe(true)
+    expect(isSkipInput({ type: 'click', target: on(false) })).toBe(true)
+    expect(isSkipInput({ type: 'click', target: null })).toBe(true)
+    expect(isSkipInput({ type: 'keydown', key: 'a' })).toBe(true)
   })
 })

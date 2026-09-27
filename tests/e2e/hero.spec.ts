@@ -299,6 +299,22 @@ test('stays live, in the new palette, through a theme switch and a turn of the d
   expect(errors).toEqual([])
 })
 
+test('reduced motion turned on and off again while the page is open: still, then live again, without an error', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await seen(page)
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect.poll(() => canvasShown(page), { timeout: 5_000 }).toBe(false)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
+  const draws = () => num(page, `${STAGE} [data-draws]`, 'data-draws')
+  const n = await draws()
+  await expect.poll(draws, { timeout: 5_000 }).toBeGreaterThan(n + 5)
+  expect(errors).toEqual([])
+})
+
 test('a lost GPU context puts the finished poster back, without errors', async ({ page }) => {
   const errors = errorsOf(page)
   await page.goto('/')

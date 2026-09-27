@@ -7,7 +7,7 @@ import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
-import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
+import { fade, underlay, useStage, type Create } from '@/components/stage/useStage'
 import type { LiveInfo } from '@/lib/stage/debug'
 import { numbers, pointRows, text as format } from '@/lib/surface/readouts'
 import { amplitudeOf, shownAmplitude, surfaceSequence, type SurfacePhase } from '@/lib/surface/sequence'
@@ -16,7 +16,7 @@ import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
 import type { Sequence } from '@/lib/stage/sequence'
 import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel, Frame, NoteMark } from './marks'
-import type { Probe, Sim } from './renderer'
+import type { Probe, Sim, SurfaceRenderer } from './renderer'
 
 /**
  * Fig. 1 of the IV paper, live: the SSVI surface in 3D. The poster (server)
@@ -44,11 +44,12 @@ const clampProbe = (p: Probe): Probe => ({
 })
 
 /**
- * What the surface is doing, in words: from the signature while it plays, else from the shock the reader has set.
- * A skipped story only drains, so while the skip plays it is relaxing, never shocked.
+ * What the surface is doing, in words: from the signature while it plays, else from the shock the reader has set,
+ * and the shock drawn. A skipped story only drains, so while the skip plays it is relaxing, never shocked; and a shock
+ * still on screen above the reader's level (Replay drains it into the page) is relaxing too.
  */
-function phaseOf(story: Sequence<SurfacePhase> | null, level: number): Phase {
-  if (!story) return level > 0.04 ? 'shock' : 'calm'
+function phaseOf(story: Sequence<SurfacePhase> | null, level: number, drawn = level): Phase {
+  if (!story) return level > 0.04 ? 'shock' : drawn > 0.04 ? 'relax' : 'calm'
   if (story.skipping()) return shownAmplitude(story) > 0.04 ? 'relax' : 'calm'
   const ph = story.phases()
   if (ph.shock > 0 && ph.relax < 0.12) return 'shock'
@@ -71,7 +72,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const seq = useRef(surfaceSequence())
   const checked = useRef<{ key: string; c: Check | null }>({ key: '', c: null })
   const level = useRef(0)
-  const replays = useRef(0)
+  /** The live renderer, for Replay: the sheet sinks back into the page before the story plays again. */
+  const surface = useRef<SurfaceRenderer | null>(null)
   const [shock, setShock] = useState(0)
   const [probe, setProbe] = useState<Probe>(PROBE_START)
   const [phase, setPhase] = useState<Phase>('calm')
@@ -105,7 +107,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   /** Everything the readouts say, from the parameters of the frame just drawn. */
   const sync = useCallback(
-    (p: Params) => {
+    (p: Params, drawn?: number) => {
       // The arbitrage check is a few thousand closed-form evaluations: once for each surface that is new.
       const key = `${p.s0.toFixed(4)},${p.rho.toFixed(4)}`
       const c = checked.current
@@ -122,7 +124,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       const s = sim.current
       for (const r of pointRows(p, s.hover ?? s.probe)) write(r.id, r.value)
       const story = sigApi.current?.armed.current && !seq.current.done ? seq.current : null
-      const next = phaseOf(story, level.current)
+      const next = phaseOf(story, level.current, drawn)
       if (next !== phaseRef.current) {
         phaseRef.current = next
         setPhase(next)
@@ -140,7 +142,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         queueMicrotask(() => setSoftware(true))
         return null
       }
-      let inner: Renderer | null = null
+      let inner: SurfaceRenderer | null = null
       let pending: { w: number; h: number; cw: number; ch: number } | null = null
       let q: number | null = null
       let pal = env.palette
@@ -161,7 +163,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             sim: sim.current,
             sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
             shown: () => shownAmplitude(seq.current),
-            replays: () => replays.current,
+            playing: () => !!sigApi.current?.armed.current && seq.current.started && !seq.current.done,
             tick: (dtMs) => {
               seq.current.advance(dtMs)
               sigApi.current?.onFrame()
@@ -180,6 +182,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           fail('error')
           return
         }
+        surface.current = inner
         if (q !== null) inner.setQuality?.(q)
         if (pending) inner.resize(pending.w, pending.h, pending.cw, pending.ch)
         inner.setPalette?.(pal)
@@ -209,6 +212,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         dispose() {
           dead = true
           unwatch?.()
+          if (surface.current === inner) surface.current = null
           inner?.dispose()
         },
       }
@@ -320,11 +324,11 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   /** Replay starts the story over from where a first visit starts it, and it ends where the reader takes over: calm. */
   const replay = () => {
-    replays.current++
     level.current = 0
     setShock(0)
     sim.current.dirty = true
-    sig.replay()
+    if (surface.current) surface.current.sink(() => sig.replay())
+    else sig.replay()
   }
 
   const togglePause = () => {
@@ -498,7 +502,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             <button type="button" onClick={togglePause} aria-pressed={paused} className={CONTROL}>
               {paused ? 'Resume' : 'Pause'}
             </button>
-            <button type="button" onClick={replay} className={CONTROL}>
+            <button type="button" data-replay="" onClick={replay} className={CONTROL}>
               Replay
             </button>
           </>

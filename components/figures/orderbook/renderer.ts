@@ -3,7 +3,7 @@ import { HALF, HZ, LEVELS, ROWS, START, type Flow, type Stats } from '@/lib/mark
 import { fmt, readAt, rowAfter, type Reading } from '@/lib/orderbook/read'
 import { DX, DZ, H, POW, REF, REST, ROWS_BY_Q, SWAY, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
-import { EASE_IN_OUT_QUAD } from '@/lib/ease'
+import { EASE_IN_OUT_QUAD, EASE_OUT } from '@/lib/ease'
 import { rowRise } from '@/lib/orderbook/sequence'
 import { PAD, boxAt, fits, labelSpecs, type Anchor, type Box, type LabelKind } from '@/lib/orderbook/labels'
 
@@ -87,14 +87,15 @@ layout(location = 0) in vec2 aGrid;
 uniform sampler2D uDepth;
 uniform sampler2D uCentre;
 uniform int uHead, uRows, uBase, uWmod;
-uniform float uFracX, uFracZ, uRowsF, uRise;
+uniform float uFracX, uFracZ, uRowsF, uRise, uSink;
 uniform mat4 uMVP;
 out vec3 vPos; out vec3 vN; out float vCum; out float vRow; out float vPx; out float vAge; out float vRise;
 float hgt(float c) { return H * pow(abs(c) / REF, POW); }
-// The signature's wave (lib/orderbook/sequence.ts, rowRise): row a rises from the page in turn, now first.
+// The signature's wave (lib/orderbook/sequence.ts, rowRise): row a rises from the page in turn, now first. uSink
+// lowers the whole terrain back into the page when Replay starts the story over.
 float rise(int a) {
   float u = clamp((uRise - float(a) / max(1.0, uRowsF - 1.0) * 0.6) / 0.4, 0.0, 1.0);
-  return 1.0 - pow(1.0 - u, 5.0);
+  return (1.0 - pow(1.0 - u, 5.0)) * uSink;
 }
 float dep(int j, int a) {
   a = clamp(a, 0, uRows - 1);
@@ -237,7 +238,16 @@ void main() {
 
 type Prog = ReturnType<typeof program>
 
-export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
+/** How long Replay takes to lower the terrain into the page (its labels go in 150ms), and to lift the camera back to it. */
+const SINK_S = 0.35
+const LIFT_S = 0.7
+
+export interface BookRenderer extends Renderer {
+  /** Replay: lower what is shown back into the page, then call `done`, which starts the story again from there. */
+  sink(done: () => void): void
+}
+
+export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const gl: GL = env.gl
   const { canvas } = env
   const sim = sh.sim
@@ -472,9 +482,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   /** The two fitted cameras the signature moves between: looking down on the page, and at rest. */
   let rest: Camera = fit(REST.yaw, restPitch(1), 1)
   let page: Camera = fit(REST.yaw, PAGE_PITCH, 1, false)
-  // The signature as shown: 1 is the finished picture, as a visit without one opens.
-  let shownRise = 1, shownRiver = 1, shownSettle = 1, shownLabels = 1
-  let started = false
+  /** Replay's way back into the page: from what was shown when it was pressed, on the site's ease-out. */
+  let sinking: { t: number; rise: number; river: number; settle: number; labels: number; done: () => void } | null = null
+  /** What the last frame showed of the signature, for a sink to start from. */
+  let shown = { rise: 1, river: 1, settle: 1, labels: 1 }
   let draws = 0
   let centre = sim.mids[sim.row(0)]!
   const spring = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
@@ -594,21 +605,29 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   const draw = (dt: number): boolean => {
     sh.tick(dt * 1000)
     const ph = sh.sequence()
-    if (!started) {
-      started = true
-      if (ph) shownRise = shownRiver = shownSettle = shownLabels = 0
+    // What is shown of the signature: its phases, exactly. While Replay sinks the last one, the terrain lowers into
+    // the page and its river draws back (350ms), the labels go (150ms), both on the ease-out, and the camera lifts
+    // back to the page (700ms, a move on screen: in-out); only then does the story start again, from there.
+    let rise = ph ? ph.rise : 1
+    let riverK = ph ? ph.river : 1
+    let settleK = EASE_IN_OUT_QUAD(ph ? ph.settle : 1)
+    let labelsK = ph ? ph.labels : 1
+    let lift = 1
+    if (sinking) {
+      const k = sinking
+      k.t += dt
+      const out = (secs: number) => 1 - EASE_OUT(Math.min(1, k.t / secs))
+      lift = out(SINK_S)
+      rise = k.rise
+      riverK = k.river * lift
+      labelsK = k.labels * out(0.15)
+      settleK = k.settle * (1 - EASE_IN_OUT_QUAD(Math.min(1, k.t / LIFT_S)))
+      if (k.t >= LIFT_S) {
+        sinking = null
+        k.done()
+      }
     }
-    // What is shown follows the signature: exactly as it rises, and smoothly back down when Replay starts it over,
-    // so the terrain sinks into the page (350ms) and the camera lifts back to it (700ms) instead of jumping there.
-    const follow = (shown: number, target: number, secs: number) => (target >= shown ? target : Math.max(target, shown - dt / secs))
-    shownRise = follow(shownRise, ph ? ph.rise : 1, 0.35)
-    shownRiver = follow(shownRiver, ph ? ph.river : 1, 0.35)
-    shownSettle = follow(shownSettle, ph ? ph.settle : 1, 0.7)
-    shownLabels = follow(shownLabels, ph ? ph.labels : 1, 0.15)
-    const rise = shownRise
-    const riverK = shownRiver
-    const settleK = EASE_IN_OUT_QUAD(shownSettle)
-    const labelsK = shownLabels
+    shown = { rise, river: riverK, settle: settleK, labels: labelsK }
     // Advance the market by the time the frames owe it. It moves in whole 1/60 s quanta, so the fraction a frame
     // leaves over is carried, never dropped: at 120 Hz each frame owes half a quantum. dt is capped by the stage.
     // The page's one market moves once a frame, whichever figure asks first (./market.ts): this figure uploads every
@@ -695,6 +714,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     gl.uniform1f(terrain.u('uFracX'), fracX)
     gl.uniform1f(terrain.u('uFracZ'), fracZ)
     gl.uniform1f(terrain.u('uRise'), rise)
+    gl.uniform1f(terrain.u('uSink'), lift)
     gl.uniformMatrix4fv(terrain.u('uMVP'), false, mvp)
     setVec(terrain, 'uPaper', pal.paper)
     setVec(terrain, 'uInk', pal.ink)
@@ -718,7 +738,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     gl.depthMask(false)
     const glow = () => (dark ? gl.blendFunc(gl.ONE, gl.ONE) : gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA))
     const over = () => gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-    const n = Math.min(rows, sim.written)
+    // The river's history eases with the terrain's (rowsF) when quality steps, rather than growing 48 rows in a frame.
+    const n = Math.min(Math.round(rowsF || rows), sim.written)
     const xOf = (price: number) => (price - centre) * DX
     const zOf = (age: number) => Z_NOW - (age + fracZ) * DZ
 
@@ -730,16 +751,16 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
       const r = sim.row(a)
       const mid = sim.mids[r]!
       const lo = Math.floor(mid), f = mid - lo
-      const y = (height(sim.depthAt(r, lo)) * (1 - f) + height(sim.depthAt(r, lo + 1)) * f) * rowRise(rise, a, rowsF || rows)
+      const y = (height(sim.depthAt(r, lo)) * (1 - f) + height(sim.depthAt(r, lo + 1)) * f) * rowRise(rise, a, rowsF || rows) * lift
       river.push(xOf(mid), y + 0.006, zOf(a))
-      riverFade.push(1 - Math.min(1, Math.max(0, (a / rows - 0.45) / 0.55)))
+      riverFade.push(1 - Math.min(1, Math.max(0, (a / (rowsF || rows) - 0.45) / 0.55)))
     }
     const riverR = addRibbon(river, riverFade)
     const front: number[] = [], frontFade: number[] = []
     const r0 = head
     for (let j = 0; j <= VIS; j++) {
       const price = b + j
-      front.push((j - VIS / 2 - fracX) * DX, height(sim.depthAt(r0, price)) * rowRise(rise, 0, rowsF || rows) + 0.002, zOf(0))
+      front.push((j - VIS / 2 - fracX) * DX, height(sim.depthAt(r0, price)) * rowRise(rise, 0, rowsF || rows) * lift + 0.002, zOf(0))
       frontFade.push(1)
     }
     const frontR = addRibbon(front, frontFade)
@@ -774,9 +795,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     gl.uniform1f(points.u('uNow'), sim.t - T0)
     gl.uniform1f(points.u('uCentre'), centre - START)
     gl.uniform1f(points.u('uDpr'), dpr)
-    gl.uniform1f(points.u('uHist'), rows)
+    gl.uniform1f(points.u('uHist'), rowsF || rows)
     gl.uniform1f(points.u('uMode'), 0)
-    gl.uniform1f(points.u('uShow'), Math.min(1, Math.max(0, (rise - 0.55) / 0.45)))
+    gl.uniform1f(points.u('uShow'), Math.min(1, Math.max(0, (rise - 0.55) / 0.45)) * lift)
     setVec(points, 'uColor', pal.indigo)
     setVec(points, 'uCore', dark ? pal.ink : mixc(pal.indigo, pal.paper, 0.45))
     over()
@@ -806,7 +827,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     // already placed waits for room.
     placed.length = 0
     const S = (x: number, y: number, z: number) => toScreen(mvp, cssW, cssH, x, y, z)
-    for (const l of labelSpecs(sim, { centre, fracZ, narrow: aspect < 1, rows, rise })) {
+    for (const l of labelSpecs(sim, { centre, fracZ, narrow: aspect < 1, rows, rise, lift })) {
       const at = S(l.at[0], l.at[1], l.at[2])
       place(label(l.id, l.kind), l.text, at ? [at[0] + l.dx, at[1] + l.dy] : null, l.anchor)
       if (l.id !== 'price') continue
@@ -826,10 +847,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
       Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-5 ||
       Math.abs(rowsTarget - rowsF) > 0.01 ||
       Math.abs(target - centre) > 1e-3 ||
-      shownRise < 1 ||
-      shownRiver < 1 ||
-      shownSettle < 1 ||
-      shownLabels < 1
+      ph !== null ||
+      sinking !== null
     // For the specs and ?debug=1: frames drawn, and the market's simulated clock.
     sh.labels.dataset.draws = String(++draws)
     sh.labels.dataset.simT = sim.t.toFixed(3)
@@ -883,6 +902,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     setPalette(p) {
       dirty = true
       pal = p
+    },
+    sink(done) {
+      if (sinking) return
+      sinking = { t: 0, ...shown, done }
+      dirty = true
     },
     dispose() {
       disposed = true

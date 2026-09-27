@@ -38,10 +38,12 @@ const STEP = 20
 /** The past fades out over the oldest 38% of rows: time is labelled only where the history is drawn in full. */
 const SHOWN = 0.62
 
-export function labelSpecs(sim: Flow, o: { centre: number; fracZ: number; narrow: boolean; rows: number; rise?: number }): LabelSpec[] {
+export function labelSpecs(sim: Flow, o: { centre: number; fracZ: number; narrow: boolean; rows: number; rise?: number; lift?: number }): LabelSpec[] {
   const head = sim.row(0)
   const n = Math.min(o.rows, sim.written)
   const rise = o.rise ?? 1
+  // How far the whole terrain stands out of the page: 1, except while Replay lowers it back in.
+  const lift = o.lift ?? 1
   const xOf = (price: number) => (price - o.centre) * DX
   const zOf = (age: number) => Z_NOW - (age + o.fracZ) * DZ
   const out: LabelSpec[] = []
@@ -49,7 +51,7 @@ export function labelSpecs(sim: Flow, o: { centre: number; fracZ: number; narrow
   // The price, where the river meets the front row: the visible bottom of the valley, not the floor under it.
   const mid = sim.mids[head]!
   const lo = Math.floor(mid), f = mid - lo
-  const yRiver = (height(sim.depthAt(head, lo)) * (1 - f) + height(sim.depthAt(head, lo + 1)) * f) * rowRise(rise, 0, n)
+  const yRiver = (height(sim.depthAt(head, lo)) * (1 - f) + height(sim.depthAt(head, lo + 1)) * f) * rowRise(rise, 0, n) * lift
   out.push({ id: 'price', kind: 'tag', text: `Price ${fmt.mid(mid)}`, at: [xOf(mid), yRiver, zOf(0)], dx: 0, dy: 20, anchor: 'c' })
 
   // Time runs back through the rows. A wide stage shows the whole valley, so it is marked at the buyers' end of
@@ -61,7 +63,7 @@ export function labelSpecs(sim: Flow, o: { centre: number; fracZ: number; narrow
     if (age >= n * SHOWN) return
     const edge = o.narrow ? Math.round(VIS * (0.13 + 0.035 * i)) : -(VIS / 2 - 1)
     const price = Math.round(o.centre) + edge
-    const y = height(sim.depthAt(sim.row(age), price)) * rowRise(rise, age, n) + 0.02
+    const y = height(sim.depthAt(sim.row(age), price)) * rowRise(rise, age, n) * lift + 0.02
     out.push({ id: `t${s}`, kind: 'time', text: s === 0 ? 'now' : `${s} s ago`, at: [xOf(price), y, zOf(age)], dx: o.narrow ? 0 : 6, dy: 0, anchor: o.narrow ? 'r' : 'l' })
   }
   time(0)
@@ -79,7 +81,7 @@ export function labelSpecs(sim: Flow, o: { centre: number; fracZ: number; narrow
   const b = Math.floor(o.centre) - VIS / 2
   for (let p = Math.ceil((b + 2) / STEP) * STEP; p <= b + VIS - 2; p += STEP) {
     if (Math.abs(p - mid) < STEP / 2) continue
-    out.push({ id: `p${p}`, kind: 'tick', text: fmt.usd(p), at: [xOf(p), height(sim.depthAt(head, p)) * rowRise(rise, 0, n), zOf(0)], dx: 0, dy: 16, anchor: 'c' })
+    out.push({ id: `p${p}`, kind: 'tick', text: fmt.usd(p), at: [xOf(p), height(sim.depthAt(head, p)) * rowRise(rise, 0, n) * lift, zOf(0)], dx: 0, dy: 16, anchor: 'c' })
   }
   return out
 }

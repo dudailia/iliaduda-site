@@ -44,10 +44,10 @@ export interface Hooks {
   sim: Sim
   /** The signature's phases while it waits or plays; null once it is over, or on a visit without one. */
   sequence(): { lines: number; rise: number; labels: number; shock: number; relax: number } | null
+  /** The story has started and is not over: every frame of it is drawn, paused or not. */
+  playing(): boolean
   /** The shock the signature shows now: its own, or, while a reader's skip plays, draining from where it stood. */
   shown(): number
-  /** How many times the reader has pressed Replay: a change starts the story over from what is on screen. */
-  replays(): number
   /** A drawn frame took this long: the signature's clock moves on it. */
   tick(dtMs: number): void
   /** The shock the reader has set: 0 is calm, 1 a full shock, up to SIZE_MAX. */
@@ -66,7 +66,8 @@ export interface Hooks {
   labelLayer(): HTMLElement | null
   notes(): readonly (HTMLElement | null)[]
   dot(): HTMLElement | null
-  sync(p: Params): void
+  /** The readouts, for the parameters just drawn, and the shock they were drawn at (0 calm, 1 a full shock). */
+  sync(p: Params, shown: number): void
 }
 
 /** Grid vertices per side and wall segments, by quality level. */
@@ -123,7 +124,15 @@ function invert(a: M4): M4 | null {
 
 // ── the renderer ─────────────────────────────────────────────────────────────
 
-export function make(env: StageEnv, hooks: Hooks): Renderer {
+/** How long Replay takes to lower the sheet into the page (its labels go in 150ms). */
+const SINK_S = 0.35
+
+export interface SurfaceRenderer extends Renderer {
+  /** Replay: lower what is shown back into the page, then call `done`, which starts the story again from there. */
+  sink(done: () => void): void
+}
+
+export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const { gl, canvas } = env
   const sim = hooks.sim
   // The software tier (a CPU rasteriser) gets the light shader variant.
@@ -234,15 +243,13 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
   let drawnOnce = false
   let draws = 0
   let inv: M4 | null = null
-  /** The shock shown: the signature's, or the reader's level followed on a short spring (ω = 12/s). */
+  /** The shock shown: the signature's, or the reader's level followed on a quick spring (ω = 30/s, the home figure's). */
   const shock = { x: 0, v: 0 }
-  /** A shock on screen when Replay starts the story over: it drains on the same spring as the sheet sinks. */
-  const carry = { x: 0, v: 0 }
-  let replays = hooks.replays()
-  // The signature as shown: 1 is the finished picture, as a visit without one opens.
-  let shownLines = 1, shownRise = 1, shownLabels = 1
-  let started = false
-  /** The story's phases at the last frame, summed: a change means it moved, and a paused figure draws it. */
+  /** Replay's way back into the page: from what was shown when it was pressed, on the site's ease-out. */
+  let sinking: { t: number; rise: number; lines: number; labels: number; shock: number; done: () => void } | null = null
+  /** What the last frame showed, for a sink to start from. */
+  let shown = { rise: 1, lines: 1, labels: 1, shock: 0 }
+  /** The story's phases at the last frame, summed: a change (Replay, its end) is drawn by a paused figure too. */
   let lastStory = -1
   let lastParams: Params = params(0)
   /** Drag offset of the orbit and the reader's lean, on critically damped springs back to their targets. */
@@ -402,23 +409,6 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       const paused = hooks.paused()
       const ph = hooks.sequence()
       const step = Math.min(dt, 1 / 30)
-      if (!started) {
-        started = true
-        if (ph) shownLines = shownRise = shownLabels = 0
-      }
-      // What is shown follows the signature: exactly as it forms, and back down at a finite speed when Replay starts
-      // it over, as the order book's terrain does, so the sheet sinks into the page (350ms), its smiles retract
-      // (350ms) and its labels fade (150ms) instead of vanishing in a frame.
-      const follow = (shown: number, target: number, secs: number) => (target >= shown ? target : Math.max(target, shown - dt / secs))
-      shownLines = follow(shownLines, ph ? ph.lines : 1, 0.35)
-      shownRise = follow(shownRise, ph ? ph.rise : 1, 0.35)
-      shownLabels = follow(shownLabels, ph ? ph.labels : 1, 0.15)
-      const r = hooks.replays()
-      if (r !== replays) {
-        replays = r
-        carry.x = shock.x
-        carry.v = shock.v
-      }
 
       // Springs: the drag's (ω = 7/s) and the lean's (ω = 5/s), critically damped, semi-implicit Euler.
       const W = 7
@@ -436,18 +426,14 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       lean.yaw += lean.vy * step
       lean.pitch += lean.vp * step
 
-      // The shock: the signature's while it plays; after it, the reader's level on a quick spring (ω = 12/s).
+      // The shock: the signature's while it plays; after it, the reader's level on a quick spring (ω = 30/s).
       let x: number
       if (ph) {
-        // The story's shock; one the reader had set when Replay began drains into it rather than jumping to calm.
-        const SW = 12
-        carry.v += (SW * SW * -carry.x - 2 * SW * carry.v) * step
-        carry.x += carry.v * step
-        x = Math.max(hooks.shown(), carry.x)
+        x = hooks.shown()
         shock.x = x
         shock.v = 0
       } else {
-        const SW = 12
+        const SW = 30
         shock.v += (SW * SW * (hooks.level() - shock.x) - 2 * SW * shock.v) * step
         shock.x += shock.v * step
         // Within a ten-thousandth of a full shock and all but still, it is there: settle it, so a paused figure stops
@@ -458,8 +444,31 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
         }
         x = shock.x
       }
+      // What is shown of the story: its phases, exactly. While Replay sinks the last one, the sheet lowers into the
+      // page as its smiles draw back and any shock drains (350ms), and the labels go (150ms), all on the ease-out;
+      // only then does the story start again, from there.
+      let rise = ph ? EASE_OUT(ph.rise) : 1
+      let lines = ph ? ph.lines : 1
+      let labelsK = ph ? EASE_OUT(ph.labels) : 1
+      if (sinking) {
+        const k = sinking
+        k.t += dt
+        const out = (secs: number) => 1 - EASE_OUT(Math.min(1, k.t / secs))
+        rise = k.rise * out(SINK_S)
+        lines = k.lines * out(SINK_S)
+        labelsK = k.labels * out(0.15)
+        x = k.shock * out(SINK_S)
+        shock.x = x
+        shock.v = 0
+        if (k.t >= SINK_S) {
+          sinking = null
+          k.done()
+        }
+      }
+      shown = { rise, lines, labels: labelsK, shock: x }
       const moving =
         !!drag ||
+        sinking !== null ||
         Math.abs(spring.yaw) + Math.abs(spring.pitch) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
         Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
         Math.abs(shock.v) > 1e-5 ||
@@ -468,13 +477,10 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       const story = ph ? ph.lines + ph.rise + ph.labels + ph.shock + ph.relax : -1
       const storyMoved = story !== lastStory
       lastStory = story
-      if (drawnOnce && paused && !moving && !storyMoved && !sim.dirty && !resized) return true
+      if (drawnOnce && paused && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return true
       sim.dirty = false
       resized = false
 
-      const rise = EASE_OUT(shownRise)
-      const lines = shownLines
-      const labelsK = EASE_OUT(shownLabels)
       const p = params(Math.max(0, x))
       lastParams = p
       const cam = camera(Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
@@ -540,7 +546,7 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       // The reading point arrives with the labels, once the sheet is up to be read.
       if (dot) dot.style.opacity = labelsK.toFixed(3)
 
-      hooks.sync(p)
+      hooks.sync(p, x)
       drawnOnce = true
       // For the specs and ?debug=1: frames drawn, and how far the sheet stands out of the page.
       canvas.dataset.draws = String(++draws)
@@ -566,6 +572,11 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
     },
     setPalette(p) {
       palette = p
+      sim.dirty = true
+    },
+    sink(done) {
+      if (sinking) return
+      sinking = { t: 0, ...shown, done }
       sim.dirty = true
     },
     dispose() {

@@ -102,9 +102,13 @@ const NOT_A_REQUEST = new Set(['Shift', 'Meta', 'Control', 'Alt', ' ', 'Spacebar
  * Whether an event is the reader asking to get on with it: a click or tap, a
  * key, a mouse or pen press. Not scrolling — by wheel, finger or key — and not
  * a finger landing on the glass, which on a phone is usually the start of a
- * scroll towards the figure.
+ * scroll towards the figure. Nor anything on a Replay control (`data-replay`):
+ * that starts the story over, and finishing it first would rush the figure
+ * forward in the moment between the press and the click.
  */
-export function isSkipInput(e: { type: string; pointerType?: string; key?: string }): boolean {
+export function isSkipInput(e: { type: string; pointerType?: string; key?: string; target?: EventTarget | { closest?(sel: string): unknown } | null }): boolean {
+  const t = e.target as { closest?(sel: string): unknown } | null | undefined
+  if (typeof t?.closest === 'function' && t.closest('[data-replay]')) return false
   switch (e.type) {
     case 'click':
       return true

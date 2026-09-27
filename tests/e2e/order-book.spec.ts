@@ -242,6 +242,35 @@ test('on a first visit a lost context shows the finished poster, not an empty st
   expect(errors).toEqual([])
 })
 
+test('Replay lowers the terrain back into the page first, and only then plays the story again', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  expect(await seq(page)).toBe('off')
+  await page.locator('#fig-order-book').getByRole('button', { name: 'Replay' }).click()
+  // Sinking (the camera takes 700ms to lift back to the page), the story has not started over yet.
+  await page.waitForTimeout(300)
+  expect(await seq(page)).not.toBe('playing')
+  await expect.poll(() => seq(page), { timeout: 2_000 }).toBe('playing')
+  await expect.poll(() => seq(page), { timeout: 8_000 }).toBe('done')
+})
+
+test('reduced motion turned on and off again while the page is open: still, then live again, without an error', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect.poll(() => canvasShown(page), { timeout: 5_000 }).toBe(false)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
+  const n = await attr(page, 'draws')
+  await expect.poll(() => attr(page, 'draws'), { timeout: 5_000 }).toBeGreaterThan(n + 5)
+  expect(errors).toEqual([])
+})
+
 test('?debug=1 reports the live figure, and whether this browser computes the same market as Node', async ({ page }) => {
   test.setTimeout(60_000)
   const errors = errorsOf(page)

@@ -7,14 +7,14 @@ import { DebugSlot } from '@/components/stage/DebugSlot'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
-import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '@/components/stage/useStage'
+import { fade, underlay, useStage, type Create, type Palette } from '@/components/stage/useStage'
 import { Flow, POSTER_T, type Stats } from '@/lib/market/flow'
 import { advanceInSlices } from '@/lib/market/slices'
 import { orderBookSequence } from '@/lib/orderbook/sequence'
 import { fmt, readAt, sentence, type Reading } from '@/lib/orderbook/read'
 import type { LiveInfo } from '@/lib/stage/debug'
 import { market } from './market'
-import type { KeyProbe, Shared } from './renderer'
+import type { BookRenderer, KeyProbe, Shared } from './renderer'
 
 /**
  * Fig. 1 of /order-book, live: a synthetic limit order book as terrain.
@@ -124,11 +124,13 @@ export function OrderBookLive({
   const sigApi = useRef<{ armed: { current: boolean }; onFrame(): void } | null>(null)
   const fallbackApi = useRef<{ fail(why: 'load' | 'error'): void; watch(): () => void } | null>(null)
   const pinApi = useRef<(k: KeyProbe) => void>(() => {})
+  /** The live renderer, for Replay: the terrain sinks back into the page before the story plays again. */
+  const book = useRef<BookRenderer | null>(null)
 
   const create: Create = useCallback(
     (env) => {
       let mod: Mod | null = null
-      let inner: Renderer | null = null
+      let inner: BookRenderer | null = null
       let size: [number, number, number, number] | null = null
       let q = 2
       let pal: Palette = env.palette
@@ -180,6 +182,7 @@ export function OrderBookLive({
             if (!inner) {
               if (!mod || !shared.current) return false
               inner = mod.createBookRenderer({ ...env, palette: pal }, shared.current)
+              book.current = inner
               if (size) inner.resize(...size)
               inner.setQuality?.(q)
             }
@@ -204,6 +207,7 @@ export function OrderBookLive({
         dispose() {
           dead = true
           unwatch?.()
+          if (book.current === inner) book.current = null
           inner?.dispose()
           shared.current = null
         },
@@ -458,7 +462,7 @@ export function OrderBookLive({
               <button type="button" onClick={togglePause} aria-pressed={paused} className={CONTROL}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
-              <button type="button" onClick={() => sig.replay()} className={CONTROL}>
+              <button type="button" data-replay="" onClick={() => (book.current ? book.current.sink(() => sig.replay()) : sig.replay())} className={CONTROL}>
                 Replay
               </button>
             </>

@@ -53,6 +53,12 @@ export interface Renderer {
 
 export type Create = (env: StageEnv) => Renderer | null
 
+/**
+ * Contexts this kit gave up itself (the figure stopped for reduced motion, or unmounted): a canvas that stays on the
+ * page keeps its lost context, so going live again means asking for it back.
+ */
+const given = new WeakMap<HTMLCanvasElement, WEBGL_lose_context>()
+
 const MAX_Q: Record<Tier, number> = { software: 0, low: 1, mid: 2, high: 3 }
 const DPR_CAP = [1, 1.25, 1.5, 2] as const
 
@@ -217,6 +223,15 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
         setEligible(false)
         return
       }
+      // The context this canvas had when motion was last turned off: ask for it back, and start again once it is
+      // (onRestored below).
+      const mine = given.get(cv)
+      if (gl.isContextLost() && mine) {
+        given.delete(cv)
+        started = false
+        mine.restoreContext()
+        return
+      }
       const t = deviceTier(gl)
       maxQ = tierMax.current?.[t] ?? MAX_Q[t]
       q = Math.min(maxQ, 2)
@@ -289,7 +304,15 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
       cv.removeEventListener('webglcontextrestored', onRestored)
       renderer?.dispose()
       rendererRef.current = null
-      gl?.getExtension('WEBGL_lose_context')?.loseContext()
+      // The figure is no longer live: its poster (or still frame) shows until a renderer draws again.
+      setLive(false)
+      const lose = gl?.getExtension('WEBGL_lose_context')
+      if (lose) {
+        given.set(cv, lose)
+        // A context may only be given back if its loss was prevented; the kit's own listener is gone by now.
+        cv.addEventListener('webglcontextlost', (e) => e.preventDefault(), { once: true })
+        lose.loseContext()
+      }
     }
   }, [reduced, threshold])
 
