@@ -42,6 +42,10 @@ export const WINDOW = 10 * HZ
 export const QUANTA = 60
 const PER_ROW = QUANTA / HZ
 const BURN_Q = BURN * QUANTA
+/** Events kept for the order-flow figure: about 27 simulated seconds at 300 a second. */
+export const EVENTS = 8192
+/** The two market-order types, whose intensities the order-flow figure draws exactly. */
+const DRAWN = [MARKET_BUY, MARKET_SELL] as const
 
 const MAX_TRADES = 1024
 
@@ -85,6 +89,31 @@ export class Flow {
   readonly trades: Trade[] = []
   /** Called for every fill as it happens, for sparks. */
   onTrade: ((tr: Trade) => void) | null = null
+  /**
+   * The most recent events, as parallel arrays in a ring (`event(age)` finds one): when, what, at which level and
+   * how many shares, how far from the touch on its side (ticks; negative inside the spread), the queue at that side's
+   * touch before and after (`moved`: the touch itself moved), the intensity of its type just before it, and, after
+   * it, the excitation of the two market-order types by each source type — from which their intensity at any later
+   * moment follows exactly, until the next event.
+   */
+  readonly ev = {
+    t: new Float64Array(EVENTS),
+    type: new Uint8Array(EVENTS),
+    price: new Int32Array(EVENTS),
+    size: new Int32Array(EVENTS),
+    dist: new Int16Array(EVENTS),
+    qBefore: new Int32Array(EVENTS),
+    qAfter: new Int32Array(EVENTS),
+    moved: new Uint8Array(EVENTS),
+    lam: new Float64Array(EVENTS),
+    exc: new Float32Array(EVENTS * DRAWN.length * 6),
+  }
+  /** Ring index of the newest event, and how many the ring holds. */
+  eventHead = -1
+  eventCount = 0
+  /** Queue at the best bid and the best ask when each row was written. */
+  readonly bidQueue = new Int32Array(ROWS)
+  readonly askQueue = new Int32Array(ROWS)
   private pendingEvents = 0
   private pendingFills = 0
   private pendingVolume = 0
@@ -105,10 +134,35 @@ export class Flow {
   }
 
   private run(tEnd: number, keep: boolean) {
-    this.hawkes.run(tEnd, (t, type) => {
-      this.book.apply(type, t, keep ? this.trade : undefined)
+    this.hawkes.run(tEnd, (t, type, before) => {
+      const b = this.book
+      const bidSide = type === LIMIT_BUY || type === CANCEL_BID || type === MARKET_SELL
+      const touch = bidSide ? b.bestBid : b.bestAsk
+      const q0 = bidSide ? b.bidAt(touch) : b.askAt(touch)
+      b.apply(type, t, keep ? this.trade : undefined)
       if (keep) this.pendingEvents++
+      const e = (this.eventHead = (this.eventHead + 1) % EVENTS)
+      if (this.eventCount < EVENTS) this.eventCount++
+      const ev = this.ev
+      const now = bidSide ? b.bestBid : b.bestAsk
+      ev.t[e] = t
+      ev.type[e] = type
+      ev.price[e] = b.last.price
+      ev.size[e] = b.last.size
+      ev.dist[e] = type === MARKET_BUY || type === MARKET_SELL ? 0 : bidSide ? touch - b.last.price : b.last.price - touch
+      ev.qBefore[e] = q0
+      ev.qAfter[e] = bidSide ? b.bidAt(now) : b.askAt(now)
+      ev.moved[e] = now !== touch ? 1 : 0
+      ev.lam[e] = before
+      const K = this.hawkes.k
+      for (let d = 0; d < DRAWN.length; d++) for (let j = 0; j < K; j++) ev.exc[(e * DRAWN.length + d) * 6 + j] = this.hawkes.excitation(DRAWN[d]!, j)
     })
+  }
+
+  /** Ring index of the event `age` events before the newest, or -1. */
+  event(age: number): number {
+    if (age < 0 || age >= this.eventCount) return -1
+    return (((this.eventHead - age) % EVENTS) + EVENTS) % EVENTS
   }
 
   private trade = (tr: Trade) => {
@@ -148,6 +202,8 @@ export class Flow {
     this.bids[r] = b.bestBid
     this.asks[r] = b.bestAsk
     this.times[r] = t
+    this.bidQueue[r] = b.bidAt(b.bestBid)
+    this.askQueue[r] = b.askAt(b.bestAsk)
     this.events[r] = this.pendingEvents
     this.fills[r] = this.pendingFills
     this.volume[r] = this.pendingVolume
@@ -223,3 +279,40 @@ export function posterFlow(): Flow {
 
 export const dollars = (ticks: number) => `$${(ticks * TICK).toFixed(2)}`
 export { LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET_SELL, CANCEL_BID, CANCEL_ASK }
+
+/**
+ * Which earlier event set off the event `age` events ago, by the branching
+ * structure of the Hawkes process: its intensity just before it is its baseline
+ * plus one term per earlier event, and each term's share is the probability
+ * that event was its parent; the baseline's share is the probability it was an
+ * immigrant, arriving on its own. The sum runs over the last six seconds, past
+ * which every kernel has decayed below a millionth.
+ */
+export function attribute(
+  f: Flow,
+  age: number,
+  p: HawkesParams,
+): { immigrant: number; parents: { age: number; p: number }[]; top: { age: number; p: number } | null; lambda: number } {
+  const e = f.event(age)
+  const u = f.ev.type[e]!
+  const ti = f.ev.t[e]!
+  const w: { age: number; p: number }[] = []
+  let lambda = p.mu[u]!
+  for (let a = age + 1; a < f.eventCount; a++) {
+    const k = f.event(a)
+    const dt = ti - f.ev.t[k]!
+    if (dt > 6) break
+    const src = f.ev.type[k]!
+    const x = p.jump[u]![src]! * dexp(-p.decay[src]! * dt)
+    if (x > 0) {
+      w.push({ age: a, p: x })
+      lambda += x
+    }
+  }
+  let top: { age: number; p: number } | null = null
+  for (const q of w) {
+    q.p /= lambda
+    if (!top || q.p > top.p) top = q
+  }
+  return { immigrant: p.mu[u]! / lambda, parents: w, top, lambda }
+}

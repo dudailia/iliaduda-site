@@ -110,6 +110,11 @@ export class Hawkes {
     this.counts = new Array<number>(this.k).fill(0)
   }
 
+  /** The excitation of type i by past events of type j, now: λ_i = μ_i + Σ_j excitation(i, j). */
+  excitation(i: number, j: number): number {
+    return this.s[i * this.k + j]!
+  }
+
   intensity(i: number): number {
     let l = this.mu[i]!
     for (let j = 0; j < this.k; j++) l += this.s[i * this.k + j]!
@@ -134,11 +139,12 @@ export class Hawkes {
   }
 
   /**
-   * Advance to `tEnd`, calling `onEvent` for every event in order. A candidate
-   * past `tEnd` is discarded and the clock stops at `tEnd`: the exponential is
-   * memoryless, so restarting the thinning there is still exact.
+   * Advance to `tEnd`, calling `onEvent` for every event in order, with the
+   * intensity of its type just before it. A candidate past `tEnd` is discarded
+   * and the clock stops at `tEnd`: the exponential is memoryless, so
+   * restarting the thinning there is still exact.
    */
-  run(tEnd: number, onEvent: (t: number, type: number) => void): void {
+  run(tEnd: number, onEvent: (t: number, type: number, before: number) => void): void {
     for (;;) {
       const bound = this.total()
       const tc = this.t + expo(this.rng, bound)
@@ -158,9 +164,10 @@ export class Hawkes {
           break
         }
       }
+      const before = this.intensity(type)
       for (let i = 0; i < this.k; i++) this.s[i * this.k + type]! += this.jump[i]![type]!
       this.counts[type]!++
-      onEvent(tc, type)
+      onEvent(tc, type, before)
     }
   }
 }

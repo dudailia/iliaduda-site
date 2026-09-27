@@ -58,6 +58,8 @@ const SPAN = 2048
 const MARGIN = 256
 
 export class Book {
+  /** What the last event did: the level it acted on, in ticks, and the shares it placed, filled or cancelled. */
+  readonly last = { price: 0, size: 0 }
   /** Absolute tick of array index 0. */
   base: number
   readonly bid = new Int32Array(SPAN)
@@ -156,6 +158,8 @@ export class Book {
         this.bid[price - this.base]! += size
         this.totalBid += size
         if (price > this.bestBid) this.bestBid = price
+        this.last.price = price
+        this.last.size = size
         break
       }
       case LIMIT_SELL: {
@@ -166,11 +170,15 @@ export class Book {
         this.ask[price - this.base]! += size
         this.totalAsk += size
         if (price < this.bestAsk) this.bestAsk = price
+        this.last.price = price
+        this.last.size = size
         break
       }
       case MARKET_BUY: {
         // Never take the last share on a side: an empty side has no price.
         let left = Math.min(lots(rng, p.marketSize), this.totalAsk - 1)
+        this.last.price = this.bestAsk
+        this.last.size = left
         while (left > 0) {
           const i = this.bestAsk - this.base
           const fill = Math.min(left, this.ask[i]!)
@@ -188,6 +196,8 @@ export class Book {
       }
       case MARKET_SELL: {
         let left = Math.min(lots(rng, p.marketSize), this.totalBid - 1)
+        this.last.price = this.bestBid
+        this.last.size = left
         while (left > 0) {
           const i = this.bestBid - this.base
           const fill = Math.min(left, this.bid[i]!)
@@ -219,6 +229,8 @@ export class Book {
         const q = arr[i]!
         const frac = p.cancelLo + rng() * (p.cancelHi - p.cancelLo)
         const take = Math.min(Math.max(1, Math.round(q * frac)), q, total - 1)
+        this.last.price = i + this.base
+        this.last.size = Math.max(0, take)
         if (take <= 0) break
         arr[i]! -= take
         if (bidSide) this.totalBid -= take
