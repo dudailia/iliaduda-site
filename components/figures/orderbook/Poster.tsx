@@ -1,40 +1,49 @@
 import type { Flow } from '@/lib/market/flow'
-import { LABEL_FS, posterGeometry, type PosterLabel } from '@/lib/orderbook/poster'
+import { LABEL_FS, POSTERS, posterOf, type PosterGeometry, type PosterLabel } from '@/lib/orderbook/poster'
 
 /**
  * A real frame of the simulation, drawn on the server: the book's history as
  * ridgelines through the live camera, the price river through the valley and
- * the recent trades as dots. It is the figure until the canvas has drawn, and
- * the whole figure for a reader who asked for reduced motion. On a first visit
- * the pre-paint mark hides everything drawn on the page (`data-fill`), so the
- * terrain can rise out of it.
+ * the recent trades as dots. The drawing is an image of its own
+ * (app/(pages)/order-book/poster-*.svg), fetched in the one arrangement the
+ * screen shows; its labels are drawn here, over it, in the page's own type,
+ * which an image cannot load. It is the figure until the canvas has drawn,
+ * and the whole figure for a reader who asked for reduced motion. On a first
+ * visit the pre-paint mark hides everything drawn (`data-fill`), so the
+ * terrain can rise out of the page.
  */
-export function Poster({ sim, variant, label }: { sim: Flow; variant: 'wide' | 'narrow'; label: string }) {
-  const wide = variant === 'wide'
-  // The paper's stage: its column at lg (646×576 at 1440×900), and a phone's full-bleed frame (390×591).
-  const g = posterGeometry(sim, wide ? 646 : 390, wide ? 576 : 591, wide ? { every: 6, step: 2 } : { every: 7, step: 2 })
+export function Poster({ sim, label }: { sim: Flow; label: string }) {
+  const [wide, narrow] = POSTERS
   return (
-    <svg viewBox={`0 0 ${g.w} ${g.h}`} preserveAspectRatio="xMidYMid meet" className="block h-full w-full" role="img">
-      <title>Twenty seconds of a synthetic order book</title>
-      <desc>{label}</desc>
-      <g data-fill="" strokeLinejoin="round" strokeWidth={1}>
-        {g.rows.map((r, i) => (
-          <g key={i} strokeOpacity={(0.2 + 0.8 * r.near).toFixed(2)}>
-            <path d={r.bid.d} strokeDasharray={r.bid.dash} fill="var(--color-paper)" stroke="var(--color-indigo)" />
-            <path d={r.ask.d} strokeDasharray={r.ask.dash} fill="var(--color-paper)" stroke="var(--color-graphite)" />
-          </g>
-        ))}
-      </g>
-      <g data-fill="">
-        <path d={g.river} fill="none" stroke="var(--color-indigo-wash)" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" />
-        <path d={g.river} fill="none" stroke="var(--color-indigo)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      </g>
-      <g data-fill="" fill="var(--color-indigo)">
-        {g.dots.map(([x, y, r], i) => (
-          <circle key={i} cx={x} cy={y} r={r} />
-        ))}
-      </g>
-      <g data-fill="" className="font-mono" fontSize={LABEL_FS} textAnchor="middle" dominantBaseline="central">
+    <>
+      <picture>
+        <source media="(orientation: portrait)" srcSet="/order-book/poster-narrow.svg" width={narrow.w} height={narrow.h} />
+        <img
+          data-fill=""
+          src="/order-book/poster-wide.svg"
+          width={wide.w}
+          height={wide.h}
+          alt={label}
+          decoding="async"
+          className="absolute inset-0 size-full object-contain"
+        />
+      </picture>
+      <Labels g={posterOf(sim, 'wide')} className="portrait:hidden" />
+      <Labels g={posterOf(sim, 'narrow')} className="hidden portrait:block" />
+    </>
+  )
+}
+
+function Labels({ g, className }: { g: PosterGeometry; className: string }) {
+  return (
+    <svg
+      data-fill=""
+      aria-hidden
+      viewBox={`0 0 ${g.w} ${g.h}`}
+      preserveAspectRatio="xMidYMid meet"
+      className={`absolute inset-0 size-full ${className}`}
+    >
+      <g className="font-mono" fontSize={LABEL_FS} textAnchor="middle" dominantBaseline="central">
         {g.labels.map((l) => (
           <Label key={l.text} l={l} />
         ))}
@@ -53,10 +62,11 @@ const LOOK: Record<PosterLabel['kind'], { back: string; opacity: number; text: s
 
 function Label({ l }: { l: PosterLabel }) {
   const k = LOOK[l.kind]
+  const r = (v: number) => Math.round(v * 10) / 10
   return (
     <>
-      <rect x={l.x0} y={l.y0} width={Math.round((l.x1 - l.x0) * 10) / 10} height={Math.round((l.y1 - l.y0) * 10) / 10} rx={4} fill={k.back} fillOpacity={k.opacity} />
-      <text x={Math.round(((l.x0 + l.x1) / 2) * 10) / 10} y={Math.round(((l.y0 + l.y1) / 2) * 10) / 10} fill={k.text}>
+      <rect x={l.x0} y={l.y0} width={r(l.x1 - l.x0)} height={r(l.y1 - l.y0)} rx={4} fill={k.back} fillOpacity={k.opacity} />
+      <text x={r((l.x0 + l.x1) / 2)} y={r((l.y0 + l.y1) / 2)} fill={k.text}>
         {l.text}
       </text>
     </>

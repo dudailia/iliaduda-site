@@ -39,12 +39,23 @@ test.describe('before any script runs', () => {
   test.use({ javaScriptEnabled: false })
   test('the poster is a real frame of the market, with its numbers in the margin', async ({ page }) => {
     await page.goto('/order-book')
-    // Whichever arrangement this viewport shows, its poster names what it is and carries the frame's own numbers.
-    const img = page.locator('#fig-order-book svg[role="img"]:visible')
+    // Whichever arrangement this viewport shows, its poster says what it is with the frame's own numbers, and its
+    // labels are drawn in the page, over the image.
+    const img = page.locator('#fig-order-book img:visible')
     await expect(img).toHaveCount(1)
-    await expect(img.locator('title')).toHaveText(/synthetic order book/)
-    await expect(img.locator('desc')).toHaveText(/\$\d+\.\d{2}/)
+    await expect(img).toHaveAttribute('alt', /synthetic order book.*\$\d+\.\d{2}/)
+    await expect(page.locator('#fig-order-book svg:visible text').filter({ hasText: /^Price \$/ })).toHaveCount(1)
     await expect(page.locator('#fig-order-book dd').first()).toHaveText(/^\$\d+\.\d{2,3}$/)
+  })
+
+  test('fetches one poster, the one its screen shows, and it follows the colour scheme', async ({ page, isMobile }) => {
+    const got: string[] = []
+    page.on('response', (r) => {
+      if (/\/order-book\/poster-/.test(r.url())) got.push(`${r.url().split('/').pop()} ${r.headers()['content-type']}`)
+    })
+    await page.goto('/order-book')
+    await expect(page.locator('#fig-order-book img:visible')).toHaveJSProperty('complete', true)
+    expect(got).toEqual([`poster-${isMobile ? 'narrow' : 'wide'}.svg image/svg+xml; charset=utf-8`])
   })
 })
 
@@ -108,7 +119,7 @@ test('reduced motion: the still frame, no canvas, and the arrow keys still read 
   await page.goto('/order-book')
   await page.waitForTimeout(800)
   expect(await canvasShown(page)).toBe(false)
-  await expect(page.locator('#fig-order-book svg[role="img"]:visible')).toHaveCount(1)
+  await expect(page.locator('#fig-order-book img:visible')).toHaveCount(1)
   await page.locator(STAGE).focus()
   await page.keyboard.press('ArrowRight')
   await expect(page.locator('#fig-order-book-probe dd').first()).toContainText('$')

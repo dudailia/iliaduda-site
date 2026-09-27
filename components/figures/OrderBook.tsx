@@ -29,8 +29,7 @@ export function OrderBookFigure() {
     <>
       <script dangerouslySetInnerHTML={{ __html: prepaint('orderbook') }} />
       <OrderBookLive
-        posterWide={<Poster sim={sim} variant="wide" label={label} />}
-        posterNarrow={<Poster sim={sim} variant="narrow" label={label} />}
+        poster={<Poster sim={sim} label={label} />}
         initial={initial}
         title={`Twenty seconds of a simulated order book for a ${fmt.usd(Math.round(value('mkOpen') / value('mkTick')))} stock: each ridge is the shares waiting at a price.`}
         subtitle={`Simulated · Hawkes order flow · six kinds of order · tick ${fmt.usd(1)} · not market data`}

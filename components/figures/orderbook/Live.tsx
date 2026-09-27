@@ -50,16 +50,14 @@ type Mod = typeof import('./renderer')
 const noop = () => () => {}
 
 export function OrderBookLive({
-  posterWide,
-  posterNarrow,
+  poster,
   initial,
   title,
   subtitle,
   caption,
   table,
 }: {
-  posterWide: ReactNode
-  posterNarrow: ReactNode
+  poster: ReactNode
   initial: Initial
   title: string
   subtitle: string
@@ -387,8 +385,7 @@ export function OrderBookLive({
         className="relative -mx-6 h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y overflow-hidden select-none focus-visible:outline-offset-[-4px] sm:mx-0 sm:h-[clamp(28rem,62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)]"
       >
         <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
-          <div className="h-full portrait:hidden">{posterWide}</div>
-          <div className="hidden h-full portrait:block">{posterNarrow}</div>
+          {poster}
         </div>
         <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
         <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />

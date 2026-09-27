@@ -13,8 +13,15 @@ import { DX, DZ, HISTORY, REST, VIS, XW, Z_NOW, fit, height, lens, mul, perspect
 export interface PosterRow {
   bid: { d: string; dash: string }
   ask: { d: string; dash: string }
-  /** 0 (far) … 1 (now): fades the far rows into the paper. */
+  /** 0 (far) … 1 (now): how strongly the ridge's top is drawn. */
   near: number
+  /** 0 … 1: how far the row has faded into the past, as the live shader fades it (smoothstep over its history). */
+  fade: number
+}
+
+const smooth = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+  return t * t * (3 - 2 * t)
 }
 
 export interface PosterGeometry {
@@ -22,7 +29,8 @@ export interface PosterGeometry {
   h: number
   rows: PosterRow[]
   river: string
-  dots: [number, number, number][]
+  /** Recent trades: x, y, radius, and opacity (the older, the fainter, as the live dots fade). */
+  dots: [number, number, number, number][]
   /** The live overlay's labels for this frame, placed by its rules (lib/orderbook/labels.ts). */
   labels: PosterLabel[]
 }
@@ -88,6 +96,19 @@ function path(ridge: [number, number][], ground: [number, number][], w: number):
   return { d: d + 'z', dash: `${top.toFixed(1)} ${(len - top + 2).toFixed(0)}` }
 }
 
+/** The poster's two arrangements: a laptop's column (646×576 at 1440×900) and a phone's full-bleed frame (390×591). */
+export const POSTERS = [
+  { variant: 'wide', w: 646, h: 576, opts: { every: 6, step: 2 } },
+  { variant: 'narrow', w: 390, h: 591, opts: { every: 7, step: 2 } },
+] as const
+export type Variant = (typeof POSTERS)[number]['variant']
+
+/** The poster for one arrangement. */
+export function posterOf(sim: Flow, variant: Variant): PosterGeometry {
+  const p = POSTERS.find((x) => x.variant === variant)!
+  return posterGeometry(sim, p.w, p.h, p.opts)
+}
+
 export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: number; step: number }, camera?: Camera): PosterGeometry {
   const aspect = w / h
   const cam = camera ?? fit(REST.yaw, restPitch(aspect), aspect)
@@ -139,7 +160,7 @@ export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: n
       ask.unshift(floorMid)
       askFloor.unshift(floorMid)
     }
-    rows.push({ bid: path(bid, bidFloor, w), ask: path(ask, askFloor, w), near: 1 - age / maxAge })
+    rows.push({ bid: path(bid, bidFloor, w), ask: path(ask, askFloor, w), near: 1 - age / maxAge, fade: Math.round(smooth(0.4, 1, (age + frac) / HISTORY) * 100) / 100 })
   }
 
   let river = ''
@@ -152,7 +173,7 @@ export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: n
     last = p
   }
 
-  const dots: [number, number, number][] = []
+  const dots: [number, number, number, number][] = []
   const tHead = sim.times[head]!
   for (const tr of sim.trades) {
     const age = (tHead - tr.t) * HZ
@@ -161,8 +182,10 @@ export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: n
     if (Math.abs(x) > XW * (narrow ? 0.72 : 1)) continue
     const r = sim.row(Math.round(age))
     const p = P(x, height(sim.depthAt(r, tr.price)) + 0.01, Z_NOW - (age + frac) * DZ)
-    const rad = Math.round(Math.min(5, 1.6 + Math.sqrt(tr.size) * 0.7) * 10) / 10
-    if (p && p[0] - rad >= 0 && p[0] + rad <= w && p[1] - rad >= 0 && p[1] + rad <= h) dots.push([p[0], p[1], rad])
+    // The live point is 3 + 0.6√size px across, and fades over the older part of the history.
+    const rad = Math.round((1.5 + 0.3 * Math.sqrt(tr.size)) * 10) / 10
+    const a = 1 - smooth(0.4, 1, age / HISTORY)
+    if (p && a > 0.12 && p[0] - rad >= 0 && p[0] + rad <= w && p[1] - rad >= 0 && p[1] + rad <= h) dots.push([p[0], p[1], rad, a])
   }
 
   // The labels the first live frame would place, in the order it places them.
