@@ -1,6 +1,7 @@
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Annotated, Shell } from '@/components/Layout'
 import { OrderBookFigure } from '@/components/figures/OrderBook'
+import { OrderFlowFigure } from '@/components/figures/OrderFlow'
 import { papers } from '@/content/papers'
 import { syntheticValue } from '@/content/synthetic'
 import { Flow } from '@/lib/market/flow'
@@ -89,7 +90,15 @@ export default function OrderBook() {
             the intensity now bounds it until the next event, and a candidate drawn at that bound is kept with probability
             λ(t)/λ*.
           </p>
+          <p>
+            Which earlier order set off a given one is never observed, only probable. Just before an order, its intensity
+            is its baseline plus one decaying term for each earlier order; each term’s share of the total is the
+            probability that that order was its parent, and the baseline’s share is the chance it came on its own. Fig. 2
+            draws the flow the terrain is built from, and reads the likeliest parent of any order you choose.
+          </p>
         </Section>
+
+        <OrderFlowFigure />
 
         <Section heading="The book">
           <p>

@@ -43,6 +43,8 @@ export interface Shared {
   readonly paused: boolean
   /** Advance the page's one market by this frame (components/figures/orderbook/market.ts): once, whoever asks first. */
   advance(): void
+  /** The order chosen in Fig. 2, which this figure marks with its probe when the reader is not probing it: price, time. */
+  highlight(): { price: number; t: number } | null
   /** The signature's phases while it waits or plays (lib/orderbook/sequence.ts); null once it is over, or on a visit without one. */
   sequence(): { rise: number; river: number; settle: number; labels: number } | null
   /** The reader's lean, −1…1 each way, from the pointer or the tilt (components/stage/useLean.ts). */
@@ -633,7 +635,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
 
     // Probe: hover wins; else the keyboard/tap probe.
     const hovered = hover ? pick(hover[0], hover[1]) : null
-    const probe = hovered ?? sh.key
+    // The reader's own probe wins; otherwise the order chosen in Fig. 2, where and when it was, while it is in view.
+    const chosen = !hovered && !sh.key ? sh.highlight() : null
+    const probe =
+      hovered ?? sh.key ?? (chosen && sim.t - chosen.t < Math.min(rows, sim.written) / HZ ? { dp: chosen.price - Math.round(centre), age: Math.max(0, Math.floor((sim.t - chosen.t) * HZ)) } : null)
     const probePrice = probe ? Math.round(centre) + probe.dp : 0
     const probeAge = probe ? Math.min(Math.max(0, probe.age), Math.min(rows, sim.written) - 1) : 0
     const reading = probe ? readAt(sim, probePrice, probeAge, fracZ) : null

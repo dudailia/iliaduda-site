@@ -19,6 +19,8 @@ class PageMarket {
   private at = -1
   private held: boolean | null = null
   private readonly subs = new Set<() => void>()
+  /** The event selected in Fig. 2, which Fig. 1 marks on its terrain: its price, in ticks, and its time. */
+  highlight: { price: number; t: number } | null = null
 
   /** The market, made on first use. */
   get flow(): Flow {

@@ -141,6 +141,7 @@ export function OrderBookLive({
         advance: () => {
           market.tick()
         },
+        highlight: () => market.highlight,
         sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
         lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
         tick: (dtMs) => {

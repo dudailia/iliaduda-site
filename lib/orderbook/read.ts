@@ -37,6 +37,8 @@ const mid = (ticks: number) => `$${(ticks * TICK).toFixed(Number.isInteger(ticks
 export const fmt = {
   usd,
   mid,
+  /** A share as a percentage, always to one decimal. */
+  pct: (x: number) => `${(x * 100).toFixed(1)}%`,
   side: (r: Reading) => (r.side === 'bid' ? 'buyers waiting' : r.side === 'ask' ? 'sellers waiting' : 'inside the spread'),
   shares: (n: number) => `${Math.round(n).toLocaleString('en-US')} ${Math.round(n) === 1 ? 'share' : 'shares'}`,
   ago: (s: number) => (s < 0.05 ? 'now' : `${s.toFixed(1)} s ago`),

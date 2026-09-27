@@ -105,12 +105,13 @@ test('Pause holds it: nothing is drawn and the market stops; Resume lets it run 
   await seen(page)
   await page.goto('/order-book')
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
-  await page.getByRole('button', { name: 'Pause' }).click()
+  // Fig. 2 has its own Pause for the same market; this is Fig. 1's.
+  await page.locator('#fig-order-book').getByRole('button', { name: 'Pause' }).click()
   await page.waitForTimeout(400)
   const t0 = await attr(page, 'sim-t')
   await page.waitForTimeout(1_200)
   expect(await attr(page, 'sim-t')).toBe(t0)
-  await page.getByRole('button', { name: 'Resume' }).click()
+  await page.locator('#fig-order-book').getByRole('button', { name: 'Resume' }).click()
   await expect.poll(() => attr(page, 'sim-t'), { timeout: 3_000 }).toBeGreaterThan(t0 + 0.5)
 })
 

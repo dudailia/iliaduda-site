@@ -46,6 +46,9 @@ export interface Envelope {
 }
 
 export interface FlowFrame {
+  /** The window drawn: from t0 to t1, simulated seconds. */
+  t0: number
+  t1: number
   /** Events per lane and column, lane by lane. */
   counts: Uint16Array
   /** Intensity of market buys and of market sells, per second. */
@@ -193,7 +196,7 @@ export function flowFrame(f: Flow, win: Win, p: HawkesParams): FlowFrame {
     put(Q, cols - 1, q)
   }
 
-  return { counts, lam, queue, emptied, events: ages.length, own: ages.length ? own / ages.length : 0 }
+  return { t0, t1, counts, lam, queue, emptied, events: ages.length, own: ages.length ? own / ages.length : 0 }
 }
 
 /** The event in `lane` nearest the pointer (x: 0 at the window's start, 1 at now), within `tol` seconds; its age. */
@@ -243,6 +246,31 @@ export function readEvent(f: Flow, p: HawkesParams, age: number): Recent | null 
     own: r.immigrant,
     parent: top ? { age: top.age, ago: f.t - f.ev.t[f.event(top.age)]!, type: f.ev.type[f.event(top.age)]!, p: top.p } : null,
   }
+}
+
+export interface Causes {
+  /** The chance the order arrived on its own, not set off by an earlier one. */
+  own: number
+  /** The chance it was set off by an earlier order of each kind, likeliest first; kinds with no chance left out. */
+  byKind: { type: number; p: number }[]
+}
+
+/**
+ * What set the order `age` events ago off, as the branching structure has it
+ * (attribute, lib/market/flow.ts). A market order's intensity is mostly the
+ * sum of many small, decaying kicks, so its likeliest single parent carries
+ * only a few percent: the shares are added up by the kind of earlier order,
+ * and they account, with the chance it came on its own, for all of it.
+ */
+export function causes(f: Flow, p: HawkesParams, age: number): Causes {
+  const a = attribute(f, age, p)
+  const sum = new Map<number, number>()
+  for (const q of a.parents) {
+    const u = f.ev.type[f.event(q.age)]!
+    sum.set(u, (sum.get(u) ?? 0) + q.p)
+  }
+  const byKind = [...sum].map(([type, share]) => ({ type, p: share })).sort((x, y) => y.p - x.p)
+  return { own: a.immigrant, byKind }
 }
 
 /** The latest n events, newest first. */

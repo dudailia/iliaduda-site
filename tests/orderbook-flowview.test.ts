@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CANCEL_ASK, CANCEL_BID, HAWKES, LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET_SELL, posterFlow } from '@/lib/market/flow'
-import { LANES, flowFrame, lamAt, pickEvent, recent } from '@/lib/orderbook/flowview'
+import { LANES, causes, flowFrame, lamAt, pickEvent, recent } from '@/lib/orderbook/flowview'
 
 /**
  * Fig. 2's view of the order flow: what each strip draws, per pixel column,
@@ -119,4 +119,17 @@ describe('reading one event', () => {
       if (e.parent) expect(e.parent.p).toBeGreaterThan(0)
     }
   })
+
+  it('splits what set an order off by the kind of earlier order, beside the chance it came on its own', () => {
+    // A market order is set off by the recent flow as a whole, not by one order: the likeliest single parent
+    // carries a few percent, so the reading adds the parents up by kind, and the shares account for everything.
+    for (const r of recent(f, HAWKES, 40)) {
+      const c = causes(f, HAWKES, r.age)
+      const total = c.own + c.byKind.reduce((a, k) => a + k.p, 0)
+      expect(total).toBeCloseTo(1, 12)
+      for (let i = 1; i < c.byKind.length; i++) expect(c.byKind[i]!.p).toBeLessThanOrEqual(c.byKind[i - 1]!.p)
+      expect(c.own).toBeCloseTo(r.own, 12)
+    }
+  })
 })
+
