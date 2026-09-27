@@ -1,0 +1,148 @@
+import { expect, test, type Page } from '@playwright/test'
+import { GPU, errorsOf } from './hero-kit'
+
+/**
+ * /order-book, Fig. 1: a synthetic limit order book as terrain, to the hero's
+ * standard. A real frame of the market before any script runs; live on the
+ * GPU where it can be; the terrain rising out of the page once per visit,
+ * finished by a click but not by a scroll; the market at real time on any
+ * display; Pause holding everything; a still frame under reduced motion that
+ * the keyboard can still read; and the phone's path — iPhone Safari's missing
+ * extensions, a lost and restored context — without an error.
+ */
+
+test.use({ launchOptions: { args: GPU } })
+
+const STAGE = '#fig-order-book [data-seq]'
+const seq = (page: Page) => page.locator(STAGE).getAttribute('data-seq')
+const attr = async (page: Page, name: string) => Number((await page.locator(`${STAGE} [data-${name}]`).getAttribute(`data-${name}`, { timeout: 2_000 })) ?? NaN)
+const canvasShown = (page: Page) =>
+  page.locator(`${STAGE} canvas`).evaluate((c) => getComputedStyle(c).visibility !== 'hidden' && Number(getComputedStyle(c).opacity) > 0.5)
+async function goLive(page: Page) {
+  await page.locator(STAGE).scrollIntoViewIfNeeded()
+  const live = await expect
+    .poll(() => canvasShown(page), { timeout: 20_000 })
+    .toBe(true)
+    .then(() => true, () => false)
+  if (live) await page.waitForFunction(() => !document.querySelector('[data-orderbook-controls]')?.getAnimations({ subtree: true }).length)
+  return live
+}
+const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('orderbook-seq', '1'))
+
+test.describe('before any script runs', () => {
+  test.use({ javaScriptEnabled: false })
+  test('the poster is a real frame of the market, with its numbers in the margin', async ({ page }) => {
+    await page.goto('/order-book')
+    // Whichever arrangement this viewport shows, its poster names what it is and carries the frame's own numbers.
+    const img = page.locator('#fig-order-book svg[role="img"]:visible')
+    await expect(img).toHaveCount(1)
+    await expect(img.locator('title')).toHaveText(/synthetic order book/)
+    await expect(img.locator('desc')).toHaveText(/\$\d+\.\d{2}/)
+    await expect(page.locator('#fig-order-book dd').first()).toHaveText(/^\$\d+\.\d{2,3}$/)
+  })
+})
+
+test('goes live, and the terrain rises out of the page once per visit: a reload does not replay it', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('playing')
+  await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('done')
+  await page.reload()
+  expect(await goLive(page)).toBe(true)
+  await page.waitForTimeout(800)
+  expect(await seq(page)).toBe('off')
+  expect(errors).toEqual([])
+})
+
+test('a click finishes the rise at once; a scroll does not', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse and a wheel')
+  test.setTimeout(60_000)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('playing')
+  await page.mouse.wheel(0, 40)
+  await page.waitForTimeout(150)
+  expect(await seq(page)).toBe('playing')
+  await page.locator('#fig-order-book figcaption').click()
+  await expect.poll(() => seq(page), { timeout: 1_500 }).toBe('done')
+})
+
+test('the market runs at real time, on any display', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.waitForTimeout(500)
+  const t0 = await attr(page, 'sim-t'), w0 = Date.now()
+  await page.waitForTimeout(3_000)
+  const t1 = await attr(page, 'sim-t'), w1 = Date.now()
+  // A frame's fraction of a 1/60 s quantum is carried to the next, so the market keeps the wall clock's pace.
+  expect((t1 - t0) / ((w1 - w0) / 1000)).toBeGreaterThan(0.85)
+  expect((t1 - t0) / ((w1 - w0) / 1000)).toBeLessThan(1.15)
+})
+
+test('Pause holds it: nothing is drawn and the market stops; Resume lets it run again', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.getByRole('button', { name: 'Pause' }).click()
+  await page.waitForTimeout(400)
+  const t0 = await attr(page, 'sim-t')
+  await page.waitForTimeout(1_200)
+  expect(await attr(page, 'sim-t')).toBe(t0)
+  await page.getByRole('button', { name: 'Resume' }).click()
+  await expect.poll(() => attr(page, 'sim-t'), { timeout: 3_000 }).toBeGreaterThan(t0 + 0.5)
+})
+
+test('reduced motion: the still frame, no canvas, and the arrow keys still read the book', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/order-book')
+  await page.waitForTimeout(800)
+  expect(await canvasShown(page)).toBe(false)
+  await expect(page.locator('#fig-order-book svg[role="img"]:visible')).toHaveCount(1)
+  await page.locator(STAGE).focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.locator('#fig-order-book-probe dd').first()).toContainText('$')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('#fig-order-book-probe dd').first()).toContainText('—')
+})
+
+test('with iPhone Safari’s float extensions missing, it still goes live, without an error', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await page.addInitScript(() => {
+    const P = WebGL2RenderingContext.prototype
+    const get = P.getExtension
+    const gone = ['EXT_color_buffer_float', 'EXT_float_blend', 'OES_texture_float_linear']
+    P.getExtension = function (this: WebGL2RenderingContext, n: string) {
+      return gone.includes(n) ? null : get.call(this, n)
+    } as typeof P.getExtension
+  })
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect.poll(() => attr(page, 'draws'), { timeout: 5_000 }).toBeGreaterThan(20)
+  expect(errors).toEqual([])
+})
+
+test('a lost context shows the poster again, and a restored one brings the figure back, without an error', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.evaluate(() => {
+    const c = document.querySelector('#fig-order-book canvas') as HTMLCanvasElement
+    const ext = c.getContext('webgl2')!.getExtension('WEBGL_lose_context')!
+    ;(window as unknown as { __lose: WEBGL_lose_context }).__lose = ext
+    ext.loseContext()
+  })
+  await expect.poll(() => canvasShown(page), { timeout: 5_000 }).toBe(false)
+  await page.evaluate(() => (window as unknown as { __lose: WEBGL_lose_context }).__lose.restoreContext())
+  await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
+  await expect.poll(() => attr(page, 'draws'), { timeout: 5_000 }).toBeGreaterThan(5)
+  expect(errors).toEqual([])
+})

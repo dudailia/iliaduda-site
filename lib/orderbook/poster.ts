@@ -1,5 +1,5 @@
 import { HZ, TICK, type Flow } from '@/lib/market/flow'
-import { DX, DZ, REF, REST, VIS, XW, Z_NOW, fit, height, lens, mul, perspective, toScreen, view } from './view'
+import { DX, DZ, REF, REST, VIS, XW, Z_NOW, fit, height, lens, mul, perspective, restPitch, toScreen, view } from './view'
 
 /**
  * The poster: the same frame the live renderer will draw first, projected
@@ -27,11 +27,37 @@ export interface PosterGeometry {
 }
 
 /**
+ * The part of a polyline between x = lo and x = hi, cut where it crosses an
+ * edge: the frame crops the poster as the canvas crops the live figure, so
+ * nothing is authored outside the viewBox (and the points past it are not sent).
+ */
+function cropX(pts: [number, number][], lo: number, hi: number): [number, number][] {
+  const out: [number, number][] = []
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i]!
+    if (i > 0) {
+      const q = pts[i - 1]!
+      const cuts = [lo, hi]
+        .filter((e) => (q[0] - e) * (p[0] - e) < 0)
+        .map((e) => [e, (e - q[0]) / (p[0] - q[0])] as const)
+        .sort((a, b) => a[1] - b[1])
+      for (const [e, t] of cuts) out.push([e, Math.round(q[1] + (p[1] - q[1]) * t)])
+    }
+    if (p[0] >= lo && p[0] <= hi) out.push(p)
+  }
+  return out
+}
+
+/**
  * One ridgeline as a closed path, and a dash pattern that strokes only its
  * top: the closure along the floor fills (hiding the rows behind) but is
  * never drawn. The lengths are exact, because every segment is straight.
  */
-function path(pts: [number, number][], floor: [number, number][]): { d: string; dash: string } {
+function path(ridge: [number, number][], ground: [number, number][], w: number): { d: string; dash: string } {
+  const pts = cropX(ridge, 0, w)
+  // The floor under a row is a straight line in the world, so it projects to
+  // one: its two ends are enough, cropped like the ridge.
+  const floor = ground.length ? cropX([ground[0]!, ground[ground.length - 1]!], 0, w) : []
   if (pts.length < 2) return { d: '', dash: '' }
   let d = `M${pts[0]![0]} ${pts[0]![1]}`
   let [px, py] = pts[0]!
@@ -45,8 +71,6 @@ function path(pts: [number, number][], floor: [number, number][]): { d: string; 
   }
   for (let i = 1; i < pts.length; i++) d += rel(pts[i]!)
   const top = len
-  // The floor under a row is a straight line in the world, so it projects to
-  // one: its two ends are enough.
   if (floor.length) {
     d += rel(floor[floor.length - 1]!)
     d += rel(floor[0]!)
@@ -57,7 +81,7 @@ function path(pts: [number, number][], floor: [number, number][]): { d: string; 
 
 export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: number; step: number }): PosterGeometry {
   const aspect = w / h
-  const cam = fit(REST.yaw, REST.pitch, aspect)
+  const cam = fit(REST.yaw, restPitch(aspect), aspect)
   const m = mul(perspective(aspect, lens(aspect)), view(cam))
   const P = (x: number, y: number, z: number): [number, number] | null => {
     const s = toScreen(m, w, h, x, y, z)
@@ -106,7 +130,7 @@ export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: n
       ask.unshift(floorMid)
       askFloor.unshift(floorMid)
     }
-    rows.push({ bid: path(bid, bidFloor), ask: path(ask, askFloor), near: 1 - age / maxAge })
+    rows.push({ bid: path(bid, bidFloor, w), ask: path(ask, askFloor, w), near: 1 - age / maxAge })
   }
 
   let river = ''
@@ -128,7 +152,8 @@ export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: n
     if (Math.abs(x) > XW * (narrow ? 0.72 : 1)) continue
     const r = sim.row(Math.round(age))
     const p = P(x, height(sim.depthAt(r, tr.price)) + 0.01, Z_NOW - (age + frac) * DZ)
-    if (p) dots.push([p[0], p[1], Math.round(Math.min(5, 1.6 + Math.sqrt(tr.size) * 0.7) * 10) / 10])
+    const rad = Math.round(Math.min(5, 1.6 + Math.sqrt(tr.size) * 0.7) * 10) / 10
+    if (p && p[0] - rad >= 0 && p[0] + rad <= w && p[1] - rad >= 0 && p[1] + rad <= h) dots.push([p[0], p[1], rad])
   }
 
   const price: [number, number, string][] = []

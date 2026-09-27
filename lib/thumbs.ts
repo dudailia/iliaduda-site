@@ -5,6 +5,7 @@ import ranking from '@/content/data/startup-ranking.json'
 import ofz from '@/content/data/ofz-curve.json'
 import { categorise } from './closebooks'
 import { zcy } from './gcurve'
+import { posterFlow } from './market/flow'
 import { offeredTerms } from './settlement'
 import { LABELLED } from './surfaceView'
 
@@ -101,6 +102,27 @@ function bcs(): Thumb {
   }
 }
 
+function orderBook(): Thumb {
+  // The book as a joy plot: six of the poster's twenty seconds of ridges, older ones higher and in the rule colour,
+  // the newest in indigo, each the cumulative depth outward from the touch across the 128 ticks the figure shows.
+  const f = posterFlow()
+  const ridge = (age: number, lift: number) => {
+    const r = f.row(age)
+    const c = f.centre[r]!
+    const pts: [number, number][] = []
+    for (let j = -64; j <= 64; j += 4) {
+      const h = Math.sqrt(Math.abs(f.depthAt(r, c + j)) / 1400)
+      pts.push([Math.round(((j + 64) / 128) * TW), Math.round(TH - 40 - lift - Math.min(1, h) * 300)])
+    }
+    return line(pts).replace(/\.0/g, '')
+  }
+  const ages = [200, 160, 120, 80, 40]
+  return {
+    context: ages.map((a, i) => ridge(a, (ages.length - i) * 40)),
+    claim: [ridge(0, 0)],
+  }
+}
+
 const BUILDERS: Record<string, () => Thumb> = {
   'iv-surface': ivSurface,
   cricstate: cricket,
@@ -108,6 +130,7 @@ const BUILDERS: Record<string, () => Thumb> = {
   closebooks,
   'debt-portal': debtPortal,
   bcs,
+  'order-book': orderBook,
 }
 
 export function thumbFor(slug: string): Thumb | null {

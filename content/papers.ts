@@ -39,16 +39,6 @@ export interface Paper {
 
 export const papers: readonly Paper[] = [
   {
-    slug: 'iv-surface',
-    href: '/iv-surface',
-    title: 'An implied-volatility surface free of static arbitrage',
-    abstract: `A synthetic SSVI surface shaped like an equity index, drawn live, with implied and local volatility and Black–Scholes Greeks at any point. Its parameters meet Gatheral and Jacquier’s conditions for no static arbitrage, the tests check them on a dense grid, and Fig. 2 lets you break them.`,
-    byline: 'Independent work · September 2026 · synthetic data',
-    status: 'published',
-    cvName: 'Implied-volatility surface free of static arbitrage',
-    cv: 'A synthetic SSVI surface rendered live in raw WebGL2, with Dupire local volatility and Black–Scholes Greeks at any point; no-static-arbitrage conditions asserted by tests on a dense grid.',
-  },
-  {
     slug: 'closebooks',
     href: '/closebooks',
     title: 'CloseBooks: a multi-tenant month-end close with an LLM in the loop',
@@ -65,6 +55,24 @@ export const papers: readonly Paper[] = [
     status: 'published',
     cvName: 'cricstate',
     cv: `Leakage-audited T20 win-probability model over ${n('crDeliveries')} deliveries: gradient boosting on match state cuts held-out log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate; temporal splits, leakage canaries in CI, paired bootstrap.`,
+  },
+  {
+    slug: 'order-book',
+    href: '/order-book',
+    title: 'Order flow that remembers: a limit order book driven by a Hawkes process',
+    abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at a few hundred events a second and drawn as terrain. Its clock runs in fixed steps and it computes its own exponentials, so the server and every browser draw the same market from the same seed; a time-rescaling test checks the simulation against the model.`,
+    byline: 'Independent work · September 2026 · synthetic data',
+    status: 'pending',
+  },
+  {
+    slug: 'iv-surface',
+    href: '/iv-surface',
+    title: 'An implied-volatility surface free of static arbitrage',
+    abstract: `A synthetic SSVI surface shaped like an equity index, drawn live, with implied and local volatility and Black–Scholes Greeks at any point. Its parameters meet Gatheral and Jacquier’s conditions for no static arbitrage, the tests check them on a dense grid, and Fig. 2 lets you break them.`,
+    byline: 'Independent work · September 2026 · synthetic data',
+    status: 'published',
+    cvName: 'Implied-volatility surface free of static arbitrage',
+    cv: 'A synthetic SSVI surface rendered live in raw WebGL2, with Dupire local volatility and Black–Scholes Greeks at any point; no-static-arbitrage conditions asserted by tests on a dense grid.',
   },
   {
     slug: 'startup-investments',

@@ -9,7 +9,6 @@ import { Shell } from '../Layout'
  */
 
 const LAB = [
-  { slug: 'b', name: 'The order book as terrain' },
   { slug: 'c', name: 'The vol surface, reborn' },
 ] as const
 

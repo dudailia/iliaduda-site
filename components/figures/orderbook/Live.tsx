@@ -1,21 +1,29 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { Shell } from '@/components/Layout'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import { FigureFrame } from '@/components/FigureFrame'
+import { useLean } from '@/components/stage/useLean'
+import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '@/components/stage/useStage'
 import { posterFlow, type Flow, type Stats } from '@/lib/market/flow'
+import { orderBookSequence } from '@/lib/orderbook/sequence'
 import { fmt, readAt, sentence, type Reading } from '@/lib/orderbook/read'
 import type { KeyProbe, Shared } from './renderer'
 
 /**
- * Lab B, live. The poster is the server's frame of the seeded market; the
- * renderer module and a fresh copy of the same market load only when the
- * stage decides to go live, so the canvas's first frame is the poster's frame.
+ * Fig. 1 of /order-book, live: a synthetic limit order book as terrain.
+ *
+ * The poster is the server's frame of the seeded market; the renderer and a
+ * fresh copy of the same market load only when the stage goes live, so the
+ * canvas's first frame is the poster's moment. On a first visit the terrain
+ * rises out of the page as the flow starts (lib/orderbook/sequence.ts), once;
+ * then it runs at real time, drifting and leaning with the reader, until the
+ * reader pauses it.
  *
  * Readouts are written straight into the DOM from the frame loop, not through
- * React state: they change every frame, and a re-render per frame would be
- * the most expensive thing on the page. The probe works on the poster too —
- * with reduced motion the arrow keys read the frozen snapshot.
+ * React state: they change every frame, and a re-render per frame would be the
+ * most expensive thing on the page. The probe works on the poster too: with
+ * reduced motion the arrow keys read the frozen snapshot.
  */
 
 export interface Initial {
@@ -29,22 +37,49 @@ export interface Initial {
 }
 
 const PROBE_START: KeyProbe = { dp: 4, age: 12 }
-const HINT = 'hover or tap the terrain'
 const MAX_DP = 60
+const PAUSED = 'orderbook-paused'
+const STAGE_OPTS = { maxQ: { mid: 3 } } as const
+const CONTROL =
+  'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
 
 type Mod = typeof import('./renderer')
+const noop = () => () => {}
 
-export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWide: ReactNode; posterNarrow: ReactNode; initial: Initial }) {
+export function OrderBookLive({
+  posterWide,
+  posterNarrow,
+  initial,
+  title,
+  subtitle,
+  caption,
+  table,
+}: {
+  posterWide: ReactNode
+  posterNarrow: ReactNode
+  initial: Initial
+  title: string
+  subtitle: string
+  caption: ReactNode
+  table: ReactNode
+}) {
   const labels = useRef<HTMLDivElement>(null)
   const out = useRef<Record<string, HTMLElement | null>>({})
   const shared = useRef<Shared | null>(null)
   const frozen = useRef<Flow | null>(null)
   const key = useRef<KeyProbe | null>(null)
   const last = useRef<Reading | null>(null)
+  const seq = useRef(orderBookSequence())
   const [spoken, setSpoken] = useState('')
   const [probing, setProbing] = useState(false)
-  const [paused, setPaused] = useState(false)
-  const pausedRef = useRef(false)
+  const [paused, setPaused] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && sessionStorage.getItem(PAUSED) === '1'
+    } catch {
+      return false
+    }
+  })
+  const pausedRef = useRef(paused)
 
   const write = useCallback((id: string, text: string) => {
     for (const k of [id, `${id}-m`]) {
@@ -68,7 +103,7 @@ export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWid
       last.current = r
       if (!r) {
         write('p-price', '—')
-        write('p-side', HINT)
+        write('p-side', 'point at the terrain')
         write('p-queue', '—')
         write('p-cum', '')
         write('p-ago', '—')
@@ -82,6 +117,11 @@ export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWid
     },
     [write],
   )
+
+  // The stage, and the reader's lean on it; both are read by the renderer through `shared`.
+  const liveRef = useRef(false)
+  const leanApi = useRef<{ lean: { current: { x: number; y: number } } } | null>(null)
+  const sigApi = useRef<{ armed: { current: boolean }; onFrame(): void } | null>(null)
 
   const create: Create = useCallback(
     (env) => {
@@ -98,6 +138,12 @@ export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWid
         labels: labels.current!,
         key: key.current,
         paused: pausedRef.current,
+        sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
+        lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
+        tick: (dtMs) => {
+          seq.current.advance(dtMs)
+          sigApi.current?.onFrame()
+        },
         onFrame: (stats, reading) => {
           writeStats(stats)
           writeProbe(reading)
@@ -136,7 +182,21 @@ export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWid
     [writeProbe, writeStats],
   )
 
-  const { box, canvas, live } = useStage(create)
+  const { box, canvas, live, eligible, reduced } = useStage(create, STAGE_OPTS)
+  const sig = useSignature('orderbook', box, seq)
+  const lean = useLean(live, reduced, pausedRef)
+  useEffect(() => {
+    sigApi.current = sig
+    leanApi.current = lean
+    liveRef.current = live
+  })
+  // A figure that will not go live here shows the finished picture at once. Hydration reads reduced motion as on
+  // (the server cannot know), so this waits for the browser's own answer.
+  const mounted = useSyncExternalStore(noop, () => true, () => false)
+  const release = sig.release
+  useEffect(() => {
+    if (mounted && (!eligible || reduced)) release()
+  }, [mounted, eligible, reduced, release])
 
   // Readouts start as the poster's frame: the same numbers, computed on the server.
   useEffect(() => {
@@ -153,9 +213,12 @@ export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWid
       if (r) setSpoken(sentence(r))
     }, 400)
   }
-  useEffect(() => () => {
-    if (announce.current) clearTimeout(announce.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (announce.current) clearTimeout(announce.current)
+    },
+    [],
+  )
 
   const setKey = (k: KeyProbe | null) => {
     key.current = k
@@ -174,6 +237,9 @@ export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWid
     pausedRef.current = next
     if (shared.current) shared.current.paused = next
     setPaused(next)
+    try {
+      sessionStorage.setItem(PAUSED, next ? '1' : '0')
+    } catch {}
   }
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -220,100 +286,97 @@ export function OrderBookLive({ posterWide, posterNarrow, initial }: { posterWid
     out.current[id] = el
   }
 
+  const rail = <Readouts initial={initial} set={ref} />
+
   return (
-    <section aria-labelledby="lab-b-title" className="border-b border-rule">
-      <div className="relative isolate h-[88svh] min-h-[520px] overflow-hidden">
-        <div
-          ref={box}
-          role="group"
-          tabIndex={0}
-          aria-roledescription="interactive figure"
-          aria-label="Synthetic order book as terrain. Arrow keys move the probe across price and back in time; Home resets; Escape clears; Space pauses."
-          aria-describedby="lab-b-probe"
-          onKeyDown={onKey}
-          onFocus={() => {
-            if (!key.current) {
-              setKey(PROBE_START)
-              setProbing(true)
-            }
-          }}
-          className="absolute inset-0 cursor-crosshair touch-pan-y select-none focus-visible:outline-offset-[-4px]"
-        >
-          <div data-lab-poster className="absolute inset-0" style={underlay(live)}>
-            <div className="h-full portrait:hidden">{posterWide}</div>
-            <div className="hidden h-full portrait:block">{posterNarrow}</div>
-          </div>
-          <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" style={fade(live)} />
-          <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />
+    <FigureFrame
+      id="fig-order-book"
+      number="Fig. 1"
+      title={title}
+      subtitle={subtitle}
+      rail={rail}
+      railBelow={false}
+      vt="order-book"
+      hint={live ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.' : 'Tab to the figure and use the arrow keys to read a price level.'}
+      caption={caption}
+      table={table}
+    >
+      <div
+        ref={box}
+        data-seq={sig.state}
+        role="group"
+        tabIndex={0}
+        aria-roledescription="interactive figure"
+        aria-label="Synthetic order book as terrain. Arrow keys move the probe across price and back in time; Home resets; Escape clears; Space pauses."
+        aria-describedby="fig-order-book-probe"
+        onKeyDown={onKey}
+        onFocus={() => {
+          if (!key.current) {
+            setKey(PROBE_START)
+            setProbing(true)
+          }
+        }}
+        onPointerMove={lean.onPointerMove}
+        onPointerLeave={lean.onPointerLeave}
+        onClick={lean.onTap}
+        className="relative -mx-6 h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y overflow-hidden select-none focus-visible:outline-offset-[-4px] sm:mx-0 sm:h-[clamp(28rem,62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)]"
+      >
+        <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
+          <div className="h-full portrait:hidden">{posterWide}</div>
+          <div className="hidden h-full portrait:block">{posterNarrow}</div>
         </div>
+        <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
+        <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />
+      </div>
 
-        <div className="pointer-events-none absolute inset-x-0 top-0 pt-4 sm:pt-6">
-          <Shell>
-            <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-3">
-              <div className="max-w-[34rem]">
-                <p id="lab-b-title" className="text-small text-ink sm:text-body">
-                  Buyers wait on the left, sellers on the right. The line in the valley is the price, and each spark is a trade.
-                </p>
-                <p className="text-meta mt-1 font-mono text-graphite">Synthetic order flow, simulated live in your browser</p>
-              </div>
-              <Readouts className="hidden lg:grid" initial={initial} set={ref} />
-            </div>
-          </Shell>
-        </div>
-
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 pb-4 sm:pb-6">
-          <Shell>
-            <div className="flex items-end justify-between gap-x-6">
-              <dl id="lab-b-probe" className="text-meta grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] gap-x-3 font-mono sm:flex-none" aria-label="Probe reading">
-                <dt className="text-graphite">Probe</dt>
-                <dd className="truncate text-ink">
-                  <span ref={ref('p-price')} className="tabular">
-                    —
-                  </span>{' '}
-                  <span ref={ref('p-side')} className="text-graphite">
-                    {HINT}
-                  </span>
-                </dd>
-                <dt className="text-graphite">Queue</dt>
-                <dd className="truncate text-ink">
-                  <span ref={ref('p-queue')} className="tabular">
-                    —
-                  </span>{' '}
-                  <span ref={ref('p-cum')} className="text-graphite" />
-                </dd>
-                <dt className="text-graphite">When</dt>
-                <dd ref={ref('p-ago')} className="tabular truncate text-ink">
-                  —
-                </dd>
-              </dl>
-              {live ? (
-                <button
-                  type="button"
-                  onClick={togglePause}
-                  aria-pressed={paused}
-                  className="text-meta pointer-events-auto h-8 flex-none rounded-sm border border-graphite bg-paper px-2.5 font-mono text-ink transition-[border-color,transform] duration-150 ease-out hover:border-ink active:scale-[0.97]"
-                >
-                  {paused ? 'Resume' : 'Pause'}
-                </button>
-              ) : null}
-            </div>
-            <p className="sr-only" aria-live="polite">
-              {probing ? spoken : ''}
-            </p>
-          </Shell>
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <dl id="fig-order-book-probe" className="text-meta grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 font-mono" aria-label="Probe reading">
+          <dt className="text-graphite">Probe</dt>
+          <dd className="truncate text-ink">
+            <span ref={ref('p-price')} className="tabular">
+              —
+            </span>{' '}
+            <span ref={ref('p-side')} className="text-graphite">
+              point at the terrain
+            </span>
+          </dd>
+          <dt className="text-graphite">Queue</dt>
+          <dd className="truncate text-ink">
+            <span ref={ref('p-queue')} className="tabular">
+              —
+            </span>{' '}
+            <span ref={ref('p-cum')} className="text-graphite" />
+          </dd>
+          <dt className="text-graphite">When</dt>
+          <dd ref={ref('p-ago')} className="tabular truncate text-ink">
+            —
+          </dd>
+        </dl>
+        <div data-orderbook-controls="" className="flex min-h-8 flex-wrap gap-2">
+          {live ? (
+            <>
+              <button type="button" onClick={togglePause} aria-pressed={paused} className={CONTROL}>
+                {paused ? 'Resume' : 'Pause'}
+              </button>
+              <button type="button" onClick={() => sig.replay()} className={CONTROL}>
+                Replay
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
-      <div className="border-t border-rule py-4 lg:hidden">
-        <Shell>
-          <Readouts className="grid" initial={initial} set={ref} suffix="-m" />
-        </Shell>
+      <p className="sr-only" aria-live="polite">
+        {probing ? spoken : ''}
+      </p>
+      <div className="mt-4 lg:hidden">
+        <Readouts initial={initial} set={ref} suffix="-m" across />
       </div>
-    </section>
+    </FigureFrame>
   )
 }
 
-function Readouts({ className, initial, set, suffix = '' }: { className: string; initial: Initial; set: (id: string) => (el: HTMLElement | null) => void; suffix?: string }) {
-  const rows: [string, string, ReactNode][] = [
+function Readouts({ initial, set, suffix = '', across = false }: { initial: Initial; set: (id: string) => (el: HTMLElement | null) => void; suffix?: string; across?: boolean }) {
+  const rows: [string, string, string][] = [
     ['mid', 'Mid', fmt.mid(initial.mid)],
     ['spread', 'Spread', fmt.spread(initial.spread)],
     ['trades', 'Trades, 10 s', `${initial.trades} · ${fmt.shares(initial.shares)}`],
@@ -322,10 +385,16 @@ function Readouts({ className, initial, set, suffix = '' }: { className: string;
     ['rho', 'Branching ratio', initial.rho.toFixed(2)],
   ]
   return (
-    <dl className={`text-meta grid-cols-[auto_17ch] gap-x-3 font-mono sm:grid-cols-[auto_17ch_auto_17ch] sm:gap-x-5 lg:grid-cols-[auto_17ch] lg:gap-x-4 ${className}`}>
+    <dl
+      className={
+        across
+          ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3'
+          : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
+      }
+    >
       {rows.map(([id, label, value]) => (
-        <div key={id} className="contents">
-          <dt className="text-graphite lg:text-right">{label}</dt>
+        <div key={id} className="min-w-0">
+          <dt className="text-graphite">{label}</dt>
           <dd ref={id === 'expected' || id === 'rho' ? undefined : set(id + suffix)} className="tabular text-ink">
             {value}
           </dd>

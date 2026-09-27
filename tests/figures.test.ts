@@ -49,6 +49,7 @@ const PROJECT_OF: Readonly<Record<string, string>> = {
   'VolSurfaceLive.tsx': 'iv',
   'OfzCurve.tsx': 'bc',
   'Futures.tsx': 'fu',
+  'OrderBook.tsx': 'mk',
 }
 
 function ownValues(file: string): Set<string> {

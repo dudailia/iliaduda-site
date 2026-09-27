@@ -27,7 +27,11 @@ const MONTH = /\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]+/g
 const shortDates = (d: string) => d.replace(MONTH, '$1')
 const bare = (href: string) => href.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
 
-const PROJECTS = papers.filter((p) => p.status === 'published' && p.cv)
+/** The résumé keeps its own order, so a new paper in Contents does not reshuffle it. */
+const CV_ORDER = ['iv-surface', 'cricstate', 'startup-investments']
+const PROJECTS = papers
+  .filter((p) => p.status === 'published' && p.cv)
+  .sort((a, b) => (CV_ORDER.indexOf(a.slug) + 1 || 99) - (CV_ORDER.indexOf(b.slug) + 1 || 99))
 
 function Head({ children }: { children: string }) {
   return <h2 className="cv-h2">{children}</h2>

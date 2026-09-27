@@ -1,3 +1,4 @@
+import { syntheticValue } from '@/content/synthetic'
 import { dexp } from './detmath'
 import { Book, CANCEL_ASK, CANCEL_BID, LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET_SELL, type BookParams, type Trade } from './book'
 import { Hawkes, stationaryRates, type HawkesParams } from './hawkes'
@@ -18,9 +19,9 @@ import { mulberry32 } from './rng'
  */
 
 export { BOOK, HAWKES, MARKET, SEED } from './params'
-/** Price in dollars of one tick, and the opening mid. */
-export const TICK = 0.01
-export const START = 10000
+/** Price in dollars of one tick, and the opening mid in ticks (content/synthetic.ts). */
+export const TICK = syntheticValue('mkTick')
+export const START = Math.round(syntheticValue('mkOpen') / TICK)
 /** Snapshots per simulated second. */
 export const HZ = 12
 /** Rows kept: 256 / 12 ≈ 21 seconds of history. */

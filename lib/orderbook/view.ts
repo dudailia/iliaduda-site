@@ -40,6 +40,14 @@ export interface Camera {
 
 export const FOV = (34 * Math.PI) / 180
 export const REST = { yaw: -0.16, pitch: 0.36, ty: 0.12, tz: -0.25 }
+/**
+ * The resting pitch for a stage of this aspect: a phone's tall frame looks along the valley; a laptop's column,
+ * nearer square, looks down a little more, so the twenty seconds receding fill its height as the walls fill its width.
+ */
+export const restPitch = (aspect: number) => {
+  const t = Math.min(1, Math.max(0, (aspect - 0.9) / 0.35))
+  return REST.pitch + 0.13 * t * t * (3 - 2 * t)
+}
 
 /**
  * Perspective with an optional vertical lens shift (in NDC), so a tall phone
@@ -134,7 +142,8 @@ export function fit(yaw: number, pitch: number, aspect: number): Camera {
     const m = mul(perspective(aspect), view(c))
     const inside = pts.every(([x, y, z]) => {
       const q = apply(m, x, y, z)
-      return q[3] > 0 && Math.abs(q[0] / q[3]) <= (narrow ? 1.0 : 0.94) && Math.abs(q[1] / q[3]) <= (narrow ? 0.62 : 0.68)
+      // A phone's stage is full-bleed, so the walls may run to its edges; a laptop's column keeps a hairline of paper.
+      return q[3] > 0 && Math.abs(q[0] / q[3]) <= (narrow ? 1.02 : 0.97) && Math.abs(q[1] / q[3]) <= (narrow ? 0.74 : 0.8)
     })
     if (inside) hi = d
     else lo = d

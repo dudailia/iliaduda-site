@@ -1,8 +1,10 @@
 import { program, type GL } from '@/lib/gl'
 import { HALF, HZ, LEVELS, ROWS, START, TICK, type Flow, type Stats } from '@/lib/market/flow'
 import { fmt, readAt, type Reading } from '@/lib/orderbook/read'
-import { DX, DZ, H, POW, REF, REST, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
+import { DX, DZ, H, POW, REF, REST, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
+import { EASE_IN_OUT_QUAD } from '@/lib/ease'
+import { rowRise } from '@/lib/orderbook/sequence'
 
 /**
  * The order book as terrain, in raw WebGL2.
@@ -36,8 +38,14 @@ export interface Shared {
   labels: HTMLElement
   /** The keyboard (or tap) probe; the hover probe takes precedence while the mouse is over the terrain. */
   key: KeyProbe | null
-  /** Paused: the market and the clock stop; the camera and the probe still answer. */
+  /** Paused: the market, the drift and the lean stop; the probe still answers. */
   paused: boolean
+  /** The signature's phases while it waits or plays (lib/orderbook/sequence.ts); null once it is over, or on a visit without one. */
+  sequence(): { rise: number; river: number; settle: number; labels: number } | null
+  /** The reader's lean, −1…1 each way, from the pointer or the tilt (components/stage/useLean.ts). */
+  lean(): { x: number; y: number }
+  /** A drawn frame took this long: the signature's clock moves on it. */
+  tick(dtMs: number): void
   onFrame(stats: Stats, probe: Reading | null, hovering: boolean): void
 }
 
@@ -47,9 +55,13 @@ const SPARK_LIFE = 0.6
 const DRIFT = { amp: 0.07, period: 48 }
 /** Window follow speed, ticks per second: linear, never eased. */
 const FOLLOW = 4
-// The orbit follows the pointer quickly (settles in ~0.5s) and swings little:
+// The orbit follows the reader's lean quickly (settles in ~0.5s) and swings little:
 // a slow, wide orbit slid the level under the probe while the reader aimed.
 const OMEGA = 9
+/** The signature opens looking down on the flat page, and settles into the resting three-quarter view. */
+const PAGE_PITCH = 1.05
+/** Labels fade in and out over about 150ms (95%), never pop. */
+const LABEL_TAU = 0.05
 
 const HEAD = `#version 300 es
 precision highp float;
@@ -70,10 +82,15 @@ layout(location = 0) in vec2 aGrid;
 uniform sampler2D uDepth;
 uniform sampler2D uCentre;
 uniform int uHead, uRows, uBase, uWmod;
-uniform float uFracX, uFracZ, uRowsF;
+uniform float uFracX, uFracZ, uRowsF, uRise;
 uniform mat4 uMVP;
-out vec3 vPos; out vec3 vN; out float vCum; out float vRow; out float vPx; out float vAge;
+out vec3 vPos; out vec3 vN; out float vCum; out float vRow; out float vPx; out float vAge; out float vRise;
 float hgt(float c) { return H * pow(abs(c) / REF, POW); }
+// The signature's wave (lib/orderbook/sequence.ts, rowRise): row a rises from the page in turn, now first.
+float rise(int a) {
+  float u = clamp((uRise - float(a) / max(1.0, uRowsF - 1.0) * 0.6) / 0.4, 0.0, 1.0);
+  return 1.0 - pow(1.0 - u, 5.0);
+}
 float dep(int j, int a) {
   a = clamp(a, 0, uRows - 1);
   int r = (uHead - a + ${ROWS * 4}) % ${ROWS};
@@ -84,12 +101,14 @@ float dep(int j, int a) {
 void main() {
   int j = int(aGrid.x), a = int(aGrid.y);
   float d = dep(j, a);
-  float y = hgt(d);
+  float ra = rise(a);
+  float y = hgt(d) * ra;
   float x = (float(j) - ${VIS / 2}.0 - uFracX) * DX;
   float z = ZNOW - (float(a) + uFracZ) * DZ;
-  float hl = hgt(dep(j - 1, a)), hr = hgt(dep(j + 1, a)), hb = hgt(dep(j, a + 1)), hf = hgt(dep(j, max(a - 1, 0)));
+  float hl = hgt(dep(j - 1, a)) * ra, hr = hgt(dep(j + 1, a)) * ra, hb = hgt(dep(j, a + 1)) * rise(a + 1), hf = hgt(dep(j, max(a - 1, 0))) * rise(max(a - 1, 0));
   vN = normalize(vec3((hl - hr) / (2.0 * DX), 1.0, (hb - hf) / (2.0 * DZ)));
   vCum = d;
+  vRise = ra;
   vRow = float(uWmod - a);
   vPx = float(j + ((uBase % 10) + 10) % 10);
   vAge = (float(a) + uFracZ) / uRowsF;
@@ -98,23 +117,27 @@ void main() {
 }`
 
 const TERRAIN_FS = `${HEAD}
-in vec3 vPos; in vec3 vN; in float vCum; in float vRow; in float vPx; in float vAge;
+in vec3 vPos; in vec3 vN; in float vCum; in float vRow; in float vPx; in float vAge; in float vRise;
 uniform vec3 uPaper, uInk, uGraphite, uRule, uIndigo, uWash, uEye, uLight;
 uniform float uDark, uProbeOn, uProbeRow, uProbePx;
 out vec4 o;
 float hair(float f, float w) { float d = abs(fract(f + 0.5) - 0.5) / max(fwidth(f), 1e-5); return 1.0 - clamp(d - w, 0.0, 1.0); }
 void main() {
   vec3 n = normalize(vN);
-  float t = clamp(pow(abs(vCum) / REF, POW), 0.0, 1.3);
-  vec3 bid = uDark > 0.5 ? mix(uWash, uIndigo, 0.16 + 0.34 * t) : mix(uWash, uIndigo, 0.08 + 0.30 * t);
-  vec3 ask = uDark > 0.5 ? mix(uRule, uGraphite, 0.18 + 0.40 * t) : mix(uPaper, uGraphite, 0.05 + 0.30 * t);
+  // Ink comes with height: a row still flat on the page is paper, with the graph-paper grid on it.
+  float t = clamp(pow(abs(vCum) / REF, POW), 0.0, 1.3) * vRise;
+  // By day the two sides are two inks on paper: bids a clear indigo, asks graphite deepening to ink, each well apart
+  // from the paper and from the other.
+  vec3 bid = uDark > 0.5 ? mix(uWash, uIndigo, 0.16 + 0.34 * t) : mix(uWash, uIndigo, 0.42 + 0.4 * t);
+  vec3 ask = uDark > 0.5 ? mix(uRule, uGraphite, 0.18 + 0.40 * t) : mix(uGraphite, uInk, 0.12 + 0.5 * t);
   vec3 floorC = uDark > 0.5 ? mix(uPaper, uRule, 0.6) : mix(uPaper, uRule, 0.7);
-  vec3 c = mix(floorC, vCum < 0.0 ? bid : ask, smoothstep(0.0, 2.5, abs(vCum)));
+  vec3 c = mix(floorC, vCum < 0.0 ? bid : ask, smoothstep(0.0, 2.5, abs(vCum)) * vRise);
   float diff = max(dot(n, uLight), 0.0);
-  c *= (uDark > 0.5 ? 0.66 : 0.84) + (uDark > 0.5 ? 0.62 : 0.2) * diff;
+  c *= (uDark > 0.5 ? 0.66 : 0.78) + (uDark > 0.5 ? 0.62 : 0.32) * diff;
   vec3 v = normalize(uEye - vPos);
   float rim = pow(1.0 - max(dot(n, v), 0.0), 4.0);
-  c = mix(c, uDark > 0.5 ? uIndigo : uPaper, rim * 0.22);
+  // Rims catch light by night and turn toward ink by day, so a wall's edge reads against the paper either way.
+  c = mix(c, uDark > 0.5 ? uIndigo : uInk, rim * (uDark > 0.5 ? 0.22 : 0.18));
   float f = abs(vCum) / 40.0;
   c = mix(c, uInk, (f < 0.5 ? 0.0 : hair(f, 0.15)) * 0.16);
   c = mix(c, uInk, hair(vRow / 12.0, 0.05) * 0.07);
@@ -124,7 +147,8 @@ void main() {
     float pc = 1.0 - clamp(abs(vPx - uProbePx) / max(fwidth(vPx), 1e-5) - 0.4, 0.0, 1.0);
     c = mix(c, uInk, max(pr * 0.7, pc * 0.3));
   }
-  c = mix(c, uPaper, smoothstep(0.4, 1.0, vAge) * 0.94);
+  // The past recedes: by night into the dark, by day only to a wash, so the oldest rows still read as terrain.
+  c = mix(c, uDark > 0.5 ? uPaper : mix(uPaper, uWash, 0.5), smoothstep(0.4, 1.0, vAge) * (uDark > 0.5 ? 0.94 : 0.55));
   o = vec4(c, 1.0);
 }`
 
@@ -160,7 +184,7 @@ void main() {
 
 const POINT_VS = `${HEAD}
 layout(location = 0) in vec4 aT;
-uniform mat4 uMVP; uniform float uNow, uCentre, uDpr, uMode, uHist;
+uniform mat4 uMVP; uniform float uNow, uCentre, uDpr, uMode, uHist, uShow;
 out float vA;
 void main() {
   float age = uNow - aT.z;
@@ -181,6 +205,7 @@ void main() {
     vA = min(1.0, age / 0.25) * (1.0 - smoothstep(0.4, 1.0, age * HZ / uHist));
     gone = gone || age * HZ > uHist;
   }
+  vA *= uShow;
   gl_PointSize = gone ? 0.0 : size * uDpr;
   gl_Position = gone ? vec4(2.0, 2.0, 2.0, 1.0) : uMVP * vec4(x, y + 0.006, z, 1.0);
 }`
@@ -363,12 +388,16 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   sim.onTrade = (tr) => addTrade(tr.price, tr.size, tr.t)
 
   // ── labels ─────────────────────────────────────────────────────────────────
-  type Label = { el: HTMLSpanElement; text: string; w: number; h: number }
+  type Label = { el: HTMLSpanElement; text: string; w: number; h: number; o: number; want: number }
+  const all: Label[] = []
   const mk = (cls: string): Label => {
     const el = document.createElement('span')
     el.className = `absolute left-0 top-0 whitespace-nowrap font-mono text-meta leading-none ${cls}`
+    el.style.opacity = '0'
     sh.labels.appendChild(el)
-    return { el, text: '', w: 0, h: 0 }
+    const l = { el, text: '', w: 0, h: 0, o: 0, want: 0 }
+    all.push(l)
+    return l
   }
   const priceLabels = Array.from({ length: 8 }, () => mk('text-graphite bg-paper/80 px-0.5 rounded-sm'))
   const timeLabels = [0, 5, 10, 15].map(() => mk('text-graphite bg-paper/80 px-0.5 rounded-sm'))
@@ -395,22 +424,37 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
       const clash = box[0] < 4 || box[2] > cssW - 4 || box[1] < 0 || box[3] > cssH || placed.some((b) => box[0] < b[2] && b[0] < box[2] && box[1] < b[3] && b[1] < box[3])
       if (!clash) {
         placed.push(box)
-        l.el.style.visibility = 'visible'
+        l.want = 1
         l.el.style.transform = `translate(${x0.toFixed(1)}px, ${(at[1] - l.h / 2).toFixed(1)}px)`
         return
       }
     }
-    l.el.style.visibility = 'hidden'
+    // Gone, or crowded out: it fades where it last stood.
+    l.want = 0
+  }
+  /** Ease every label toward shown or hidden, times the signature's labels phase. */
+  const fadeLabels = (dt: number, k: number) => {
+    const f = 1 - Math.exp(-Math.max(0, dt) / LABEL_TAU)
+    for (const l of all) {
+      l.o += (l.want - l.o) * (dt > 0 ? f : 1)
+      const a = l.o * k
+      l.el.style.opacity = a.toFixed(3)
+      l.el.style.visibility = a > 0.01 ? 'visible' : 'hidden'
+    }
   }
 
   // ── state ──────────────────────────────────────────────────────────────────
   let cssW = 1, cssH = 1, dpr = 1
   let q = 2
   let dist = 4
+  let pageDist = 4
+  // The signature as shown: 1 is the finished picture, as a visit without one opens.
+  let shownRise = 1, shownRiver = 1, shownSettle = 1, shownLabels = 1
+  let started = false
+  let draws = 0
   let centre = sim.mids[sim.row(0)]!
   const spring = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
   let hover: [number, number] | null = null
-  let pointerN: [number, number] | null = null
   let mvp: M4 = new Float32Array(16)
   let inv: M4 | null = null
   let fracZ = 0
@@ -419,10 +463,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   let first = false
   let disposed = false
 
-  const cam = (t: number): Camera => ({
-    yaw: REST.yaw + DRIFT.amp * Math.sin((2 * Math.PI * t) / DRIFT.period) + spring.yaw,
-    pitch: REST.pitch + spring.pitch,
-    dist,
+  /** The camera: from the page to rest as the signature settles (`k` 0 → 1), then drifting and leaning with the reader. */
+  const cam = (t: number, k: number): Camera => ({
+    yaw: REST.yaw + (DRIFT.amp * Math.sin((2 * Math.PI * t) / DRIFT.period) + spring.yaw) * k,
+    pitch: PAGE_PITCH + (restPitch(cssW / cssH) - PAGE_PITCH) * k + spring.pitch * k,
+    dist: pageDist + (dist - pageDist) * k,
     tx: 0,
     ty: REST.ty,
     tz: cssW / cssH < 1 ? REST.tz + 0.35 : REST.tz,
@@ -493,13 +538,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   }
   const onMove = (e: PointerEvent) => {
     if (e.pointerType !== 'mouse') return
-    const p = local(e)
-    hover = p
-    pointerN = [(p[0] / cssW) * 2 - 1, (p[1] / cssH) * 2 - 1]
+    hover = local(e)
   }
   const onLeave = () => {
     hover = null
-    pointerN = null
   }
   const onUp = (e: PointerEvent) => {
     const p = local(e)
@@ -514,6 +556,23 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   const setVec = (p: Prog, name: string, c: readonly number[]) => gl.uniform3f(p.u(name), c[0]!, c[1]!, c[2]!)
 
   const draw = (dt: number): boolean => {
+    sh.tick(dt * 1000)
+    const ph = sh.sequence()
+    if (!started) {
+      started = true
+      if (ph) shownRise = shownRiver = shownSettle = shownLabels = 0
+    }
+    // What is shown follows the signature: exactly as it rises, and smoothly back down when Replay starts it over,
+    // so the terrain sinks into the page (350ms) and the camera lifts back to it (700ms) instead of jumping there.
+    const follow = (shown: number, target: number, secs: number) => (target >= shown ? target : Math.max(target, shown - dt / secs))
+    shownRise = follow(shownRise, ph ? ph.rise : 1, 0.35)
+    shownRiver = follow(shownRiver, ph ? ph.river : 1, 0.35)
+    shownSettle = follow(shownSettle, ph ? ph.settle : 1, 0.7)
+    shownLabels = follow(shownLabels, ph ? ph.labels : 1, 0.15)
+    const rise = shownRise
+    const riverK = shownRiver
+    const settleK = EASE_IN_OUT_QUAD(shownSettle)
+    const labelsK = shownLabels
     // Advance the market by the time the frames owe it. It moves in whole 1/60 s quanta, so the fraction a frame
     // leaves over is carried, never dropped: at 120 Hz each frame owes half a quantum. dt is capped by the stage.
     if (first && !sh.paused) owed += dt
@@ -531,9 +590,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     centre += Math.max(-step, Math.min(step, target - centre))
     if (Math.abs(target - centre) > 40) centre = target
 
-    // The pointer orbit: a critically damped spring toward the pointer's offset.
-    const ty = pointerN ? -0.05 * pointerN[0] : 0
-    const tp = pointerN ? 0.02 * pointerN[1] : 0
+    // The reader's lean (pointer or tilt): a critically damped spring toward it. Paused, it holds.
+    const leaning = sh.paused ? null : sh.lean()
+    const ty = leaning ? -0.05 * leaning.x : spring.yaw
+    const tp = leaning ? -0.02 * leaning.y : spring.pitch
     for (let left = dt; left > 1e-6; left -= 1 / 60) {
       const h = Math.min(left, 1 / 60)
       spring.vy += (-OMEGA * OMEGA * (spring.yaw - ty) - 2 * OMEGA * spring.vy) * h
@@ -544,7 +604,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
 
     const aspect = cssW / cssH
     if (!sh.paused) clock += dt
-    const c = cam(clock)
+    const c = cam(clock, settleK)
     const e = eye(c)
     mvp = mul(perspective(aspect, lens(aspect)), view(c))
     inv = invert(mvp)
@@ -591,6 +651,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     gl.uniform1i(terrain.u('uWmod'), wmod)
     gl.uniform1f(terrain.u('uFracX'), fracX)
     gl.uniform1f(terrain.u('uFracZ'), fracZ)
+    gl.uniform1f(terrain.u('uRise'), rise)
     gl.uniformMatrix4fv(terrain.u('uMVP'), false, mvp)
     setVec(terrain, 'uPaper', pal.paper)
     setVec(terrain, 'uInk', pal.ink)
@@ -621,11 +682,12 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     // Build ribbons: the river (mid price), the front profile, the probe's drop line.
     ribN = 0
     const river: number[] = [], riverFade: number[] = []
-    for (let a = 0; a < n; a++) {
+    const riverN = Math.ceil(n * riverK)
+    for (let a = 0; a < riverN; a++) {
       const r = sim.row(a)
       const mid = sim.mids[r]!
       const lo = Math.floor(mid), f = mid - lo
-      const y = height(sim.depthAt(r, lo)) * (1 - f) + height(sim.depthAt(r, lo + 1)) * f
+      const y = (height(sim.depthAt(r, lo)) * (1 - f) + height(sim.depthAt(r, lo + 1)) * f) * rowRise(rise, a, rowsF || rows)
       river.push(xOf(mid), y + 0.006, zOf(a))
       riverFade.push(1 - Math.min(1, Math.max(0, (a / rows - 0.45) / 0.55)))
     }
@@ -634,7 +696,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     const r0 = head
     for (let j = 0; j <= VIS; j++) {
       const price = b + j
-      front.push((j - VIS / 2 - fracX) * DX, height(sim.depthAt(r0, price)) + 0.002, zOf(0))
+      front.push((j - VIS / 2 - fracX) * DX, height(sim.depthAt(r0, price)) * rowRise(rise, 0, rowsF || rows) + 0.002, zOf(0))
       frontFade.push(1)
     }
     const frontR = addRibbon(front, frontFade)
@@ -671,6 +733,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     gl.uniform1f(points.u('uDpr'), dpr)
     gl.uniform1f(points.u('uHist'), rows)
     gl.uniform1f(points.u('uMode'), 0)
+    gl.uniform1f(points.u('uShow'), Math.min(1, Math.max(0, (rise - 0.55) / 0.45)))
     setVec(points, 'uColor', pal.indigo)
     setVec(points, 'uCore', dark ? pal.ink : mixc(pal.indigo, pal.paper, 0.45))
     over()
@@ -734,6 +797,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     }
     for (; k < priceLabels.length; k++) place(priceLabels[k]!, '', null)
 
+    fadeLabels(dt, labelsK)
+    // For the specs and ?debug=1: frames drawn, and the market's simulated clock.
+    sh.labels.dataset.draws = String(++draws)
+    sh.labels.dataset.simT = sim.t.toFixed(3)
     sh.onFrame(sim.stats(), reading, !!hovered)
     first = true
     return true
@@ -761,7 +828,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
       cssH = Math.max(1, ch)
       dpr = w / cssW
       void h
-      dist = fit(REST.yaw, REST.pitch, cssW / cssH).dist
+      dist = fit(REST.yaw, restPitch(cssW / cssH), cssW / cssH).dist
+      pageDist = fit(REST.yaw, PAGE_PITCH, cssW / cssH).dist
     },
     setQuality(level) {
       q = level

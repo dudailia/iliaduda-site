@@ -64,6 +64,23 @@ export const synthetic = {
     kind: 'synthetic',
   },
 
+  // The one market every view draws (lib/market): a synthetic stock, opened by hand at a round price and quoted in
+  // cents. Its order flow's parameters live in lib/market/params.ts.
+  mkOpen: {
+    value: 100,
+    unit: 'none',
+    label: 'opening mid of the simulated market, dollars',
+    source: 'lib/market/params.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+  mkTick: {
+    value: 0.01,
+    unit: 'none',
+    label: 'price increment of the simulated market, dollars',
+    source: 'lib/market/params.ts — synthetic, set by hand',
+    kind: 'synthetic',
+  },
+
   // The home figure's model: one stock, one year, geometric Brownian motion
   // under the risk-neutral measure. Round numbers chosen for the reader, not
   // fitted to anything; the figure labels itself simulated.
