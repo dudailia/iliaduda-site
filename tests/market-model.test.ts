@@ -46,7 +46,8 @@ describe('Hawkes process', () => {
     // σ of the count is about √(ΛT)/(1 − ρ): ~0.5% here, so 2% is four σ.
     expect(Math.abs(n / T - total) / total).toBeLessThan(0.02)
     want.forEach((w, i) => expect(Math.abs(h.counts[i]! / T - w) / w).toBeLessThan(0.05))
-  })
+    // Twenty thousand simulated seconds take about 3 s alone, and longer beside the other test files.
+  }, 30_000)
 
   it('matches a one-dimensional closed form: λ = μ / (1 − a/β)', () => {
     const h = new Hawkes({ mu: [2], jump: [[1.5]], decay: [3] }, mulberry32(3))

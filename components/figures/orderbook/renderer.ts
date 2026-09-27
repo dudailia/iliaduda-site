@@ -40,7 +40,9 @@ export interface Shared {
   /** The keyboard (or tap) probe; the hover probe takes precedence while the mouse is over the terrain. */
   key: KeyProbe | null
   /** Paused: the market, the drift and the lean stop; the probe still answers. */
-  paused: boolean
+  readonly paused: boolean
+  /** Advance the page's one market by this frame (components/figures/orderbook/market.ts): once, whoever asks first. */
+  advance(): void
   /** The signature's phases while it waits or plays (lib/orderbook/sequence.ts); null once it is over, or on a visit without one. */
   sequence(): { rise: number; river: number; settle: number; labels: number } | null
   /** The reader's lean, −1…1 each way, from the pointer or the tilt (components/stage/useLean.ts). */
@@ -373,8 +375,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   let pDirty = false
   // Times are stored relative to the renderer's start, so float32 keeps millisecond precision for hours.
   const T0 = sim.t
-  /** The market time the frames have paid for so far. */
-  let owed = sim.t
+  /** Rows of the market this figure has uploaded: the rows written since are what it owes the texture. */
+  let uploaded = sim.written
   const addTrade = (price: number, size: number, t: number) => {
     const r = sim.row(0)
     const y = r >= 0 ? height(sim.depthAt(r, price)) : 0
@@ -591,9 +593,13 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     const labelsK = shownLabels
     // Advance the market by the time the frames owe it. It moves in whole 1/60 s quanta, so the fraction a frame
     // leaves over is carried, never dropped: at 120 Hz each frame owes half a quantum. dt is capped by the stage.
-    if (first && !sh.paused) owed += dt
-    const newRows = first && !sh.paused ? sim.advance(owed) : 0
-    if (newRows) uploadRows(newRows)
+    // The page's one market moves once a frame, whichever figure asks first (./market.ts): this figure uploads every
+    // row written since it last drew, however many, and whoever wrote them. dt is capped by the stage.
+    sh.advance()
+    if (sim.written !== uploaded) {
+      uploadRows(Math.min(ROWS, sim.written - uploaded))
+      uploaded = sim.written
+    }
     if (pDirty) {
       gl.bindBuffer(gl.ARRAY_BUFFER, pBuf)
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, pData)

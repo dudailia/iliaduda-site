@@ -7,10 +7,11 @@ import { DebugSlot } from '@/components/stage/DebugSlot'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '@/components/stage/useStage'
-import { posterFlow, type Flow, type Stats } from '@/lib/market/flow'
+import { posterFlow, type Stats } from '@/lib/market/flow'
 import { orderBookSequence } from '@/lib/orderbook/sequence'
 import { fmt, readAt, sentence, type Reading } from '@/lib/orderbook/read'
 import type { LiveInfo } from '@/lib/stage/debug'
+import { market } from './market'
 import type { KeyProbe, Shared } from './renderer'
 
 /**
@@ -41,7 +42,6 @@ export interface Initial {
 
 const PROBE_START: KeyProbe = { dp: 4, age: 12 }
 const MAX_DP = 60
-const PAUSED = 'orderbook-paused'
 const STAGE_OPTS = { maxQ: { mid: 3 } } as const
 const CONTROL =
   'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
@@ -67,20 +67,17 @@ export function OrderBookLive({
   const labels = useRef<HTMLDivElement>(null)
   const out = useRef<Record<string, HTMLElement | null>>({})
   const shared = useRef<Shared | null>(null)
-  const frozen = useRef<Flow | null>(null)
   const key = useRef<KeyProbe | null>(null)
   const last = useRef<Reading | null>(null)
   const seq = useRef(orderBookSequence())
   const [spoken, setSpoken] = useState('')
   const [probing, setProbing] = useState(false)
-  const [paused, setPaused] = useState<boolean>(() => {
-    try {
-      return typeof window !== 'undefined' && sessionStorage.getItem(PAUSED) === '1'
-    } catch {
-      return false
-    }
-  })
+  // Pause is the page market's, shared with Fig. 2 (./market.ts), and kept for the visit.
+  const paused = useSyncExternalStore(market.subscribe, market.getPaused, () => false)
   const pausedRef = useRef(paused)
+  useEffect(() => {
+    pausedRef.current = paused
+  }, [paused])
 
   const write = useCallback((id: string, text: string) => {
     for (const k of [id, `${id}-m`]) {
@@ -133,12 +130,17 @@ export function OrderBookLive({
       let pal: Palette = env.palette
       let dead = false
       void import('./renderer').then((m) => (mod = m))
-      const sim = posterFlow()
+      const sim = market.flow
       shared.current = {
         sim,
         labels: labels.current!,
         key: key.current,
-        paused: pausedRef.current,
+        get paused() {
+          return market.paused
+        },
+        advance: () => {
+          market.tick()
+        },
         sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
         lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
         tick: (dtMs) => {
@@ -215,7 +217,7 @@ export function OrderBookLive({
   // ?debug=1 (DebugSlot): the shared report, the market's own facts, and whether this browser computes the market
   // Node does: twenty simulated seconds past the still frame, fingerprinted against the one pinned in the tests. It
   // is worked out once, after the panel's first read, so opening the panel never waits on it.
-  const market = useRef<string | null>(null)
+  const marketCheck = useRef<string | null>(null)
   const checking = useRef(false)
   const checkMarket = useCallback(() => {
     if (checking.current) return
@@ -224,7 +226,7 @@ export function OrderBookLive({
       const f = posterFlow()
       f.advance(f.t + 20)
       const got = fingerprint(f)
-      market.current = `${got === GOLDEN ? 'same as Node' : `not the same as Node (${GOLDEN})`} · ${got}`
+      marketCheck.current = `${got === GOLDEN ? 'same as Node' : `not the same as Node (${GOLDEN})`} · ${got}`
     })
   }, [])
   const debugInfo = useRef<() => LiveInfo>(null)
@@ -249,7 +251,7 @@ export function OrderBookLive({
         saveData: saveData(),
         ua: navigator.userAgent,
         renderer: {
-          market: market.current ?? 'computing…',
+          market: marketCheck.current ?? 'computing…',
           ...(s ? { 'simulated time': `${s.sim.t.toFixed(1)} s · ${events} events`, draws: labels.current?.dataset.draws ?? '0' } : {}),
         },
       }
@@ -283,23 +285,14 @@ export function OrderBookLive({
     key.current = k
     if (shared.current) shared.current.key = k
     if (!live) {
-      // The still frame: read the frozen snapshot directly.
+      // The still frame: read the market where it stands (at the poster's moment, unless it ran before).
       if (!k) return writeProbe(null)
-      frozen.current ??= posterFlow()
-      const s = frozen.current
+      const s = market.flow
       writeProbe(readAt(s, Math.round(s.mids[s.row(0)]!) + k.dp, k.age))
     }
   }
 
-  const togglePause = () => {
-    const next = !pausedRef.current
-    pausedRef.current = next
-    if (shared.current) shared.current.paused = next
-    setPaused(next)
-    try {
-      sessionStorage.setItem(PAUSED, next ? '1' : '0')
-    } catch {}
-  }
+  const togglePause = () => market.setPaused(!market.paused)
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const k = key.current ?? shared.current?.key ?? null
