@@ -107,7 +107,7 @@ export class Flow {
     qAfter: new Int32Array(EVENTS),
     moved: new Uint8Array(EVENTS),
     lam: new Float64Array(EVENTS),
-    exc: new Float32Array(EVENTS * DRAWN.length * 6),
+    exc: new Float64Array(EVENTS * DRAWN.length * 6),
   }
   /** Ring index of the newest event, and how many the ring holds. */
   eventHead = -1
