@@ -14,7 +14,7 @@ test('goes live or says why, plays its sequence, and leaves the page clean', asy
   const errors = errorsOf(page)
   await page.goto('/?debug=1')
   const live = await goLive(page)
-  const figure = page.locator('[data-futures-debug] div').filter({ has: page.locator('dt', { hasText: /^figure$/ }) }).locator('dd')
+  const figure = page.locator('[data-stage-debug] div').filter({ has: page.locator('dt', { hasText: /^figure$/ }) }).locator('dd')
   if (live) {
     await expect(figure).toHaveText('live')
     await expect(page.locator(`${STAGE} [data-density]`)).toHaveAttribute('data-density', /^rgba(16f|8)$/)

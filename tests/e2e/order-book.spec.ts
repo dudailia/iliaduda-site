@@ -28,6 +28,12 @@ async function goLive(page: Page) {
   return live
 }
 const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('orderbook-seq', '1'))
+const panel = (page: Page) => page.locator('[data-stage-debug]')
+const row = (page: Page, k: RegExp) =>
+  panel(page)
+    .locator('div')
+    .filter({ has: page.locator('dt', { hasText: k }) })
+    .locator('dd')
 
 test.describe('before any script runs', () => {
   test.use({ javaScriptEnabled: false })
@@ -146,3 +152,33 @@ test('a lost context shows the poster again, and a restored one brings the figur
   await expect.poll(() => attr(page, 'draws'), { timeout: 5_000 }).toBeGreaterThan(5)
   expect(errors).toEqual([])
 })
+
+test('?debug=1 reports the live figure, and whether this browser computes the same market as Node', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await seen(page)
+  await page.goto('/order-book?debug=1')
+  await expect(panel(page)).toBeVisible()
+  // The market twenty seconds after the still frame, computed here, against the fingerprint pinned from Node.
+  await expect(row(page, /^market$/)).toHaveText(/^same as Node · \d+:\d+:[\d,]+$/, { timeout: 15_000 })
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect(row(page, /^figure$/)).toHaveText('live')
+  await expect(row(page, /^tier$/)).toHaveText(/^(high|mid|low) · quality \d · [1-9]\d* fps$/, { timeout: 5_000 })
+  await expect(row(page, /^simulated time$/)).toHaveText(/^\d+\.\d s · \d+ events$/)
+  expect(errors).toEqual([])
+})
+
+test('?debug=1 gives the reason the figure keeps its still frame, and the hint says it too', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/order-book?debug=1')
+  await expect(row(page, /^figure$/)).toHaveText('declined: Still frame: your system asks for reduced motion.')
+  await expect(page.locator('#fig-order-book p').filter({ hasText: 'Still frame' }).first()).toContainText('arrow keys')
+  await expect(row(page, /^market$/)).toHaveText(/^same as Node/, { timeout: 15_000 })
+})
+
+test('has no debug panel without the flag', async ({ page }) => {
+  await page.goto('/order-book')
+  await page.waitForTimeout(500)
+  await expect(panel(page)).toHaveCount(0)
+})
+

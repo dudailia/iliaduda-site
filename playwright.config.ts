@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices, firefox } from '@playwright/test'
 
 // E2E_PORT lets two checkouts run their suites side by side without one
 // reusing the other's server.
@@ -10,8 +10,11 @@ const BASE = `http://127.0.0.1:${PORT}`
 // A WebKit build to run in place of Playwright's own: PW_WEBKIT, or, where it
 // is installed, the macOS 15 build of the same revision. On macOS 26.0 the
 // macOS 26 build crashes in WKWebView as it opens a page (an AppKit mismatch),
-// and the macOS 15 build runs.
-const WEBKIT = process.env.PW_WEBKIT ?? [join(homedir(), 'Library/Caches/ms-playwright/webkit-2336-mac15/pw_run.sh')].find((p) => existsSync(p))
+// and the macOS 15 build runs. It lives outside Playwright's cache, because
+// `playwright install` deletes every build there that it did not put there.
+const WEBKIT =
+  process.env.PW_WEBKIT ??
+  ['Library/Caches/pw-webkit-2336-mac15/pw_run.sh', 'Library/Caches/ms-playwright/webkit-2336-mac15/pw_run.sh'].map((p) => join(homedir(), p)).find((p) => existsSync(p))
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -29,8 +32,10 @@ export default defineConfig({
     {
       name: 'iphone',
       use: { ...devices['iPhone 15'], ...(WEBKIT ? { launchOptions: { executablePath: WEBKIT } } : {}) },
-      testMatch: /webkit\.spec\.ts/,
+      testMatch: /(webkit|engines)\.spec\.ts/,
     },
+    // SpiderMonkey, where Firefox is installed (`playwright install firefox`): the third engine for one market.
+    ...(existsSync(firefox.executablePath()) ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /engines\.spec\.ts/ }] : []),
   ],
   /**
    * Runs against `next start`, not `next dev`. The development server injects a

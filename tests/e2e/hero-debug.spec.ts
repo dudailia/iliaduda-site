@@ -11,7 +11,7 @@ import { GPU, errorsOf, goLive, seen } from './hero-kit'
 
 test.use({ launchOptions: { args: GPU } })
 
-const panel = (page: Page) => page.locator('[data-futures-debug]')
+const panel = (page: Page) => page.locator('[data-stage-debug]')
 const row = (page: Page, k: string | RegExp) =>
   panel(page)
     .locator('div')

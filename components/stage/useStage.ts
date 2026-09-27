@@ -225,7 +225,7 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
       try {
         renderer = createRef.current({ gl, canvas: cv, palette: palette(matchMedia('(prefers-color-scheme: dark)').matches), tier: t })
       } catch (e) {
-        console.warn('lab renderer failed', e)
+        console.warn('figure renderer failed', e)
         renderer = null
       }
       if (!renderer) {

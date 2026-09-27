@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type PointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
+import { DebugSlot } from '@/components/stage/DebugSlot'
 import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
-import type { LiveInfo } from '@/lib/futures/debug'
+import type { LiveInfo } from '@/lib/stage/debug'
 import { Flight } from '@/lib/futures/flight'
 import { MODEL, bs } from '@/lib/futures/mc'
 import { POSTER_PATHS, bands, fill, strands, summarize, type PosterFrame } from '@/lib/futures/poster'
@@ -115,8 +116,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const leanFrom = useRef<'drift' | 'pointer' | 'tilt'>('drift')
   const tilt = useRef(new Lean())
   const [permission, setPermission] = useState<Permission>('unasked')
-  // ?debug=1: a report a phone's owner can screenshot, loaded only when asked for.
-  const [Debug, setDebug] = useState<ComponentType<{ read: () => LiveInfo }> | null>(null)
+  // ?debug=1: a report a phone's owner can screenshot, loaded only when asked for (DebugSlot).
   const debugInfo = useRef<() => LiveInfo>(null)
 
   const labels = useRef<HTMLDivElement>(null)
@@ -140,12 +140,6 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   }, [])
   const playing = () => seqRef.current === 'pending' || seqRef.current === 'playing'
 
-  useEffect(() => {
-    if (new URLSearchParams(location.search).get('debug') !== '1') return
-    import('./Debug')
-      .then((m) => setDebug(() => m.DebugPanel))
-      .catch(() => {})
-  }, [])
   const readDebug = useCallback((): LiveInfo => debugInfo.current!(), [])
 
   // Claim the figure for the pre-paint script, and read its decision.
@@ -643,8 +637,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         dpr: window.devicePixelRatio,
         stage: [st?.width ?? 0, st?.height ?? 0],
         canvas: live && cv ? [cv.width, cv.height] : null,
-        seq,
-        flying,
+        seq: flying ? `${seq} · flying` : seq,
         reduced,
         saveData: saveData(),
         ua: navigator.userAgent,
@@ -866,7 +859,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           {spoken}
         </p>
       </FigureFrame>
-      {Debug && <Debug read={readDebug} />}
+      <DebugSlot title="Fig. 1" read={readDebug} />
     </>
   )
 }

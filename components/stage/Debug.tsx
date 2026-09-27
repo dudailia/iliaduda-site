@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { asText, rows, type GlInfo, type LiveInfo } from '@/lib/futures/debug'
+import { asText, rows, type GlInfo, type LiveInfo } from '@/lib/stage/debug'
 import { probeHalfFloat, renderable } from '@/lib/gl'
 
 /**
@@ -58,7 +58,7 @@ function probe(): GlInfo | null {
   }
 }
 
-export function DebugPanel({ read }: { read: () => LiveInfo }) {
+export function DebugPanel({ title, read }: { title: string; read: () => LiveInfo }) {
   const [gl] = useState(probe)
   const [live, setLive] = useState(read)
   const [open, setOpen] = useState(true)
@@ -77,11 +77,11 @@ export function DebugPanel({ read }: { read: () => LiveInfo }) {
   return (
     <aside
       aria-label="Figure debug report"
-      data-futures-debug=""
+      data-stage-debug=""
       className="fixed inset-x-0 bottom-0 z-50 max-h-[48svh] overflow-auto border-t border-ink bg-paper px-3 py-2 font-mono text-[11px] leading-[1.4] text-ink print:hidden [@media(pointer:coarse)]:pb-[calc(env(safe-area-inset-bottom)+5rem)]"
     >
       <div className="flex items-center gap-3">
-        <strong className="font-normal">Fig. 1 · debug</strong>
+        <strong className="font-normal">{title} · debug</strong>
         <button type="button" className="underline" onClick={copy}>
           {copied ? 'Copied' : 'Copy'}
         </button>

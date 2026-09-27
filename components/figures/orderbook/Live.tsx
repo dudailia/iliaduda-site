@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
+import { saveData, supportsWebGL2 } from '@/components/stage/env'
+import { DebugSlot } from '@/components/stage/DebugSlot'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '@/components/stage/useStage'
 import { posterFlow, type Flow, type Stats } from '@/lib/market/flow'
 import { orderBookSequence } from '@/lib/orderbook/sequence'
 import { fmt, readAt, sentence, type Reading } from '@/lib/orderbook/read'
+import type { LiveInfo } from '@/lib/stage/debug'
 import type { KeyProbe, Shared } from './renderer'
 
 /**
@@ -182,7 +185,7 @@ export function OrderBookLive({
     [writeProbe, writeStats],
   )
 
-  const { box, canvas, live, eligible, reduced } = useStage(create, STAGE_OPTS)
+  const { box, canvas, live, eligible, reduced, quality, fps, tier } = useStage(create, STAGE_OPTS)
   const sig = useSignature('orderbook', box, seq)
   const lean = useLean(live, reduced, pausedRef)
   useEffect(() => {
@@ -197,6 +200,64 @@ export function OrderBookLive({
   useEffect(() => {
     if (mounted && (!eligible || reduced)) release()
   }, [mounted, eligible, reduced, release])
+
+  // Said only once the browser has answered; the server cannot know.
+  const why = !mounted
+    ? null
+    : reduced
+      ? 'Still frame: your system asks for reduced motion.'
+      : !eligible
+        ? saveData()
+          ? 'Still frame: your browser asks to save data.'
+          : supportsWebGL2()
+            ? 'Still frame: the live figure could not start here.'
+            : 'Still frame: this browser has no WebGL2.'
+        : null
+
+  // ?debug=1 (DebugSlot): the shared report, the market's own facts, and whether this browser computes the market
+  // Node does: twenty simulated seconds past the still frame, fingerprinted against the one pinned in the tests. It
+  // is worked out once, after the panel's first read, so opening the panel never waits on it.
+  const market = useRef<string | null>(null)
+  const checking = useRef(false)
+  const checkMarket = useCallback(() => {
+    if (checking.current) return
+    checking.current = true
+    void import('@/lib/market/fingerprint').then(({ GOLDEN, fingerprint }) => {
+      const f = posterFlow()
+      f.advance(f.t + 20)
+      const got = fingerprint(f)
+      market.current = `${got === GOLDEN ? 'same as Node' : `not the same as Node (${GOLDEN})`} · ${got}`
+    })
+  }, [])
+  const debugInfo = useRef<() => LiveInfo>(null)
+  useEffect(() => {
+    debugInfo.current = () => {
+      const st = box.current?.getBoundingClientRect()
+      const cv = canvas.current
+      const s = shared.current
+      const events = s ? s.sim.hawkes.counts.reduce((a, b) => a + b, 0) : 0
+      checkMarket()
+      return {
+        state: live ? 'live' : why ? 'declined' : mounted ? 'starting' : 'server',
+        reason: why,
+        tier,
+        quality,
+        fps,
+        dpr: window.devicePixelRatio,
+        stage: [st?.width ?? 0, st?.height ?? 0],
+        canvas: live && cv ? [cv.width, cv.height] : null,
+        seq: paused ? `${sig.state} · paused` : sig.state,
+        reduced,
+        saveData: saveData(),
+        ua: navigator.userAgent,
+        renderer: {
+          market: market.current ?? 'computing…',
+          ...(s ? { 'simulated time': `${s.sim.t.toFixed(1)} s · ${events} events`, draws: labels.current?.dataset.draws ?? '0' } : {}),
+        },
+      }
+    }
+  })
+  const readDebug = useCallback((): LiveInfo => debugInfo.current!(), [])
 
   // Readouts start as the poster's frame: the same numbers, computed on the server.
   useEffect(() => {
@@ -297,7 +358,11 @@ export function OrderBookLive({
       rail={rail}
       railBelow={false}
       vt="order-book"
-      hint={live ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.' : 'Tab to the figure and use the arrow keys to read a price level.'}
+      hint={
+        live
+          ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.'
+          : `${why ? `${why} ` : ''}Tab to the figure and use the arrow keys to read a price level.`
+      }
       caption={caption}
       table={table}
     >
@@ -371,6 +436,7 @@ export function OrderBookLive({
       <div className="mt-4 lg:hidden">
         <Readouts initial={initial} set={ref} suffix="-m" across />
       </div>
+      <DebugSlot title="Order book, Fig. 1" read={readDebug} />
     </FigureFrame>
   )
 }

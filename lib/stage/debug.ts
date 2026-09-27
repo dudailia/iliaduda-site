@@ -1,9 +1,10 @@
 /**
- * The ?debug=1 report for the home figure: what a reader screenshots from a
+ * The ?debug=1 report for any live figure: what a reader screenshots from a
  * phone when the figure misbehaves. It answers, on one screen, the questions a
  * fix starts from: whether the figure went live and, if not, why; the GPU
- * tier and the formats it chose; what the browser offers; how fast it runs.
- * Pure: the overlay gathers the facts, this lays them out.
+ * tier and the formats it chose; what the browser offers; how fast it runs;
+ * and whatever the figure itself reports. Pure: the overlay
+ * (components/stage/Debug.tsx) gathers the facts, this lays them out.
  */
 
 export interface GlInfo {
@@ -30,8 +31,8 @@ export interface LiveInfo {
   dpr: number
   stage: readonly [number, number]
   canvas: readonly [number, number] | null
+  /** The signature's state, and anything else the figure's motion is doing (flying, paused). */
   seq: string
-  flying: boolean
   reduced: boolean
   saveData: boolean
   ua: string
@@ -48,7 +49,7 @@ export function rows(gl: GlInfo | null, live: LiveInfo): { k: string; v: string 
   put('figure', live.state === 'declined' ? `declined: ${live.reason ?? 'no reason given'}` : live.state)
   put('tier', `${live.tier ?? 'none'} · quality ${live.quality} · ${live.fps} fps`)
   for (const [k, v] of Object.entries(live.renderer ?? {})) put(k, v)
-  put('sequence', `${live.seq}${live.flying ? ' · flying' : ''}`)
+  put('sequence', live.seq)
   put('screen', `dpr ${live.dpr} · stage ${size(live.stage)} · canvas ${size(live.canvas)}`)
   put('asks', `reduced motion ${yes(live.reduced)} · save data ${yes(live.saveData)}`)
   if (!gl) {

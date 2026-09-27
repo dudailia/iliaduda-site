@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { asText, rows, type GlInfo, type LiveInfo } from '@/lib/futures/debug'
+import { asText, rows, type GlInfo, type LiveInfo } from '@/lib/stage/debug'
 
 /**
- * The ?debug=1 overlay: what a phone's owner screenshots when the figure
- * misbehaves. Its report has to answer, on one screen, the questions a fix
+ * The ?debug=1 overlay, shared by every live figure: what a phone's owner
+ * screenshots when a figure misbehaves. Its report has to answer, on one screen, the questions a fix
  * starts from: did it go live, and if not why; what GPU tier and which
  * formats it chose; which extensions the browser offers; how fast it runs.
  */
@@ -31,7 +31,6 @@ const live: LiveInfo = {
   stage: [393, 596],
   canvas: [786, 1192],
   seq: 'done',
-  flying: false,
   reduced: false,
   saveData: false,
   ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X)',
@@ -55,6 +54,10 @@ describe('the debug report', () => {
     expect(get(r, 'float blend')).toBe('no')
     expect(get(r, 'strands')).toBe('3072')
     expect(get(r, 'screen')).toBe('dpr 3 · stage 393×596 · canvas 786×1192')
+  })
+
+  it('shows the motion as the figure describes it', () => {
+    expect(get(rows(gl, { ...live, seq: 'done · flying' }), 'sequence')).toBe('done · flying')
   })
 
   it('lists every extension, sorted, so a screenshot can be read against the code', () => {

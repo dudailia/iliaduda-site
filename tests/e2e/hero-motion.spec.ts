@@ -13,7 +13,7 @@ test.use({ launchOptions: { args: GPU } })
 
 const draws = async (page: Page) => Number(await page.locator(`${STAGE} [data-draws]`).getAttribute('data-draws'))
 const motion = (page: Page) =>
-  page.locator('[data-futures-debug] div').filter({ has: page.locator('dt', { hasText: /^motion$/ }) }).locator('dd')
+  page.locator('[data-stage-debug] div').filter({ has: page.locator('dt', { hasText: /^motion$/ }) }).locator('dd')
 
 test('Pause holds the figure, so nothing is drawn; the pause lasts the visit, and Resume lets it move again', async ({ page }) => {
   test.setTimeout(60_000)
