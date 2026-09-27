@@ -1,10 +1,11 @@
 import { program, type GL } from '@/lib/gl'
-import { HALF, HZ, LEVELS, ROWS, START, TICK, type Flow, type Stats } from '@/lib/market/flow'
+import { HALF, HZ, LEVELS, ROWS, START, type Flow, type Stats } from '@/lib/market/flow'
 import { fmt, readAt, type Reading } from '@/lib/orderbook/read'
-import { DX, DZ, H, POW, REF, REST, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
+import { DX, DZ, H, POW, REF, REST, ROWS_BY_Q, SWAY, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 import { EASE_IN_OUT_QUAD } from '@/lib/ease'
 import { rowRise } from '@/lib/orderbook/sequence'
+import { PAD, boxAt, fits, labelSpecs, type Anchor, type Box, type LabelKind } from '@/lib/orderbook/labels'
 
 /**
  * The order book as terrain, in raw WebGL2.
@@ -49,10 +50,8 @@ export interface Shared {
   onFrame(stats: Stats, probe: Reading | null, hovering: boolean): void
 }
 
-const ROWS_BY_Q = [96, 150, 208, 256] as const
 const MAXP = 512
 const SPARK_LIFE = 0.6
-const DRIFT = { amp: 0.07, period: 48 }
 /** Window follow speed, ticks per second: linear, never eased. */
 const FOLLOW = 4
 // The orbit follows the reader's lean quickly (settles in ~0.5s) and swings little:
@@ -388,26 +387,37 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   sim.onTrade = (tr) => addTrade(tr.price, tr.size, tr.t)
 
   // ── labels ─────────────────────────────────────────────────────────────────
-  type Label = { el: HTMLSpanElement; text: string; w: number; h: number; o: number; want: number }
-  const all: Label[] = []
-  const mk = (cls: string): Label => {
-    const el = document.createElement('span')
-    el.className = `absolute left-0 top-0 whitespace-nowrap font-mono text-meta leading-none ${cls}`
-    el.style.opacity = '0'
-    sh.labels.appendChild(el)
-    const l = { el, text: '', w: 0, h: 0, o: 0, want: 0 }
-    all.push(l)
+  // One list with the poster (lib/orderbook/labels.ts), kept by id: a label that stops applying (a price tick
+  // scrolled out of the window) fades where it last stood, and one that starts fades in; none is retexted in place.
+  type Kind = LabelKind | 'probe'
+  type Label = { el: HTMLSpanElement; kind: Kind; text: string; w: number; h: number; o: number; want: number; seen: boolean }
+  const LOOK: Record<Kind, string> = {
+    tag: 'text-paper bg-indigo',
+    wall: 'text-ink bg-paper/85',
+    time: 'text-graphite bg-paper/80',
+    tick: 'text-graphite bg-paper/80',
+    probe: 'text-ink bg-paper/90',
+  }
+  const pool = new Map<string, Label>()
+  const label = (id: string, kind: Kind): Label => {
+    let l = pool.get(id)
+    if (!l) {
+      const el = document.createElement('span')
+      el.className = `absolute left-0 top-0 whitespace-nowrap rounded-sm font-mono text-meta leading-none ${LOOK[kind]}`
+      const [px, py] = PAD[kind === 'probe' ? 'wall' : kind]
+      el.style.padding = `${py}px ${px}px`
+      el.style.opacity = '0'
+      el.style.visibility = 'hidden'
+      sh.labels.appendChild(el)
+      l = { el, kind, text: '', w: 0, h: 0, o: 0, want: 0, seen: false }
+      pool.set(id, l)
+    }
+    l.seen = true
     return l
   }
-  const priceLabels = Array.from({ length: 8 }, () => mk('text-graphite bg-paper/80 px-0.5 rounded-sm'))
-  const timeLabels = [0, 5, 10, 15].map(() => mk('text-graphite bg-paper/80 px-0.5 rounded-sm'))
-  const buyers = mk('text-ink bg-paper/85 px-1 py-0.5 rounded-sm')
-  const sellers = mk('text-ink bg-paper/85 px-1 py-0.5 rounded-sm')
-  const priceTag = mk('text-indigo bg-paper/85 px-1 py-0.5 rounded-sm')
-  const probeTag = mk('text-ink bg-paper/90 px-1 py-0.5 rounded-sm')
-  /** Boxes already placed this frame: a label that would overlap one, or leave the frame, is hidden. */
-  const placed: [number, number, number, number][] = []
-  const place = (l: Label, text: string, at: [number, number] | null, anchor: 'c' | 'l' | 'r' = 'c') => {
+  /** Boxes already placed this frame: a label that would cover one, or leave the frame, is not shown. */
+  const placed: Box[] = []
+  const place = (l: Label, text: string, at: [number, number] | null, anchor: Anchor = 'c') => {
     if (l.text !== text) {
       l.el.textContent = text
       l.text = text
@@ -415,17 +425,14 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     }
     if (at && text) {
       if (!l.w) {
-        l.el.style.visibility = 'hidden'
         l.w = l.el.offsetWidth
         l.h = l.el.offsetHeight
       }
-      const x0 = anchor === 'c' ? at[0] - l.w / 2 : anchor === 'l' ? at[0] : at[0] - l.w
-      const box: [number, number, number, number] = [x0 - 3, at[1] - l.h / 2 - 2, x0 + l.w + 3, at[1] + l.h / 2 + 2]
-      const clash = box[0] < 4 || box[2] > cssW - 4 || box[1] < 0 || box[3] > cssH || placed.some((b) => box[0] < b[2] && b[0] < box[2] && box[1] < b[3] && b[1] < box[3])
-      if (!clash) {
-        placed.push(box)
+      const b = boxAt(at[0], at[1], l.w, l.h, anchor)
+      if (fits(b, placed, cssW, cssH, l.want > 0)) {
+        placed.push(b)
         l.want = 1
-        l.el.style.transform = `translate(${x0.toFixed(1)}px, ${(at[1] - l.h / 2).toFixed(1)}px)`
+        l.el.style.transform = `translate(${b.x0.toFixed(1)}px, ${b.y0.toFixed(1)}px)`
         return
       }
     }
@@ -435,19 +442,27 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   /** Ease every label toward shown or hidden, times the signature's labels phase. */
   const fadeLabels = (dt: number, k: number) => {
     const f = 1 - Math.exp(-Math.max(0, dt) / LABEL_TAU)
-    for (const l of all) {
+    for (const [id, l] of pool) {
+      if (!l.seen) l.want = 0
+      l.seen = false
       l.o += (l.want - l.o) * (dt > 0 ? f : 1)
       const a = l.o * k
       l.el.style.opacity = a.toFixed(3)
       l.el.style.visibility = a > 0.01 ? 'visible' : 'hidden'
+      // A price the window has left for good leaves the page once it has faded.
+      if (l.kind === 'tick' && !l.want && l.o < 0.001) {
+        l.el.remove()
+        pool.delete(id)
+      }
     }
   }
 
   // ── state ──────────────────────────────────────────────────────────────────
   let cssW = 1, cssH = 1, dpr = 1
   let q = 2
-  let dist = 4
-  let pageDist = 4
+  /** The two fitted cameras the signature moves between: looking down on the page, and at rest. */
+  let rest: Camera = fit(REST.yaw, restPitch(1), 1)
+  let page: Camera = fit(REST.yaw, PAGE_PITCH, 1, false)
   // The signature as shown: 1 is the finished picture, as a visit without one opens.
   let shownRise = 1, shownRiver = 1, shownSettle = 1, shownLabels = 1
   let started = false
@@ -465,13 +480,14 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
 
   /** The camera: from the page to rest as the signature settles (`k` 0 → 1), then drifting and leaning with the reader. */
   const cam = (t: number, k: number): Camera => ({
-    yaw: REST.yaw + (DRIFT.amp * Math.sin((2 * Math.PI * t) / DRIFT.period) + spring.yaw) * k,
-    pitch: PAGE_PITCH + (restPitch(cssW / cssH) - PAGE_PITCH) * k + spring.pitch * k,
-    dist: pageDist + (dist - pageDist) * k,
-    tx: 0,
-    ty: REST.ty,
-    tz: cssW / cssH < 1 ? REST.tz + 0.35 : REST.tz,
+    yaw: REST.yaw + (SWAY.drift * Math.sin((2 * Math.PI * t) / SWAY.period) + spring.yaw) * k,
+    pitch: page.pitch + (rest.pitch - page.pitch) * k + spring.pitch * k,
+    dist: page.dist + (rest.dist - page.dist) * k,
+    tx: page.tx + (rest.tx - page.tx) * k,
+    ty: rest.ty,
+    tz: rest.tz,
   })
+
 
   // ── picking ────────────────────────────────────────────────────────────────
   const base = () => Math.floor(centre) - VIS / 2
@@ -592,8 +608,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
 
     // The reader's lean (pointer or tilt): a critically damped spring toward it. Paused, it holds.
     const leaning = sh.paused ? null : sh.lean()
-    const ty = leaning ? -0.05 * leaning.x : spring.yaw
-    const tp = leaning ? -0.02 * leaning.y : spring.pitch
+    const ty = leaning ? -SWAY.yaw * leaning.x : spring.yaw
+    const tp = leaning ? -SWAY.pitch * leaning.y : spring.pitch
     for (let left = dt; left > 1e-6; left -= 1 / 60) {
       const h = Math.min(left, 1 / 60)
       spring.vy += (-OMEGA * OMEGA * (spring.yaw - ty) - 2 * OMEGA * spring.vy) * h
@@ -759,43 +775,23 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     gl.bindVertexArray(null)
     gl.depthMask(true)
 
-    // Labels follow the projection, most important first; any that would
-    // overlap one already placed is dropped for this frame.
+    // Labels follow the projection, most important first (lib/orderbook/labels.ts); any that would cover one
+    // already placed waits for room.
     placed.length = 0
     const S = (x: number, y: number, z: number) => toScreen(mvp, cssW, cssH, x, y, z)
-    const narrow = aspect < 1
-    const midNow = sim.mids[head]!
-    const tagAt = S(xOf(midNow), 0, Z_NOW + 0.02)
-    place(priceTag, `Price ${fmt.mid(midNow)}`, tagAt ? [tagAt[0], tagAt[1] + 18] : null)
-    // The probe's reading, beside the pin: the answer where the hand is.
-    if (reading) {
-      const r = sim.row(probeAge)
-      const at = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) + 0.16, zOf(probeAge))
-      const text = reading.side === 'spread' ? `${fmt.usd(reading.price)} · inside the spread` : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)} · ${fmt.ago(reading.ago)}`
-      place(probeTag, text, at ? [at[0] + 6, at[1] - 10] : null, 'l')
-    } else place(probeTag, '', null)
-    const wallX = narrow ? 0.26 : 0.8
-    const times = [0, 5, 10, 15]
-    const placeTime = (i: number) => {
-      const s = times[i]!
-      const age = s * HZ
-      const r = sim.row(Math.round(age))
-      const ok = age < n * 0.62 && r >= 0
-      const edge = narrow ? Math.round(VIS * (0.13 + 0.035 * i)) : VIS / 2 - 1
-      const y = ok ? height(sim.depthAt(r, Math.round(centre) + edge)) : 0
-      place(timeLabels[i]!, s === 0 ? 'now' : `${s} s ago`, ok ? S(edge * DX + 0.04, y + 0.02, zOf(age)) : null, narrow ? 'r' : 'l')
+    for (const l of labelSpecs(sim, { centre, fracZ, narrow: aspect < 1, rows, rise })) {
+      const at = S(l.at[0], l.at[1], l.at[2])
+      place(label(l.id, l.kind), l.text, at ? [at[0] + l.dx, at[1] + l.dy] : null, l.anchor)
+      if (l.id !== 'price') continue
+      // The probe's reading, beside the pin, second only to the price: the answer where the hand is.
+      const probeTag = label('probe', 'probe')
+      if (reading) {
+        const r = sim.row(probeAge)
+        const pin = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) + 0.16, zOf(probeAge))
+        const text = reading.side === 'spread' ? `${fmt.usd(reading.price)} · inside the spread` : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)} · ${fmt.ago(reading.ago)}`
+        place(probeTag, text, pin ? [pin[0] + 6, pin[1] - 10] : null, 'l')
+      } else place(probeTag, '', null)
     }
-    placeTime(0)
-    place(buyers, 'Buyers waiting', S(-XW * wallX, height(REF * 0.8) + 0.06, Z_NOW - 0.25))
-    place(sellers, 'Sellers waiting', S(XW * wallX, height(REF * 0.8) + 0.06, Z_NOW - 0.25))
-    for (let i = 1; i < times.length; i++) placeTime(i)
-    const stepTicks = 20
-    let k = 0
-    for (let p = Math.ceil((b + 2) / stepTicks) * stepTicks; p <= b + VIS - 2 && k < priceLabels.length; p += stepTicks) {
-      const at = S(xOf(p), height(sim.depthAt(head, p)), zOf(0))
-      place(priceLabels[k++]!, `$${(p * TICK).toFixed(2)}`, at ? [at[0], at[1] + 16] : null)
-    }
-    for (; k < priceLabels.length; k++) place(priceLabels[k]!, '', null)
 
     fadeLabels(dt, labelsK)
     // For the specs and ?debug=1: frames drawn, and the market's simulated clock.
@@ -828,8 +824,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
       cssH = Math.max(1, ch)
       dpr = w / cssW
       void h
-      dist = fit(REST.yaw, restPitch(cssW / cssH), cssW / cssH).dist
-      pageDist = fit(REST.yaw, PAGE_PITCH, cssW / cssH).dist
+      rest = fit(REST.yaw, restPitch(cssW / cssH), cssW / cssH)
+      page = fit(REST.yaw, PAGE_PITCH, cssW / cssH, false)
     },
     setQuality(level) {
       q = level

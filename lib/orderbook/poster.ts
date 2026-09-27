@@ -1,5 +1,6 @@
-import { HZ, TICK, type Flow } from '@/lib/market/flow'
-import { DX, DZ, REF, REST, VIS, XW, Z_NOW, fit, height, lens, mul, perspective, restPitch, toScreen, view } from './view'
+import { HZ, type Flow } from '@/lib/market/flow'
+import { PAD, arrange, labelSpecs, type Box, type LabelKind } from './labels'
+import { DX, DZ, HISTORY, REST, VIS, XW, Z_NOW, fit, height, lens, mul, perspective, restPitch, toScreen, view, type Camera } from './view'
 
 /**
  * The poster: the same frame the live renderer will draw first, projected
@@ -22,9 +23,17 @@ export interface PosterGeometry {
   rows: PosterRow[]
   river: string
   dots: [number, number, number][]
-  /** Projected positions for the in-scene labels. */
-  labels: { price: [number, number, string][]; buyers: [number, number]; sellers: [number, number]; now: [number, number] | null; mid: [number, number] | null; midText: string }
+  /** The live overlay's labels for this frame, placed by its rules (lib/orderbook/labels.ts). */
+  labels: PosterLabel[]
 }
+
+export interface PosterLabel extends Box {
+  text: string
+  kind: LabelKind
+}
+
+/** The overlay's label size (text-meta, 13px), so the poster's labels are the live ones. Mono: 0.6em a character. */
+export const LABEL_FS = 13
 
 /**
  * The part of a polyline between x = lo and x = hi, cut where it crosses an
@@ -79,9 +88,9 @@ function path(ridge: [number, number][], ground: [number, number][], w: number):
   return { d: d + 'z', dash: `${top.toFixed(1)} ${(len - top + 2).toFixed(0)}` }
 }
 
-export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: number; step: number }): PosterGeometry {
+export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: number; step: number }, camera?: Camera): PosterGeometry {
   const aspect = w / h
-  const cam = fit(REST.yaw, restPitch(aspect), aspect)
+  const cam = camera ?? fit(REST.yaw, restPitch(aspect), aspect)
   const m = mul(perspective(aspect, lens(aspect)), view(cam))
   const P = (x: number, y: number, z: number): [number, number] | null => {
     const s = toScreen(m, w, h, x, y, z)
@@ -156,31 +165,24 @@ export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: n
     if (p && p[0] - rad >= 0 && p[0] + rad <= w && p[1] - rad >= 0 && p[1] + rad <= h) dots.push([p[0], p[1], rad])
   }
 
-  const price: [number, number, string][] = []
-  const stepTicks = 20
-  for (let p = Math.ceil((base + VIS / 2 - reach) / stepTicks) * stepTicks; p <= base + VIS / 2 + reach; p += stepTicks) {
-    const s = P((p - centre) * DX, height(sim.depthAt(head, p)), Z_NOW - frac * DZ)
-    if (s && s[0] > 30 && s[0] < w - 30) price.push([s[0], s[1] + 16, `$${(p * TICK).toFixed(2)}`])
-  }
-  const wallX = narrow ? 0.26 : 0.8
-  const wallY = height(REF * 0.8) + 0.06
+  // The labels the first live frame would place, in the order it places them.
+  const items = labelSpecs(sim, { centre, fracZ: frac, narrow, rows: HISTORY }).flatMap((l) => {
+    const at = toScreen(m, w, h, l.at[0], l.at[1], l.at[2])
+    if (!at) return []
+    const [px, py] = PAD[l.kind]
+    return [{ l, x: at[0] + l.dx, y: at[1] + l.dy, w: l.text.length * LABEL_FS * 0.6 + 2 * px, h: LABEL_FS + 2 * py, anchor: l.anchor }]
+  })
+  const r1 = (v: number) => Math.round(v * 10) / 10
+  const labels = arrange(items, w, h).flatMap((b, i) =>
+    b ? [{ x0: r1(b.x0), y0: r1(b.y0), x1: r1(b.x1), y1: r1(b.y1), text: items[i]!.l.text, kind: items[i]!.l.kind }] : [],
+  )
   return {
     w,
     h,
     rows,
     river,
     dots,
-    labels: {
-      price,
-      buyers: P(-XW * wallX, wallY, Z_NOW - 0.25) ?? [0, 0],
-      sellers: P(XW * wallX, wallY, Z_NOW - 0.25) ?? [0, 0],
-      now: (() => {
-        const edge = narrow ? Math.round(VIS * 0.13) : VIS / 2 - 1
-        return P(edge * DX + 0.04, height(sim.depthAt(head, Math.round(centre) + edge)) + 0.02, Z_NOW - frac * DZ)
-      })(),
-      mid: P(0, 0, Z_NOW - frac * DZ),
-      midText: `Price $${(centre * TICK).toFixed(2)}`,
-    },
+    labels,
   }
 }
 

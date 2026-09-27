@@ -13,6 +13,10 @@ export const XW = 1.35
 export const DX = (2 * XW) / VIS
 /** World depth of one row (1/12 s). 256 rows ≈ 3.3 units. */
 export const DZ = 0.013
+/** Rows of history the renderer draws at each quality level, lowest first. */
+export const ROWS_BY_Q = [96, 150, 208, 256] as const
+/** The history at the default quality: what the poster labels, so its labels are the first live frame's. */
+export const HISTORY = ROWS_BY_Q[2]
 export const Z_NOW = 1.25
 /** Height of the walls at the reference depth. */
 export const H = 0.7
@@ -22,9 +26,9 @@ export const H = 0.7
  */
 export const REF = 800
 
-/** Height of a wall with `cum` shares between it and the touch. A concave power keeps the thin book near the price legible. */
 /** Exponent of the height curve; the shader reads the same constant. */
 export const POW = 0.7
+/** Height of a wall with `cum` shares between it and the touch. A concave power keeps the thin book near the price legible. */
 export const height = (cum: number) => H * Math.pow(Math.abs(cum) / REF, POW)
 
 export type M4 = Float32Array
@@ -39,14 +43,22 @@ export interface Camera {
 }
 
 export const FOV = (34 * Math.PI) / 180
-export const REST = { yaw: -0.16, pitch: 0.36, ty: 0.12, tz: -0.25 }
+export const REST = { yaw: -0.16, pitch: 0.6, ty: 0.12, tz: -0.25 }
+/** How far the resting camera swings, in radians: the slow drift in yaw, and the reader's lean (pointer or tilt). */
+export const SWAY = { drift: 0.045, period: 48, yaw: 0.04, pitch: 0.02 }
 /**
- * The resting pitch for a stage of this aspect: a phone's tall frame looks along the valley; a laptop's column,
- * nearer square, looks down a little more, so the twenty seconds receding fill its height as the walls fill its width.
+ * The walls at the valley's ends stand about 1.16 H tall, and 1.38 H at the 95th percentile over ten calm minutes
+ * (cumulative depth sixty-four ticks out): the fit leaves room for that, not just for H.
+ */
+const TALL = 1.4
+/**
+ * The resting pitch for a stage of this aspect: looking down the valley at about a third of a right angle, so the
+ * history climbs the frame as the walls fill its width; a laptop's wider column looks down a touch less, so its
+ * walls keep their height.
  */
 export const restPitch = (aspect: number) => {
   const t = Math.min(1, Math.max(0, (aspect - 0.9) / 0.35))
-  return REST.pitch + 0.13 * t * t * (3 - 2 * t)
+  return REST.pitch - 0.05 * t * t * (3 - 2 * t)
 }
 
 /**
@@ -123,32 +135,52 @@ export function toScreen(m: M4, w: number, h: number, x: number, y: number, z: n
 }
 
 /**
- * The distance at which the terrain fills the frame for this aspect. On a
- * wide screen the whole valley and ~12 s of history fit; on a tall phone the
- * camera comes in so the walls near the price fill the width instead of a
- * postage stamp of all 128 ticks.
+ * The camera at which the terrain fills the frame for this aspect. On a wide
+ * screen the whole valley and ~14 s of history fit, centred: the three-quarter
+ * view brings the sellers' wall nearer, so the target slides along the valley
+ * until the paper either side is equal. On a tall phone the camera comes in so
+ * the walls near the price fill the width instead of a postage stamp of all
+ * 128 ticks.
  */
-export function fit(yaw: number, pitch: number, aspect: number): Camera {
+export function fit(yaw: number, pitch: number, aspect: number, sway = true): Camera {
   const narrow = aspect < 1
   const xw = narrow ? XW * 0.44 : XW
-  const back = Z_NOW - (narrow ? 1.5 : 2.2)
+  const back = Z_NOW - 2.2
   const pts: [number, number, number][] = []
-  for (const x of [-xw, xw]) for (const z of [Z_NOW, back]) pts.push([x, 0, z], [x, H, z])
-  const base = { yaw, pitch, tx: 0, ty: REST.ty, tz: narrow ? REST.tz + 0.3 : REST.tz }
-  let lo = 0.5, hi = 20
-  for (let i = 0; i < 24; i++) {
-    const d = (lo + hi) / 2
-    const c = { ...base, dist: d }
-    const m = mul(perspective(aspect), view(c))
-    const inside = pts.every(([x, y, z]) => {
-      const q = apply(m, x, y, z)
-      // A phone's stage is full-bleed, so the walls may run to its edges; a laptop's column keeps a hairline of paper.
-      return q[3] > 0 && Math.abs(q[0] / q[3]) <= (narrow ? 1.02 : 0.97) && Math.abs(q[1] / q[3]) <= (narrow ? 0.74 : 0.8)
-    })
-    if (inside) hi = d
-    else lo = d
+  // A laptop's column shows the valley's ends, so it fits them as tall as they stand, at every extreme of the drift
+  // and the lean; a phone's full-bleed frame crops the ends anyway, and fits the lower walls near the price.
+  const top = narrow ? H : H * TALL
+  for (const x of [-xw, xw]) for (const z of [Z_NOW, back]) pts.push([x, 0, z], [x, top, z])
+  const swing = sway && !narrow
+  const sy = swing ? SWAY.drift + SWAY.yaw : 0, sp = swing ? SWAY.pitch : 0
+  const swings = [-sy, 0, sy].flatMap((dy) => [-sp, sp].map((dp) => [dy, dp] as const))
+  // A phone's stage is full-bleed, so the walls may run to its edges; a laptop's column keeps paper on both sides,
+  // enough for the drift to swing into.
+  const lim = narrow ? { x: 1.02, y: 0.86 } : { x: 0.93, y: 0.8 }
+  let base = { yaw, pitch, tx: 0, ty: REST.ty, tz: narrow ? REST.tz + 0.3 : REST.tz }
+  const project = (d: number, dy = 0, dp = 0) => {
+    const m = mul(perspective(aspect, lens(aspect)), view({ ...base, yaw: base.yaw + dy, pitch: base.pitch + dp, dist: d }))
+    return pts.map(([x, y, z]) => apply(m, x, y, z))
   }
-  return { ...base, dist: hi }
+  const solve = () => {
+    let lo = 0.5, hi = 20
+    for (let i = 0; i < 24; i++) {
+      const d = (lo + hi) / 2
+      const ok = swings.every(([dy, dp]) => project(d, dy, dp).every((q) => q[3] > 0 && Math.abs(q[0] / q[3]) <= lim.x && Math.abs(q[1] / q[3]) <= lim.y))
+      if (ok) hi = d
+      else lo = d
+    }
+    return hi
+  }
+  let dist = solve()
+  if (!narrow)
+    for (let k = 0; k < 12; k++) {
+      const xs = project(dist).map((q) => q[0] / q[3])
+      const off = (Math.min(...xs) + Math.max(...xs)) / 2
+      base = { ...base, tx: base.tx + off * 0.5 * dist * Math.tan(FOV / 2) * aspect * Math.cos(yaw) }
+      dist = solve()
+    }
+  return { ...base, dist }
 }
 
 export function invert(a: M4): M4 | null {
