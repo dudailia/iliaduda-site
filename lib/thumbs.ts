@@ -1,4 +1,5 @@
-import { levels } from './surfaceLevels'
+import { CALM, iv } from './surface/ssvi'
+import { apply, camera, EXPIRY_TICKS, kOfU, mvp, STRIKE_TICKS, tOfV, wx, wy, wz } from './surface/view'
 import { chart, feed } from '@/content/data/closebooks-feed'
 import replay from '@/content/data/cricket-final.json'
 import ranking from '@/content/data/startup-ranking.json'
@@ -7,7 +8,6 @@ import { categorise } from './closebooks'
 import { zcy } from './gcurve'
 import { posterFlow } from './market/flow'
 import { offeredTerms } from './settlement'
-import { LABELLED } from './surfaceView'
 
 /**
  * Miniatures of each paper's Fig. 1, drawn from the same data: for the
@@ -32,15 +32,20 @@ const line = (pts: readonly (readonly [number, number])[]) =>
   pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('')
 
 function ivSurface(): Thumb {
-  // levels() is drawn in a 1000 × 1000 box; squash it into 1000 × 600.
-  // Whole units: a thumbnail is 144px wide, and every byte of it ships twice on
-  // the contents page (HTML and RSC payload).
-  const squash = (d: string) =>
-    d.replace(/([ML])([\d.]+) ([\d.]+)/g, (_, c, x, y) => `${c}${Math.round(Number(x))} ${Math.round((Number(y) * TH) / 1000)}`)
-  const ls = levels()
+  // Fig. 1's calm surface through Fig. 1's own camera, as a wireframe: the smiles at the ticked expiries, with the
+  // one-month smile (the steep one a shock lifts) as the claim, and the strike lines across them as context.
+  const m = mvp(camera(0))
+  const at = (k: number, T: number) => {
+    const q = apply(m, wx(k), wy(iv(CALM, k, T)), wz(T))
+    return [Math.round(((q[0] / q[3]) * 0.5 + 0.5) * TW), Math.round((1 - ((q[1] / q[3]) * 0.5 + 0.5)) * TH)] as const
+  }
+  const round = (pts: readonly (readonly [number, number])[]) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join('')
+  const smile = (T: number) => round(Array.from({ length: 25 }, (_, i) => at(kOfU(i / 24), T)))
+  const across = (K: number) => round(Array.from({ length: 17 }, (_, j) => at(Math.log(K), tOfV(j / 16))))
+  const [first, ...rest] = EXPIRY_TICKS
   return {
-    context: ls.filter((l) => !LABELLED.has(l.level)).map((l) => squash(l.d)),
-    claim: ls.filter((l) => LABELLED.has(l.level)).map((l) => squash(l.d)),
+    context: [...rest.map(([T]) => smile(T)), ...STRIKE_TICKS.map((K) => across(K))],
+    claim: [smile(first[0])],
   }
 }
 

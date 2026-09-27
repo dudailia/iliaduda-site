@@ -1,111 +1,123 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { amplitude, LOOP, params, PEAK, phase, PHASE_TEXT, SIZE_MAX, SIZE_MIN, type Phase } from '@/lib/surface/shock'
-import { all, numbers, probeText, text as format } from '@/lib/surface/readouts'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import { FigureFrame } from '@/components/FigureFrame'
+import { DebugSlot } from '@/components/stage/DebugSlot'
+import { saveData, supportsWebGL2 } from '@/components/stage/env'
+import { useLean } from '@/components/stage/useLean'
+import { useSignature } from '@/components/stage/useSignature'
+import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
+import type { LiveInfo } from '@/lib/stage/debug'
+import { numbers, pointRows, text as format } from '@/lib/surface/readouts'
+import { amplitudeOf, surfaceSequence } from '@/lib/surface/sequence'
+import { params, PHASE_TEXT, SIZE_MAX, type Phase } from '@/lib/surface/shock'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
 import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
-import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
 import { AxisLabel, Frame, NoteMark } from './marks'
 import type { Probe, Sim } from './renderer'
 
 /**
- * Prototype C, live. The poster (server) is the hero until the renderer draws
- * its first frame, which is the poster's moment from the poster's camera; then
- * the two crossfade and the shock plays on from its peak. The readouts are
+ * Fig. 1 of the IV paper, live: the SSVI surface in 3D. The poster (server)
+ * is the figure until the renderer draws its first frame, from the poster's
+ * camera; then the two crossfade. On a first visit the surface forms out of
+ * the page and takes one volatility shock (lib/surface/sequence.ts); then it
+ * rests at calm, drifting and leaning with the reader, until the reader
+ * pauses it, and the shock is the reader's, on the slider. Readouts are
  * written straight into the DOM from the frame that drew them, never through
- * React state, so they cannot lag the picture.
+ * React state, so they cannot lag the picture. Where the live figure does not
+ * run, the slider redraws the still frame instead.
  */
 
 const PROBE_START: Probe = { k: 0, T: 0.25 }
 const STEP_U = 1 / 28
 const STEP_V = 1 / 20
-
-/** Phase boundaries along the loop, for the timeline under the caption. */
-const SEGMENTS = (() => {
-  const out: { phase: Phase; from: number; to: number }[] = []
-  const N = 400
-  for (let i = 0; i < N; i++) {
-    const t = (i / N) * LOOP
-    const ph = phase(t)
-    const last = out[out.length - 1]
-    if (last && last.phase === ph) last.to = (i + 1) / N
-    else out.push({ phase: ph, from: i / N, to: (i + 1) / N })
-  }
-  return out
-})()
+const PAUSED = 'surface-paused'
+const CONTROL =
+  'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
+const noop = () => () => {}
 
 const clampProbe = (p: Probe): Probe => ({
   k: Math.min(DOMAIN.kMax, Math.max(DOMAIN.kMin, p.k)),
   T: Math.min(DOMAIN.tMax, Math.max(DOMAIN.tMin, p.T)),
 })
 
-const PEAK_PARAMS = params(amplitude(PEAK))
-/** What the readouts say before the first live frame: the poster's moment, computed once. */
-const initial = all(PEAK_PARAMS)
-const initialProbe = probeText(PEAK_PARAMS, PROBE_START.k, PROBE_START.T)
+/** What the surface is doing, in words: from the signature while it plays, else from the shock the reader has set. */
+function phaseOf(ph: ReturnType<ReturnType<typeof surfaceSequence>['phases']> | null, level: number): Phase {
+  if (!ph) return level > 0.04 ? 'shock' : 'calm'
+  if (ph.shock > 0 && ph.relax < 0.12) return 'shock'
+  return amplitudeOf(ph) > 0.04 ? 'relax' : 'calm'
+}
 
-export function SurfaceHero({ poster, lede, intro, introShort, desc }: { poster: ReactNode; lede: ReactNode; intro: ReactNode; introShort: ReactNode; desc: string }) {
-  const sim = useRef<Sim>({ clock: PEAK, playing: true, size: 1, probe: PROBE_START, hover: null, dirty: true })
-  const kindRef = useRef<FrameKind>('wide')
+const HEADLINE = [
+  ['atm', '1-month vol, at the money'],
+  ['premium', 'Crash premium, 80% strike'],
+  ['put', '1-month put, 10% down'],
+] as const
+
+export function SurfaceLive({ poster, title, subtitle, caption, table }: { poster: ReactNode; title: string; subtitle: string; caption: ReactNode; table: ReactNode }) {
+  const sim = useRef<Sim>({ probe: PROBE_START, hover: null, dirty: true })
+  const out = useRef<Record<string, HTMLElement | null>>({})
   const labelEls = useRef<(HTMLElement | null)[]>([])
+  const labelLayer = useRef<HTMLDivElement>(null)
   const noteEls = useRef<(HTMLElement | null)[]>([])
   const dotEl = useRef<HTMLElement | null>(null)
-  // DOM nodes the frame loop writes into.
-  const atmEl = useRef<HTMLElement>(null)
-  const premiumEl = useRef<HTMLElement>(null)
-  const putEl = useRef<HTMLElement>(null)
-  const arbEl = useRef<HTMLSpanElement>(null)
-  const arbDetailEl = useRef<HTMLSpanElement>(null)
-  const whereEl = useRef<HTMLSpanElement>(null)
-  const volEl = useRef<HTMLSpanElement>(null)
-  const markerEls = useRef<(HTMLSpanElement | null)[]>([])
-  const checked = useRef<{ at: number; size: number; c: Check | null }>({ at: -1, size: -1, c: null })
-
-  const [playing, setPlaying] = useState(true)
-  const [size, setSize] = useState(1)
-  const [ph, setPh] = useState<Phase>(phase(PEAK))
-  /** The phase line fades between phases, never on arrival: the first paint is the text, at full opacity. */
-  const [phMoved, setPhMoved] = useState(false)
-  const phRef = useRef<Phase>(phase(PEAK))
+  const seq = useRef(surfaceSequence())
+  const checked = useRef<{ key: string; c: Check | null }>({ key: '', c: null })
+  const level = useRef(0)
+  const [shock, setShock] = useState(0)
   const [probe, setProbe] = useState<Probe>(PROBE_START)
+  const [phase, setPhase] = useState<Phase>('calm')
+  const phaseRef = useRef<Phase>('calm')
+  const [phaseMoved, setPhaseMoved] = useState(false)
   const [spoken, setSpoken] = useState('')
   const [kind, setKind] = useState<FrameKind>('wide')
-  /** Software tier: the renderer waits for Play. */
-  const [waiting, setWaiting] = useState(false)
-  const armed = useRef(false)
+  const [software, setSoftware] = useState(false)
+  const [paused, setPaused] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && sessionStorage.getItem(PAUSED) === '1'
+    } catch {
+      return false
+    }
+  })
+  const pausedRef = useRef(paused)
+  // The signature and the lean, read by the renderer through these (they are made after the stage that makes it).
+  const sigApi = useRef<{ armed: { current: boolean }; onFrame(): void } | null>(null)
+  const leanApi = useRef<{ lean: { current: { x: number; y: number } } } | null>(null)
 
-  const write = useCallback((el: HTMLElement | null, value: string) => {
-    if (el && el.textContent !== value) el.textContent = value
+  const write = useCallback((id: string, value: string) => {
+    for (const k of [id, `${id}-m`]) {
+      const el = out.current[k]
+      if (el && el.textContent !== value) el.textContent = value
+    }
   }, [])
+  const ref = (id: string) => (el: HTMLElement | null) => {
+    out.current[id] = el
+  }
 
   /** Everything the readouts say, from the parameters of the frame just drawn. */
   const sync = useCallback(
-    (p: Params, clock: number) => {
-      const s = sim.current
-      // The arbitrage check is a few thousand closed-form evaluations; four times a second of loop time is plenty.
+    (p: Params) => {
+      // The arbitrage check is a few thousand closed-form evaluations: once for each surface that is new.
+      const key = `${p.s0.toFixed(4)},${p.rho.toFixed(4)}`
       const c = checked.current
-      if (!c.c || Math.abs(clock - c.at) >= 0.25 || c.size !== s.size) {
+      if (!c.c || c.key !== key) {
         c.c = check(p)
-        c.at = clock
-        c.size = s.size
+        c.key = key
       }
       const t = format(numbers(p), c.c)
-      write(atmEl.current, t.atm)
-      write(premiumEl.current, t.premium)
-      write(putEl.current, t.put)
-      write(arbEl.current, t.arb)
-      write(arbDetailEl.current, t.arbDetail)
-      const pr = s.hover ?? s.probe
-      const pt = probeText(p, pr.k, pr.T)
-      write(whereEl.current, pt.where)
-      write(volEl.current, pt.vol)
-      for (const m of markerEls.current) if (m) m.style.transform = `translateX(${((((clock % LOOP) + LOOP) % LOOP) / LOOP) * 100}%)`
-      const next = phase(clock)
-      if (next !== phRef.current) {
-        phRef.current = next
-        setPh(next)
-        setPhMoved(true)
+      write('atm', t.atm)
+      write('premium', t.premium)
+      write('put', t.put)
+      write('arb', t.arb)
+      write('arb-detail', t.arbDetail)
+      const s = sim.current
+      for (const r of pointRows(p, s.hover ?? s.probe)) write(r.id, r.value)
+      const ph = sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null
+      const next = phaseOf(ph, level.current)
+      if (next !== phaseRef.current) {
+        phaseRef.current = next
+        setPhase(next)
+        setPhaseMoved(true)
       }
     },
     [write],
@@ -113,45 +125,48 @@ export function SurfaceHero({ poster, lede, intro, introShort, desc }: { poster:
 
   const create = useCallback<Create>(
     (env) => {
+      // A software rasteriser would compile and draw this scene on the main thread for hundreds of milliseconds:
+      // there the poster stays the figure, and says why.
+      if (env.tier === 'software') {
+        queueMicrotask(() => setSoftware(true))
+        return null
+      }
       let inner: Renderer | null = null
       let pending: { w: number; h: number; cw: number; ch: number } | null = null
       let q: number | null = null
       let pal = env.palette
       let dead = false
-      let loading = false
-      const load = () => {
-        loading = true
-        void import('./renderer').then(({ make }) => {
+      void import('./renderer').then(({ make }) => {
         if (dead) return
         try {
           inner = make(env, {
             sim: sim.current,
+            sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
+            tick: (dtMs) => {
+              seq.current.advance(dtMs)
+              sigApi.current?.onFrame()
+            },
+            level: () => level.current,
+            paused: () => pausedRef.current,
+            lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
+            onPin: (p) => setProbe(p),
             labels: () => labelEls.current,
+            labelLayer: () => labelLayer.current,
             notes: () => noteEls.current,
             dot: () => dotEl.current,
             sync,
           })
         } catch (e) {
-          console.warn('lab c renderer failed', e)
+          console.warn('figure renderer failed', e)
           return
         }
         if (q !== null) inner.setQuality?.(q)
         if (pending) inner.resize(pending.w, pending.h, pending.cw, pending.ch)
         inner.setPalette?.(pal)
-        })
-      }
-      // A software rasteriser compiles and draws this scene on the main
-      // thread, for hundreds of milliseconds. There, the poster stays the
-      // figure until the reader presses Play.
-      const waits = env.tier === 'software'
-      if (waits) queueMicrotask(() => setWaiting(true))
-      else load()
+      })
       return {
         frame(t, dt) {
-          if (!inner) {
-            if (!loading && armed.current) load()
-            return false
-          }
+          if (dead || !inner) return false
           return inner.frame(t, dt)
         },
         resize(w, h, cw, ch) {
@@ -176,13 +191,25 @@ export function SurfaceHero({ poster, lede, intro, introShort, desc }: { poster:
   )
 
   const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create)
+  const sig = useSignature('surface', box, seq)
+  const lean = useLean(live, reduced, pausedRef)
+  useEffect(() => {
+    sigApi.current = sig
+    leanApi.current = lean
+  })
+  // A figure that will not go live here shows the finished picture at once. Hydration reads reduced motion as on
+  // (the server cannot know), so this waits for the browser's own answer.
+  const mounted = useSyncExternalStore(noop, () => true, () => false)
+  const release = sig.release
+  useEffect(() => {
+    if (mounted && (!eligible || reduced || software)) release()
+  }, [mounted, eligible, reduced, software, release])
 
   // Which framing: the same breakpoint the poster's CSS uses.
   useEffect(() => {
     const mq = matchMedia(WIDE_QUERY)
     const on = () => {
-      kindRef.current = mq.matches ? 'wide' : 'tall'
-      setKind(kindRef.current)
+      setKind(mq.matches ? 'wide' : 'tall')
       sim.current.dirty = true
     }
     on()
@@ -190,35 +217,66 @@ export function SurfaceHero({ poster, lede, intro, introShort, desc }: { poster:
     return () => mq.removeEventListener('change', on)
   }, [])
 
-  // The pinned point, read out and announced; the live frame redraws it.
+  // The pinned point, read out and announced; the live frame redraws it, the still frame's readouts follow here.
   useEffect(() => {
     sim.current.probe = probe
     sim.current.dirty = true
-    const p = params(amplitude(sim.current.clock), sim.current.size)
-    const pt = probeText(p, probe.k, probe.T)
-    write(whereEl.current, pt.where)
-    write(volEl.current, pt.vol)
-    const id = setTimeout(() => setSpoken(`Strike ${pt.where.replace('strike ', '')}: implied volatility ${pt.vol}.`), 350)
+    const p = params(level.current)
+    for (const r of pointRows(p, probe)) write(r.id, r.value)
+    const K = Math.round(Math.exp(probe.k) * 100)
+    const id = setTimeout(() => setSpoken(`Strike ${K}%, ${expiryWords(probe.T)}: implied volatility ${(iv(p, probe.k, probe.T) * 100).toFixed(1)}%.`), 350)
     return () => clearTimeout(id)
   }, [probe, write])
 
-  const togglePlay = () => {
-    if (waiting && !armed.current) {
-      armed.current = true
-      sim.current.playing = true
-      setPlaying(true)
-      return
-    }
-    const next = !sim.current.playing
-    sim.current.playing = next
+  // Where the live figure does not run, the still frame is redrawn for the shock the reader sets.
+  const still = useRef<{ poster: typeof import('@/lib/surface/poster'); markup: typeof import('@/lib/surface/posterMarkup') } | null>(null)
+  const redrawStill = useCallback(
+    (x: number) => {
+      const el = box.current
+      const run = () => {
+        const s = still.current
+        if (!s || !el) return
+        const d = s.poster.poster(params(x))
+        const svg = el.querySelector('[data-iv-poster] svg[data-fill]')
+        const style = el.querySelector('[data-iv-poster] style')
+        if (svg) svg.innerHTML = s.markup.meshMarkup(d)
+        if (style) style.textContent = s.markup.MESH_CSS + s.poster.RAMP_CSS + d.css
+        for (const n of d.notes) {
+          const at = el.querySelector<HTMLElement>(`[data-iv-poster] [data-note="${n.id}"]`)
+          if (at) {
+            at.style.left = `${(n.x * 100).toFixed(2)}%`
+            at.style.top = `${(n.y * 100).toFixed(2)}%`
+          }
+        }
+        sync(params(x))
+      }
+      if (still.current) return run()
+      void Promise.all([import('@/lib/surface/poster'), import('@/lib/surface/posterMarkup')]).then(([poster, markup]) => {
+        still.current = { poster, markup }
+        run()
+      })
+    },
+    [box, sync],
+  )
+
+  const onShock = (x: number) => {
+    level.current = x
+    setShock(x)
     sim.current.dirty = true
-    setPlaying(next)
+    // Using the figure itself ends its story at once.
+    if (sig.armed.current) seq.current.finish()
+    if (!live) redrawStill(x)
+    else if (pausedRef.current) sync(params(x))
   }
 
-  const onSize = (v: number) => {
-    sim.current.size = v
+  const togglePause = () => {
+    const next = !pausedRef.current
+    pausedRef.current = next
     sim.current.dirty = true
-    setSize(v)
+    setPaused(next)
+    try {
+      sessionStorage.setItem(PAUSED, next ? '1' : '0')
+    } catch {}
   }
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -229,145 +287,131 @@ export function SurfaceHero({ poster, lede, intro, introShort, desc }: { poster:
       setProbe((p) => clampProbe({ k: kOfU(fu(p.k) + du * STEP_U * big), T: tOfV(Math.max(0, Math.min(1, fv(p.T) + dv * STEP_V * big))) }))
     }
     switch (e.key) {
-      case 'ArrowLeft': return move(-1, 0)
-      case 'ArrowRight': return move(1, 0)
-      case 'ArrowUp': return move(0, -1)
-      case 'ArrowDown': return move(0, 1)
+      case 'ArrowLeft':
+        return move(-1, 0)
+      case 'ArrowRight':
+        return move(1, 0)
+      case 'ArrowUp':
+        return move(0, -1)
+      case 'ArrowDown':
+        return move(0, 1)
       case 'Home':
         e.preventDefault()
         return setProbe(PROBE_START)
+      case ' ':
+        if (!live) return
+        e.preventDefault()
+        return togglePause()
     }
   }
 
-  // The poster's own reading point: projected with the poster's camera, drawn until the canvas takes over.
+  // The still frame's reading point: projected with the poster's camera, drawn until the canvas takes over.
   const posterDot = (() => {
     const m = mvp(camera(0))
-    const c = apply(m, wx(probe.k), wy(iv(PEAK_PARAMS, probe.k, probe.T)), wz(probe.T))
+    const c = apply(m, wx(probe.k), wy(iv(params(shock), probe.k, probe.T)), wz(probe.T))
     return { left: `${((c[0] / c[3]) * 0.5 + 0.5) * 100}%`, top: `${(1 - ((c[1] / c[3]) * 0.5 + 0.5)) * 100}%` }
   })()
 
-  const pctSize = size.toFixed(2)
-  const peakAtm = Math.round(iv(params(1, size), 0, 1 / 12) * 100)
-  const controlsOn = eligible && live
-  /** What the shock is doing, in words, and where it is in its loop. Under the surface on phones, beside the controls from lg. */
-  const phaseBlock = (n: number, className: string) => (
-    <div className={`items-end gap-x-10 gap-y-2 lg:grid-cols-[minmax(0,1fr)_17rem] ${className}`}>
-      <p className="min-h-[4.5em] text-note text-ink sm:min-h-[3em]">
-        <span key={ph} className={`block ${phMoved ? 'transition-[opacity,filter] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 starting:blur-[2px]' : ''}`}>
-          <span className="font-semibold">{PHASE_TEXT[ph].name}.</span> {PHASE_TEXT[ph].line}
-        </span>
-      </p>
-      <div aria-hidden className="relative mb-1">
-        <div className="flex font-mono text-meta leading-none text-graphite">
-          {SEGMENTS.map((sg) => (
-            <span key={sg.phase + sg.from} className={`truncate border-t pt-1.5 pr-1 ${sg.phase === ph ? 'border-ink text-ink' : 'border-rule'}`} style={{ width: `${(sg.to - sg.from) * 100}%` }}>
-              {PHASE_TEXT[sg.phase].name.toLowerCase()}
-            </span>
-          ))}
-        </div>
-        <span
-          ref={(el) => {
-            markerEls.current[n] = el
-          }}
-          className="absolute inset-x-0 -top-1 h-2" style={{ transform: `translateX(${(PEAK / LOOP) * 100}%)` }}>
-          <span className="absolute top-0 left-0 h-2 w-px bg-ink" />
-        </span>
-      </div>
-    </div>
-  )
-  const canStart = eligible && waiting && !live
+  // Said only once the browser has answered; the server cannot know.
+  const why = !mounted
+    ? null
+    : reduced
+      ? 'Still frame: your system asks for reduced motion.'
+      : software
+        ? 'Still frame: this browser draws WebGL in software.'
+        : !eligible
+          ? saveData()
+            ? 'Still frame: your browser asks to save data.'
+            : supportsWebGL2()
+              ? 'Still frame: the live figure could not start here.'
+              : 'Still frame: this browser has no WebGL2.'
+          : null
+
+  const debugInfo = useRef<() => LiveInfo>(null)
+  useEffect(() => {
+    debugInfo.current = () => {
+      const st = box.current?.getBoundingClientRect()
+      const cv = canvas.current
+      return {
+        state: live ? 'live' : why ? 'declined' : mounted ? 'starting' : 'server',
+        reason: why,
+        tier,
+        quality,
+        fps,
+        dpr: window.devicePixelRatio,
+        stage: [st?.width ?? 0, st?.height ?? 0],
+        canvas: live && cv ? [cv.width, cv.height] : null,
+        seq: paused ? `${sig.state} · paused` : sig.state,
+        reduced,
+        saveData: saveData(),
+        ua: navigator.userAgent,
+        renderer: { shock: `${level.current.toFixed(2)}× · ${phaseRef.current}`, probe: `k ${sim.current.probe.k.toFixed(3)} · T ${sim.current.probe.T.toFixed(3)}` },
+      }
+    }
+  })
+  const readDebug = useCallback((): LiveInfo => debugInfo.current!(), [])
+
+  const initial = format(numbers(params(0)), check(params(0)))
+  const initialRows = pointRows(params(0), PROBE_START)
+  const peakAtm = (iv(params(shock), 0, 1 / 12) * 100).toFixed(1)
+  const hint = why ?? (live ? 'Drag to turn · hover or tap to read a point · arrow keys move it · Space pauses' : 'Tab to the figure and use the arrow keys to read a point')
+
+  const rail = <Margin initial={initial} rows={initialRows} set={ref} suffix="" />
 
   return (
-    <section aria-labelledby="lab-c-lede" data-fps={fps} data-quality={quality} data-tier={tier ?? undefined} data-live={live} className="lab-c relative flex min-h-[max(560px,88svh)] flex-col overflow-x-clip border-b border-rule">
-      <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 pt-6 sm:px-8 lg:pt-8">
-        <p id="lab-c-lede" className="max-w-[44rem] text-h3 font-semibold tracking-[-0.015em] text-balance text-ink sm:text-h2 lg:max-w-none">
-          {lede}
-        </p>
-        <p className="mt-2 max-w-[42rem] text-note text-graphite">
-          <span className="sm:hidden">{introShort}</span>
-          <span className="hidden sm:inline">{intro}</span>
-        </p>
-        <p className="mt-1 font-mono text-meta text-graphite">SSVI surface · synthetic parameters, set by hand · not market data</p>
-      </div>
-
-      <div className="flex flex-1 flex-col lg:flex-row">
-        <div className="order-3 mx-auto mt-4 w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 lg:order-1 lg:mx-0 lg:mt-0 lg:ml-[calc(max(0px,(100%-var(--rail)-var(--gutter)-var(--measure))/2)+2rem)] lg:w-(--rail) lg:max-w-none lg:shrink-0 lg:self-center lg:px-0">
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono text-meta sm:grid-cols-3 lg:flex lg:flex-col lg:gap-y-4 lg:border-0 lg:pt-0 lg:text-right">
-            <div>
-              <dt className="text-graphite">1-month vol, at the money</dt>
-              <dd ref={atmEl} data-testid="atm" className="tabular mt-0.5 text-ink">{initial.atm}</dd>
-            </div>
-            <div>
-              <dt className="text-graphite">Crash premium, 80% strike</dt>
-              <dd ref={premiumEl} className="tabular mt-0.5 text-ink">{initial.premium}</dd>
-            </div>
-            <div>
-              <dt className="text-graphite">1-month put, 10% down</dt>
-              <dd ref={putEl} className="tabular mt-0.5 text-ink">{initial.put}</dd>
-            </div>
-            <div>
-              <dt className="text-graphite">No-arbitrage check</dt>
-              <dd className="tabular mt-0.5 text-ink">
-                <span ref={arbEl} data-testid="arb">{initial.arb}</span>
-                <span ref={arbDetailEl} className="block text-graphite">{initial.arbDetail}</span>
-              </dd>
-            </div>
-            <div className="col-span-2 sm:col-span-1">
-              <dt className="text-graphite">Point read</dt>
-              <dd className="tabular mt-0.5 text-ink">
-                <span ref={volEl} data-testid="probe-vol">{initialProbe.vol}</span>
-                <span ref={whereEl} data-testid="probe-where" className="block text-graphite">{initialProbe.where}</span>
-              </dd>
-            </div>
-          </dl>
-        </div>
+    <FigureFrame id="fig-iv-surface" number="Fig. 1" title={title} subtitle={subtitle} rail={rail} railBelow={false} vt="iv-surface" hint={hint} caption={caption} table={table}>
       <div
         ref={box}
         role="group"
         aria-roledescription="interactive figure"
-        aria-label="Implied volatility surface. Arrow keys move the reading point; Home resets it."
-        aria-describedby="lab-c-desc"
+        aria-label="Implied volatility surface. Arrow keys move the reading point; Home resets it; Space pauses."
+        aria-describedby="fig-iv-surface-point"
         tabIndex={0}
+        data-seq={sig.state}
         onKeyDown={onKey}
-        className="relative order-1 my-3 aspect-[1.35] w-full flex-none cursor-crosshair touch-pan-y select-none sm:my-2 sm:aspect-auto sm:min-h-[320px] sm:w-auto sm:flex-1 lg:order-2 lg:ml-(--gutter)"
+        onPointerMove={lean.onPointerMove}
+        onPointerLeave={lean.onPointerLeave}
+        onClick={lean.onTap}
+        className="iv-fig relative -mx-6 aspect-[1.35] cursor-crosshair touch-pan-y overflow-x-clip select-none focus-visible:outline-offset-[-4px] sm:mx-0 sm:aspect-[1.62]"
       >
         <div className="absolute inset-0" style={underlay(live)}>
           {poster}
           <Frame>
-            <span
-              aria-hidden
-              className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink"
-              style={posterDot}
-            />
+            <span aria-hidden data-fill="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" style={posterDot} />
           </Frame>
         </div>
         <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y' }} />
         <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
-          {LABELS.map((l, i) => (
-            <AxisLabel
-              key={l.id}
-              ref={(el) => {
-                labelEls.current[i] = el
-              }}
-              text={l.text}
-              align={l.align}
-              kind={l.kind}
-              {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
-            />
-          ))}
-          {NOTES.map((n, i) => n.offset[kind] && (
-            <NoteMark
-              key={n.id}
-              ref={(el) => {
-                noteEls.current[i] = el
-              }}
-              lead={n.lead}
-              text={n.text}
-              dx={n.offset[kind]![0]}
-              dy={n.offset[kind]![1]}
-              align={n.offset[kind]![2]}
-            />
-          ))}
+          <div ref={labelLayer}>
+            {LABELS.map((l, i) => (
+              <AxisLabel
+                key={l.id}
+                ref={(el) => {
+                  labelEls.current[i] = el
+                }}
+                text={l.text}
+                align={l.align}
+                kind={l.kind}
+                {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
+              />
+            ))}
+            {NOTES.map(
+              (n, i) =>
+                n.offset[kind] && (
+                  <NoteMark
+                    key={n.id}
+                    ref={(el) => {
+                      noteEls.current[i] = el
+                    }}
+                    lead={n.lead}
+                    text={n.text}
+                    dx={n.offset[kind]![0]}
+                    dy={n.offset[kind]![1]}
+                    align={n.offset[kind]![2]}
+                  />
+                ),
+            )}
+          </div>
           <span
             ref={(el) => {
               dotEl.current = el
@@ -378,52 +422,105 @@ export function SurfaceHero({ poster, lede, intro, introShort, desc }: { poster:
           </span>
         </div>
       </div>
-        <div className="order-2 mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 lg:hidden">
-          {phaseBlock(0, 'grid')}
-        </div>
+
+      {/* What the shock is doing, in words; the room is kept, so a change never moves the page. */}
+      <p className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em]" aria-live="off">
+        <span key={phase} className={`block ${phaseMoved ? 'transition-[opacity,filter] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 starting:blur-[2px]' : ''}`}>
+          <span className="font-semibold">{PHASE_TEXT[phase].name}.</span> {PHASE_TEXT[phase].line}
+        </span>
+      </p>
+
+      <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3">
+        {live ? (
+          <>
+            <button type="button" onClick={togglePause} aria-pressed={paused} className={CONTROL}>
+              {paused ? 'Resume' : 'Pause'}
+            </button>
+            <button type="button" onClick={() => sig.replay()} className={CONTROL}>
+              Replay
+            </button>
+          </>
+        ) : null}
+        <label className="text-meta flex items-center gap-3 font-mono text-graphite">
+          <span>Shock</span>
+          <input
+            type="range"
+            min={0}
+            max={SIZE_MAX}
+            step={0.05}
+            value={shock}
+            onChange={(e) => onShock(Number(e.target.value))}
+            aria-valuetext={shock < 0.025 ? 'calm' : `${shock.toFixed(2)} times a full shock; 1-month at-the-money volatility ${peakAtm}%`}
+            className="h-6 w-32 accent-indigo sm:w-40"
+          />
+          <output className="tabular w-[2.75rem] text-ink">{shock.toFixed(2)}×</output>
+        </label>
       </div>
-
-      <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 pb-6 sm:px-8">
-        {phaseBlock(1, 'mt-4 hidden lg:mt-0 lg:grid')}
-
-
-        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 font-mono text-meta">
-          <button
-            type="button"
-            onClick={togglePlay}
-            disabled={!controlsOn && !canStart}
-            className="min-h-9 rounded-sm border border-graphite bg-paper px-3 text-ink transition-[border-color,transform] duration-150 ease-out hover:border-ink active:scale-[0.97] disabled:opacity-50"
-          >
-            {canStart ? 'Play' : playing ? 'Pause' : 'Play'}
-          </button>
-          <label className="flex items-center gap-3 text-graphite">
-            <span>Shock size</span>
-            <input
-              type="range"
-              min={SIZE_MIN}
-              max={SIZE_MAX}
-              step={0.05}
-              value={size}
-              disabled={!controlsOn}
-              onChange={(e) => onSize(Number(e.target.value))}
-              aria-valuetext={`${pctSize} times; at its peak, 1-month at-the-money volatility reaches ${peakAtm}%`}
-              className="h-6 w-32 accent-indigo disabled:opacity-50 sm:w-40"
-            />
-            <output className="tabular w-[2.75rem] text-ink">{pctSize}×</output>
-          </label>
-          <p className="text-graphite lg:ml-auto">
-            {controlsOn
-              ? 'Drag to turn · hover or tap to read a point · arrow keys move it'
-              : canStart
-                ? 'This browser draws 3D in software, so the shock waits for Play'
-                : reduced
-                  ? 'Reduced motion is on: the shock is shown at its peak, still · arrow keys move the reading point'
-                  : 'Arrow keys move the reading point'}
-          </p>
-        </div>
+      <p className="sr-only" aria-live="polite">
+        {spoken}
+      </p>
+      <div className="mt-4 lg:hidden">
+        <Margin initial={initial} rows={initialRows} set={ref} suffix="-m" across />
       </div>
-      <p id="lab-c-desc" className="sr-only">{desc}</p>
-      <p className="sr-only" aria-live="polite">{spoken}</p>
-    </section>
+      <DebugSlot title="IV surface, Fig. 1" read={readDebug} />
+    </FigureFrame>
+  )
+}
+
+function expiryWords(T: number): string {
+  const m = T * 12
+  return m < 11.5 ? `${m.toFixed(m < 3 ? 1 : 0)} months` : `${T.toFixed(1)} years`
+}
+
+/**
+ * The margin: the shock's story at one month (at-the-money volatility, the crash premium, the put, and whether the
+ * surface is still free of static arbitrage), then everything about the point the reader is reading.
+ */
+function Margin({
+  initial,
+  rows,
+  set,
+  suffix,
+  across = false,
+}: {
+  initial: ReturnType<typeof format>
+  rows: ReturnType<typeof pointRows>
+  set: (id: string) => (el: HTMLElement | null) => void
+  suffix: string
+  across?: boolean
+}) {
+  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
+  return (
+    <div className={across ? 'grid gap-y-4' : ''}>
+      <dl className={dl}>
+        {HEADLINE.map(([id, label]) => (
+          <div key={id} className="min-w-0">
+            <dt className="text-graphite">{label}</dt>
+            <dd ref={set(id + suffix)} className="tabular text-ink">
+              {initial[id]}
+            </dd>
+          </div>
+        ))}
+        <div className="min-w-0">
+          <dt className="text-graphite">No static arbitrage</dt>
+          <dd className="tabular text-ink">
+            <span ref={set(`arb${suffix}`)}>{initial.arb}</span>
+            <span ref={set(`arb-detail${suffix}`)} className="block text-graphite">
+              {initial.arbDetail}
+            </span>
+          </dd>
+        </div>
+      </dl>
+      <dl id={suffix ? undefined : 'fig-iv-surface-point'} aria-label="At the point" className={`${dl} ${across ? '' : 'mt-4 border-t border-rule pt-3'}`}>
+        {rows.map((r) => (
+          <div key={r.id} className="min-w-0">
+            <dt className="text-graphite">{r.label}</dt>
+            <dd ref={set(r.id + suffix)} className="tabular text-ink">
+              {r.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   )
 }

@@ -36,7 +36,6 @@ export interface PosterData {
   readonly runs: readonly { cls: string; d: string }[]
   readonly walls: readonly { id: string; d: string; x1: number; y1: number; x2: number; y2: number; stops: readonly { o: number; c: string }[] }[]
   readonly lines: readonly { d: string; c: string; w: number }[]
-  readonly shadow: readonly string[]
   readonly ticks: string
   readonly labels: readonly { id: string; text: string; x: number; y: number; align: string; kind: string; only: FrameKind | undefined }[]
   readonly notes: readonly { id: string; lead: string; text: string; x: number; y: number; dx: number; dy: number; align: string; kind: FrameKind }[]
@@ -53,7 +52,7 @@ export function rampCss(t: number): string {
   return 'var(--c-top)'
 }
 /** The quantised ramp levels as custom properties, shared by both framings: `--r0` … `--r14`. */
-export const RAMP_CSS = `.lab-c{${Array.from({ length: RAMP_STEPS + 1 }, (_, i) => `--r${i}:${rampCss(i / RAMP_STEPS)}`).join(';')}}`
+export const RAMP_CSS = `.iv-fig{${Array.from({ length: RAMP_STEPS + 1 }, (_, i) => `--r${i}:${rampCss(i / RAMP_STEPS)}`).join(';')}}`
 
 /**
  * Light `L` applied to a colour. Mixing with black in oklab by 1 − ∛L scales
@@ -219,13 +218,6 @@ export function poster(p: Params): PosterData {
     }
   }
 
-  // A soft contact shadow: the footprint, a little wider, offset away from the key light, blurred by the Poster.
-  const shadow = [0.08].map((e) => {
-    const o = [0.05, -0.04] as const
-    const c = [[-XW - e, ZW + e], [XW + e, ZW + e], [XW + e, -ZW - e], [-XW - e, -ZW - e]] as const
-    return pathOf(c.map(([x, z]) => proj(x + o[0], 0, z + o[1])), true)
-  })
-
   // Ticks: strikes along the front, expiries along the right, the volatility post at the back right.
   const tickPaths: string[] = []
   for (const K of STRIKE_TICKS) tickPaths.push(pathOf([proj(wx(Math.log(K)), 0, ZW), proj(wx(Math.log(K)), 0, ZW + 0.05)], false))
@@ -243,16 +235,16 @@ export function poster(p: Params): PosterData {
     })
   })
   const css = [...classes].map(([c, k]) => `.${k}{color:${c}}`).join('')
-  return { aspect: f.aspect, width, css, runs, walls, lines, shadow, ticks: tickPaths.join(''), labels, notes }
+  return { aspect: f.aspect, width, css, runs, walls, lines, ticks: tickPaths.join(''), labels, notes }
 }
 
 /** For the sr-only description: the numbers a reader would otherwise see in the picture. */
-export function describe(p: Params): string {
+export function describe(p: Params, moment = 'at calm, where it rests'): string {
   const at = (K: number, T: number) => `${Math.round(iv(p, Math.log(K), T) * 100)}%`
   return (
     `Implied volatility for strikes from ${Math.round(Math.exp(DOMAIN.kMin) * 100)}% to ${Math.round(Math.exp(DOMAIN.kMax) * 100)}% ` +
     `of today’s price and expiries from one month to two years, drawn as a lit solid whose height and colour are the volatility. ` +
-    `At the moment shown, the peak of a simulated shock, one-month volatility is ${at(0.7, 1 / 12)} at a 70% strike, ${at(1, 1 / 12)} at the money ` +
+    `As shown, ${moment}, one-month volatility is ${at(0.7, 1 / 12)} at a 70% strike, ${at(1, 1 / 12)} at the money ` +
     `and ${at(1.3, 1 / 12)} at 130%; at two years the same strikes read ${at(0.7, 2)}, ${at(1, 2)} and ${at(1.3, 2)}.`
   )
 }

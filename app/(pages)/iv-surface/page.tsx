@@ -1,10 +1,12 @@
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Annotated, Shell } from '@/components/Layout'
 import { ArbitrageBound } from '@/components/figures/ArbitrageBound'
-import { SurfaceFigure } from '@/components/figures/VolSurface'
+import { SurfaceFigure } from '@/components/figures/Surface'
 import { fact, type FactKey } from '@/content/facts'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
+import { ETA_CAP, params } from '@/lib/surface/shock'
+import { iv, localVol } from '@/lib/surface/ssvi'
 
 const paper = papers.find((p) => p.slug === 'iv-surface')!
 
@@ -24,6 +26,9 @@ const PARAMS: readonly (readonly [string, FactKey, (v: number) => string])[] = [
 export default function IvSurface() {
   const eta = fact('ivEta').value
   const rho = fact('ivRho').value
+  // At the peak of a full shock, one year out, at the money: what the margin reads, computed as the figure computes it.
+  const peak = params(1)
+  const pctOf = (x: number) => `${(x * 100).toFixed(1)}%`
   return (
     <Shell>
       <article>
@@ -34,7 +39,7 @@ export default function IvSurface() {
           standfirst={<p>{paper.abstract}</p>}
         />
 
-        <SurfaceFigure entrance={false} />
+        <SurfaceFigure />
 
         <Section heading="What it is">
           <p>
@@ -81,8 +86,9 @@ export default function IvSurface() {
           <p>
             SSVI makes both checkable in closed form. θ(T) here is strictly increasing, which
             settles the calendar condition at the money, and with γ = ½ the inequality η(1 + |ρ|)
-            ≤ 2 is sufficient for no butterfly arbitrage at any strike. For these parameters it is{' '}
-            {(eta * (1 + Math.abs(rho))).toFixed(2)}.
+            ≤ 2 is sufficient for no butterfly arbitrage at any strike. For the calm parameters it is{' '}
+            {(eta * (1 + Math.abs(rho))).toFixed(2)}. The shock in Fig. 1 steepens ρ, so η is capped as it does: the
+            product never passes {ETA_CAP.toFixed(2)}, and every frame of the shock is checked directly.
           </p>
         </Section>
 
@@ -92,8 +98,8 @@ export default function IvSurface() {
           <Annotated
             note={
               <>
-                Greeks are sticky-strike: σ is held fixed while each is taken. Skew dynamics are
-                out of scope.
+                Greeks are sticky-strike: σ is held fixed while each is taken, even while the surface
+                moves.
               </>
             }
           >
@@ -102,14 +108,19 @@ export default function IvSurface() {
               formula, on a forward of {fact('ivForward').value} with rates and dividends at zero,
               so nothing depends on a curve the figure would have to invent. Delta, gamma, vega per
               volatility point and theta per calendar day are the closed-form Greeks at that
-              point&rsquo;s own implied volatility.
+              point&rsquo;s own implied volatility. All of it is computed from the parameters on
+              screen, so in the shock every number moves with the surface.
             </p>
           </Annotated>
           <p>
             Local volatility is Dupire&rsquo;s, written in total variance: the calendar slope of w
             divided by Durrleman&rsquo;s g. It is the volatility a diffusion would need at that
             strike and time to reproduce every price on the surface, which is why it runs steeper
-            than implied volatility on the downside — the skew compounds.
+            than implied volatility on the downside: the skew compounds. At the money it runs below
+            implied, because the calm term structure slopes down and the variance still to come is
+            less than the variance already priced. The shock inverts that slope further: at its peak,
+            one year out, at-the-money local volatility is {pctOf(localVol(peak, 0, 1))} against{' '}
+            {pctOf(iv(peak, 0, 1))} implied.
           </p>
         </Section>
 
@@ -124,28 +135,43 @@ export default function IvSurface() {
           <p>
             Local volatility is checked by an independent route: call prices are built from the
             surface, differentiated numerically in strike and time, and Dupire&rsquo;s formula in
-            prices has to agree with the total-variance form the margin uses.
+            prices has to agree with the total-variance form the margin uses, at calm, at the peak of
+            a full shock and at the largest shock the slider allows. The shock itself is held to
+            the same standard: both conditions are checked on a dense grid at hundreds of moments
+            along its path, at every size the slider reaches.
           </p>
         </Section>
 
         <Section heading="How it is drawn">
           <p>
-            The first paint is a contour map computed on the server from the same functions, so
-            the figure is readable, and probe-able by keyboard, before any script runs. Where the
-            browser has WebGL2, the reader has not asked for reduced motion or reduced data, and
-            the figure is on screen, a renderer written directly against WebGL2 takes over: no
-            library, a height field with contour lines drawn in the fragment shader, and picking
-            by marching a ray against the surface&rsquo;s own height function. It draws only when
-            something changes.
+            The first paint is the surface itself, projected and lit on the server from the same
+            functions and the same camera, so the figure is readable, and probe-able by keyboard,
+            before any script runs. Where the browser has WebGL2 on a graphics processor, the reader
+            has not asked for reduced motion or reduced data, and the figure is on screen, a renderer
+            written directly against WebGL2 takes over, with no library: the vertex shader evaluates
+            SSVI from the parameters of the moment, so the shock is the formula on every frame, not a
+            mesh morphed between keyframes; the fragment shader draws the contours and the light;
+            picking marches a ray against the surface&rsquo;s own height function. On a first visit
+            the surface forms, its smiles first, and takes one shock; after that it rests, and the
+            shock is the slider&rsquo;s. Where the renderer does not run, the slider redraws the still
+            frame.
           </p>
         </Section>
 
         <Meta
           rows={[
             ['model', <a key="m" href={`${SRC}/lib/svi.ts`}>lib/svi.ts</a>],
+            ['in motion', <a key="s" href={`${SRC}/lib/surface/shock.ts`}>lib/surface/shock.ts</a>],
             ['pricing', <a key="p" href={`${SRC}/lib/bs.ts`}>lib/bs.ts</a>],
-            ['tests', <a key="t" href={`${SRC}/tests/svi.test.ts`}>tests/svi.test.ts</a>],
-            ['renderer', <a key="r" href={`${SRC}/components/figures/surface/gl.ts`}>components/figures/surface/gl.ts</a>],
+            [
+              'tests',
+              <span key="t">
+                <a href={`${SRC}/tests/svi.test.ts`}>tests/svi.test.ts</a> ·{' '}
+                <a href={`${SRC}/tests/surface-dynamics.test.ts`}>tests/surface-dynamics.test.ts</a> ·{' '}
+                <a href={`${SRC}/tests/surface-greeks.test.ts`}>tests/surface-greeks.test.ts</a>
+              </span>,
+            ],
+            ['renderer', <a key="r" href={`${SRC}/components/figures/surface/renderer.ts`}>components/figures/surface/renderer.ts</a>],
             ['data', 'synthetic; parameters set by hand'],
             ['reference', 'Gatheral and Jacquier, Arbitrage-free SVI volatility surfaces, Quantitative Finance 14(1), 2014'],
           ]}

@@ -68,7 +68,7 @@ export const papers: readonly Paper[] = [
     slug: 'iv-surface',
     href: '/iv-surface',
     title: 'An implied-volatility surface free of static arbitrage',
-    abstract: `A synthetic SSVI surface shaped like an equity index, drawn live, with implied and local volatility and Black–Scholes Greeks at any point. Its parameters meet Gatheral and Jacquier’s conditions for no static arbitrage, the tests check them on a dense grid, and Fig. 2 lets you break them.`,
+    abstract: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and Black–Scholes Greeks at any point. It takes a simulated volatility shock, the short end lifting and the skew steepening, and stays free of static arbitrage through every frame of it; the tests check Gatheral and Jacquier’s conditions on a dense grid, and Fig. 2 lets you break them.`,
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
     cvName: 'Implied-volatility surface free of static arbitrage',

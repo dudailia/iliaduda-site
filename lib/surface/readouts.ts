@@ -26,7 +26,8 @@ export function numbers(p: Params): Numbers {
   return { atm, premium: low - atm, put }
 }
 
-const pct = (x: number, d = 1) => `${(x * 100).toFixed(d)}%`
+/** A fraction as a percentage, to `d` decimals (one by default). */
+export const pct = (x: number, d = 1) => `${(x * 100).toFixed(d)}%`
 
 export interface Text {
   readonly atm: string

@@ -1,24 +1,30 @@
 import { program, toLinear } from '@/lib/gl'
+import { EASE_OUT } from '@/lib/ease'
 import { FILL, KEY, LIGHT, LINE_FLIP, RAMP, STOPS, UP_LIGHT } from '@/lib/surface/look'
-import { amplitude, params } from '@/lib/surface/shock'
+import { amplitudeOf, lineReveal } from '@/lib/surface/sequence'
+import { params } from '@/lib/surface/shock'
 import { DOMAIN, iv, type Params } from '@/lib/surface/ssvi'
 import {
   apply, camera, EXPIRY_TICKS, eye, H, kOfU, LABELS, mvp, NOTES, POST, STRIKE_TICKS, SWAY_PERIOD, tOfV, uOfX, V0, V1,
   vOfZ, VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type M4,
 } from '@/lib/surface/view'
 import type { Palette, Renderer, RGB, StageEnv } from '@/components/stage/useStage'
-import { FLOOR_FS, FLOOR_VS, LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
+import { LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
 
 /**
- * The live renderer. Raw WebGL2: one grid drawn from gl_VertexID (no vertex
- * buffer; the vertex shader places every vertex from the SSVI parameters), four
- * wall strips, a floor, and the axis lines as screen-space quads. The HTML
- * labels and notes are projected with the same matrix every frame, so they
- * ride the surface as it rises.
+ * Fig. 1 of the IV paper, live. Raw WebGL2: one grid drawn from gl_VertexID
+ * (no vertex buffer; the vertex shader places every vertex from the SSVI
+ * parameters), four wall strips, and lines as screen-space quads: the axes, and
+ * the smiles at the ticked expiries, which hang in the air while the surface
+ * forms. The HTML labels and notes are projected with the same matrix every
+ * frame, so they ride the surface as it rises.
  *
- * The clock that drives the shock lives in `sim`, shared with the component:
- * it only advances when a frame is actually drawn, and the readouts are
- * written from the same parameters in the same frame (`sync`).
+ * On a first visit the surface forms and takes one shock (lib/surface/
+ * sequence.ts); after that it rests at calm, drifting, leaning with the
+ * reader, and the shock is the reader's: the slider sets it, and the surface
+ * follows on a short spring. Every frame's parameters are a complete SSVI
+ * surface, and the readouts are written from the same parameters in the same
+ * frame (`sync`), so a number never lags the picture.
  */
 
 export interface Probe {
@@ -27,27 +33,40 @@ export interface Probe {
 }
 
 export interface Sim {
-  /** Loop time of the shock, seconds. */
-  clock: number
-  playing: boolean
-  size: number
   /** The pinned reading point, and the one under the mouse (wins while there). */
   probe: Probe
   hover: Probe | null
-  /** Something the reader changed: draw the next frame even when paused. */
+  /** Something the reader changed: draw the next frame even when nothing moves. */
   dirty: boolean
 }
 
 export interface Hooks {
   sim: Sim
+  /** The signature's phases while it waits or plays; null once it is over, or on a visit without one. */
+  sequence(): { lines: number; rise: number; labels: number; shock: number; relax: number } | null
+  /** A drawn frame took this long: the signature's clock moves on it. */
+  tick(dtMs: number): void
+  /** The shock the reader has set: 0 is calm, 1 a full shock, up to SIZE_MAX. */
+  level(): number
+  /** Paused: the drift, the lean and the signature hold; the reader can still read and turn it. */
+  paused(): boolean
+  /** The reader's lean, −1…1 each way, from the pointer or the tilt. */
+  lean(): { x: number; y: number }
+  /** A click or tap pinned the reading point here. */
+  onPin(p: Probe): void
   labels(): readonly (HTMLElement | null)[]
+  labelLayer(): HTMLElement | null
   notes(): readonly (HTMLElement | null)[]
   dot(): HTMLElement | null
-  sync(p: Params, clock: number): void
+  sync(p: Params): void
 }
 
 /** Grid vertices per side and wall segments, by quality level. */
 const GRID = [40, 96, 168, 256] as const
+/** Points along each hanging smile. */
+const SMILE_N = 96
+/** How far the reader's lean turns the surface, radians: in yaw, and in pitch. */
+const LEAN = { yaw: 0.06, pitch: 0.03 } as const
 
 // ── colour ───────────────────────────────────────────────────────────────────
 
@@ -102,9 +121,8 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
   // The software tier (a CPU rasteriser) gets the light shader variant.
   const lite = env.tier === 'software'
   const surf = program(gl, surfaceVS(lite), surfaceFS(lite))
-  const floor = program(gl, FLOOR_VS, FLOOR_FS)
   const line = program(gl, LINE_VS, LINE_FS)
-  const progs = [surf, floor, line]
+  const progs = [surf, line]
 
   let palette: Palette = env.palette
   let q = 0
@@ -135,54 +153,85 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
   buildGrid(n)
   const indexType = () => (n * n > 65535 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT)
 
-  // Axis lines: strike and expiry ticks on the floor, the volatility post and its ticks.
-  const segs: [number, number, number, number, number, number][] = []
-  for (const K of STRIKE_TICKS) segs.push([wx(Math.log(K)), 0, ZW, wx(Math.log(K)), 0, ZW + 0.05])
-  for (const [T] of EXPIRY_TICKS) segs.push([XW, 0, wz(T), XW + 0.05, 0, wz(T)])
-  const px = POST[0] + 0.004, pz = POST[1] - 0.004
-  segs.push([px, 0, pz, px, wy(1), pz])
-  for (const v of VOL_TICKS) segs.push([px, wy(v), pz, px + 0.04, wy(v), pz])
-  const lineData = new Float32Array(segs.length * 6 * 8)
-  {
+  // Lines are screen-space quads: 6 vertices a segment, each A, B and (end, side).
+  const CORNERS = [[0, -1], [1, -1], [1, 1], [0, -1], [1, 1], [0, 1]] as const
+  const writeSegs = (out: Float32Array, segs: readonly (readonly number[])[]) => {
     let o = 0
-    const corners = [[0, -1], [1, -1], [1, 1], [0, -1], [1, 1], [0, 1]] as const
     for (const s of segs)
-      for (const [e, side] of corners) {
-        lineData.set([s[0], s[1], s[2], s[3], s[4], s[5], e, side], o)
+      for (const [e, side] of CORNERS) {
+        out.set([s[0]!, s[1]!, s[2]!, s[3]!, s[4]!, s[5]!, e, side], o)
         o += 8
       }
+    return segs.length * 6
   }
-  const lineVao = gl.createVertexArray()
-  gl.bindVertexArray(lineVao)
-  const lineBuf = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf)
-  gl.bufferData(gl.ARRAY_BUFFER, lineData, gl.STATIC_DRAW)
-  let lineAttribs = false
-  const bindLineAttribs = () => {
-    if (lineAttribs) return
-    lineAttribs = true
-    gl.bindVertexArray(lineVao)
-    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf)
-    const names = [['aA', 3, 0], ['aB', 3, 12], ['aS', 2, 24]] as const
-    for (const [name, size, off] of names) {
-      const loc = gl.getAttribLocation(line.program, name)
-      if (loc < 0) continue
+  const lineVao = (buf: WebGLBuffer) => {
+    const vao = gl.createVertexArray()!
+    gl.bindVertexArray(vao)
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+    for (const [loc, size, off] of [[0, 3, 0], [1, 3, 12], [2, 2, 24]] as const) {
       gl.enableVertexAttribArray(loc)
       gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 32, off)
     }
     gl.bindVertexArray(null)
+    return vao
   }
-  gl.bindVertexArray(null)
+
+  // Axis lines: strike and expiry ticks on the floor, the volatility post and its ticks.
+  const axis: number[][] = []
+  for (const K of STRIKE_TICKS) axis.push([wx(Math.log(K)), 0, ZW, wx(Math.log(K)), 0, ZW + 0.05])
+  for (const [T] of EXPIRY_TICKS) axis.push([XW, 0, wz(T), XW + 0.05, 0, wz(T)])
+  const px = POST[0] + 0.004, pz = POST[1] - 0.004
+  axis.push([px, 0, pz, px, wy(1), pz])
+  for (const v of VOL_TICKS) axis.push([px, wy(v), pz, px + 0.04, wy(v), pz])
+  const axisData = new Float32Array(axis.length * 6 * 8)
+  const axisCount = writeSegs(axisData, axis)
+  const axisBuf = gl.createBuffer()!
+  gl.bindBuffer(gl.ARRAY_BUFFER, axisBuf)
+  gl.bufferData(gl.ARRAY_BUFFER, axisData, gl.STATIC_DRAW)
+  const axisVao = lineVao(axisBuf)
+
+  // The smiles at the ticked expiries: they hang where the surface will be, and the sheet rises into them.
+  const smileData = new Float32Array(EXPIRY_TICKS.length * (SMILE_N - 1) * 6 * 8)
+  const smileBuf = gl.createBuffer()!
+  gl.bindBuffer(gl.ARRAY_BUFFER, smileBuf)
+  gl.bufferData(gl.ARRAY_BUFFER, smileData.byteLength, gl.DYNAMIC_DRAW)
+  const smileVao = lineVao(smileBuf)
+  let smileCount = 0
+  let smileKey = ''
+  const buildSmiles = (p: Params, lines: number) => {
+    const key = `${p.s0},${p.s1},${p.kappa},${p.rho},${p.eta},${lines}`
+    if (key === smileKey) return
+    smileKey = key
+    const segs: number[][] = []
+    for (const [T] of EXPIRY_TICKS) {
+      const shown = lineReveal(lines, fv(T)) * (SMILE_N - 1)
+      let prev: number[] | null = null
+      for (let i = 0; i <= Math.ceil(shown); i++) {
+        const u = Math.min(i, shown) / (SMILE_N - 1)
+        const k = kOfU(u)
+        const pt = [wx(k), wy(iv(p, k, T)) + 0.008, wz(T)]
+        if (prev) segs.push([...prev, ...pt])
+        prev = pt
+      }
+    }
+    smileCount = writeSegs(smileData, segs)
+    gl.bindBuffer(gl.ARRAY_BUFFER, smileBuf)
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, smileData, 0, smileCount * 8)
+  }
 
   // ── state ──────────────────────────────────────────────────────────────────
   let w = 1, h = 1, cssW = 1, cssH = 1
   let swayT = 0
   let resized = true
   let drawnOnce = false
+  let draws = 0
   let inv: M4 | null = null
-  let lastParams: Params = params(amplitude(sim.clock), sim.size)
-  /** Drag offset of the orbit, on a critically damped spring back to zero. */
+  /** The shock shown: the signature's, or the reader's level followed on a short spring (ω = 12/s). */
+  const shock = { x: 0, v: 0 }
+  let lastParams: Params = params(0)
+  /** Drag offset of the orbit and the reader's lean, on critically damped springs back to their targets. */
   const spring = { yaw: 0, pitch: 0, vy: 0, vp: 0, ty: 0, tp: 0 }
+  const lean = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
   let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number } | null = null
 
   // ── input ──────────────────────────────────────────────────────────────────
@@ -235,9 +284,8 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       drag.x = e.clientX
       drag.y = e.clientY
       if (drag.moved > 4) {
-        // The surface follows the hand 1:1 while dragging, easing into soft
-        // limits (tanh) instead of stopping dead, and the hand's speed is
-        // kept so the release carries it.
+        // The surface follows the hand 1:1 while dragging, easing into soft limits (tanh) instead of stopping
+        // dead, and the hand's speed is kept so the release carries it.
         const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
         drag.t = e.timeStamp
         drag.rawYaw -= dx * 0.006
@@ -272,6 +320,8 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
         sim.probe = hit
         sim.hover = null
         sim.dirty = true
+        // The page's own probe follows, so the next arrow key steps from here, not from where it was.
+        hooks.onPin(hit)
       }
     }
   }
@@ -293,12 +343,13 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
   canvas.addEventListener('pointerleave', onLeave)
 
   // ── uniforms ───────────────────────────────────────────────────────────────
-  const setShared = (prog: typeof surf, p: Params, m: M4) => {
+  const setShared = (prog: typeof surf, p: Params, m: M4, rise: number) => {
     gl.uniform4f(prog.u('uP'), p.s0, p.s1, p.kappa, p.rho)
     gl.uniform2f(prog.u('uQ'), p.eta, p.gamma)
     gl.uniform4f(prog.u('uDom'), DOMAIN.kMin, DOMAIN.kMax, Math.sqrt(DOMAIN.tMin), Math.sqrt(DOMAIN.tMax))
     gl.uniform3f(prog.u('uW'), XW, ZW, H)
     gl.uniform2f(prog.u('uV'), V0, V1)
+    gl.uniform1f(prog.u('uRise'), rise)
     gl.uniformMatrix4fv(prog.u('uMVP'), false, m)
   }
   const setLook = (prog: typeof surf, e: [number, number, number], probe: Probe | null) => {
@@ -332,28 +383,55 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
   return {
     frame(_t, dt) {
       if (!progs.every((p) => p.ready())) return false
-      bindLineAttribs()
-
-      // Spring: ω = 7/s, critically damped (ζ = 1), semi-implicit Euler.
-      const W = 7
+      const paused = hooks.paused()
+      const ph = hooks.sequence()
       const step = Math.min(dt, 1 / 30)
-      // While a drag holds the surface, the hand sets the angle directly;
-      // the spring takes over on release, from the hand's own speed.
+
+      // Springs: the drag's (ω = 7/s) and the lean's (ω = 5/s), critically damped, semi-implicit Euler.
+      const W = 7
       if (!drag || drag.moved <= 4) {
         spring.vy += (W * W * (spring.ty - spring.yaw) - 2 * W * spring.vy) * step
         spring.vp += (W * W * (spring.tp - spring.pitch) - 2 * W * spring.vp) * step
         spring.yaw += spring.vy * step
         spring.pitch += spring.vp * step
       }
-      const moving = !!drag || Math.abs(spring.yaw) + Math.abs(spring.pitch) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4
+      const leaning = paused ? null : hooks.lean()
+      const LW = 5
+      const ly = leaning ? -LEAN.yaw * leaning.x : lean.yaw, lp = leaning ? -LEAN.pitch * leaning.y : lean.pitch
+      lean.vy += (LW * LW * (ly - lean.yaw) - 2 * LW * lean.vy) * step
+      lean.vp += (LW * LW * (lp - lean.pitch) - 2 * LW * lean.vp) * step
+      lean.yaw += lean.vy * step
+      lean.pitch += lean.vp * step
 
-      if (drawnOnce && !sim.playing && !moving && !sim.dirty && !resized) return true
+      // The shock: the signature's while it plays; after it, the reader's level on a quick spring (ω = 12/s).
+      let x: number
+      if (ph) {
+        x = amplitudeOf(ph)
+        shock.x = x
+        shock.v = 0
+      } else {
+        const SW = 12
+        shock.v += (SW * SW * (hooks.level() - shock.x) - 2 * SW * shock.v) * step
+        shock.x += shock.v * step
+        x = shock.x
+      }
+      const moving =
+        !!drag ||
+        Math.abs(spring.yaw) + Math.abs(spring.pitch) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
+        Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
+        Math.abs(shock.v) > 1e-5 ||
+        Math.abs(hooks.level() - shock.x) > 1e-4
+      // Unpaused, it drifts, so every frame is drawn; paused, only a change is.
+      if (drawnOnce && paused && !moving && !sim.dirty && !resized) return true
       sim.dirty = false
       resized = false
 
-      const p = params(amplitude(sim.clock), sim.size)
+      const rise = ph ? EASE_OUT(ph.rise) : 1
+      const lines = ph ? ph.lines : 1
+      const labelsK = ph ? EASE_OUT(ph.labels) : 1
+      const p = params(Math.max(0, x))
       lastParams = p
-      const cam = camera(Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD), spring.yaw, spring.pitch)
+      const cam = camera(Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
       const m = mvp(cam, cssW / cssH)
       inv = invert(m)
       const e = eye(cam)
@@ -366,20 +444,12 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       gl.enable(gl.DEPTH_TEST)
       gl.disable(gl.CULL_FACE)
 
-      // Floor
-      gl.depthMask(false)
-      floor.use()
-      gl.uniformMatrix4fv(floor.u('uMVP'), false, m)
-      gl.uniform2f(floor.u('uHalf'), XW, ZW)
-      gl.uniform3f(floor.u('uPaperL'), toLinear(bg[0]), toLinear(bg[1]), toLinear(bg[2]))
-      gl.bindVertexArray(emptyVao)
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-      gl.depthMask(true)
-
-      // Surface, then the walls, from one program.
+      // Surface, then the walls, from one program; pushed back a little so the smiles on it stay in front.
+      gl.enable(gl.POLYGON_OFFSET_FILL)
+      gl.polygonOffset(1, 2)
       surf.use()
-      setShared(surf, p, m)
-      setLook(surf, e, probe)
+      setShared(surf, p, m, rise)
+      setLook(surf, e, rise > 0.98 ? probe : null)
       gl.uniform1i(surf.u('uMode'), 0)
       gl.uniform1i(surf.u('uN'), n)
       gl.bindVertexArray(surfVao)
@@ -394,29 +464,43 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
         gl.uniform1i(surf.u('uEdge'), edge)
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, n * 2)
       }
+      gl.disable(gl.POLYGON_OFFSET_FILL)
 
-      // Axis lines
+      // Lines: the axes, and the smiles at the ticked expiries.
       line.use()
       gl.uniformMatrix4fv(line.u('uMVP'), false, m)
       gl.uniform2f(line.u('uPx'), 2 / cssW, 2 / cssH)
       gl.uniform1f(line.u('uWidth'), 1)
       gl.uniform3fv(line.u('uColor'), palette.graphite)
-      gl.bindVertexArray(lineVao)
-      gl.drawArrays(gl.TRIANGLES, 0, segs.length * 6)
+      gl.bindVertexArray(axisVao)
+      gl.drawArrays(gl.TRIANGLES, 0, axisCount)
+      buildSmiles(p, lines)
+      if (smileCount) {
+        gl.uniform3fv(line.u('uColor'), palette.graphite)
+        gl.bindVertexArray(smileVao)
+        gl.drawArrays(gl.TRIANGLES, 0, smileCount)
+      }
       gl.bindVertexArray(null)
 
-      // Labels, notes and the reading point ride the same projection.
+      // Labels, notes and the reading point ride the same projection; the labels arrive with the sheet.
       const els = hooks.labels()
       LABELS.forEach((l, i) => place(els[i] ?? null, m, l.at[0], l.at[1], l.at[2]))
+      const layer = hooks.labelLayer()
+      if (layer) layer.style.opacity = labelsK.toFixed(3)
       const notes = hooks.notes()
-      NOTES.forEach((nt, i) => place(notes[i] ?? null, m, wx(nt.k), wy(iv(p, nt.k, nt.T)), wz(nt.T)))
-      place(hooks.dot(), m, wx(probe.k), wy(iv(p, probe.k, probe.T)), wz(probe.T))
+      NOTES.forEach((nt, i) => place(notes[i] ?? null, m, wx(nt.k), wy(iv(p, nt.k, nt.T)) * rise, wz(nt.T)))
+      const dot = hooks.dot()
+      place(dot, m, wx(probe.k), wy(iv(p, probe.k, probe.T)) * rise, wz(probe.T))
+      // The reading point arrives with the labels, once the sheet is up to be read.
+      if (dot) dot.style.opacity = labelsK.toFixed(3)
 
-      hooks.sync(p, sim.clock)
+      hooks.sync(p)
       drawnOnce = true
-      // The clock moves after the frame, so the first frame is the poster's moment exactly.
-      if (sim.playing) {
-        sim.clock += dt
+      // For the specs and ?debug=1: frames drawn.
+      canvas.dataset.draws = String(++draws)
+      // The clocks move after the frame, so the first frame is the poster's moment exactly.
+      if (!paused) {
+        hooks.tick(dt * 1000)
         swayT += dt
       }
       return true
@@ -446,11 +530,12 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       canvas.removeEventListener('pointerleave', onLeave)
       for (const p of progs) gl.deleteProgram(p.program)
       if (index) gl.deleteBuffer(index)
-      gl.deleteBuffer(lineBuf)
+      gl.deleteBuffer(axisBuf)
+      gl.deleteBuffer(smileBuf)
       gl.deleteVertexArray(surfVao)
-      gl.deleteVertexArray(lineVao)
+      gl.deleteVertexArray(axisVao)
+      gl.deleteVertexArray(smileVao)
       gl.deleteVertexArray(emptyVao)
     },
   }
 }
-

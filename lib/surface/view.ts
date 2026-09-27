@@ -218,17 +218,22 @@ export interface Label {
   readonly only?: FrameKind
 }
 
-const TALL_STRIKES = new Set<number>([0.7, 1, 1.3])
+// On a phone the strike and expiry ticks would meet at the front-right corner, so its last strike tick stops at 115%;
+// and the axis title stands between its two labelled ticks, where a 100% label would crowd it.
+const TALL_STRIKES = new Set<number>([0.7, 1.15])
 const TALL_EXPIRIES = new Set<string>(['1M', '6M', '2Y'])
-const TALL_VOLS = new Set<number>([0.2, 0.6, 1.0])
+// On a phone the axis title stands at the top of the post, and one tick gives the scale: a 100% tick would crowd the
+// title, and a 20% one sits on the surface's own back edge.
+const TALL_VOLS = new Set<number>([0.6])
 
 export const LABELS: readonly Label[] = [
-  ...STRIKE_TICKS.map((K): Label => ({
+  // Every strike tick is drawn; the 85% one goes unlabelled, where the axis title needs the room.
+  ...STRIKE_TICKS.filter((K) => K !== 0.85).map((K): Label => ({
     id: `k${K}`, text: `${Math.round(K * 100)}%`, at: [wx(Math.log(K)), 0, ZW + 0.12], align: 'center', kind: 'tick',
     ...(TALL_STRIKES.has(K) ? {} : { only: 'wide' as const }),
   })),
   { id: 'kt', text: 'strike, % of today’s price', at: [wx(Math.log(0.76)), 0, ZW + 0.55], align: 'center', kind: 'title', only: 'wide' },
-  { id: 'kts', text: 'strike, % of price', at: [wx(0), 0, ZW + 0.6], align: 'center', kind: 'title', only: 'tall' },
+  { id: 'kts', text: 'strike, % of price', at: [-XW + 0.35, 0, ZW + 0.7], align: 'left', kind: 'title', only: 'tall' },
   ...EXPIRY_TICKS.map(([T, s]): Label => ({
     id: `t${s}`, text: s, at: [XW + 0.1, 0, wz(T)], align: 'left', kind: 'tick',
     ...(TALL_EXPIRIES.has(s) ? {} : { only: 'wide' as const }),
@@ -236,11 +241,15 @@ export const LABELS: readonly Label[] = [
   { id: 'tt', text: 'time to expiry', at: [XW + 0.3, 0, ZW * 0.1], align: 'left', kind: 'title', only: 'wide' },
   { id: 'tts', text: 'expiry', at: [XW + 0.12, 0, ZW + 0.3], align: 'left', kind: 'title', only: 'tall' },
   ...VOL_TICKS.map((v): Label => ({
-    id: `v${v}`, text: `${Math.round(v * 100)}%`, at: [POST[0] + 0.06, wy(v), POST[1]], align: 'left', kind: 'tick',
-    ...(TALL_VOLS.has(v) ? {} : { only: 'wide' as const }),
+    id: `v${v}`, text: `${Math.round(v * 100)}%`, at: [POST[0] + 0.06, wy(v), POST[1]], align: 'left', kind: 'tick', only: 'wide',
+  })),
+  // A phone's frame ends at the post: its ticks read inward from it, so none runs past the right edge.
+  ...VOL_TICKS.filter((v) => TALL_VOLS.has(v)).map((v): Label => ({
+    id: `vs${v}`, text: `${Math.round(v * 100)}%`, at: [POST[0] - 0.05, wy(v), POST[1]], align: 'right', kind: 'tick', only: 'tall',
   })),
   { id: 'vt', text: 'implied volatility', at: [POST[0] - 0.04, wy(1) + 0.08, POST[1]], align: 'right', kind: 'title', only: 'wide' },
-  { id: 'vts', text: 'implied vol', at: [POST[0] + 0.02, wy(1) + 0.1, POST[1]], align: 'above', kind: 'title', only: 'tall' },
+  // Ending at the post, so on a phone's narrow frame it never runs past the right edge.
+  { id: 'vts', text: 'implied vol', at: [POST[0] - 0.04, wy(1) + 0.08, POST[1]], align: 'right', kind: 'title', only: 'tall' },
 ]
 
 /** On-surface annotations: plain words, pinned to the region they describe, riding its height. */
@@ -264,12 +273,5 @@ export const NOTES: readonly Note[] = [
     T: 1 / 12,
     offset: { wide: [-26, -34, 'right'], tall: [-4, -22, 'center'] },
   },
-  {
-    id: 'calm',
-    lead: 'Calm',
-    text: 'long-dated options barely move',
-    k: 0.12,
-    T: 1.3,
-    offset: { wide: [-28, -56, 'right'], tall: null },
-  },
+
 ]

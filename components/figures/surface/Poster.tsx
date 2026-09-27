@@ -1,53 +1,33 @@
-import { params, PEAK, amplitude } from '@/lib/surface/shock'
-import { FRAME_H, poster, RAMP_CSS, type PosterData } from '@/lib/surface/poster'
+import type { Params } from '@/lib/surface/ssvi'
+import { FRAME_H, poster, RAMP_CSS } from '@/lib/surface/poster'
+import { MESH_CSS, meshMarkup } from '@/lib/surface/posterMarkup'
 import { AxisLabel, Frame, NoteMark } from './marks'
 
 /**
- * The poster: a real frame of the surface at the peak of the shock, from the
- * camera the live renderer starts at, rendered on the server. One picture for
- * every screen; the phone keeps fewer labels (CSS). Carries `data-lab-poster`
- * for the lab's reduced-motion gate.
+ * The poster: a real frame of the surface from the camera the live renderer
+ * starts at, rendered on the server: at calm, where the live figure rests, so
+ * it is the finished picture a visit without the signature opens on, and the
+ * reduced-motion figure. One picture for every screen; the phone keeps fewer
+ * labels (CSS). On a first visit the pre-paint mark hides everything drawn
+ * (`data-fill`), so the surface can form out of the page.
  *
- * The mesh is written as one string of SVG markup rather than as several
- * hundred React elements. The markup is the same, but React hydrates one node
- * instead of walking every path, and the RSC payload carries one string
- * instead of a JSON record per path — both were measurable on a phone.
+ * The mesh is one string of SVG markup (lib/surface/posterMarkup.ts) rather
+ * than several hundred React elements: React hydrates one node, and the RSC
+ * payload carries one string, both measurable on a phone. Where the live
+ * figure does not run, the page redraws that string as the reader moves the
+ * shock.
  */
-
-const MESH_CSS = '.lab-c .m path{fill:currentColor;stroke:currentColor;stroke-width:1;stroke-linejoin:round;vector-effect:non-scaling-stroke}'
-const NS = 'vector-effect="non-scaling-stroke"'
-
-/** Everything in these strings is computed here: numbers, path data and color-mix() expressions — no quotes, no markup. */
-function meshMarkup(d: PosterData): string {
-  const id = (w: string) => `lab-c-${w}`
-  const grads = d.walls
-    .map(
-      (w) =>
-        `<linearGradient id="${id(w.id)}" gradientUnits="userSpaceOnUse" x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}">` +
-        w.stops.map((s) => `<stop offset="${s.o}" style="stop-color:${s.c}"/>`).join('') +
-        '</linearGradient>',
-    )
-    .join('')
-  return (
-    `<defs>${grads}<filter id="${id('soft')}" x="-20%" y="-30%" width="140%" height="160%"><feGaussianBlur stdDeviation="16"/></filter></defs>` +
-    `<g fill="#000" fill-opacity="0.09" filter="url(#${id('soft')})">${d.shadow.map((s) => `<path d="${s}"/>`).join('')}</g>` +
-    `<g class="m">${d.runs.map((r) => `<path class="${r.cls}" d="${r.d}"/>`).join('')}</g>` +
-    d.walls.map((w) => `<path d="${w.d}" fill="url(#${id(w.id)})" stroke="url(#${id(w.id)})" stroke-width="1" ${NS}/>`).join('') +
-    `<g fill="none" stroke-linecap="round" stroke-linejoin="round">` +
-    d.lines.map((l) => `<path d="${l.d}" style="stroke:${l.c}" stroke-width="${l.w}" ${NS}/>`).join('') +
-    `<path d="${d.ticks}" stroke="var(--color-graphite)" stroke-width="1" ${NS}/></g>`
-  )
-}
 
 const shown = (only: string | undefined) => (only === 'wide' ? 'hidden sm:block' : only === 'tall' ? 'sm:hidden' : '')
 
-export function Poster() {
-  const d = poster(params(amplitude(PEAK)))
+export function Poster({ at }: { at: Params }) {
+  const d = poster(at)
   return (
-    <div data-lab-poster className="absolute inset-0">
+    <div data-iv-poster="" className="absolute inset-0">
       <style>{MESH_CSS + RAMP_CSS + d.css}</style>
       <Frame>
         <svg
+          data-fill=""
           viewBox={`0 0 ${d.width} ${FRAME_H}`}
           className="absolute inset-0 h-full w-full overflow-visible"
           aria-hidden

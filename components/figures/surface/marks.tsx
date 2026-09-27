@@ -10,9 +10,9 @@ import { FRAME } from '@/lib/surface/view'
 
 /** The ramp stops as custom properties over the site's tokens; the top leans toward ink at night. */
 export const STAGE_CSS =
-  `.lab-c{--c-lo:color-mix(in oklab,var(--color-indigo) ${STOPS.lo * 100}%,var(--color-indigo-wash));` +
+  `.iv-fig{--c-lo:color-mix(in oklab,var(--color-indigo) ${STOPS.lo * 100}%,var(--color-indigo-wash));` +
   `--c-mid:color-mix(in oklab,var(--color-indigo) ${STOPS.mid * 100}%,var(--color-indigo-wash));--c-top:var(--color-indigo)}` +
-  `@media (prefers-color-scheme:dark){.lab-c{--c-top:color-mix(in oklab,var(--color-ink) ${STOPS.nightTop * 100}%,var(--color-indigo))}}`
+  `@media (prefers-color-scheme:dark){.iv-fig{--c-top:color-mix(in oklab,var(--color-ink) ${STOPS.nightTop * 100}%,var(--color-indigo))}}`
 
 /**
  * A box of the frame's aspect, as large as fits and centred — SVG's

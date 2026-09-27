@@ -43,6 +43,8 @@ precision highp float;
 ${SSVI}
 uniform int uMode; uniform int uN; uniform int uEdge; uniform int uM;
 uniform mat4 uMVP;
+// The signature's rise: the sheet comes up from the floor into its lines (lib/surface/sequence.ts).
+uniform float uRise;
 out vec3 vPos; out vec3 vN; out float vIv; out float vAO; out vec2 vUV;
 void main() {
   vec2 uv; vec3 p; float v;
@@ -77,6 +79,7 @@ void main() {
     vN = uEdge == 0 ? vec3(0.0, 0.0, 1.0) : uEdge == 1 ? vec3(1.0, 0.0, 0.0) : uEdge == 2 ? vec3(0.0, 0.0, -1.0) : vec3(-1.0, 0.0, 0.0);
     vAO = 0.0;
   }
+  p.y *= uRise;
   vUV = uv; vPos = p;
   gl_Position = uMVP * vec4(p, 1.0);
 }`
@@ -96,6 +99,7 @@ uniform vec2 uRamp; uniform float uFlip;
 uniform vec3 uKey, uFill, uLight; uniform float uUp;
 uniform vec3 uEye; uniform float uSpec; uniform float uAOk;
 uniform vec3 uProbe; // u, v, on
+uniform float uRise;
 out vec4 o;
 vec3 lin(vec3 c) {
   float l_ = c.x + 0.3963377774 * c.y + 0.2158037573 * c.z;
@@ -128,6 +132,8 @@ void main() {
     float pl = max(1.0 - clamp(d.y - 0.35, 0.0, 1.0), 1.0 - clamp(d.x - 0.35, 0.0, 1.0));
     lab = mix(lab, to, pl * 0.7);
   }
+  // Rising out of the page: a sheet still on the floor is the paper's colour, and takes its own as it lifts.
+  lab = mix(uPaper, lab, uRise);
   vec3 N = normalize(vN);
 #ifdef LITE
   float dif = (uLight.x + uLight.y * max(dot(N, uKey), 0.0) + uLight.z * max(dot(N, uFill), 0.0)) / uUp;
@@ -143,34 +149,11 @@ void main() {
   o = vec4(srgb(c), 1.0);
 }`
 
-/** The floor: paper, with a soft contact shadow under the solid. */
-export const FLOOR_VS = `#version 300 es
-precision highp float;
-uniform mat4 uMVP; uniform vec2 uHalf;
-out vec2 vXZ;
-void main() {
-  vec2 c = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1)) * 2.0 - 1.0;
-  vXZ = c * (uHalf + 0.9);
-  gl_Position = uMVP * vec4(vXZ.x, -0.002, vXZ.y, 1.0);
-}`
-
-export const FLOOR_FS = `#version 300 es
-precision highp float;
-in vec2 vXZ;
-uniform vec2 uHalf; uniform vec3 uPaperL;
-out vec4 o;
-float box(vec2 p, vec2 b) { vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
-vec3 srgb(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
-void main() {
-  float d = box(vXZ - vec2(0.05, -0.04), uHalf);
-  float sh = 0.09 * (1.0 - smoothstep(-0.12, 0.3, d));
-  o = vec4(srgb(uPaperL * (1.0 - sh)), 1.0);
-}`
-
 /** Lines with a width in CSS pixels: each segment is a screen-space quad. */
 export const LINE_VS = `#version 300 es
 precision highp float;
-in vec3 aA; in vec3 aB; in vec2 aS;
+// Fixed locations, so a vertex array can be set up before the program links.
+layout(location = 0) in vec3 aA; layout(location = 1) in vec3 aB; layout(location = 2) in vec2 aS;
 uniform mat4 uMVP; uniform vec2 uPx; uniform float uWidth;
 void main() {
   vec4 A = uMVP * vec4(aA, 1.0), B = uMVP * vec4(aB, 1.0);

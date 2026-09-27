@@ -280,6 +280,40 @@
   unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
 }
 
+/* The IV surface's poster: on a first visit (the pre-paint mark) the stage is empty paper and the surface forms out of
+   it on the canvas; if the live figure declines, the finished picture fades in on the site's ease-out. */
+[data-iv-poster],
+.iv-fig [data-fill] {
+  transition: opacity 240ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+:root[data-surface-seq] [data-iv-poster],
+:root[data-surface-seq] .iv-fig [data-fill] {
+  opacity: 0;
+}
+/* Its live controls arrive as the others' do: rising 4px into place, 40ms apart; under reduced motion they only fade. */
+[data-surface-controls] > button {
+  transition:
+    border-color 150ms ease-out,
+    scale 150ms ease-out,
+    opacity 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms),
+    translate 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms);
+  @starting-style {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+[data-surface-controls] > button:nth-child(2) {
+  --arrive: 40ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-surface-controls] > button {
+    @starting-style {
+      opacity: 0;
+      translate: none;
+    }
+  }
+}
+
 /* The order book's poster: on a first visit (the pre-paint mark, lib/stage/prepaint.ts) the page is empty, and the
    terrain rises out of it; if the live figure declines, the finished picture fades in on the site's ease-out. */
 [data-orderbook-poster] [data-fill] {
