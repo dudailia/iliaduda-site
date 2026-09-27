@@ -1,6 +1,5 @@
 import type { Params } from '@/lib/surface/ssvi'
-import { FRAME_H, poster, RAMP_CSS } from '@/lib/surface/poster'
-import { MESH_CSS, meshMarkup } from '@/lib/surface/posterMarkup'
+import { FRAME_H, poster } from '@/lib/surface/poster'
 import { AxisLabel, Frame, NoteMark } from './marks'
 
 /**
@@ -11,11 +10,11 @@ import { AxisLabel, Frame, NoteMark } from './marks'
  * labels (CSS). On a first visit the pre-paint mark hides everything drawn
  * (`data-fill`), so the surface can form out of the page.
  *
- * The mesh is one string of SVG markup (lib/surface/posterMarkup.ts) rather
- * than several hundred React elements: React hydrates one node, and the RSC
- * payload carries one string, both measurable on a phone. Where the live
- * figure does not run, the page redraws that string as the reader moves the
- * shock.
+ * The mesh is an image of its own (app/(pages)/iv-surface/poster.svg,
+ * lib/surface/posterFile.ts), sent once rather than inlined into the HTML and
+ * again into the RSC payload; the labels and notes are drawn here, over it, in
+ * the page's type. Where the live figure does not run, the page redraws the
+ * mesh inline as the reader moves the shock.
  */
 
 const shown = (only: string | undefined) => (only === 'wide' ? 'hidden sm:block' : only === 'tall' ? 'sm:hidden' : '')
@@ -24,15 +23,9 @@ export function Poster({ at }: { at: Params }) {
   const d = poster(at)
   return (
     <div data-iv-poster="" className="absolute inset-0">
-      <style>{MESH_CSS + RAMP_CSS + d.css}</style>
       <Frame>
-        <svg
-          data-fill=""
-          viewBox={`0 0 ${d.width} ${FRAME_H}`}
-          className="absolute inset-0 h-full w-full overflow-visible"
-          aria-hidden
-          dangerouslySetInnerHTML={{ __html: meshMarkup(d) }}
-        />
+        {/* eslint-disable-next-line @next/next/no-img-element -- drawn at build time and served as it is; next/image would only add a client runtime */}
+        <img data-fill="" data-mesh="" src="/iv-surface/poster.svg" width={d.width} height={FRAME_H} alt="" decoding="async" className="absolute inset-0 h-full w-full" />
         {d.labels.map((l) => (
           <AxisLabel
             key={l.id}

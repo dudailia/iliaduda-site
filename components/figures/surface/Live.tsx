@@ -237,9 +237,23 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         const s = still.current
         if (!s || !el) return
         const d = s.poster.poster(params(x))
-        const svg = el.querySelector('[data-iv-poster] svg[data-fill]')
-        const style = el.querySelector('[data-iv-poster] style')
-        if (svg) svg.innerHTML = s.markup.meshMarkup(d)
+        // The first redraw puts the mesh inline in place of the poster's image, with its style beside it.
+        let mesh = el.querySelector('[data-iv-poster] [data-mesh]')
+        if (mesh && mesh.tagName.toLowerCase() === 'img') {
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+          svg.setAttribute('viewBox', `0 0 ${d.width} ${s.poster.FRAME_H}`)
+          svg.setAttribute('class', 'absolute inset-0 h-full w-full overflow-visible')
+          svg.setAttribute('aria-hidden', 'true')
+          svg.setAttribute('data-fill', '')
+          svg.setAttribute('data-mesh', '')
+          mesh.replaceWith(svg)
+          mesh = svg
+          const style = document.createElement('style')
+          style.setAttribute('data-mesh-css', '')
+          el.querySelector('[data-iv-poster]')?.prepend(style)
+        }
+        if (mesh) mesh.innerHTML = s.markup.meshMarkup(d)
+        const style = el.querySelector('[data-iv-poster] style[data-mesh-css]')
         if (style) style.textContent = s.markup.MESH_CSS + s.poster.RAMP_CSS + d.css
         for (const n of d.notes) {
           const at = el.querySelector<HTMLElement>(`[data-iv-poster] [data-note="${n.id}"]`)

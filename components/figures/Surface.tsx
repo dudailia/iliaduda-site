@@ -1,11 +1,10 @@
 import { syntheticValue as value } from '@/content/synthetic'
 import { prepaint } from '@/lib/stage/prepaint'
-import { describe } from '@/lib/surface/poster'
+import { describe, STAGE_CSS } from '@/lib/surface/poster'
 import { pct } from '@/lib/surface/readouts'
 import { params } from '@/lib/surface/shock'
 import { CALM, iv } from '@/lib/surface/ssvi'
 import { EXPIRY_TICKS, STRIKE_TICKS } from '@/lib/surface/view'
-import { STAGE_CSS } from './surface/marks'
 import { SurfaceLive } from './surface/Live'
 import { Poster } from './surface/Poster'
 

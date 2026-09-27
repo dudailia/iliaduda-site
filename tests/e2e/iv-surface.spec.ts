@@ -41,7 +41,7 @@ test.describe('before any script runs', () => {
   test.use({ javaScriptEnabled: false })
   test('is the calm surface, says synthetic where it is drawn, and reads its numbers in the margin', async ({ page }) => {
     await page.goto('/iv-surface')
-    await expect(page.locator(`${FIG} [data-iv-poster] svg[data-fill]`)).toBeVisible()
+    await expect(page.locator(`${FIG} [data-iv-poster] img[data-mesh]`)).toBeVisible()
     await expect(page.locator(FIG)).toContainText(/Synthetic SSVI .* not market data/)
     await expect(value(page, '1-month vol, at the money')).toHaveText(/^\d+\.\d%$/)
     await expect(value(page, 'No static arbitrage')).toContainText('passes')
@@ -150,11 +150,12 @@ test('reduced motion: the still frame, never the canvas, and the slider still re
   // Never initialised: a canvas nobody drew into keeps its default width.
   expect(await canvas.getAttribute('width')).toBe(null)
   await expect(page.locator(FIG)).toContainText('Still frame: your system asks for reduced motion.')
-  const mesh = page.locator(`${FIG} [data-iv-poster] svg[data-fill]`)
-  const before = await mesh.innerHTML()
+  // The still frame is the poster's image until the slider moves; then it is redrawn inline for the shock set.
+  await expect(page.locator(`${FIG} [data-iv-poster] img[data-mesh]`)).toBeVisible()
   const atm = await value(page, '1-month vol, at the money').textContent()
   await page.getByRole('slider', { name: /shock/i }).fill('1')
-  await expect.poll(() => mesh.innerHTML(), { timeout: 5_000 }).not.toBe(before)
+  const mesh = page.locator(`${FIG} [data-iv-poster] svg[data-mesh]`)
+  await expect.poll(() => mesh.evaluate((m) => m.querySelectorAll('path').length), { timeout: 5_000 }).toBeGreaterThan(50)
   await expect(value(page, '1-month vol, at the money')).not.toHaveText(atm ?? '')
   await expect(page.locator(FIG).getByRole('button', { name: 'Pause' })).toHaveCount(0)
 })

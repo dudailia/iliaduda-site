@@ -1,5 +1,5 @@
 import { contour } from '@/lib/contours'
-import { CONTOUR_STEP, diffuse, LINE_FLIP, rampT } from './look'
+import { CONTOUR_STEP, diffuse, LINE_FLIP, rampT, STOPS } from './look'
 import { DOMAIN, iv, type Params } from './ssvi'
 import {
   apply, camera, EXPIRY_TICKS, FRAME, H, kOfU, LABELS, mvp, NOTES, POST, STRIKE_TICKS, tOfV, VOL_TICKS,
@@ -51,6 +51,12 @@ export function rampCss(t: number): string {
   if (t < 0.999) return `color-mix(in oklab,var(--c-top) ${p1((t - 0.5) / 0.5)},var(--c-mid))`
   return 'var(--c-top)'
 }
+/** The ramp stops as custom properties over the site's tokens; the top leans toward ink at night. */
+export const STAGE_CSS =
+  `.iv-fig{--c-lo:color-mix(in oklab,var(--color-indigo) ${STOPS.lo * 100}%,var(--color-indigo-wash));` +
+  `--c-mid:color-mix(in oklab,var(--color-indigo) ${STOPS.mid * 100}%,var(--color-indigo-wash));--c-top:var(--color-indigo)}` +
+  `@media (prefers-color-scheme:dark){.iv-fig{--c-top:color-mix(in oklab,var(--color-ink) ${STOPS.nightTop * 100}%,var(--color-indigo))}}`
+
 /** The quantised ramp levels as custom properties, shared by both framings: `--r0` … `--r14`. */
 export const RAMP_CSS = `.iv-fig{${Array.from({ length: RAMP_STEPS + 1 }, (_, i) => `--r${i}:${rampCss(i / RAMP_STEPS)}`).join(';')}}`
 
