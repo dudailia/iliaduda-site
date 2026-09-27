@@ -1,6 +1,6 @@
 import { program, type GL } from '@/lib/gl'
 import { HALF, HZ, LEVELS, ROWS, START, type Flow, type Stats } from '@/lib/market/flow'
-import { fmt, readAt, type Reading } from '@/lib/orderbook/read'
+import { fmt, readAt, rowAfter, type Reading } from '@/lib/orderbook/read'
 import { DX, DZ, H, POW, REF, REST, ROWS_BY_Q, SWAY, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 import { EASE_IN_OUT_QUAD } from '@/lib/ease'
@@ -39,6 +39,8 @@ export interface Shared {
   labels: HTMLElement
   /** The keyboard (or tap) probe; the hover probe takes precedence while the mouse is over the terrain. */
   key: KeyProbe | null
+  /** A click or tap pinned the probe here: the page's own probe follows, so the arrow keys step on from it. */
+  onPin(k: KeyProbe): void
   /** Paused: the market, the drift and the lean stop; the probe still answers. */
   readonly paused: boolean
   /** Advance the page's one market by this frame (components/figures/orderbook/market.ts): once, whoever asks first. */
@@ -444,12 +446,14 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     l.want = 0
   }
   /** Ease every label toward shown or hidden, times the signature's labels phase. */
-  const fadeLabels = (dt: number, k: number) => {
+  const fadeLabels = (dt: number, k: number): boolean => {
     const f = 1 - Math.exp(-Math.max(0, dt) / LABEL_TAU)
+    let fading = false
     for (const [id, l] of pool) {
       if (!l.seen) l.want = 0
       l.seen = false
       l.o += (l.want - l.o) * (dt > 0 ? f : 1)
+      if (Math.abs(l.want - l.o) > 0.002) fading = true
       const a = l.o * k
       l.el.style.opacity = a.toFixed(3)
       l.el.style.visibility = a > 0.01 ? 'visible' : 'hidden'
@@ -459,6 +463,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
         pool.delete(id)
       }
     }
+    return fading
   }
 
   // ── state ──────────────────────────────────────────────────────────────────
@@ -481,6 +486,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   let clock = 0
   let first = false
   let disposed = false
+  /** Paused, a frame that would only draw what is on screen is skipped: these say whether the next one would not. */
+  let dirty = true
+  let settling = true
+  let lastKey: KeyProbe | null = null
+  let lastChosen: { price: number; t: number } | null = null
 
   /** The camera: from the page to rest as the signature settles (`k` 0 → 1), then drifting and leaning with the reader. */
   const cam = (t: number, k: number): Camera => ({
@@ -559,14 +569,20 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   const onMove = (e: PointerEvent) => {
     if (e.pointerType !== 'mouse') return
     hover = local(e)
+    dirty = true
   }
   const onLeave = () => {
     hover = null
+    dirty = true
   }
   const onUp = (e: PointerEvent) => {
     const p = local(e)
     const hit = pick(p[0], p[1])
-    if (hit) sh.key = hit
+    if (hit) {
+      sh.key = hit
+      sh.onPin(hit)
+    }
+    dirty = true
   }
   canvas.addEventListener('pointermove', onMove)
   canvas.addEventListener('pointerleave', onLeave)
@@ -638,7 +654,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     // The reader's own probe wins; otherwise the order chosen in Fig. 2, where and when it was, while it is in view.
     const chosen = !hovered && !sh.key ? sh.highlight() : null
     const probe =
-      hovered ?? sh.key ?? (chosen && sim.t - chosen.t < Math.min(rows, sim.written) / HZ ? { dp: chosen.price - Math.round(centre), age: Math.max(0, Math.floor((sim.t - chosen.t) * HZ)) } : null)
+      hovered ?? sh.key ?? (chosen && sim.t - chosen.t < Math.min(rows, sim.written) / HZ ? { dp: chosen.price - Math.round(centre), age: rowAfter(sim, chosen.t) } : null)
     const probePrice = probe ? Math.round(centre) + probe.dp : 0
     const probeAge = probe ? Math.min(Math.max(0, probe.age), Math.min(rows, sim.written) - 1) : 0
     const reading = probe ? readAt(sim, probePrice, probeAge, fracZ) : null
@@ -804,7 +820,16 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
       } else place(probeTag, '', null)
     }
 
-    fadeLabels(dt, labelsK)
+    const fading = fadeLabels(dt, labelsK)
+    settling =
+      fading ||
+      Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-5 ||
+      Math.abs(rowsTarget - rowsF) > 0.01 ||
+      Math.abs(target - centre) > 1e-3 ||
+      shownRise < 1 ||
+      shownRiver < 1 ||
+      shownSettle < 1 ||
+      shownLabels < 1
     // For the specs and ?debug=1: frames drawn, and the market's simulated clock.
     sh.labels.dataset.draws = String(++draws)
     sh.labels.dataset.simT = sim.t.toFixed(3)
@@ -822,6 +847,16 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
     if (disposed) return false
     if (!progs.every((p) => p.ready())) return false
     pending += dt
+    // Paused, with nothing settling, no new rows, no story and the reader's probe where it was, the frame on screen
+    // is already right: draw nothing (the page's still-frame budget; WCAG 2.2.2 holds either way).
+    const key = sh.key, chosen = sh.highlight()
+    if (first && sh.paused && !dirty && !settling && key === lastKey && chosen === lastChosen && !sh.sequence() && sim.written === uploaded) {
+      pending = 0
+      return true
+    }
+    lastKey = key
+    lastChosen = chosen
+    dirty = false
     if (halve && first && tick++ % 2 === 1) return true
     const d = pending
     pending = 0
@@ -831,6 +866,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
   return {
     frame,
     resize(w, h, cw, ch) {
+      dirty = true
       cssW = Math.max(1, cw)
       cssH = Math.max(1, ch)
       dpr = w / cssW
@@ -839,11 +875,13 @@ export function createBookRenderer(env: StageEnv, sh: Shared): Renderer {
       page = fit(REST.yaw, PAGE_PITCH, cssW / cssH, false)
     },
     setQuality(level) {
+      dirty = true
       q = level
       const nz = ROWS_BY_Q[Math.max(0, Math.min(3, level))]!
       if (nz !== rows) buildGrid(nz)
     },
     setPalette(p) {
+      dirty = true
       pal = p
     },
     dispose() {

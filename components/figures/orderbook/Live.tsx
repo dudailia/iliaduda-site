@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Ke
 import { FigureFrame } from '@/components/FigureFrame'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
+import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '@/components/stage/useStage'
-import { posterFlow, type Stats } from '@/lib/market/flow'
+import { Flow, POSTER_T, type Stats } from '@/lib/market/flow'
+import { advanceInSlices } from '@/lib/market/slices'
 import { orderBookSequence } from '@/lib/orderbook/sequence'
 import { fmt, readAt, sentence, type Reading } from '@/lib/orderbook/read'
 import type { LiveInfo } from '@/lib/stage/debug'
@@ -120,6 +122,8 @@ export function OrderBookLive({
   const liveRef = useRef(false)
   const leanApi = useRef<{ lean: { current: { x: number; y: number } } } | null>(null)
   const sigApi = useRef<{ armed: { current: boolean }; onFrame(): void } | null>(null)
+  const fallbackApi = useRef<{ fail(why: 'load' | 'error'): void; watch(): () => void } | null>(null)
+  const pinApi = useRef<(k: KeyProbe) => void>(() => {})
 
   const create: Create = useCallback(
     (env) => {
@@ -129,40 +133,61 @@ export function OrderBookLive({
       let q = 2
       let pal: Palette = env.palette
       let dead = false
-      void import('./renderer').then((m) => (mod = m))
-      const sim = market.flow
-      shared.current = {
-        sim,
-        labels: labels.current!,
-        key: key.current,
-        get paused() {
-          return market.paused
-        },
-        advance: () => {
-          market.tick()
-        },
-        highlight: () => market.highlight,
-        sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
-        lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
-        tick: (dtMs) => {
-          seq.current.advance(dtMs)
-          sigApi.current?.onFrame()
-        },
-        onFrame: (stats, reading) => {
-          writeStats(stats)
-          writeProbe(reading)
-        },
+      let broken = false
+      // Whatever becomes of it (a failed load, a shader that will not link, a renderer that throws), the reader is
+      // left with the finished poster, never an empty stage.
+      const fail = (why: 'load' | 'error') => {
+        if (dead || broken) return
+        broken = true
+        fallbackApi.current?.fail(why)
       }
+      const unwatch = fallbackApi.current?.watch()
+      void import('./renderer').then(
+        (m) => (mod = m),
+        () => fail('load'),
+      )
+      // The market is built in slices before the renderer is made (./market.ts); until then the poster stays.
+      void market.prepare().then((sim) => {
+        if (dead) return
+        shared.current = {
+          sim,
+          labels: labels.current!,
+          key: key.current,
+          get paused() {
+            return market.paused
+          },
+          advance: () => {
+            market.tick()
+          },
+          highlight: () => market.highlight,
+          sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
+          lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
+          tick: (dtMs) => {
+            seq.current.advance(dtMs)
+            sigApi.current?.onFrame()
+          },
+          onFrame: (stats, reading) => {
+            writeStats(stats)
+            writeProbe(reading)
+          },
+          onPin: (k) => pinApi.current(k),
+        }
+      })
       return {
         frame(t, dt) {
-          if (dead) return false
-          if (!inner) {
-            if (!mod || !shared.current) return false
-            inner = mod.createBookRenderer({ ...env, palette: pal }, shared.current)
-            if (size) inner.resize(...size)
-            inner.setQuality?.(q)
+          if (dead || broken) return false
+          try {
+            if (!inner) {
+              if (!mod || !shared.current) return false
+              inner = mod.createBookRenderer({ ...env, palette: pal }, shared.current)
+              if (size) inner.resize(...size)
+              inner.setQuality?.(q)
+            }
+            return inner.frame(t, dt)
+          } catch {
+            fail('error')
+            return false
           }
-          return inner.frame(t, dt)
         },
         resize(...a) {
           size = a
@@ -178,6 +203,7 @@ export function OrderBookLive({
         },
         dispose() {
           dead = true
+          unwatch?.()
           inner?.dispose()
           shared.current = null
         },
@@ -189,9 +215,12 @@ export function OrderBookLive({
   const { box, canvas, live, eligible, reduced, quality, fps, tier } = useStage(create, STAGE_OPTS)
   const sig = useSignature('orderbook', box, seq)
   const lean = useLean(live, reduced, pausedRef)
+  const fallback = useFallback(canvas, live, sig.release)
+  const declined = fallback.declined
   useEffect(() => {
     sigApi.current = sig
     leanApi.current = lean
+    fallbackApi.current = fallback
     liveRef.current = live
   })
   // A figure that will not go live here shows the finished picture at once. Hydration reads reduced motion as on
@@ -207,13 +236,20 @@ export function OrderBookLive({
     ? null
     : reduced
       ? 'Still frame: your system asks for reduced motion.'
-      : !eligible
+      : declined
+        ? DECLINED_TEXT[declined]
+        : !eligible
         ? saveData()
           ? 'Still frame: your browser asks to save data.'
           : supportsWebGL2()
             ? 'Still frame: the live figure could not start here.'
             : 'Still frame: this browser has no WebGL2.'
         : null
+
+  // Where Fig. 1 keeps its still frame, Fig. 2 draws that same moment, still (./market.ts).
+  useEffect(() => {
+    market.setStill(why !== null)
+  }, [why])
 
   // ?debug=1 (DebugSlot): the shared report, the market's own facts, and whether this browser computes the market
   // Node does: twenty simulated seconds past the still frame, fingerprinted against the one pinned in the tests. It
@@ -223,9 +259,8 @@ export function OrderBookLive({
   const checkMarket = useCallback(() => {
     if (checking.current) return
     checking.current = true
-    void import('@/lib/market/fingerprint').then(({ GOLDEN, fingerprint }) => {
-      const f = posterFlow()
-      f.advance(f.t + 20)
+    void import('@/lib/market/fingerprint').then(async ({ GOLDEN, fingerprint }) => {
+      const f = await advanceInSlices(new Flow(undefined, undefined, false), POSTER_T + 20, 6, () => performance.now(), (next) => setTimeout(next, 0))
       const got = fingerprint(f)
       marketCheck.current = `${got === GOLDEN ? 'same as Node' : `not the same as Node (${GOLDEN})`} · ${got}`
     })
@@ -286,14 +321,23 @@ export function OrderBookLive({
     key.current = k
     if (shared.current) shared.current.key = k
     if (!live) {
-      // The still frame: read the market where it stands (at the poster's moment, unless it ran before).
+      // The still frame: read the market where it stands (at the poster's moment, unless it ran before), once built.
       if (!k) return writeProbe(null)
-      const s = market.flow
-      writeProbe(readAt(s, Math.round(s.mids[s.row(0)]!) + k.dp, k.age))
+      void market.prepare().then((s) => {
+        if (key.current === k) writeProbe(readAt(s, Math.round(s.mids[s.row(0)]!) + k.dp, k.age))
+      })
     }
   }
 
   const togglePause = () => market.setPaused(!market.paused)
+  // A click or tap on the terrain pins the probe: the page's probe follows it, so the arrow keys step on from there.
+  useEffect(() => {
+    pinApi.current = (k) => {
+      setKey(k)
+      setProbing(true)
+      settle()
+    }
+  })
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const k = key.current ?? shared.current?.key ?? null

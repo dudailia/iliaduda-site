@@ -108,6 +108,17 @@ test('the arrow keys move the reading point and the margin follows; Home returns
   await expect(strike).toHaveText(before ?? '')
 })
 
+test('says nothing on its own: the reading point is announced only once the reader moves it', async ({ page }) => {
+  await seen(page)
+  await page.goto('/iv-surface')
+  const region = page.locator(`${FIG} [aria-live="polite"]`)
+  await page.waitForTimeout(1_200)
+  await expect(region).toHaveText('')
+  await page.locator(STAGE).focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(region).toHaveText(/implied volatility \d+\.\d%/)
+})
+
 test('a point pinned by a click is where the arrow keys step from', async ({ page, isMobile }) => {
   test.skip(isMobile, 'a mouse')
   test.setTimeout(60_000)
@@ -243,6 +254,29 @@ test('a lost context shows the poster again, and a restored one brings the figur
   await expect.poll(() => canvasShown(page), { timeout: 5_000 }).toBe(false)
   await page.evaluate(() => (window as unknown as { __lose: WEBGL_lose_context }).__lose.restoreContext())
   await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
+  expect(errors).toEqual([])
+})
+
+test('on a first visit a lost context shows the finished poster, not an empty stage', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await page.goto('/iv-surface')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('playing')
+  await page.evaluate(() => {
+    const c = document.querySelector('#fig-iv-surface canvas') as HTMLCanvasElement
+    const ext = c.getContext('webgl2')!.getExtension('WEBGL_lose_context')!
+    ;(window as unknown as { __lose: WEBGL_lose_context }).__lose = ext
+    ext.loseContext()
+  })
+  await expect.poll(() => canvasShown(page), { timeout: 5_000 }).toBe(false)
+  const poster = page.locator(`${FIG} [data-iv-poster]`)
+  await expect.poll(() => poster.evaluate((e) => Number(getComputedStyle(e).opacity)), { timeout: 2_000 }).toBeGreaterThan(0.9)
+  await expect.poll(() => poster.locator('[data-fill]').first().evaluate((e) => Number(getComputedStyle(e).opacity)), { timeout: 2_000 }).toBeGreaterThan(0.9)
+  await expect(page.locator(FIG)).toContainText('Still frame: the graphics context was lost.')
+  await page.evaluate(() => (window as unknown as { __lose: WEBGL_lose_context }).__lose.restoreContext())
+  await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
+  await expect(page.locator(FIG)).not.toContainText('Still frame: the graphics context was lost.')
   expect(errors).toEqual([])
 })
 

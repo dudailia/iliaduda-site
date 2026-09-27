@@ -100,6 +100,30 @@ describe('the order-flow strips', () => {
   })
 })
 
+describe('drawing the strips every frame', () => {
+  it('reuses the last frame’s buffers when the window’s columns are the same, and gives the frame a fresh build gives', () => {
+    const f = posterFlow()
+    const win = (t1: number) => ({ t0: t1 - 10, t1, cols: 400 })
+    const first = flowFrame(f, win(f.t), HAWKES)
+    f.advance(f.t + 0.5)
+    const again = flowFrame(f, win(f.t), HAWKES, first)
+    const fresh = flowFrame(f, win(f.t), HAWKES)
+    // The same buffers, refilled: no new arrays a frame.
+    expect(again.counts).toBe(first.counts)
+    expect(again.lam[0].min).toBe(first.lam[0].min)
+    expect(again.queue[1].last).toBe(first.queue[1].last)
+    expect([...again.counts]).toEqual([...fresh.counts])
+    for (const k of ['lam', 'queue'] as const)
+      for (const s of [0, 1] as const)
+        for (const e of ['min', 'max', 'last'] as const) expect([...again[k][s][e]]).toEqual([...fresh[k][s][e]])
+    expect(again.emptied).toEqual(fresh.emptied)
+    expect(again.own).toBe(fresh.own)
+    expect(again.events).toBe(fresh.events)
+    // A different width is a different frame, built fresh.
+    expect(flowFrame(f, { ...win(f.t), cols: 300 }, HAWKES, first).counts).not.toBe(first.counts)
+  })
+})
+
 describe('reading one event', () => {
   it('finds the event under the pointer in its lane, and nothing where there is none', () => {
     const mb = events.find((e) => f.ev.type[e] === MARKET_BUY)!

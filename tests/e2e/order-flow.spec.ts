@@ -54,6 +54,33 @@ test('goes live on the market Fig. 1 draws, and one Pause holds both figures', a
   expect(errors).toEqual([])
 })
 
+test.describe('where Fig. 1 cannot go live', () => {
+  test('Fig. 2 draws the same still moment as Fig. 1’s picture, with no Pause, and reading an order still works', async ({ page }) => {
+    const errors = errorsOf(page)
+    // A browser without WebGL2.
+    await page.addInitScript(() => {
+      const get = HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, id: string, ...rest: unknown[]) {
+        return id === 'webgl2' ? null : (get as (...a: unknown[]) => unknown).call(this, id, ...rest)
+      } as typeof get
+    })
+    await seen(page)
+    await page.goto('/order-book')
+    await expect(page.locator('#fig-order-book')).toContainText('Still frame: this browser has no WebGL2.')
+    await page.locator(FIG).scrollIntoViewIfNeeded()
+    await expect.poll(() => canvas(page).getAttribute('data-draws').then(Number), { timeout: 10_000 }).toBeGreaterThan(0)
+    const t0 = await simT(page)
+    await page.waitForTimeout(1_200)
+    // The market has not run on ahead of the picture above it.
+    expect(await simT(page)).toBe(t0)
+    await expect(page.locator(FIG).getByRole('button', { name: /Pause|Resume/ })).toHaveCount(0)
+    await page.locator(`${FIG} [role="group"]`).focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(reading(page)).toContainText(/Market (buy|sell)/)
+    expect(errors).toEqual([])
+  })
+})
+
 test('reads an order from the keyboard: what it was, and what set it off, adding up to all of it', async ({ page }) => {
   await seen(page)
   await page.goto('/order-book')

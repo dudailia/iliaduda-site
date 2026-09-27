@@ -62,6 +62,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
   const reduced = useReducedMotion()
   const scheme = useColorScheme()
   const paused = useSyncExternalStore(market.subscribe, market.getPaused, () => false)
+  const ready = useSyncExternalStore(market.subscribe, market.getReady, () => false)
+  const still = useSyncExternalStore(market.subscribe, market.getStill, () => false)
   const [drawn, setDrawn] = useState(false)
   const [spoken, setSpoken] = useState('')
   /** The pinned order (a click, a tap, the keyboard) and the one under the mouse; the mouse's wins while it is there. */
@@ -131,10 +133,15 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     [write],
   )
 
-  // The drawing loop: while the figure is on screen, the page is shown, motion is welcome and the market not paused;
-  // otherwise one frame, redrawn on any change.
+  // The drawing loop: while the figure is on screen, the page is shown, motion is welcome, the market not paused and
+  // Fig. 1 live; otherwise one frame, redrawn on any change. The market is built (in slices) only for a reader who
+  // comes near the figure; until it is, the still frame stays.
   useEffect(() => {
     if (!mounted) return
+    if (!ready) {
+      if (inView) void market.prepare()
+      return
+    }
     const st = stage.current!, cv = canvas.current!
     const ctx = cv.getContext('2d')
     if (!ctx) return
@@ -146,10 +153,18 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(HEIGHT * dpr)
     }
+    // The last frame's strips: refilled in place each frame, and used as they are when the market has not moved
+    // (a pointer moving over a paused figure redraws the selection, not the window).
+    let fr: FlowFrame | undefined
+    let frAt = NaN, frCols = 0
     const draw = () => {
       const f = market.flow
       const cols = Math.max(60, Math.min(900, Math.round(plot(w).pw)))
-      const fr = flowFrame(f, { t0: f.t - SECONDS, t1: f.t, cols }, HAWKES)
+      if (!fr || f.t !== frAt || cols !== frCols) {
+        fr = flowFrame(f, { t0: f.t - SECONDS, t1: f.t, cols }, HAWKES, fr)
+        frAt = f.t
+        frCols = cols
+      }
       if (pinned.current && !alive(f, pinned.current)) pinned.current = null
       if (hovered.current && !alive(f, hovered.current)) hovered.current = null
       const r = hovered.current ?? pinned.current
@@ -185,17 +200,18 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       draw()
       raf = requestAnimationFrame(loop)
     }
-    if (inView && shown && !reduced && !paused) raf = requestAnimationFrame(loop)
-    else if (inView || reduced) draw()
+    if (inView && shown && !reduced && !paused && !still) raf = requestAnimationFrame(loop)
+    else if (inView || reduced || still) draw()
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
       redraw.current = () => {}
     }
-  }, [mounted, inView, shown, reduced, paused, scheme, read, writeReading, writeStats])
+  }, [mounted, ready, inView, shown, reduced, paused, still, scheme, read, writeReading, writeStats])
 
   // Reading an order, by pointer or by key.
   const under = (e: PointerEvent<HTMLDivElement>): Ref | null => {
+    if (!market.ready) return null
     const f = market.flow
     const box = stage.current!.getBoundingClientRect()
     const x = e.clientX - box.left
@@ -213,8 +229,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     hovered.current = null
     redraw.current()
     // Announce an order the reader chose, once it settles: never the stream.
-    const f = market.flow
-    const x = r && alive(f, r) ? read(f, r) : null
+    const f = market.ready ? market.flow : null
+    const x = f && r && alive(f, r) ? read(f, r) : null
     if (settle.current) clearTimeout(settle.current)
     settle.current = setTimeout(() => setSpoken(x ? `${upper(NAMES[x.type]!)}, ${fmt.shares(x.size)} at ${fmt.usd(x.price)}. Set off by ${setOff(x)}; on its own, ${fmt.pct(x.own)}.` : ''), 400)
   }
@@ -253,6 +269,17 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
   const newest = (lane: number) => step(market.flow, -1, lane, 1)
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === ' ' && !reduced && !still) {
+      e.preventDefault()
+      market.setPaused(!market.paused)
+      return
+    }
+    // Before the market is built there is nothing to step through yet; it is on its way.
+    if (!market.ready) {
+      void market.prepare()
+      if (e.key.startsWith('Arrow') || e.key === 'Home') e.preventDefault()
+      return
+    }
     const f = market.flow
     const cur = alive(f, pinned.current) ? pinned.current : null
     const lane = cur ? LANE_OF[f.ev.type[cur.e]!]! : LANES.indexOf(MARKET_BUY)
@@ -274,11 +301,6 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         return go(newest(lane))
       case 'Escape':
         return pin(null)
-      case ' ':
-        if (reduced) return
-        e.preventDefault()
-        market.setPaused(!market.paused)
-        return
     }
   }
 
@@ -292,7 +314,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       subtitle={subtitle}
       rail={<Stats initial={initial} set={ref} suffix="" />}
       railBelow={false}
-      hint={`${mounted && !reduced ? 'Point at an order, or tap it' : 'Tap an order'}, or tab to the figure and use the arrow keys, to read what set it off.${live && !reduced ? ' Space pauses both figures.' : ''}`}
+      hint={`${mounted && !reduced ? 'Point at an order, or tap it' : 'Tap an order'}, or tab to the figure and use the arrow keys, to read what set it off.${live && !reduced && !still ? ' Space pauses both figures.' : ''}`}
       caption={caption}
       table={table}
     >
@@ -307,7 +329,11 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           aria-describedby="fig-order-flow-reading"
           onKeyDown={onKey}
           onFocus={() => {
-            if (!pinned.current) pin(newest(LANES.indexOf(MARKET_BUY)))
+            if (pinned.current) return
+            if (market.ready) return pin(newest(LANES.indexOf(MARKET_BUY)))
+            void market.prepare().then(() => {
+              if (!pinned.current && document.activeElement === stage.current) pin(newest(LANES.indexOf(MARKET_BUY)))
+            })
           }}
           onPointerMove={onMove}
           onPointerLeave={onLeave}
@@ -347,7 +373,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           </dd>
         </dl>
         <div data-orderflow-controls="" className="flex min-h-8 flex-wrap gap-2">
-          {live && !reduced ? (
+          {live && !reduced && !still ? (
             <button type="button" onClick={() => market.setPaused(!market.paused)} aria-pressed={paused} className={CONTROL}>
               {paused ? 'Resume' : 'Pause'}
             </button>

@@ -57,6 +57,15 @@ test.describe('before any script runs', () => {
     await expect(page.locator('#fig-order-book img:visible')).toHaveJSProperty('complete', true)
     expect(got).toEqual([`poster-${isMobile ? 'narrow' : 'wide'}.svg image/svg+xml; charset=utf-8`])
   })
+
+  test('frames the poster as the live figure will: a portrait tablet’s stage is wider than tall, so it is the wide frame', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 })
+    await page.goto('/order-book')
+    const img = page.locator('#fig-order-book img')
+    await expect(img).toHaveJSProperty('complete', true)
+    expect(await img.evaluate((i) => (i as HTMLImageElement).currentSrc)).toMatch(/poster-wide\.svg$/)
+    await expect(page.locator('#fig-order-book svg:visible text').filter({ hasText: /^Price \$/ })).toHaveCount(1)
+  })
 })
 
 test('goes live, and the terrain rises out of the page once per visit: a reload does not replay it', async ({ page }) => {
@@ -115,6 +124,48 @@ test('Pause holds it: nothing is drawn and the market stops; Resume lets it run 
   await expect.poll(() => attr(page, 'sim-t'), { timeout: 3_000 }).toBeGreaterThan(t0 + 0.5)
 })
 
+test('paused, it draws nothing new until the reader points at it, and the probe still answers', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse')
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.locator('#fig-order-book').getByRole('button', { name: 'Pause' }).click()
+  // Whatever was still settling (the lean, a label's fade) comes to rest; then nothing is drawn.
+  await page.waitForTimeout(1_000)
+  const n = await attr(page, 'draws')
+  await page.waitForTimeout(1_000)
+  expect(await attr(page, 'draws')).toBe(n)
+  const box = (await page.locator(`${STAGE} canvas`).boundingBox())!
+  await page.mouse.move(box.x + box.width * 0.35, box.y + box.height * 0.6)
+  await expect.poll(() => attr(page, 'draws'), { timeout: 2_000 }).toBeGreaterThan(n)
+  await expect(page.locator('#fig-order-book-probe dd').first()).toContainText('$')
+})
+
+test('a point pinned by a click is where the arrow keys step from', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse')
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  // Paused, the price window holds still, so a price is a price from one reading to the next.
+  await page.locator('#fig-order-book').getByRole('button', { name: 'Pause' }).click()
+  await page.waitForTimeout(800)
+  const price = page.locator('#fig-order-book-probe dd').first()
+  const usd = async () => Number((await price.textContent())!.replace(/[^0-9.]/g, ''))
+  const box = (await page.locator(`${STAGE} canvas`).boundingBox())!
+  await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.6)
+  // Off the stage, the hover gives way to the pinned point.
+  await page.mouse.move(box.x - 40, box.y - 40)
+  await expect(price).toContainText('$')
+  const pinned = await usd()
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(usd).toBeCloseTo(pinned + 0.01, 6)
+  // And the click really pinned somewhere of its own, not where the keys start.
+  await page.keyboard.press('Home')
+  await expect.poll(usd).not.toBeCloseTo(pinned, 6)
+})
+
 test('reduced motion: the still frame, no canvas, and the arrow keys still read the book', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/order-book')
@@ -162,6 +213,32 @@ test('a lost context shows the poster again, and a restored one brings the figur
   await page.evaluate(() => (window as unknown as { __lose: WEBGL_lose_context }).__lose.restoreContext())
   await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
   await expect.poll(() => attr(page, 'draws'), { timeout: 5_000 }).toBeGreaterThan(5)
+  expect(errors).toEqual([])
+})
+
+test('on a first visit a lost context shows the finished poster, not an empty stage, and the restored figure has one set of labels', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('playing')
+  await page.evaluate(() => {
+    const c = document.querySelector('#fig-order-book canvas') as HTMLCanvasElement
+    const ext = c.getContext('webgl2')!.getExtension('WEBGL_lose_context')!
+    ;(window as unknown as { __lose: WEBGL_lose_context }).__lose = ext
+    ext.loseContext()
+  })
+  await expect.poll(() => canvasShown(page), { timeout: 5_000 }).toBe(false)
+  // The picture itself is there to see: the first-visit mark no longer hides it.
+  const fill = page.locator('#fig-order-book [data-orderbook-poster] [data-fill]').first()
+  await expect.poll(() => fill.evaluate((e) => Number(getComputedStyle(e).opacity)), { timeout: 2_000 }).toBeGreaterThan(0.9)
+  await expect(page.locator('#fig-order-book')).toContainText('Still frame: the graphics context was lost.')
+  await page.evaluate(() => (window as unknown as { __lose: WEBGL_lose_context }).__lose.restoreContext())
+  await expect.poll(() => canvasShown(page), { timeout: 10_000 }).toBe(true)
+  await expect.poll(() => attr(page, 'draws'), { timeout: 5_000 }).toBeGreaterThan(5)
+  // One renderer's labels, not two: the lost renderer took its own with it.
+  await expect(page.locator(`${STAGE} [data-draws] > span`).filter({ hasText: /^Price / })).toHaveCount(1)
+  await expect(page.locator('#fig-order-book')).not.toContainText('Still frame: the graphics context was lost.')
   expect(errors).toEqual([])
 })
 

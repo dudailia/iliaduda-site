@@ -63,13 +63,17 @@ export interface FlowFrame {
 }
 
 /** The decay rates the model uses, each with the source types that decay at it: two exponentials per value, not six. */
+const RATES = new WeakMap<HawkesParams, { beta: number; src: number[] }[]>()
 function rates(p: HawkesParams): { beta: number; src: number[] }[] {
+  const got = RATES.get(p)
+  if (got) return got
   const out: { beta: number; src: number[] }[] = []
   p.decay.forEach((b, j) => {
     const g = out.find((x) => x.beta === b)
     if (g) g.src.push(j)
     else out.push({ beta: b, src: [j] })
   })
+  RATES.set(p, out)
   return out
 }
 
@@ -112,23 +116,36 @@ function span(f: Flow, win: Win) {
   return { oldest, newest, before }
 }
 
-export function flowFrame(f: Flow, win: Win, p: HawkesParams): FlowFrame {
+/** The window's events, oldest first, by age: kept between frames so drawing allocates nothing new. */
+const AGES: number[] = []
+
+/**
+ * Everything the strips draw for one window. Given the last frame (`into`) and the same number of columns, it
+ * refills that frame's buffers rather than making new ones, so a frame a second at sixty frames costs no garbage.
+ */
+export function flowFrame(f: Flow, win: Win, p: HawkesParams, into?: FlowFrame): FlowFrame {
   const { t0, t1, cols } = win
   const w = (t1 - t0) / cols
   const colOf = (t: number) => Math.min(cols - 1, Math.max(0, Math.floor((t - t0) / w)))
-  const env = (): Envelope => ({ min: new Float64Array(cols).fill(Infinity), max: new Float64Array(cols).fill(-Infinity), last: new Float64Array(cols).fill(NaN) })
+  const reuse = into && into.counts.length === LANES.length * cols ? into : null
+  const env = (old?: Envelope): Envelope =>
+    old
+      ? (old.min.fill(Infinity), old.max.fill(-Infinity), old.last.fill(NaN), old)
+      : { min: new Float64Array(cols).fill(Infinity), max: new Float64Array(cols).fill(-Infinity), last: new Float64Array(cols).fill(NaN) }
   const put = (E: Envelope, c: number, v: number) => {
     if (v < E.min[c]!) E.min[c] = v
     if (v > E.max[c]!) E.max[c] = v
     E.last[c] = v
   }
-  const counts = new Uint16Array(LANES.length * cols)
-  const lam: [Envelope, Envelope] = [env(), env()]
-  const queue: [Envelope, Envelope] = [env(), env()]
-  const emptied: FlowFrame['emptied'] = []
+  const counts = reuse ? reuse.counts.fill(0) : new Uint16Array(LANES.length * cols)
+  const lam: [Envelope, Envelope] = reuse ? [env(reuse.lam[0]), env(reuse.lam[1])] : [env(), env()]
+  const queue: [Envelope, Envelope] = reuse ? [env(reuse.queue[0]), env(reuse.queue[1])] : [env(), env()]
+  const emptied: FlowFrame['emptied'] = reuse ? reuse.emptied : []
+  emptied.length = 0
   const { oldest, newest, before } = span(f, win)
   const groups = rates(p)
-  const ages: number[] = []
+  const ages = AGES
+  ages.length = 0
   if (oldest >= 0) for (let a = oldest; a >= newest; a--) ages.push(a)
 
   // Events: counts per lane and column, the moments a touch was emptied, and the share arriving on their own.
@@ -173,8 +190,16 @@ export function flowFrame(f: Flow, win: Win, p: HawkesParams): FlowFrame {
   // Queues at each touch: a step at each of that side's events, carried across the columns between them.
   for (const s of [0, 1] as const) {
     const Q = queue[s]
-    const mine = ages.map((a) => f.event(a)).filter((e) => bidSide(f.ev.type[e]!) === (s === 0))
-    let q = mine.length ? f.ev.qBefore[mine[0]!]! : s === 0 ? f.book.bidAt(f.book.bestBid) : f.book.askAt(f.book.bestAsk)
+    const mineSide = (e: number) => bidSide(f.ev.type[e]!) === (s === 0)
+    let firstMine = -1
+    for (const a of ages) {
+      const e = f.event(a)
+      if (mineSide(e)) {
+        firstMine = e
+        break
+      }
+    }
+    let q = firstMine >= 0 ? f.ev.qBefore[firstMine]! : s === 0 ? f.book.bidAt(f.book.bestBid) : f.book.askAt(f.book.bestAsk)
     let tc = t0
     put(Q, 0, q)
     const carry = (to: number) => {
@@ -183,7 +208,9 @@ export function flowFrame(f: Flow, win: Win, p: HawkesParams): FlowFrame {
         put(Q, k, q)
       }
     }
-    for (const e of mine) {
+    for (const a of ages) {
+      const e = f.event(a)
+      if (!mineSide(e)) continue
       const te = f.ev.t[e]!
       const c = colOf(te)
       carry(c)
@@ -196,7 +223,13 @@ export function flowFrame(f: Flow, win: Win, p: HawkesParams): FlowFrame {
     put(Q, cols - 1, q)
   }
 
-  return { t0, t1, counts, lam, queue, emptied, events: ages.length, own: ages.length ? own / ages.length : 0 }
+  const events = ages.length, share = events ? own / events : 0
+  if (!reuse) return { t0, t1, counts, lam, queue, emptied, events, own: share }
+  reuse.t0 = t0
+  reuse.t1 = t1
+  reuse.events = events
+  reuse.own = share
+  return reuse
 }
 
 /** The event in `lane` nearest the pointer (x: 0 at the window's start, 1 at now), within `tol` seconds; its age. */

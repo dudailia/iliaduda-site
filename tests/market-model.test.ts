@@ -289,6 +289,26 @@ describe('the market clock', () => {
     straight.advance(POSTER_T + 30)
     expect(fingerprint(live)).toBe(fingerprint(straight))
   })
+
+  it('can be built a bounded piece at a time, burn-in included, and is still the still frame’s market', () => {
+    const whole = posterFlow()
+    const f = new Flow(undefined, undefined, false)
+    expect(f.t).toBe(0)
+    let calls = 0
+    let prev = f.t
+    while (!f.advanceFor(POSTER_T, 60)) {
+      calls++
+      // At most sixty quanta, one simulated second, a call.
+      expect(f.t - prev).toBeLessThanOrEqual(1 + 1e-9)
+      prev = f.t
+    }
+    expect(calls).toBeGreaterThan(140)
+    expect(f.advanceFor(POSTER_T, 60)).toBe(true)
+    expect(fingerprint(f)).toBe(fingerprint(whole))
+    expect([...f.mids]).toEqual([...whole.mids])
+    expect([...f.ev.t]).toEqual([...whole.ev.t])
+    expect(f.eventHead).toBe(whole.eventHead)
+  })
 })
 
 describe('the market on every engine', () => {

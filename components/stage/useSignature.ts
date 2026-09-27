@@ -91,7 +91,11 @@ export function useSignature<P extends string>(name: string, box: RefObject<HTML
         sessionStorage.setItem(`${name}-seq`, '1')
       } catch {}
     const next: SignatureState = s.done ? 'done' : 'playing'
-    if (next !== stateRef.current) set(next)
+    if (next !== stateRef.current) {
+      set(next)
+      // The story is over: the mark that hid the poster for it goes, so a still frame later (a lost context) shows.
+      if (next === 'done') delete document.documentElement.dataset[`${name}Seq`]
+    }
   }, [name, seq, set])
 
   /** The figure will not go live here: show the finished picture. */

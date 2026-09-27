@@ -1,8 +1,11 @@
-import { posterFlow, type Flow } from '@/lib/market/flow'
+import { Flow, POSTER_T, posterFlow } from '@/lib/market/flow'
+import { advanceInSlices } from '@/lib/market/slices'
 
 /**
  * The one market /order-book's two figures draw: made once, when the first of
- * them needs it, from the seed and the moment of the server's still frame, and
+ * them needs it, from the seed and the moment of the server's still frame (in
+ * slices of a few milliseconds, lib/market/slices.ts, so a phone's page is
+ * never held for the two minutes of burn-in it runs first), and
  * advanced once a frame by whichever figure draws first in it, by the time
  * that frame owes (in whole quanta, lib/market/flow.ts). So Fig. 1's terrain
  * and Fig. 2's strips are always the same market at the same moment. Paused,
@@ -12,23 +15,59 @@ import { posterFlow, type Flow } from '@/lib/market/flow'
 const PAUSED = 'orderbook-paused'
 /** The most one frame may advance the market, in seconds: after a gap it resumes, it does not catch up. */
 const MAX_DT = 0.1
+/** Work per slice of the build, in milliseconds: under a frame, so the page keeps drawing and answering. */
+const SLICE_MS = 6
 
-class PageMarket {
+export class PageMarket {
   private f: Flow | null = null
+  private building: Promise<Flow> | null = null
   private owed = 0
   private at = -1
   private held: boolean | null = null
   private readonly subs = new Set<() => void>()
+  private stillFig = false
   /** The event selected in Fig. 2, which Fig. 1 marks on its terrain: its price, in ticks, and its time. */
   highlight: { price: number; t: number } | null = null
 
-  /** The market, made on first use. */
+  /**
+   * Fig. 1 shows its still frame here (it will not go live): Fig. 2 then draws that same moment, still, rather than a
+   * market running on ahead of the picture above it.
+   */
+  get still(): boolean {
+    return this.stillFig
+  }
+
+  setStill(v: boolean) {
+    if (v === this.stillFig) return
+    this.stillFig = v
+    for (const s of this.subs) s()
+  }
+
+  /** Whether the market is built: until then the figures show their still frames. */
+  get ready(): boolean {
+    return this.f !== null
+  }
+
+  /** The market, built by prepare(). Asked for before that, it is built here in one go, which nothing should need. */
   get flow(): Flow {
-    if (!this.f) {
-      this.f = posterFlow()
-      this.owed = this.f.t
-    }
-    return this.f
+    if (!this.f) this.settle(posterFlow())
+    return this.f!
+  }
+
+  /** Build the market in slices, handing the page back between them; resolves with it, at once if it is built. */
+  prepare(): Promise<Flow> {
+    if (this.f) return Promise.resolve(this.f)
+    this.building ??= advanceInSlices(new Flow(undefined, undefined, false), POSTER_T, SLICE_MS, () => performance.now(), (next) => setTimeout(next, 0)).then((f) => {
+      if (!this.f) this.settle(f)
+      return this.f!
+    })
+    return this.building
+  }
+
+  private settle(f: Flow) {
+    this.f = f
+    this.owed = f.t
+    for (const s of this.subs) s()
   }
 
   /** Whether the reader has paused it; kept for the visit. */
@@ -72,6 +111,8 @@ class PageMarket {
     }
   }
   getPaused = () => this.paused
+  getReady = () => this.ready
+  getStill = () => this.still
 }
 
 export const market = new PageMarket()

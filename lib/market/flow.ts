@@ -121,13 +121,17 @@ export class Flow {
   /** Quanta run since t = 0. */
   private q = 0
 
-  constructor(seed = SEED, market: { hawkes: HawkesParams; book: BookParams } = MARKET) {
+  /**
+   * `burn` false leaves the burn-in to the first advance, so a browser can run it in slices (lib/market/slices.ts)
+   * rather than in one long task: the same quanta, in the same order, so the same market.
+   */
+  constructor(seed = SEED, market: { hawkes: HawkesParams; book: BookParams } = MARKET, burn = true) {
     const rng = mulberry32(seed)
     this.hawkes = new Hawkes(market.hawkes, rng)
     this.rho = this.hawkes.rho
     this.expected = stationaryRates(market.hawkes).reduce((a, b) => a + b, 0)
     this.book = new Book(market.book, rng, START, (d) => Math.round(4 + 10 * dexp(-((d - 6) * (d - 6)) / 60)))
-    while (this.q < BURN_Q) this.quantum(false)
+    if (burn) while (this.q < BURN_Q) this.quantum()
   }
 
   get t() {
@@ -174,15 +178,17 @@ export class Flow {
     this.onTrade?.(tr)
   }
 
-  private quantum(keep: boolean) {
+  /** One quantum; those of the burn-in keep no tape, rows or counts. */
+  private quantum() {
     this.q++
+    const keep = this.q > BURN_Q
     this.run(this.q / QUANTA, keep)
     if (keep && (this.q - BURN_Q) % PER_ROW === 0) this.snapshot(this.q / QUANTA)
   }
 
   /** One quantum of simulated time; every PER_ROW-th writes a row. */
   step(): void {
-    this.quantum(true)
+    this.quantum()
   }
 
   /** Run whole quanta up to `tEnd`; a fraction of one left over waits for the next call. Returns the rows written. */
@@ -191,6 +197,13 @@ export class Flow {
     const last = Math.floor(tEnd * QUANTA + 1e-6)
     while (this.q < last) this.step()
     return this.written - w
+  }
+
+  /** Run at most `most` quanta toward `tEnd`; true once the market has reached it. */
+  advanceFor(tEnd: number, most: number): boolean {
+    const last = Math.floor(tEnd * QUANTA + 1e-6)
+    for (let n = 0; n < most && this.q < last; n++) this.quantum()
+    return this.q >= last
   }
 
   private snapshot(t: number) {

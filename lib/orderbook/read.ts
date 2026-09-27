@@ -31,6 +31,20 @@ export function readAt(sim: Flow, price: number, age: number, frac = 0): Reading
   }
 }
 
+/**
+ * How many rows back the book first holds an order made at simulated time `t`: the first row taken at or after it.
+ * Rows are stamped with the moment they were taken, which trails the market's clock by up to a row, so this counts
+ * back from the newest row's stamp, not from the clock.
+ */
+export function rowAfter(sim: Flow, t: number): number {
+  const newest = sim.times[sim.row(0)]!
+  let a = Math.max(0, Math.floor((newest - t) * HZ))
+  const n = Math.min(sim.written, sim.times.length)
+  while (a > 0 && sim.times[sim.row(a)]! < t) a--
+  while (a + 1 < n && sim.times[sim.row(a + 1)]! >= t) a++
+  return a
+}
+
 const usd = (ticks: number) => `$${(ticks * TICK).toFixed(2)}`
 /** The mid sits on a half tick whenever the spread is odd; show the half cent rather than round it away. */
 const mid = (ticks: number) => `$${(ticks * TICK).toFixed(Number.isInteger(ticks) ? 2 : 3)}`

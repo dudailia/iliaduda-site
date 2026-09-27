@@ -17,7 +17,9 @@ export function Poster({ sim, label }: { sim: Flow; label: string }) {
   return (
     <>
       <picture>
-        <source media="(orientation: portrait)" srcSet="/order-book/poster-narrow.svg" width={narrow.w} height={narrow.h} />
+        {/* Narrow where the stage is taller than wide, as the live figure frames it: a phone held upright. A portrait
+            tablet's stage sits in the text column and is wider than tall, so it gets the wide frame. */}
+        <source media="(width < 40rem) and (orientation: portrait)" srcSet="/order-book/poster-narrow.svg" width={narrow.w} height={narrow.h} />
         <img
           data-fill=""
           src="/order-book/poster-wide.svg"
@@ -28,8 +30,8 @@ export function Poster({ sim, label }: { sim: Flow; label: string }) {
           className="absolute inset-0 size-full object-contain"
         />
       </picture>
-      <Labels g={posterOf(sim, 'wide')} className="portrait:hidden" />
-      <Labels g={posterOf(sim, 'narrow')} className="hidden portrait:block" />
+      <Labels g={posterOf(sim, 'wide')} className="max-sm:portrait:hidden" />
+      <Labels g={posterOf(sim, 'narrow')} className="hidden max-sm:portrait:block" />
     </>
   )
 }

@@ -450,6 +450,12 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
         const SW = 12
         shock.v += (SW * SW * (hooks.level() - shock.x) - 2 * SW * shock.v) * step
         shock.x += shock.v * step
+        // Within a ten-thousandth of a full shock and all but still, it is there: settle it, so a paused figure stops
+        // drawing rather than spend most of a second on a change no one could see.
+        if (Math.abs(hooks.level() - shock.x) < 1e-4 && Math.abs(shock.v) < 1e-3) {
+          shock.x = hooks.level()
+          shock.v = 0
+        }
         x = shock.x
       }
       const moving =

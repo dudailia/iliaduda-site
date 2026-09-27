@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { DebugSlot } from '@/components/stage/DebugSlot'
+import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
@@ -89,6 +90,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const pausedRef = useRef(paused)
   // The signature and the lean, read by the renderer through these (they are made after the stage that makes it).
   const sigApi = useRef<{ armed: { current: boolean }; onFrame(): void } | null>(null)
+  const fallbackApi = useRef<{ fail(why: 'load' | 'error'): void; watch(): () => void } | null>(null)
   const leanApi = useRef<{ lean: { current: { x: number; y: number } } } | null>(null)
 
   const write = useCallback((id: string, value: string) => {
@@ -143,6 +145,15 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       let q: number | null = null
       let pal = env.palette
       let dead = false
+      let broken = false
+      // Whatever becomes of it (a failed load, a shader that will not link, a renderer that throws), the reader is
+      // left with the finished poster, never an empty stage.
+      const fail = (why: 'load' | 'error') => {
+        if (dead || broken) return
+        broken = true
+        fallbackApi.current?.fail(why)
+      }
+      const unwatch = fallbackApi.current?.watch()
       void import('./renderer').then(({ make }) => {
         if (dead) return
         try {
@@ -165,18 +176,23 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             dot: () => dotEl.current,
             sync,
           })
-        } catch (e) {
-          console.warn('figure renderer failed', e)
+        } catch {
+          fail('error')
           return
         }
         if (q !== null) inner.setQuality?.(q)
         if (pending) inner.resize(pending.w, pending.h, pending.cw, pending.ch)
         inner.setPalette?.(pal)
-      })
+      }, () => fail('load'))
       return {
         frame(t, dt) {
-          if (dead || !inner) return false
-          return inner.frame(t, dt)
+          if (dead || broken || !inner) return false
+          try {
+            return inner.frame(t, dt)
+          } catch {
+            fail('error')
+            return false
+          }
         },
         resize(w, h, cw, ch) {
           pending = { w, h, cw, ch }
@@ -192,6 +208,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         },
         dispose() {
           dead = true
+          unwatch?.()
           inner?.dispose()
         },
       }
@@ -202,9 +219,12 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create)
   const sig = useSignature('surface', box, seq)
   const lean = useLean(live, reduced, pausedRef)
+  const fallback = useFallback(canvas, live, sig.release)
+  const declined = fallback.declined
   useEffect(() => {
     sigApi.current = sig
     leanApi.current = lean
+    fallbackApi.current = fallback
   })
   // A figure that will not go live here shows the finished picture at once. Hydration reads reduced motion as on
   // (the server cannot know), so this waits for the browser's own answer.
@@ -227,11 +247,17 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   }, [])
 
   // The pinned point, read out and announced; the live frame redraws it, the still frame's readouts follow here.
+  // The page's own starting point is read out but not announced: a live region speaks for the reader's changes only.
+  const announced = useRef(false)
   useEffect(() => {
     sim.current.probe = probe
     sim.current.dirty = true
     const p = params(level.current)
     for (const r of pointRows(p, probe)) write(r.id, r.value)
+    if (!announced.current) {
+      announced.current = true
+      return
+    }
     const K = Math.round(Math.exp(probe.k) * 100)
     const id = setTimeout(() => setSpoken(`Strike ${K}%, ${expiryWords(probe.T)}: implied volatility ${(iv(p, probe.k, probe.T) * 100).toFixed(1)}%.`), 350)
     return () => clearTimeout(id)
@@ -353,7 +379,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       ? 'Still frame: your system asks for reduced motion.'
       : software
         ? 'Still frame: this browser draws WebGL in software.'
-        : !eligible
+        : declined
+          ? DECLINED_TEXT[declined]
+          : !eligible
           ? saveData()
             ? 'Still frame: your browser asks to save data.'
             : supportsWebGL2()

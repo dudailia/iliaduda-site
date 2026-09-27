@@ -256,6 +256,11 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
       e.preventDefault()
       cancelAnimationFrame(raf)
       raf = 0
+      // Its listeners and labels go with it (GL calls on a lost context do nothing): the restored context gets a
+      // renderer of its own, and nothing of the old one is left on the page.
+      try {
+        renderer?.dispose()
+      } catch {}
       renderer = null
       rendererRef.current = null
       setLive(false)
