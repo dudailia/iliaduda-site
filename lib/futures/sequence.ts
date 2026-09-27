@@ -120,24 +120,4 @@ export class Timeline {
   }
 }
 
-/** Keys that are not a request: modifiers on their own, and the keys that scroll the page. */
-const NOT_A_REQUEST = new Set(['Shift', 'Meta', 'Control', 'Alt', ' ', 'Spacebar', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'Home', 'End'])
-
-/**
- * Whether an event is the reader asking to get on with it: a click or tap, a
- * key, a mouse or pen press. Not scrolling — by wheel, finger or key — and not
- * a finger landing on the glass, which on a phone is usually the start of a
- * scroll towards the figure.
- */
-export function isSkipInput(e: { type: string; pointerType?: string; key?: string }): boolean {
-  switch (e.type) {
-    case 'click':
-      return true
-    case 'keydown':
-      return !NOT_A_REQUEST.has(e.key ?? '')
-    case 'pointerdown':
-      return e.pointerType === 'mouse' || e.pointerType === 'pen'
-    default:
-      return false
-  }
-}
+export { isSkipInput } from '../stage/sequence'
