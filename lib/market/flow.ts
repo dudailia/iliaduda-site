@@ -1,3 +1,4 @@
+import { dexp } from './detmath'
 import { Book, CANCEL_ASK, CANCEL_BID, LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET_SELL, type BookParams, type Trade } from './book'
 import { Hawkes, stationaryRates, type HawkesParams } from './hawkes'
 import { mulberry32 } from './rng'
@@ -118,7 +119,7 @@ export class Flow {
     this.hawkes = new Hawkes(HAWKES, rng)
     this.rho = this.hawkes.rho
     this.expected = stationaryRates(HAWKES).reduce((a, b) => a + b, 0)
-    this.book = new Book(BOOK, rng, START, (d) => Math.round(4 + 10 * Math.exp(-((d - 6) ** 2) / 60)))
+    this.book = new Book(BOOK, rng, START, (d) => Math.round(4 + 10 * dexp(-((d - 6) * (d - 6)) / 60)))
     while (this.q < BURN_Q) this.quantum(false)
   }
 

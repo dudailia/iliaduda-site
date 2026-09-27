@@ -1,3 +1,4 @@
+import { dexp } from './detmath'
 import { expo, type Rng } from './rng'
 
 /**
@@ -125,7 +126,7 @@ export class Hawkes {
     const dt = t - this.t
     if (dt > 0) {
       for (let j = 0; j < this.k; j++) {
-        const f = Math.exp(-this.decay[j]! * dt)
+        const f = dexp(-this.decay[j]! * dt)
         for (let i = 0; i < this.k; i++) this.s[i * this.k + j]! *= f
       }
     }

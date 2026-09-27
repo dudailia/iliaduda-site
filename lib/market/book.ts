@@ -1,3 +1,4 @@
+import { dpow, ipow } from './detmath'
 import { lots, type Rng } from './rng'
 
 /**
@@ -83,7 +84,7 @@ export class Book {
       this.totalBid += q
       this.totalAsk += q
     }
-    const w = Array.from({ length: p.reach }, (_, d) => (1 + d) ** -p.gamma)
+    const w = Array.from({ length: p.reach }, (_, d) => dpow(1 + d, -p.gamma))
     const sum = w.reduce((a, b) => a + b, 0)
     this.cdf = new Float64Array(p.reach)
     let c = 0
@@ -108,7 +109,7 @@ export class Book {
 
   /** A wide spread draws liquidity into it: each empty tick inside is another chance to improve. */
   private improveChance(): number {
-    return 1 - (1 - this.p.improve) ** (this.spread - 1)
+    return 1 - ipow(1 - this.p.improve, this.spread - 1)
   }
 
   private distance(): number {
