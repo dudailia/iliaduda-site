@@ -56,6 +56,14 @@ export const BURN = 120
 export const POSTER_T = BURN + ROWS / HZ + 2
 /** Window for the rolling readouts, in rows. */
 export const WINDOW = 10 * HZ
+/**
+ * The clock moves in quanta of 1/60 of a simulated second, so what the market
+ * does depends only on how far it has run, never on how the frames fall: the
+ * thinning restarts at each quantum's end, the same ends every time.
+ */
+export const QUANTA = 60
+const PER_ROW = QUANTA / HZ
+const BURN_Q = BURN * QUANTA
 
 const MAX_TRADES = 1024
 
@@ -102,7 +110,8 @@ export class Flow {
   private pendingEvents = 0
   private pendingFills = 0
   private pendingVolume = 0
-  private nextRow: number
+  /** Quanta run since t = 0. */
+  private q = 0
 
   constructor(seed = SEED) {
     const rng = mulberry32(seed)
@@ -110,8 +119,7 @@ export class Flow {
     this.rho = this.hawkes.rho
     this.expected = stationaryRates(HAWKES).reduce((a, b) => a + b, 0)
     this.book = new Book(BOOK, rng, START, (d) => Math.round(4 + 10 * Math.exp(-((d - 6) ** 2) / 60)))
-    this.run(BURN, false)
-    this.nextRow = BURN + 1 / HZ
+    while (this.q < BURN_Q) this.quantum(false)
   }
 
   get t() {
@@ -133,17 +141,23 @@ export class Flow {
     this.onTrade?.(tr)
   }
 
-  /** Advance the clock to `tEnd`, writing a row at every 1/HZ boundary. Cheap: ~15 events a second. */
+  private quantum(keep: boolean) {
+    this.q++
+    this.run(this.q / QUANTA, keep)
+    if (keep && (this.q - BURN_Q) % PER_ROW === 0) this.snapshot(this.q / QUANTA)
+  }
+
+  /** One quantum of simulated time; every PER_ROW-th writes a row. */
+  step(): void {
+    this.quantum(true)
+  }
+
+  /** Run whole quanta up to `tEnd`; a fraction of one left over waits for the next call. Returns the rows written. */
   advance(tEnd: number): number {
-    let rows = 0
-    while (this.nextRow <= tEnd) {
-      this.run(this.nextRow, true)
-      this.snapshot(this.nextRow)
-      this.nextRow = BURN + (Math.round((this.nextRow - BURN) * HZ) + 1) / HZ
-      rows++
-    }
-    this.run(tEnd, true)
-    return rows
+    const w = this.written
+    const last = Math.floor(tEnd * QUANTA + 1e-6)
+    while (this.q < last) this.step()
+    return this.written - w
   }
 
   private snapshot(t: number) {

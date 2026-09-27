@@ -252,3 +252,62 @@ describe('the sampled market the hero draws', () => {
     expect(worst).toBeLessThan(15)
   })
 })
+
+/** A fingerprint of everything the market is: its book, its clock, its counts and its tape. */
+function fingerprint(f: Flow): string {
+  let h = 2166136261
+  const mix = (x: number) => {
+    h = Math.imul(h ^ Math.trunc(x), 16777619) >>> 0
+    h = Math.imul(h ^ Math.round((x - Math.trunc(x)) * 1e9), 16777619) >>> 0
+  }
+  for (const v of f.book.bid) mix(v)
+  for (const v of f.book.ask) mix(v)
+  mix(f.book.bestBid)
+  mix(f.book.bestAsk)
+  mix(f.book.base)
+  for (const c of f.hawkes.counts) mix(c)
+  mix(f.t * 1e6)
+  for (const tr of f.trades) {
+    mix(tr.t * 1e6)
+    mix(tr.price)
+    mix(tr.size)
+    mix(tr.side)
+  }
+  return `${h}:${f.written}:${f.hawkes.counts.join(',')}`
+}
+
+describe('the market clock', () => {
+  it('runs in fixed quanta: 600 single steps are the same market as ten one-second advances', () => {
+    const a = posterFlow(), b = posterFlow()
+    for (let i = 0; i < 600; i++) a.step()
+    const t0 = b.t
+    for (let k = 1; k <= 10; k++) b.advance(t0 + k)
+    expect(fingerprint(a)).toBe(fingerprint(b))
+  })
+
+  it('does not depend on the frame rate: 60 Hz and uneven 144 Hz frame times give the same market', () => {
+    const a = posterFlow(), b = posterFlow()
+    const t0 = a.t
+    for (let t = t0; t < t0 + 20; ) {
+      t += 1 / 60
+      a.advance(t)
+    }
+    let t = t0
+    for (let i = 0; t < t0 + 20; i++) {
+      t += (i % 3 === 0 ? 1.7 : 0.8) / 144
+      b.advance(t)
+    }
+    a.advance(t0 + 20)
+    b.advance(t0 + 20)
+    expect(fingerprint(a)).toBe(fingerprint(b))
+  })
+
+  it('is one market from the poster on: the poster, then the live figure, is one straight run', () => {
+    const live = posterFlow()
+    const t0 = live.t
+    for (let i = 1; i <= 90; i++) live.advance(t0 + i / 3)
+    const straight = new Flow()
+    straight.advance(POSTER_T + 30)
+    expect(fingerprint(live)).toBe(fingerprint(straight))
+  })
+})
