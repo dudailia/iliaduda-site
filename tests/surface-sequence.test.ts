@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FORM_MS, amplitudeOf, lineReveal, surfaceSequence } from '../lib/surface/sequence'
+import { FORM_MS, amplitudeOf, lineReveal, shownAmplitude, surfaceSequence } from '../lib/surface/sequence'
 
 /**
  * The IV paper's signature: the surface forms, then takes one volatility
@@ -61,5 +61,25 @@ describe('the IV surface’s signature', () => {
     expect(lineReveal(p.lines, 0.5)).toBeGreaterThanOrEqual(lineReveal(p.lines, 1))
     expect(lineReveal(1, 1)).toBe(1)
     expect(lineReveal(0, 0)).toBe(0)
+  })
+
+  it('never shows a shock a skip passed over: from wherever the reader skips, the shock only drains, to exactly nothing', () => {
+    for (let ms = 50; ms < FORM_MS; ms += 50) {
+      const s = surfaceSequence()
+      s.start()
+      s.advance(ms)
+      const before = shownAmplitude(s)
+      expect(before).toBe(amplitudeOf(s.phases()))
+      s.skip()
+      let prev = shownAmplitude(s)
+      expect(prev).toBe(before)
+      while (!s.done) {
+        s.advance(1000 / 60)
+        const a = shownAmplitude(s)
+        expect(a).toBeLessThanOrEqual(prev + 1e-12)
+        prev = a
+      }
+      expect(shownAmplitude(s)).toBe(0)
+    }
   })
 })

@@ -141,6 +141,56 @@ test('Pause holds the drawing; Resume lets it drift again', async ({ page }) => 
   await expect.poll(() => draws(page), { timeout: 3_000 }).toBeGreaterThan(n + 10)
 })
 
+test('Replay sinks the surface into the page rather than cutting it, forms it again, and ends at calm', async ({ page }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await seen(page)
+  await page.goto('/iv-surface')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.getByRole('slider', { name: /shock/i }).fill('1.5')
+  await page.waitForTimeout(600)
+  // Three frames after the press, the sheet is still (almost all) standing: it sinks over a third of a second.
+  const after = await page.evaluate(async () => {
+    const fig = document.querySelector('#fig-iv-surface')!
+    const c = fig.querySelector('canvas') as HTMLCanvasElement
+    const b = [...fig.querySelectorAll('button')].find((x) => x.textContent === 'Replay') as HTMLButtonElement
+    b.click()
+    const frame = () => new Promise((r) => requestAnimationFrame(r))
+    await frame()
+    await frame()
+    await frame()
+    return Number(c.dataset.rise)
+  })
+  expect(after).toBeGreaterThan(0.5)
+  const rise = () => page.locator(`${STAGE} canvas`).evaluate((c) => Number((c as HTMLCanvasElement).dataset.rise))
+  await expect.poll(rise, { timeout: 2_000 }).toBeLessThan(0.05)
+  await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('done')
+  expect(await rise()).toBe(1)
+  // The story ends where the reader takes over: calm, with the slider back at nothing.
+  await expect(page.locator(FIG).getByText('0.00×')).toBeVisible()
+  await expect(page.locator(FIG)).toContainText('Calm.')
+  expect(errors).toEqual([])
+})
+
+test('Replay plays the story even while the figure is paused, and it stays paused after', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/iv-surface')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.locator(FIG).getByRole('button', { name: 'Pause' }).click()
+  await page.waitForTimeout(400)
+  const n = await draws(page)
+  await page.locator(FIG).getByRole('button', { name: 'Replay' }).click()
+  await expect.poll(() => draws(page), { timeout: 3_000 }).toBeGreaterThan(n + 20)
+  await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('done')
+  await expect(page.locator(FIG).getByRole('button', { name: 'Resume' })).toBeVisible()
+  // After the story a paused figure draws nothing.
+  await page.waitForTimeout(400)
+  const m = await draws(page)
+  await page.waitForTimeout(800)
+  expect(await draws(page)).toBe(m)
+})
+
 test('reduced motion: the still frame, never the canvas, and the slider still redraws it', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/iv-surface')

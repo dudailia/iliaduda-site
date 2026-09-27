@@ -62,6 +62,24 @@ describe('a signature sequence', () => {
     expect(s.done).toBe(true)
   })
 
+  it('says while a skip plays how far through it is, and where it began', () => {
+    const s = make()
+    s.start()
+    expect(s.skipping()).toBe(null)
+    s.advance(700)
+    const at = s.phases()
+    s.skip()
+    expect(s.skipping()).toEqual({ u: 0, from: at })
+    s.advance(SKIP_MS / 2)
+    expect(s.skipping()!.u).toBeCloseTo(0.5, 9)
+    expect(s.skipping()!.from).toEqual(at)
+    s.advance(SKIP_MS)
+    expect(s.done).toBe(true)
+    expect(s.skipping()).toBe(null)
+    s.replay()
+    expect(s.skipping()).toBe(null)
+  })
+
   it('finishes at once when the reader uses the figure, and replays from the start', () => {
     const s = make()
     s.finish()

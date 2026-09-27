@@ -16,7 +16,9 @@ import { Sequence } from '../stage/sequence'
 
 export const FORM_MS = 5000
 
-export const surfaceSequence = () =>
+export type SurfacePhase = 'lines' | 'rise' | 'labels' | 'shock' | 'relax'
+
+export const surfaceSequence = (): Sequence<SurfacePhase> =>
   new Sequence(FORM_MS, {
     lines: [0, 0.2],
     rise: [0.12, 0.32],
@@ -38,6 +40,18 @@ const END = damped(RELAX_TIMES)
 export function amplitudeOf(p: { shock: number; relax: number }): number {
   if (p.shock < 1) return EASE_IN_OUT(p.shock)
   return (damped(p.relax * RELAX_TIMES) - END) / (1 - END)
+}
+
+/**
+ * The shock the figure shows along its signature: the signature's own, except
+ * while a reader's skip plays. A skip plays what is left of the story in a
+ * quarter of a second, which for a reveal is right, but would put a shock the
+ * reader skipped on screen for a frame or two; instead the shock drains from
+ * where it stood to calm on the skip's own ease-out, and never rises.
+ */
+export function shownAmplitude(seq: Sequence<SurfacePhase>): number {
+  const s = seq.skipping()
+  return s ? amplitudeOf(s.from) * (1 - EASE_OUT(s.u)) : amplitudeOf(seq.phases())
 }
 
 /** Of the lines phase, the share the reveal takes to sweep from the shortest expiry to the longest, and each line's share. */

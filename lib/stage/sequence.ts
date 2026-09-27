@@ -69,7 +69,21 @@ export class Sequence<P extends string> {
   }
 
   phases(): Record<P, number> {
-    const f = this.ms / this.total
+    return this.at(this.ms)
+  }
+
+  /**
+   * While a skip plays: how far through it (0…1), and the phases where it
+   * began, for a figure whose story is not a reveal (a shock that rises and
+   * falls) and must not replay what the reader skipped. Null otherwise.
+   */
+  skipping(): { u: number; from: Record<P, number> } | null {
+    if (this.skipFrom < 0 || this.done) return null
+    return { u: this.skipT / SKIP_MS, from: this.at(this.skipFrom) }
+  }
+
+  private at(ms: number): Record<P, number> {
+    const f = ms / this.total
     const out = {} as Record<P, number>
     for (const [name, [a, b]] of Object.entries(this.windows) as [P, readonly [number, number]][])
       out[name] = Math.min(1, Math.max(0, (f - a) / (b - a)))

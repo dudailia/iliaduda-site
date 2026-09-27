@@ -1,7 +1,7 @@
 import { program, toLinear } from '@/lib/gl'
 import { EASE_OUT } from '@/lib/ease'
 import { FILL, KEY, LIGHT, LINE_FLIP, RAMP, STOPS, UP_LIGHT } from '@/lib/surface/look'
-import { amplitudeOf, lineReveal } from '@/lib/surface/sequence'
+import { lineReveal } from '@/lib/surface/sequence'
 import { params } from '@/lib/surface/shock'
 import { DOMAIN, iv, type Params } from '@/lib/surface/ssvi'
 import {
@@ -44,11 +44,19 @@ export interface Hooks {
   sim: Sim
   /** The signature's phases while it waits or plays; null once it is over, or on a visit without one. */
   sequence(): { lines: number; rise: number; labels: number; shock: number; relax: number } | null
+  /** The shock the signature shows now: its own, or, while a reader's skip plays, draining from where it stood. */
+  shown(): number
+  /** How many times the reader has pressed Replay: a change starts the story over from what is on screen. */
+  replays(): number
   /** A drawn frame took this long: the signature's clock moves on it. */
   tick(dtMs: number): void
   /** The shock the reader has set: 0 is calm, 1 a full shock, up to SIZE_MAX. */
   level(): number
-  /** Paused: the drift, the lean and the signature hold; the reader can still read and turn it. */
+  /**
+   * Paused: the drift and the lean hold, and a paused figure draws nothing new. The story itself, five seconds
+   * started by the page or by Replay, plays out (a click or the keyboard's Pause finishes it first); the reader can
+   * still read the surface and turn it.
+   */
   paused(): boolean
   /** The reader's lean, −1…1 each way, from the pointer or the tilt. */
   lean(): { x: number; y: number }
@@ -228,6 +236,14 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
   let inv: M4 | null = null
   /** The shock shown: the signature's, or the reader's level followed on a short spring (ω = 12/s). */
   const shock = { x: 0, v: 0 }
+  /** A shock on screen when Replay starts the story over: it drains on the same spring as the sheet sinks. */
+  const carry = { x: 0, v: 0 }
+  let replays = hooks.replays()
+  // The signature as shown: 1 is the finished picture, as a visit without one opens.
+  let shownLines = 1, shownRise = 1, shownLabels = 1
+  let started = false
+  /** The story's phases at the last frame, summed: a change means it moved, and a paused figure draws it. */
+  let lastStory = -1
   let lastParams: Params = params(0)
   /** Drag offset of the orbit and the reader's lean, on critically damped springs back to their targets. */
   const spring = { yaw: 0, pitch: 0, vy: 0, vp: 0, ty: 0, tp: 0 }
@@ -386,6 +402,23 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       const paused = hooks.paused()
       const ph = hooks.sequence()
       const step = Math.min(dt, 1 / 30)
+      if (!started) {
+        started = true
+        if (ph) shownLines = shownRise = shownLabels = 0
+      }
+      // What is shown follows the signature: exactly as it forms, and back down at a finite speed when Replay starts
+      // it over, as the order book's terrain does, so the sheet sinks into the page (350ms), its smiles retract
+      // (350ms) and its labels fade (150ms) instead of vanishing in a frame.
+      const follow = (shown: number, target: number, secs: number) => (target >= shown ? target : Math.max(target, shown - dt / secs))
+      shownLines = follow(shownLines, ph ? ph.lines : 1, 0.35)
+      shownRise = follow(shownRise, ph ? ph.rise : 1, 0.35)
+      shownLabels = follow(shownLabels, ph ? ph.labels : 1, 0.15)
+      const r = hooks.replays()
+      if (r !== replays) {
+        replays = r
+        carry.x = shock.x
+        carry.v = shock.v
+      }
 
       // Springs: the drag's (ω = 7/s) and the lean's (ω = 5/s), critically damped, semi-implicit Euler.
       const W = 7
@@ -406,7 +439,11 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
       // The shock: the signature's while it plays; after it, the reader's level on a quick spring (ω = 12/s).
       let x: number
       if (ph) {
-        x = amplitudeOf(ph)
+        // The story's shock; one the reader had set when Replay began drains into it rather than jumping to calm.
+        const SW = 12
+        carry.v += (SW * SW * -carry.x - 2 * SW * carry.v) * step
+        carry.x += carry.v * step
+        x = Math.max(hooks.shown(), carry.x)
         shock.x = x
         shock.v = 0
       } else {
@@ -422,13 +459,16 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
         Math.abs(shock.v) > 1e-5 ||
         Math.abs(hooks.level() - shock.x) > 1e-4
       // Unpaused, it drifts, so every frame is drawn; paused, only a change is.
-      if (drawnOnce && paused && !moving && !sim.dirty && !resized) return true
+      const story = ph ? ph.lines + ph.rise + ph.labels + ph.shock + ph.relax : -1
+      const storyMoved = story !== lastStory
+      lastStory = story
+      if (drawnOnce && paused && !moving && !storyMoved && !sim.dirty && !resized) return true
       sim.dirty = false
       resized = false
 
-      const rise = ph ? EASE_OUT(ph.rise) : 1
-      const lines = ph ? ph.lines : 1
-      const labelsK = ph ? EASE_OUT(ph.labels) : 1
+      const rise = EASE_OUT(shownRise)
+      const lines = shownLines
+      const labelsK = EASE_OUT(shownLabels)
       const p = params(Math.max(0, x))
       lastParams = p
       const cam = camera(Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
@@ -496,13 +536,13 @@ export function make(env: StageEnv, hooks: Hooks): Renderer {
 
       hooks.sync(p)
       drawnOnce = true
-      // For the specs and ?debug=1: frames drawn.
+      // For the specs and ?debug=1: frames drawn, and how far the sheet stands out of the page.
       canvas.dataset.draws = String(++draws)
-      // The clocks move after the frame, so the first frame is the poster's moment exactly.
-      if (!paused) {
-        hooks.tick(dt * 1000)
-        swayT += dt
-      }
+      canvas.dataset.rise = rise.toFixed(3)
+      // The clocks move after the frame, so the first frame is the poster's moment exactly. The story plays out
+      // whether or not the figure is paused; the drift holds.
+      hooks.tick(dt * 1000)
+      if (!paused) swayT += dt
       return true
     },
     resize(bw, bh, cw, ch) {

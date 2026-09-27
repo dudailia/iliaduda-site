@@ -9,9 +9,10 @@ import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
 import type { LiveInfo } from '@/lib/stage/debug'
 import { numbers, pointRows, text as format } from '@/lib/surface/readouts'
-import { amplitudeOf, surfaceSequence } from '@/lib/surface/sequence'
+import { amplitudeOf, shownAmplitude, surfaceSequence, type SurfacePhase } from '@/lib/surface/sequence'
 import { params, PHASE_TEXT, SIZE_MAX, type Phase } from '@/lib/surface/shock'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
+import type { Sequence } from '@/lib/stage/sequence'
 import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel, Frame, NoteMark } from './marks'
 import type { Probe, Sim } from './renderer'
@@ -41,9 +42,14 @@ const clampProbe = (p: Probe): Probe => ({
   T: Math.min(DOMAIN.tMax, Math.max(DOMAIN.tMin, p.T)),
 })
 
-/** What the surface is doing, in words: from the signature while it plays, else from the shock the reader has set. */
-function phaseOf(ph: ReturnType<ReturnType<typeof surfaceSequence>['phases']> | null, level: number): Phase {
-  if (!ph) return level > 0.04 ? 'shock' : 'calm'
+/**
+ * What the surface is doing, in words: from the signature while it plays, else from the shock the reader has set.
+ * A skipped story only drains, so while the skip plays it is relaxing, never shocked.
+ */
+function phaseOf(story: Sequence<SurfacePhase> | null, level: number): Phase {
+  if (!story) return level > 0.04 ? 'shock' : 'calm'
+  if (story.skipping()) return shownAmplitude(story) > 0.04 ? 'relax' : 'calm'
+  const ph = story.phases()
   if (ph.shock > 0 && ph.relax < 0.12) return 'shock'
   return amplitudeOf(ph) > 0.04 ? 'relax' : 'calm'
 }
@@ -64,6 +70,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const seq = useRef(surfaceSequence())
   const checked = useRef<{ key: string; c: Check | null }>({ key: '', c: null })
   const level = useRef(0)
+  const replays = useRef(0)
   const [shock, setShock] = useState(0)
   const [probe, setProbe] = useState<Probe>(PROBE_START)
   const [phase, setPhase] = useState<Phase>('calm')
@@ -112,8 +119,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       write('arb-detail', t.arbDetail)
       const s = sim.current
       for (const r of pointRows(p, s.hover ?? s.probe)) write(r.id, r.value)
-      const ph = sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null
-      const next = phaseOf(ph, level.current)
+      const story = sigApi.current?.armed.current && !seq.current.done ? seq.current : null
+      const next = phaseOf(story, level.current)
       if (next !== phaseRef.current) {
         phaseRef.current = next
         setPhase(next)
@@ -142,6 +149,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           inner = make(env, {
             sim: sim.current,
             sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
+            shown: () => shownAmplitude(seq.current),
+            replays: () => replays.current,
             tick: (dtMs) => {
               seq.current.advance(dtMs)
               sigApi.current?.onFrame()
@@ -283,6 +292,15 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     else if (pausedRef.current) sync(params(x))
   }
 
+  /** Replay starts the story over from where a first visit starts it, and it ends where the reader takes over: calm. */
+  const replay = () => {
+    replays.current++
+    level.current = 0
+    setShock(0)
+    sim.current.dirty = true
+    sig.replay()
+  }
+
   const togglePause = () => {
     const next = !pausedRef.current
     pausedRef.current = next
@@ -315,6 +333,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       case ' ':
         if (!live) return
         e.preventDefault()
+        // The keyboard's Pause, like the button (a click), first finishes a story that is playing.
+        if (sig.armed.current) seq.current.skip()
         return togglePause()
     }
   }
@@ -450,7 +470,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             <button type="button" onClick={togglePause} aria-pressed={paused} className={CONTROL}>
               {paused ? 'Resume' : 'Pause'}
             </button>
-            <button type="button" onClick={() => sig.replay()} className={CONTROL}>
+            <button type="button" onClick={replay} className={CONTROL}>
               Replay
             </button>
           </>
