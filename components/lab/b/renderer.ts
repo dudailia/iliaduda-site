@@ -1,5 +1,5 @@
 import { program, type GL } from '@/lib/gl'
-import { HALF, HZ, LEVELS, ROWS, START, TICK, type Sim, type Stats } from '@/lib/lab/b/sim'
+import { HALF, HZ, LEVELS, ROWS, START, TICK, type Flow, type Stats } from '@/lib/market/flow'
 import { fmt, readAt, type Reading } from '@/lib/lab/b/read'
 import { DX, DZ, H, POW, REF, REST, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, toScreen, view, type Camera, type M4 } from '@/lib/lab/b/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
@@ -32,7 +32,7 @@ export interface KeyProbe {
 }
 
 export interface Shared {
-  sim: Sim
+  sim: Flow
   labels: HTMLElement
   /** The keyboard (or tap) probe; the hover probe takes precedence while the mouse is over the terrain. */
   key: KeyProbe | null

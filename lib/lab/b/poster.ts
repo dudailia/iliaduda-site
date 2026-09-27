@@ -1,4 +1,4 @@
-import { HZ, TICK, type Sim } from './sim'
+import { HZ, TICK, type Flow } from '@/lib/market/flow'
 import { DX, DZ, REF, REST, VIS, XW, Z_NOW, fit, height, lens, mul, perspective, toScreen, view } from './view'
 
 /**
@@ -55,7 +55,7 @@ function path(pts: [number, number][], floor: [number, number][]): { d: string; 
   return { d: d + 'z', dash: `${top.toFixed(1)} ${(len - top + 2).toFixed(0)}` }
 }
 
-export function posterGeometry(sim: Sim, w: number, h: number, opts: { every: number; step: number }): PosterGeometry {
+export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: number; step: number }): PosterGeometry {
   const aspect = w / h
   const cam = fit(REST.yaw, REST.pitch, aspect)
   const m = mul(perspective(aspect, lens(aspect)), view(cam))

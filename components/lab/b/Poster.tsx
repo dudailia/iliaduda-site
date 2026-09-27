@@ -1,4 +1,4 @@
-import type { Sim } from '@/lib/lab/b/sim'
+import type { Flow } from '@/lib/market/flow'
 import { posterGeometry } from '@/lib/lab/b/poster'
 
 /**
@@ -7,7 +7,7 @@ import { posterGeometry } from '@/lib/lab/b/poster'
  * the recent trades as dots. It is the hero until the canvas has drawn, and
  * the whole hero for a reader who asked for reduced motion.
  */
-export function Poster({ sim, variant, label }: { sim: Sim; variant: 'wide' | 'narrow'; label: string }) {
+export function Poster({ sim, variant, label }: { sim: Flow; variant: 'wide' | 'narrow'; label: string }) {
   const wide = variant === 'wide'
   const g = posterGeometry(sim, wide ? 1440 : 390, wide ? 792 : 743, wide ? { every: 6, step: 2 } : { every: 7, step: 2 })
   const fs = wide ? 13 : 12

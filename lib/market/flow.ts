@@ -72,7 +72,7 @@ export interface Stats {
   t: number
 }
 
-export class Sim {
+export class Flow {
   readonly hawkes: Hawkes
   readonly book: Book
   /** (I − B)⁻¹ μ, summed: the stationary event rate the process must converge to. */
@@ -223,8 +223,8 @@ export class Sim {
 }
 
 /** A sim advanced to the poster frame: the same market on the server and in the browser. */
-export function posterSim(): Sim {
-  const s = new Sim()
+export function posterFlow(): Flow {
+  const s = new Flow()
   s.advance(POSTER_T)
   return s
 }

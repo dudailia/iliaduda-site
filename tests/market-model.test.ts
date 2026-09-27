@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { Book, CANCEL_ASK, CANCEL_BID, LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET_SELL, type Trade } from '@/lib/lab/b/book'
-import { Hawkes, branchingMatrix, solve, spectralRadius, stationaryRates, type HawkesParams } from '@/lib/lab/b/hawkes'
-import { mulberry32 } from '@/lib/lab/b/rng'
-import { BOOK, HALF, HAWKES, LEVELS, POSTER_T, ROWS, Sim, posterSim } from '@/lib/lab/b/sim'
+import { Book, CANCEL_ASK, CANCEL_BID, LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET_SELL, type Trade } from '@/lib/market/book'
+import { Hawkes, branchingMatrix, solve, spectralRadius, stationaryRates, type HawkesParams } from '@/lib/market/hawkes'
+import { mulberry32 } from '@/lib/market/rng'
+import { BOOK, HALF, HAWKES, LEVELS, POSTER_T, ROWS, Flow, posterFlow } from '@/lib/market/flow'
 
 /**
  * Lab B: the order book as terrain. Every number the hero shows comes out of
@@ -194,8 +194,8 @@ describe('limit order book', () => {
 
 describe('the sampled market the hero draws', () => {
   it('is the same market for the same seed: the poster and the live run agree', () => {
-    const a = posterSim()
-    const b = new Sim()
+    const a = posterFlow()
+    const b = new Flow()
     b.advance(POSTER_T)
     expect(a.head).toBe(b.head)
     expect(Array.from(a.depth)).toEqual(Array.from(b.depth))
@@ -203,7 +203,7 @@ describe('the sampled market the hero draws', () => {
   })
 
   it('fills the ring and stores rows consistent with the book at the moment', () => {
-    const s = posterSim()
+    const s = posterFlow()
     expect(s.written).toBeGreaterThanOrEqual(ROWS)
     for (let age = 0; age < ROWS; age++) {
       const r = s.row(age)
@@ -231,7 +231,7 @@ describe('the sampled market the hero draws', () => {
   })
 
   it('reports a rolling event rate near the stationary one', () => {
-    const s = new Sim()
+    const s = new Flow()
     let sum = 0
     for (let k = 1; k <= 60; k++) {
       s.advance(POSTER_T + k * 10)
@@ -241,7 +241,7 @@ describe('the sampled market the hero draws', () => {
   })
 
   it('advances in small slices at no more than ~15 events per slice', () => {
-    const s = posterSim()
+    const s = posterFlow()
     let worst = 0
     const t0 = s.t
     for (let i = 1; i <= 600; i++) {

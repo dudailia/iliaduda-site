@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { LabPage } from '@/components/lab/LabPage'
 import { BookHero } from '@/components/lab/b/BookHero'
 import { Poster } from '@/components/lab/b/Poster'
-import { HZ, ROWS, posterSim } from '@/lib/lab/b/sim'
+import { HZ, ROWS, posterFlow } from '@/lib/market/flow'
 import { fmt } from '@/lib/lab/b/read'
 
 export const metadata: Metadata = { title: 'Lab B — The order book as terrain' }
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: 'Lab B — The order book as terrain'
 export default function LabB() {
   // The seeded market, run on the server to the poster's frame. The browser
   // runs the same seed to the same moment and continues from there.
-  const sim = posterSim()
+  const sim = posterFlow()
   const s = sim.stats()
   const initial = { rate: s.rate, trades: s.trades, shares: s.shares, mid: s.mid, spread: s.spread, rho: sim.rho, expected: sim.expected }
   const seconds = Math.round(ROWS / HZ)

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Shell } from '@/components/Layout'
 import { fade, underlay, useStage, type Create, type Palette, type Renderer } from '@/components/stage/useStage'
-import { posterSim, type Sim, type Stats } from '@/lib/lab/b/sim'
+import { posterFlow, type Flow, type Stats } from '@/lib/market/flow'
 import { fmt, readAt, sentence, type Reading } from '@/lib/lab/b/read'
 import type { KeyProbe, Shared } from './renderer'
 
@@ -38,7 +38,7 @@ export function BookHero({ posterWide, posterNarrow, initial }: { posterWide: Re
   const labels = useRef<HTMLDivElement>(null)
   const out = useRef<Record<string, HTMLElement | null>>({})
   const shared = useRef<Shared | null>(null)
-  const frozen = useRef<Sim | null>(null)
+  const frozen = useRef<Flow | null>(null)
   const key = useRef<KeyProbe | null>(null)
   const last = useRef<Reading | null>(null)
   const [spoken, setSpoken] = useState('')
@@ -92,7 +92,7 @@ export function BookHero({ posterWide, posterNarrow, initial }: { posterWide: Re
       let pal: Palette = env.palette
       let dead = false
       void import('./renderer').then((m) => (mod = m))
-      const sim = posterSim()
+      const sim = posterFlow()
       shared.current = {
         sim,
         labels: labels.current!,
@@ -163,7 +163,7 @@ export function BookHero({ posterWide, posterNarrow, initial }: { posterWide: Re
     if (!live) {
       // The still frame: read the frozen snapshot directly.
       if (!k) return writeProbe(null)
-      frozen.current ??= posterSim()
+      frozen.current ??= posterFlow()
       const s = frozen.current
       writeProbe(readAt(s, Math.round(s.mids[s.row(0)]!) + k.dp, k.age))
     }

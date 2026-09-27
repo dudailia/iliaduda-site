@@ -1,4 +1,4 @@
-import { HZ, TICK, type Sim } from './sim'
+import { HZ, TICK, type Flow } from '@/lib/market/flow'
 
 /** What the probe reads at one price and one moment: straight from the stored snapshot. */
 export interface Reading {
@@ -15,7 +15,7 @@ export interface Reading {
   spread: number
 }
 
-export function readAt(sim: Sim, price: number, age: number, frac = 0): Reading | null {
+export function readAt(sim: Flow, price: number, age: number, frac = 0): Reading | null {
   const r = sim.row(age)
   if (r < 0) return null
   const d = sim.depthAt(r, price)
