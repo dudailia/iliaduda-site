@@ -1,9 +1,9 @@
+import { dlog } from './detmath'
+
 /**
  * A seeded generator, so the server's poster and the browser's live run are
  * the same market: mulberry32, 32 bits of state, uniform on [0, 1).
  */
-
-import { dlog } from './detmath'
 export type Rng = () => number
 
 export function mulberry32(seed: number): Rng {

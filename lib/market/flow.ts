@@ -1,6 +1,7 @@
 import { dexp } from './detmath'
 import { Book, CANCEL_ASK, CANCEL_BID, LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET_SELL, type BookParams, type Trade } from './book'
 import { Hawkes, stationaryRates, type HawkesParams } from './hawkes'
+import { MARKET, SEED } from './params'
 import { mulberry32 } from './rng'
 
 /**
@@ -16,31 +17,7 @@ import { mulberry32 } from './rng'
  * limit order is often soon cancelled.
  */
 
-export const HAWKES: HawkesParams = {
-  mu: [2.2, 2.2, 0.3, 0.3, 1.3, 1.3],
-  //        LB    LS    MB    MS    CB    CA      ← source of the excitation
-  jump: [
-    [0.6, 0.0, 0.3, 0.9, 0.3, 0.0], // LB
-    [0.0, 0.6, 0.9, 0.3, 0.0, 0.3], // LS
-    [0.0, 0.0, 0.7, 0.1, 0.0, 0.2], // MB
-    [0.0, 0.0, 0.1, 0.7, 0.2, 0.0], // MS
-    [0.8, 0.0, 0.0, 0.3, 0.3, 0.0], // CB
-    [0.0, 0.8, 0.3, 0.0, 0.0, 0.3], // CA
-  ],
-  decay: [3, 3, 2, 2, 3, 3],
-}
-
-export const BOOK: BookParams = {
-  limitSize: 5,
-  marketSize: 6,
-  gamma: 0.9,
-  reach: 60,
-  improve: 0.35,
-  cancelLo: 0.25,
-  cancelHi: 0.7,
-}
-
-export const SEED = 20260925
+export { BOOK, HAWKES, MARKET, SEED } from './params'
 /** Price in dollars of one tick, and the opening mid. */
 export const TICK = 0.01
 export const START = 10000
@@ -114,12 +91,12 @@ export class Flow {
   /** Quanta run since t = 0. */
   private q = 0
 
-  constructor(seed = SEED) {
+  constructor(seed = SEED, market: { hawkes: HawkesParams; book: BookParams } = MARKET) {
     const rng = mulberry32(seed)
-    this.hawkes = new Hawkes(HAWKES, rng)
+    this.hawkes = new Hawkes(market.hawkes, rng)
     this.rho = this.hawkes.rho
-    this.expected = stationaryRates(HAWKES).reduce((a, b) => a + b, 0)
-    this.book = new Book(BOOK, rng, START, (d) => Math.round(4 + 10 * dexp(-((d - 6) * (d - 6)) / 60)))
+    this.expected = stationaryRates(market.hawkes).reduce((a, b) => a + b, 0)
+    this.book = new Book(market.book, rng, START, (d) => Math.round(4 + 10 * dexp(-((d - 6) * (d - 6)) / 60)))
     while (this.q < BURN_Q) this.quantum(false)
   }
 

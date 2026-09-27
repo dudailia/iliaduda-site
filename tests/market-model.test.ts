@@ -3,6 +3,7 @@ import { Book, CANCEL_ASK, CANCEL_BID, LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET
 import { Hawkes, branchingMatrix, solve, spectralRadius, stationaryRates, type HawkesParams } from '@/lib/market/hawkes'
 import { mulberry32 } from '@/lib/market/rng'
 import { BOOK, HALF, HAWKES, LEVELS, POSTER_T, ROWS, Flow, posterFlow } from '@/lib/market/flow'
+import { GOLDEN, fingerprint } from '@/lib/market/fingerprint'
 
 /**
  * Lab B: the order book as terrain. Every number the hero shows comes out of
@@ -253,29 +254,6 @@ describe('the sampled market the hero draws', () => {
   })
 })
 
-/** A fingerprint of everything the market is: its book, its clock, its counts and its tape. */
-function fingerprint(f: Flow): string {
-  let h = 2166136261
-  const mix = (x: number) => {
-    h = Math.imul(h ^ Math.trunc(x), 16777619) >>> 0
-    h = Math.imul(h ^ Math.round((x - Math.trunc(x)) * 1e9), 16777619) >>> 0
-  }
-  for (const v of f.book.bid) mix(v)
-  for (const v of f.book.ask) mix(v)
-  mix(f.book.bestBid)
-  mix(f.book.bestAsk)
-  mix(f.book.base)
-  for (const c of f.hawkes.counts) mix(c)
-  mix(f.t * 1e6)
-  for (const tr of f.trades) {
-    mix(tr.t * 1e6)
-    mix(tr.price)
-    mix(tr.size)
-    mix(tr.side)
-  }
-  return `${h}:${f.written}:${f.hawkes.counts.join(',')}`
-}
-
 describe('the market clock', () => {
   it('runs in fixed quanta: 600 single steps are the same market as ten one-second advances', () => {
     const a = posterFlow(), b = posterFlow()
@@ -309,5 +287,13 @@ describe('the market clock', () => {
     const straight = new Flow()
     straight.advance(POSTER_T + 30)
     expect(fingerprint(live)).toBe(fingerprint(straight))
+  })
+})
+
+describe('the market on every engine', () => {
+  it('matches its golden fingerprint twenty simulated seconds after the poster', () => {
+    const f = posterFlow()
+    f.advance(f.t + 20)
+    expect(fingerprint(f)).toBe(GOLDEN)
   })
 })
