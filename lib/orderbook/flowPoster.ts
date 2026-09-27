@@ -13,7 +13,7 @@ import { LANES, SECONDS, flowFrame } from './flowview'
  */
 
 const W = 1000
-const COLS = 250
+const COLS = 160
 const CW = W / COLS
 const r1 = (v: number) => Math.round(v * 10) / 10
 

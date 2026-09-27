@@ -5,6 +5,7 @@
       "startServerReadyPattern": "Ready in",
       "url": [
         "http://127.0.0.1:4500/",
+        "http://127.0.0.1:4500/order-book",
         "http://127.0.0.1:4500/iv-surface",
         "http://127.0.0.1:4500/closebooks",
         "http://127.0.0.1:4500/cricstate",
@@ -122,12 +123,13 @@
         "resource-summary:font:size": [
           "error",
           {
-            "maxNumericValue": 76000,
+            "maxNumericValue": 87000,
             "aggregationMethod": "pessimistic"
           }
         ]
       },
-      "_comment_cls": "The CLS budget is 0.01 rather than 0.005, and the honest reason is that this run cannot see the failure mode that matters. On localhost the webfont is present before first paint, so no swap happens and CLS is 0.0000 whatever the layout does — which is how a measure expressed in ch units, resizing the whole page on font load, passed 25 local runs and then produced 0.035 on the deployment. lighthouserc.prod.json audits the deployed site, where the swap is real; this file is a regression detector for layout, not for font loading."
+      "_comment_cls": "The CLS budget is 0.01 rather than 0.005, and the honest reason is that this run cannot see the failure mode that matters. On localhost the webfont is present before first paint, so no swap happens and CLS is 0.0000 whatever the layout does — which is how a measure expressed in ch units, resizing the whole page on font load, passed 25 local runs and then produced 0.035 on the deployment. lighthouserc.prod.json audits the deployed site, where the swap is real; this file is a regression detector for layout, not for font loading.",
+      "_comment_fonts": "Fonts are the two latin faces (74,472 B) and, on a page that shows one of its characters, the Greek and maths supplement (serif 7,217 B, mono 4,785 B; app/globals.css): 86,474 B at most, so 87,000. It was 76,000 before the supplement (M7), which the pages that fetch it passed by up to 10,474 B."
     },
     "upload": {
       "target": "filesystem",

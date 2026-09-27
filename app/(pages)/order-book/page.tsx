@@ -123,7 +123,8 @@ export default function OrderBook() {
             one draw the same order flow. And the market computes its own exponentials and logarithms, from IEEE arithmetic
             alone, because engines may round Math.exp differently in the last bit, and one bit in a decay grows into a
             different market within seconds. A fingerprint of the market twenty seconds after the still frame is pinned in
-            the tests; with ?debug=1 the figure shows whether your browser’s matches.
+            the tests, and Chromium, WebKit and Firefox each reach it exactly; with ?debug=1 the figure shows whether your
+            browser does.
           </p>
         </Section>
 
@@ -140,6 +141,12 @@ export default function OrderBook() {
             <li>The book never crosses, no queue goes negative, and every market order fills at the touch of its moment, over a million events.</li>
             <li>Six hundred single steps are the same market as ten one-second ones, and the still frame followed by the live run is one straight run.</li>
             <li>The market’s exponential and logarithm agree with the platform’s to within two units in the last place.</li>
+            <li>Chromium, WebKit and Firefox each run the seeded market to the fingerprint Node pins.</li>
+            <li>
+              Fig. 2 draws each market order’s intensity exactly: just before every one, it equals the model’s intensity
+              rebuilt from the event times alone, to a billionth. What set an order off, by kind, and the chance it came on
+              its own add up to one.
+            </li>
           </ul>
         </Section>
 
@@ -148,7 +155,14 @@ export default function OrderBook() {
             ['model', <a key="h" href={`${SRC}/lib/market/hawkes.ts`}>lib/market/hawkes.ts</a>],
             ['book', <a key="b" href={`${SRC}/lib/market/book.ts`}>lib/market/book.ts</a>],
             ['market', <a key="f" href={`${SRC}/lib/market/flow.ts`}>lib/market/flow.ts</a>],
-            ['tests', <a key="t" href={`${SRC}/tests/market-flow.test.ts`}>tests/market-flow.test.ts</a>],
+            ['order flow', <a key="v" href={`${SRC}/lib/orderbook/flowview.ts`}>lib/orderbook/flowview.ts</a>],
+            [
+              'tests',
+              <span key="t">
+                <a href={`${SRC}/tests/market-flow.test.ts`}>tests/market-flow.test.ts</a> ·{' '}
+                <a href={`${SRC}/tests/orderbook-flowview.test.ts`}>tests/orderbook-flowview.test.ts</a>
+              </span>,
+            ],
             ['renderer', <a key="r" href={`${SRC}/components/figures/orderbook/renderer.ts`}>components/figures/orderbook/renderer.ts</a>],
             ['data', 'synthetic; parameters set by hand'],
             ['references', 'Hawkes, Spectra of some self-exciting and mutually exciting point processes, Biometrika 58(1), 1971 · Ogata, On Lewis’ simulation method for point processes, IEEE Transactions on Information Theory 27(1), 1981 · Bacry, Mastromatteo and Muzy, Hawkes processes in finance, Market Microstructure and Liquidity 1(1), 2015'],

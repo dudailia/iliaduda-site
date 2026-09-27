@@ -32,7 +32,7 @@ export function OrderFlowFigure() {
   return (
     <OrderFlowLive
       // eslint-disable-next-line @next/next/no-img-element -- drawn at build time and served as it is; next/image would only add a client runtime
-      poster={<img src="/order-book/flow.svg" width={1000} height={HEIGHT} alt={alt} loading="lazy" decoding="async" className="block size-full" />}
+      poster={<img src="/order-book/flow.svg" width={1000} height={HEIGHT} alt={alt} loading="lazy" fetchPriority="low" decoding="async" className="block size-full" />}
       initial={initial}
       title={`Ten seconds of the order flow behind Fig. 1: most market orders are set off by earlier ones.`}
       subtitle={`Simulated · the market of Fig. 1, a ${open} stock, at the same moment · six kinds of order · not market data`}

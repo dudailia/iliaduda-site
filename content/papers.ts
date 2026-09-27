@@ -60,9 +60,9 @@ export const papers: readonly Paper[] = [
     slug: 'order-book',
     href: '/order-book',
     title: 'Order flow that remembers: a limit order book driven by a Hawkes process',
-    abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at a few hundred events a second and drawn as terrain. Its clock runs in fixed steps and it computes its own exponentials, so the server and every browser draw the same market from the same seed; a time-rescaling test checks the simulation against the model.`,
+    abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
     byline: 'Independent work · September 2026 · synthetic data',
-    status: 'pending',
+    status: 'published',
   },
   {
     slug: 'iv-surface',
