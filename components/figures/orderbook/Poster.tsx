@@ -58,8 +58,8 @@ function Labels({ g, className }: { g: PosterGeometry; className: string }) {
 const LOOK: Record<PosterLabel['kind'], { back: string; opacity: number; text: string }> = {
   tag: { back: 'var(--color-indigo)', opacity: 1, text: 'var(--color-paper)' },
   wall: { back: 'var(--color-paper)', opacity: 0.85, text: 'var(--color-ink)' },
-  time: { back: 'var(--color-paper)', opacity: 0.8, text: 'var(--color-graphite)' },
-  tick: { back: 'var(--color-paper)', opacity: 0.8, text: 'var(--color-graphite)' },
+  time: { back: 'var(--color-paper)', opacity: 0.9, text: 'var(--color-graphite)' },
+  tick: { back: 'var(--color-paper)', opacity: 0.9, text: 'var(--color-graphite)' },
 }
 
 function Label({ l }: { l: PosterLabel }) {

@@ -156,7 +156,7 @@ export function fit(yaw: number, pitch: number, aspect: number, sway = true): Ca
   const swings = [-sy, 0, sy].flatMap((dy) => [-sp, sp].map((dp) => [dy, dp] as const))
   // A phone's stage is full-bleed, so the walls may run to its edges; a laptop's column keeps paper on both sides,
   // enough for the drift to swing into.
-  const lim = narrow ? { x: 1.02, y: 0.86 } : { x: 0.93, y: 0.8 }
+  const lim = narrow ? { x: 1.02, y: 0.86 } : { x: 0.93, y: 0.9 }
   let base = { yaw, pitch, tx: 0, ty: REST.ty, tz: narrow ? REST.tz + 0.3 : REST.tz }
   const project = (d: number, dy = 0, dp = 0) => {
     const m = mul(perspective(aspect, lens(aspect)), view({ ...base, yaw: base.yaw + dy, pitch: base.pitch + dp, dist: d }))

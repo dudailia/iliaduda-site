@@ -96,9 +96,9 @@ function path(ridge: [number, number][], ground: [number, number][], w: number):
   return { d: d + 'z', dash: `${top.toFixed(1)} ${(len - top + 2).toFixed(0)}` }
 }
 
-/** The poster's two arrangements: a laptop's column (646×576 at 1440×900) and a phone's full-bleed frame (390×591). */
+/** The poster's two arrangements: a laptop's column (646×504 at 1440×900) and a phone's full-bleed frame (390×591). */
 export const POSTERS = [
-  { variant: 'wide', w: 646, h: 576, opts: { every: 6, step: 2 } },
+  { variant: 'wide', w: 646, h: 504, opts: { every: 6, step: 2 } },
   { variant: 'narrow', w: 390, h: 591, opts: { every: 7, step: 2 } },
 ] as const
 export type Variant = (typeof POSTERS)[number]['variant']

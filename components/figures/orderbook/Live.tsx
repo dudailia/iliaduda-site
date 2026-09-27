@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Ke
 import { FigureFrame } from '@/components/FigureFrame'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
+import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
@@ -112,7 +113,7 @@ export function OrderBookLive({
       write('p-price', fmt.usd(r.price))
       write('p-side', fmt.side(r))
       write('p-queue', r.side === 'spread' ? 'no queue' : `${fmt.shares(r.queue)} at this price`)
-      write('p-cum', r.side === 'spread' ? `· mid ${fmt.mid(r.mid)}` : `· ${Math.round(r.cum).toLocaleString('en-US')} between here and the ${r.side === 'bid' ? 'best bid' : 'best ask'}`)
+      write('p-cum', r.side === 'spread' ? `· mid ${fmt.mid(r.mid)}` : `· ${Math.round(r.cum).toLocaleString('en-US')} to the ${r.side === 'bid' ? 'best bid' : 'best ask'}`)
       write('p-ago', fmt.ago(r.ago))
     },
     [write],
@@ -217,7 +218,9 @@ export function OrderBookLive({
   )
 
   const { box, canvas, live, eligible, reduced, quality, fps, tier } = useStage(create, STAGE_OPTS)
-  const sig = useSignature('orderbook', box, seq)
+  // The terrain rises in the middle and bottom of its stage: the story waits for most of it to be in view (on a
+  // laptop's first screen only the empty top of the stage shows), or nearly half held for a moment.
+  const sig = useSignature('orderbook', box, seq, { start: 0.6, hold: 0.45 })
   const lean = useLean(live, reduced, pausedRef)
   const fallback = useFallback(canvas, live, sig.release)
   const declined = fallback.declined
@@ -406,37 +409,42 @@ export function OrderBookLive({
       caption={caption}
       table={table}
     >
-      <div
-        ref={box}
-        data-seq={sig.state}
-        role="group"
-        tabIndex={0}
-        aria-roledescription="interactive figure"
-        aria-label="Synthetic order book as terrain. Arrow keys move the probe across price and back in time; Home resets; Escape clears; Space pauses."
-        aria-describedby="fig-order-book-probe"
-        onKeyDown={onKey}
-        onFocus={() => {
-          if (!key.current) {
-            setKey(PROBE_START)
-            setProbing(true)
-          }
-        }}
-        onPointerMove={lean.onPointerMove}
-        onPointerLeave={lean.onPointerLeave}
-        onClick={lean.onTap}
-        className="relative -mx-6 h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y overflow-hidden select-none focus-visible:outline-offset-[-4px] sm:mx-0 sm:h-[clamp(28rem,62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)]"
-      >
-        <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
-          {poster}
+      <div className="relative -mx-6 sm:mx-0">
+        <div
+          ref={box}
+          data-seq={sig.state}
+          role="group"
+          tabIndex={0}
+          aria-roledescription="interactive figure"
+          aria-label="Synthetic order book as terrain. Arrow keys move the probe across price and back in time; Home resets; Escape clears; Space pauses."
+          aria-describedby="fig-order-book-probe"
+          onKeyDown={onKey}
+          onFocus={() => {
+            if (!key.current) {
+              setKey(PROBE_START)
+              setProbing(true)
+            }
+          }}
+          onPointerMove={lean.onPointerMove}
+          onPointerLeave={lean.onPointerLeave}
+          onClick={lean.onTap}
+          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(28rem,62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)]"
+        >
+          <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
+            {poster}
+          </div>
+          <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
+          <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />
         </div>
-        <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
-        <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />
+        <FocusRing />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <dl id="fig-order-book-probe" className="text-meta grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 font-mono" aria-label="Probe reading">
+      {/* The reading takes the row's width and the controls keep their own place, so a reading never moves them. */}
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
+        {/* On a phone the reading wraps rather than lose its end, in room kept for its longest (four lines). */}
+        <dl id="fig-order-book-probe" className="text-meta grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono max-sm:min-h-[4lh] max-sm:[&_dd]:whitespace-normal" aria-label="Probe reading">
           <dt className="text-graphite">Probe</dt>
-          <dd className="truncate text-ink">
+          <dd className="text-ink sm:truncate">
             <span ref={ref('p-price')} className="tabular">
               —
             </span>{' '}
@@ -445,21 +453,21 @@ export function OrderBookLive({
             </span>
           </dd>
           <dt className="text-graphite">Queue</dt>
-          <dd className="truncate text-ink">
+          <dd className="text-ink sm:truncate">
             <span ref={ref('p-queue')} className="tabular">
               —
             </span>{' '}
             <span ref={ref('p-cum')} className="text-graphite" />
           </dd>
           <dt className="text-graphite">When</dt>
-          <dd ref={ref('p-ago')} className="tabular truncate text-ink">
+          <dd ref={ref('p-ago')} className="tabular text-ink sm:truncate">
             —
           </dd>
         </dl>
-        <div data-orderbook-controls="" className="flex min-h-8 flex-wrap gap-2">
+        <div data-orderbook-controls="" className="flex min-h-8 shrink-0 gap-2">
           {live ? (
             <>
-              <button type="button" onClick={togglePause} aria-pressed={paused} className={CONTROL}>
+              <button type="button" onClick={togglePause} aria-pressed={paused} className={`${CONTROL} min-w-[4.5rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" data-replay="" onClick={() => (book.current ? book.current.sink(() => sig.replay()) : sig.replay())} className={CONTROL}>
@@ -497,14 +505,18 @@ function Readouts({ initial, set, suffix = '', across = false }: { initial: Init
           : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
       }
     >
-      {rows.map(([id, label, value]) => (
-        <div key={id} className="min-w-0">
-          <dt className="text-graphite">{label}</dt>
-          <dd ref={id === 'expected' || id === 'rho' ? undefined : set(id + suffix)} className="tabular text-ink">
-            {value}
-          </dd>
-        </div>
-      ))}
+      {rows.map(([id, label, value]) => {
+        // The model's own constants, set after a hairline in graphite: they never change as the market runs.
+        const fixed = id === 'expected' || id === 'rho'
+        return (
+          <div key={id} className={`min-w-0 ${id === 'expected' && !across ? 'mt-1 border-t border-rule pt-3' : ''}`}>
+            <dt className="text-graphite">{label}</dt>
+            <dd ref={fixed ? undefined : set(id + suffix)} className={`tabular ${fixed ? 'text-graphite' : 'text-ink'}`}>
+              {value}
+            </dd>
+          </div>
+        )
+      })}
     </dl>
   )
 }

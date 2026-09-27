@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { DebugSlot } from '@/components/stage/DebugSlot'
+import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { useLean } from '@/components/stage/useLean'
@@ -426,67 +427,70 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   return (
     <FigureFrame id="fig-iv-surface" number="Fig. 1" title={title} subtitle={subtitle} rail={rail} railBelow={false} vt="iv-surface" hint={hint} caption={caption} table={table}>
-      <div
-        ref={box}
-        role="group"
-        aria-roledescription="interactive figure"
-        aria-label="Implied volatility surface. Arrow keys move the reading point; Home resets it; Space pauses."
-        aria-describedby="fig-iv-surface-point"
-        tabIndex={0}
-        data-seq={sig.state}
-        onKeyDown={onKey}
-        onPointerMove={lean.onPointerMove}
-        onPointerLeave={lean.onPointerLeave}
-        onClick={lean.onTap}
-        className="iv-fig relative -mx-6 aspect-[1.35] cursor-crosshair touch-pan-y overflow-x-clip select-none focus-visible:outline-offset-[-4px] sm:mx-0 sm:aspect-[1.62]"
-      >
-        <div className="absolute inset-0" style={underlay(live)}>
-          {poster}
-          <Frame>
-            <span aria-hidden data-fill="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" style={posterDot} />
-          </Frame>
-        </div>
-        <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y' }} />
-        <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
-          <div ref={labelLayer}>
-            {LABELS.map((l, i) => (
-              <AxisLabel
-                key={l.id}
-                ref={(el) => {
-                  labelEls.current[i] = el
-                }}
-                text={l.text}
-                align={l.align}
-                kind={l.kind}
-                {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
-              />
-            ))}
-            {NOTES.map(
-              (n, i) =>
-                n.offset[kind] && (
-                  <NoteMark
-                    key={n.id}
-                    ref={(el) => {
-                      noteEls.current[i] = el
-                    }}
-                    lead={n.lead}
-                    text={n.text}
-                    dx={n.offset[kind]![0]}
-                    dy={n.offset[kind]![1]}
-                    align={n.offset[kind]![2]}
-                  />
-                ),
-            )}
+      <div className="relative -mx-6 sm:mx-0">
+        <div
+          ref={box}
+          role="group"
+          aria-roledescription="interactive figure"
+          aria-label="Implied volatility surface. Arrow keys move the reading point; Home resets it; Space pauses."
+          aria-describedby="fig-iv-surface-point"
+          tabIndex={0}
+          data-seq={sig.state}
+          onKeyDown={onKey}
+          onPointerMove={lean.onPointerMove}
+          onPointerLeave={lean.onPointerLeave}
+          onClick={lean.onTap}
+          className="iv-fig peer relative aspect-[1.35] cursor-crosshair touch-pan-y overflow-x-clip select-none focus-visible:outline-none sm:aspect-[1.62]"
+        >
+          <div className="absolute inset-0" style={underlay(live)}>
+            {poster}
+            <Frame>
+              <span aria-hidden data-fill="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" style={posterDot} />
+            </Frame>
           </div>
-          <span
-            ref={(el) => {
-              dotEl.current = el
-            }}
-            className="absolute top-0 left-0"
-          >
-            <span className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" />
-          </span>
+          <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y' }} />
+          <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
+            <div ref={labelLayer}>
+              {LABELS.map((l, i) => (
+                <AxisLabel
+                  key={l.id}
+                  ref={(el) => {
+                    labelEls.current[i] = el
+                  }}
+                  text={l.text}
+                  align={l.align}
+                  kind={l.kind}
+                  {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
+                />
+              ))}
+              {NOTES.map(
+                (n, i) =>
+                  n.offset[kind] && (
+                    <NoteMark
+                      key={n.id}
+                      ref={(el) => {
+                        noteEls.current[i] = el
+                      }}
+                      lead={n.lead}
+                      text={n.text}
+                      dx={n.offset[kind]![0]}
+                      dy={n.offset[kind]![1]}
+                      align={n.offset[kind]![2]}
+                    />
+                  ),
+              )}
+            </div>
+            <span
+              ref={(el) => {
+                dotEl.current = el
+              }}
+              className="absolute top-0 left-0"
+            >
+              <span className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" />
+            </span>
+          </div>
         </div>
+        <FocusRing />
       </div>
 
       {/* What the shock is doing, in words; the room is kept, so a change never moves the page. */}
@@ -499,7 +503,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3">
         {live ? (
           <>
-            <button type="button" onClick={togglePause} aria-pressed={paused} className={CONTROL}>
+            <button type="button" onClick={togglePause} aria-pressed={paused} className={`${CONTROL} min-w-[4.5rem]`}>
               {paused ? 'Resume' : 'Pause'}
             </button>
             <button type="button" data-replay="" onClick={replay} className={CONTROL}>

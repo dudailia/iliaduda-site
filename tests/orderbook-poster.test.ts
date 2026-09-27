@@ -26,7 +26,7 @@ function vertices(d: string): [number, number][] {
 
 const sim = posterFlow()
 const variants = [
-  { name: 'wide', w: 646, h: 576, opts: { every: 6, step: 2 } },
+  { name: 'wide', w: 646, h: 504, opts: { every: 6, step: 2 } },
   { name: 'narrow', w: 390, h: 591, opts: { every: 7, step: 2 } },
 ] as const
 

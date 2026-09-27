@@ -410,8 +410,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const LOOK: Record<Kind, string> = {
     tag: 'text-paper bg-indigo',
     wall: 'text-ink bg-paper/85',
-    time: 'text-graphite bg-paper/80',
-    tick: 'text-graphite bg-paper/80',
+    time: 'text-graphite bg-paper/90',
+    tick: 'text-graphite bg-paper/90',
     probe: 'text-ink bg-paper/90',
   }
   const pool = new Map<string, Label>()

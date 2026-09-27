@@ -40,6 +40,12 @@ describe('the order book at rest', () => {
     expect(extent(aspect).span).toBeGreaterThanOrEqual(0.6)
   })
 
+  // A laptop's stage (about 710 × 504 at 1440 × 900) is filled, not two-thirds paper: the median walls take 70% of
+  // its height, the tallest still clear of the top at every extreme of the drift and the lean.
+  it.each([1.41, 1.5])('fills a laptop’s wide stage (aspect %s)', (aspect) => {
+    expect(extent(aspect).span).toBeGreaterThanOrEqual(0.68)
+  })
+
   it.each([0.6, 0.66, 0.8])('climbs a phone’s tall frame with the history (aspect %s)', (aspect) => {
     expect(extent(aspect).climb).toBeGreaterThanOrEqual(0.3)
   })

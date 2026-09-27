@@ -838,10 +838,10 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2">
           {live && (
             <>
-              <button type="button" onClick={togglePause} className={CONTROL}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
-              <button type="button" onClick={toggleFlight} className={CONTROL}>
+              <button type="button" onClick={toggleFlight} className={`${CONTROL} min-w-[6.75rem]`}>
                 {flying ? 'Stop' : 'Fly through'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>

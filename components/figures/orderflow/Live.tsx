@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { cssColor, useColorScheme, useInView, useReducedMotion } from '@/components/stage/env'
+import { FocusRing } from '@/components/stage/FocusRing'
 import { fade, underlay } from '@/components/stage/useStage'
 import { EVENTS, HAWKES, MARKET_BUY, MARKET_SELL, type Flow } from '@/lib/market/flow'
 import { HEIGHT, LAM_MAX, LAM_MID, LANE_H, QUEUE_MID, Y, lamY, laneAt, laneTop } from '@/lib/orderbook/flowLayout'
@@ -319,7 +320,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       table={table}
     >
       {/* The stage's width decides where the lane names go, so it sits in a container it can be measured by. */}
-      <div className="@container -mx-6 sm:mx-0">
+      <div className="@container relative -mx-6 sm:mx-0">
         <div
           ref={stage}
           role="group"
@@ -338,7 +339,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           onPointerMove={onMove}
           onPointerLeave={onLeave}
           onPointerUp={(e) => pin(under(e))}
-          className="relative cursor-crosshair touch-pan-y select-none [--g:0px] focus-visible:outline-offset-[-4px] @min-[520px]:[--g:124px]"
+          className="peer relative cursor-crosshair touch-pan-y select-none [--g:0px] focus-visible:outline-none @min-[520px]:[--g:124px]"
           style={{ height: HEIGHT }}
         >
           <div className="absolute inset-y-0 right-2 left-(--g)" style={underlay(live)}>
@@ -347,6 +348,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
           <Labels />
         </div>
+        <FocusRing />
       </div>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
@@ -374,7 +376,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         </dl>
         <div data-orderflow-controls="" className="flex min-h-8 flex-wrap gap-2">
           {live && !reduced && !still ? (
-            <button type="button" onClick={() => market.setPaused(!market.paused)} aria-pressed={paused} className={CONTROL}>
+            <button type="button" onClick={() => market.setPaused(!market.paused)} aria-pressed={paused} className={`${CONTROL} min-w-[4.5rem]`}>
               {paused ? 'Resume' : 'Pause'}
             </button>
           ) : null}

@@ -9,7 +9,8 @@ export type SignatureState = 'off' | 'pending' | 'playing' | 'done'
  * A figure's once-per-session signature moment, wired the hero's way:
  * - armed by the pre-paint mark (`data-{name}-seq`, lib/stage/prepaint.ts);
  * - started once a third of the stage is in view, or a fifth held for 1.2 s,
- *   so nobody is left looking at an empty stage waiting for a scroll;
+ *   so nobody is left looking at an empty stage waiting for a scroll (a
+ *   figure whose story happens low in its stage asks for more: `start`, `hold`);
  * - spent (the session flag) on the first drawn frame of it, not before, so a
  *   reader who never scrolls to it keeps it;
  * - finished quickly by a click or a key (not a scroll), at once by a return
@@ -18,7 +19,7 @@ export type SignatureState = 'off' | 'pending' | 'playing' | 'done'
  * The sequence's clock itself is advanced by the figure, on drawn frames, and
  * `onFrame` is called after each.
  */
-export function useSignature<P extends string>(name: string, box: RefObject<HTMLElement | null>, seq: RefObject<Sequence<P>>) {
+export function useSignature<P extends string>(name: string, box: RefObject<HTMLElement | null>, seq: RefObject<Sequence<P>>, { start = 0.35, hold = 0.2 }: { start?: number; hold?: number } = {}) {
   const armed = useRef(false)
   const [state, setState] = useState<SignatureState>('off')
   const stateRef = useRef<SignatureState>('off')
@@ -48,24 +49,24 @@ export function useSignature<P extends string>(name: string, box: RefObject<HTML
     const io = new IntersectionObserver(
       ([e]) => {
         const seen = e?.isIntersecting ? e.intersectionRatio : 0
-        if (seen >= 0.35 || seen < 0.2) {
+        if (seen >= start || seen < hold) {
           clearTimeout(wait)
           wait = 0
-          if (seen >= 0.35) go()
+          if (seen >= start) go()
         } else if (!wait)
           wait = window.setTimeout(() => {
             wait = 0
             go()
           }, 1200)
       },
-      { threshold: [0, 0.2, 0.35] },
+      { threshold: [0, hold, start] },
     )
     io.observe(el)
     return () => {
       io.disconnect()
       clearTimeout(wait)
     }
-  }, [box, seq])
+  }, [box, seq, start, hold])
 
   useEffect(() => {
     const onInput = (e: Event) => {

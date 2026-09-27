@@ -29,7 +29,7 @@ export interface LabelSpec {
 }
 
 /** Padding inside each kind of label, px: [x, y]. */
-export const PAD: Record<LabelKind, readonly [number, number]> = { tag: [4, 2], wall: [4, 2], time: [2, 0], tick: [2, 0] }
+export const PAD: Record<LabelKind, readonly [number, number]> = { tag: [4, 2], wall: [4, 2], time: [4, 2], tick: [4, 2] }
 
 /** The times marked on the history, in seconds ago. */
 export const TIMES = [0, 5, 10, 15] as const
