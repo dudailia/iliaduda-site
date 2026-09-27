@@ -1,5 +1,5 @@
-import { params, PEAK, amplitude } from '@/lib/lab/c/shock'
-import { FRAME_H, poster, RAMP_CSS, type PosterData } from '@/lib/lab/c/poster'
+import { params, PEAK, amplitude } from '@/lib/surface/shock'
+import { FRAME_H, poster, RAMP_CSS, type PosterData } from '@/lib/surface/poster'
 import { AxisLabel, Frame, NoteMark } from './marks'
 
 /**

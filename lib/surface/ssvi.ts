@@ -4,7 +4,7 @@ import { P } from '@/lib/svi'
  * SSVI with its parameters as an argument. lib/svi.ts is the same surface
  * with the parameters fixed to the synthetic set in content/synthetic.ts; the
  * shock needs them to move, so the formulas are restated here over a `Params`
- * value and tests/lab-c.test.ts checks that, at the calm parameters, every
+ * value and tests/surface-dynamics.test.ts checks that, at the calm parameters, every
  * function below returns exactly what lib/svi.ts does.
  *
  *   θ(T) = σ∞²·T + (σ₀² − σ∞²)·(1 − e^(−κT))/κ

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import * as svi from '../lib/svi'
-import { amplitude, ETA_CAP, LOOP, params, PEAK, phase, RELAX, RISE, SIZE_MAX, SIZE_MIN } from '../lib/lab/c/shock'
-import { CALM, check, DOMAIN, g, gjRatio, iv, phi, theta, w, wk, wT, type Params } from '../lib/lab/c/ssvi'
-import { numbers, probeText, text } from '../lib/lab/c/readouts'
-import { poster, describe as describePoster } from '../lib/lab/c/poster'
-import { camera, fitDistance, FRAME, kOfU, mvp, apply, tOfV, fu, fv } from '../lib/lab/c/view'
-import { diffuse, UP_LIGHT } from '../lib/lab/c/look'
+import { amplitude, ETA_CAP, LOOP, params, PEAK, phase, RELAX, RISE, SIZE_MAX, SIZE_MIN } from '../lib/surface/shock'
+import { CALM, check, DOMAIN, g, gjRatio, iv, phi, theta, w, wk, wT, type Params } from '../lib/surface/ssvi'
+import { numbers, probeText, text } from '../lib/surface/readouts'
+import { poster, describe as describePoster } from '../lib/surface/poster'
+import { camera, fitDistance, FRAME, kOfU, mvp, apply, tOfV, fu, fv } from '../lib/surface/view'
+import { diffuse, UP_LIGHT } from '../lib/surface/look'
 
 /**
  * Prototype C animates a synthetic SSVI surface through a volatility shock.

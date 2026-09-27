@@ -2,7 +2,7 @@
 # Mobile Lighthouse against a local server, one line per run. Transfer is printed
 # in bytes (total-byte-weight), the unit the Lighthouse budgets are written in:
 # 275000 means 275,000 bytes, not KiB.
-#   sh scripts/lh-local.sh http://127.0.0.1:4701 "/lab/a /" 2 out-dir
+#   sh scripts/lh-local.sh http://127.0.0.1:4701 "/order-book /" 2 out-dir
 BASE=$1; ROUTES=$2; RUNS=${3:-2}; OUT=${4:-/tmp/lh-local}
 mkdir -p "$OUT"
 LH=$(ls -d node_modules/.pnpm/lighthouse@*/node_modules/lighthouse/cli/index.js | head -1)

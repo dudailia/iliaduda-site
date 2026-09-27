@@ -8,7 +8,7 @@ import { CALM, type Params } from './ssvi'
  * (the term structure inverts, and κ rises so the lift is concentrated at the
  * front), ρ moves more negative so every smile tilts harder toward low strikes
  * (crash protection is bid), and then all of it relaxes. Every snapshot along
- * the way is a complete, static SSVI surface; tests/lab-c.test.ts checks both
+ * the way is a complete, static SSVI surface; tests/surface-dynamics.test.ts checks both
  * static no-arbitrage conditions at hundreds of them, at every shock size the
  * slider allows.
  *

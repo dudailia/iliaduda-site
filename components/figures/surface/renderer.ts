@@ -1,11 +1,11 @@
 import { program, toLinear } from '@/lib/gl'
-import { FILL, KEY, LIGHT, LINE_FLIP, RAMP, STOPS, UP_LIGHT } from '@/lib/lab/c/look'
-import { amplitude, params } from '@/lib/lab/c/shock'
-import { DOMAIN, iv, type Params } from '@/lib/lab/c/ssvi'
+import { FILL, KEY, LIGHT, LINE_FLIP, RAMP, STOPS, UP_LIGHT } from '@/lib/surface/look'
+import { amplitude, params } from '@/lib/surface/shock'
+import { DOMAIN, iv, type Params } from '@/lib/surface/ssvi'
 import {
   apply, camera, EXPIRY_TICKS, eye, H, kOfU, LABELS, mvp, NOTES, POST, STRIKE_TICKS, SWAY_PERIOD, tOfV, uOfX, V0, V1,
   vOfZ, VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type M4,
-} from '@/lib/lab/c/view'
+} from '@/lib/surface/view'
 import type { Palette, Renderer, RGB, StageEnv } from '@/components/stage/useStage'
 import { FLOOR_FS, FLOOR_VS, LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
 

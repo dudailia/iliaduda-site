@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode, Ref } from 'react'
-import { STOPS } from '@/lib/lab/c/look'
-import { FRAME } from '@/lib/lab/c/view'
+import { STOPS } from '@/lib/surface/look'
+import { FRAME } from '@/lib/surface/view'
 
 /**
  * Markup shared by the server poster and the live layer: the frame the
