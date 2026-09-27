@@ -42,7 +42,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 - Keep and elevate the incumbent identity: the site reads like a research paper — serif text, figures labelled "Fig. N", limitation notes in the margin beside the claim they qualify.
 - Positioning (confirmed 2026-09-24): the site sells Ilia to top quant, trading and investment firms. Every statement true, framed at its strongest: lead with what he built, the hard problems solved and the depth it proves. No self-undermining or defensive lines; omitting a weakness is fine, inventing a strength is not. Limits appear only where a sharp reader expects them (e.g. synthetic data), phrased as rigour. Unconfirmed users, customers, revenue, returns or results are never claimed — TODO and ask.
 - Indigo appears only inside figures and marks the value being claimed.
-- One orchestrated motion moment on the whole site (the hero figure); everything else is calm.
+- One orchestrated motion moment per page (its Fig. 1's signature, once per visit); everything else is calm.
 - The site demonstrates rigour; it never announces it (the word "honest" is banned by test).
 
 ## Evidence on Hand
@@ -58,7 +58,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 
 1. Hiring essentials first: name, positioning, availability, résumé and contact are above the fold on every screen size.
 2. Every number has provenance; synthetic data is labelled synthetic where it is shown.
-3. Figures are real and interactive, and respond to the reader rather than performing at them. The one exception is the home figure, which stays alive at rest (the ensemble streaming by, the view drifting and leaning with the reader) and has a Pause.
+3. Figures are real and interactive, and respond to the reader rather than performing at them. The exceptions are each page's live Fig. 1 (the home figure, the order book, the IV surface): each opens with one signature moment per visit and then stays alive at rest (its data moving, the view drifting and leaning with the reader), with a Pause.
 4. Confidentiality outranks impressiveness.
 5. Fast and accessible is part of the argument, and it is measured, not asserted.
 
