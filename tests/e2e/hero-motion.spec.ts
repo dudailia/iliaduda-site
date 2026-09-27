@@ -32,10 +32,28 @@ test('Pause holds the figure, so nothing is drawn; the pause lasts the visit, an
   expect(await goLive(page)).toBe(true)
   await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible()
   await page.getByRole('button', { name: 'Resume' }).click()
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
   before = await draws(page)
   await page.waitForTimeout(1500)
   expect((await draws(page)) - before).toBeGreaterThan(20)
   expect(errors).toEqual([])
+})
+
+test('the live controls arrive in turn, rising into place, while press and hover stay instant', async ({ page }) => {
+  await seen(page)
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const t = await page.locator('[data-futures-controls] > button').evaluateAll((bs) =>
+    bs.slice(0, 3).map((b) => {
+      const c = getComputedStyle(b)
+      const props = c.transitionProperty.split(', ')
+      const delays = c.transitionDelay.split(', ')
+      return Object.fromEntries(props.map((p, i) => [p, delays[i] ?? delays[0]]))
+    }),
+  )
+  expect(t.map((d) => d.translate)).toEqual(['0s', '0.04s', '0.08s'])
+  expect(t.map((d) => d.opacity)).toEqual(['0s', '0.04s', '0.08s'])
+  expect(t.every((d) => d.scale === '0s' && d['border-color'] === '0s')).toBe(true)
 })
 
 test('paused, the numbers hold too, once there is an estimate to show', async ({ page }) => {

@@ -260,16 +260,33 @@
   opacity: 0;
 }
 
-/* The home figure's live controls arrive with the canvas they drive: the same 240ms on the crossfade's curve, opacity
-   only. Reset, which appears as the reader first moves an input, enters from 0.97 over 160ms; under reduced motion it
-   only fades. */
+/* The home figure's live controls arrive with the canvas they drive: 240ms on the crossfade's curve, rising 4px into
+   place one after another, 40ms apart. The rise is `translate`, so a press's `scale` keeps its own quick 150ms, and
+   only the arrival waits its turn: a hover or a press never does. Reset, which appears as the reader first moves an
+   input, enters from 0.97 over 160ms. Under reduced motion they only fade. */
 [data-futures-controls] > button {
   transition:
     border-color 150ms ease-out,
     scale 150ms ease-out,
-    opacity 240ms cubic-bezier(0.23, 1, 0.32, 1);
+    opacity 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms),
+    translate 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms);
   @starting-style {
     opacity: 0;
+    translate: 0 4px;
+  }
+}
+[data-futures-controls] > button:nth-child(2) {
+  --arrive: 40ms;
+}
+[data-futures-controls] > button:nth-child(3) {
+  --arrive: 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-futures-controls] > button {
+    @starting-style {
+      opacity: 0;
+      translate: none;
+    }
   }
 }
 [data-futures-controls] > button[data-reset] {

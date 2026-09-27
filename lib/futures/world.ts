@@ -34,6 +34,11 @@ export const AXIS = { lo: HIST.lo + 2, hi: HIST.hi - 4 } as const
 export const TICKS = [50, 100, 150, 200] as const
 /** A price tick this close to the strike gives way to the strike's label. */
 export const TICK_CLEAR = 14
+/** How much of a tick shows at `distance` dollars from the strike: it fades over $8 around the clearance, never pops. */
+export function tickShown(distance: number): number {
+  const t = Math.min(1, Math.max(0, (Math.abs(distance) - (TICK_CLEAR - 4)) / 8))
+  return t * t * (3 - 2 * t)
+}
 
 /**
  * Where each label hangs, and how it sits against its point — shared so the

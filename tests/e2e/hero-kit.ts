@@ -17,14 +17,21 @@ export const errorsOf = (page: Page) => {
   page.on('pageerror', (e) => errors.push(e.message))
   return errors
 }
-/** Bring the stage fully into view and wait for it to go live; false where this machine has no usable GPU. */
+/**
+ * Bring the stage fully into view and wait for it to go live, and for its
+ * controls to finish arriving (they rise into place; a click on one mid-way
+ * makes Playwright retry at another scroll, which can carry the figure off
+ * screen); false where this machine has no usable GPU.
+ */
 export async function goLive(page: Page) {
   await page.locator(STAGE).scrollIntoViewIfNeeded()
-  return expect
+  const live = await expect
     .poll(() => canvasShown(page), { timeout: 20_000 })
     .toBe(true)
     .then(() => true)
     .catch(() => false)
+  if (live) await page.waitForFunction(() => !document.querySelector('[data-futures-controls]')?.getAnimations({ subtree: true }).length)
+  return live
 }
 /** A visit on which the sequence has already been seen: the figure opens finished. */
 export const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('futures-seq', '1'))

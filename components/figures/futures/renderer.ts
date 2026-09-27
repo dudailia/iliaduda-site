@@ -8,7 +8,7 @@ import { aggregate, binnedPrice } from '@/lib/futures/hist'
 import { GROUPS, HIST, MODEL, binWidth, stepCoefficients } from '@/lib/futures/mc'
 import { type Phases } from '@/lib/futures/sequence'
 import { Stream, burstSlot } from '@/lib/futures/stream'
-import { AXIS, HLEN, HX0, LABELS, PY, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
+import { AXIS, HLEN, HX0, LABELS, PY, TICKS, X0, X1, ZW, tickShown, wy } from '@/lib/futures/world'
 import { FULLSCREEN_VS, disposeTarget, drawFullscreen, probeHalfFloat, program, renderable, target, type GL, type Program, type Target } from '@/lib/gl'
 import type { Tier } from '@/lib/tier'
 import { LABEL } from './Poster'
@@ -553,7 +553,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // Today stays named until the camera is past it.
   label(`Today · $${MODEL.s0}`, LABELS.today.cls, () => [LABELS.today.at[0], LABELS.today.at[1], 0], () => (cam === 'flight' ? 1 - smooth(0.36, 0.42, flightP) : labelU))
   label('One year out', LABELS.expiry.cls, () => [LABELS.expiry.at[0], LABELS.expiry.at[1], zEdge()], () => labelU)
-  for (const s of TICKS) label(`$${s}`, LABELS.tick.cls, () => [LABELS.tick.x, wy(s), zEdge()], () => (Math.abs(s - kv.x) < TICK_CLEAR ? 0 : labelU))
+  for (const s of TICKS) label(`$${s}`, LABELS.tick.cls, () => [LABELS.tick.x, wy(s), zEdge()], () => labelU * tickShown(s - kv.x))
   // The strike stays named through the whole flight: it is what the colours mean.
   const strikeEl = label('', LABELS.strike.cls, () => [LABELS.strike.label, wy(kv.x), zEdge()], () => 1)
   // One label for the histogram. Its words change halfway through the morph,
