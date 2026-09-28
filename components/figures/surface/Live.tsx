@@ -99,6 +99,25 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const [phase, setPhase] = useState<Phase>('calm')
   const phaseRef = useRef<Phase>('calm')
   const [phaseMoved, setPhaseMoved] = useState(false)
+  /**
+   * The words the narration says, and whether they are on their way out: a turn of the story dips to nothing and back
+   * (120ms out, then 120ms in, a 2px blur), as the home figure's label does, so one sentence never cuts or smears into
+   * the next; a change the reader made on the slider is simply there.
+   */
+  const [said, setSaid] = useState<Phase>('calm')
+  const [going, setGoing] = useState(false)
+  if (phase !== said && !going) {
+    if (phaseMoved) setGoing(true)
+    else setSaid(phase)
+  }
+  useEffect(() => {
+    if (!going) return
+    const t = setTimeout(() => {
+      setSaid(phaseRef.current)
+      setGoing(false)
+    }, 120)
+    return () => clearTimeout(t)
+  }, [going])
   /** The narration under the stage, and whether all of it is on screen. */
   const phaseLine = useRef<HTMLParagraphElement>(null)
   const [lineSeen, setLineSeen] = useState(true)
@@ -617,11 +636,14 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           <p
             aria-hidden
             data-phase-caption=""
-            className="text-note pointer-events-none absolute top-3 right-3 max-w-[60%] text-right leading-snug text-ink transition-opacity duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
+            className="text-note pointer-events-none absolute top-3 right-3 w-[min(60%,24rem)] text-right leading-snug text-ink transition-opacity duration-200 ease-out"
             style={{ opacity: onStage ? 1 : 0 }}
           >
-            <span key={phase} className="block rounded-sm bg-paper/90 px-1.5 py-0.5 transition-[opacity,filter] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 starting:blur-[2px]">
-              <span className="font-semibold">{PHASE_TEXT[phase].name}.</span> {PHASE_TEXT[phase].short}
+            <span
+              key={said}
+              className={`inline-block rounded-sm bg-paper/90 px-1.5 py-0.5 transition-[opacity,filter] duration-[120ms] ease-out starting:opacity-0 starting:blur-[2px] ${going ? 'opacity-0 blur-[2px]' : ''}`}
+            >
+              <span className="font-semibold">{PHASE_TEXT[said].name}.</span> {PHASE_TEXT[said].short}
             </span>
           </p>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
@@ -671,8 +693,11 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
       {/* What the shock is doing, in words; the room is kept, so a change never moves the page. */}
       <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em]" aria-live="off">
-        <span key={phase} className={`block ${phaseMoved ? 'transition-[opacity,filter] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 starting:blur-[2px]' : ''}`}>
-          <span className="font-semibold">{PHASE_TEXT[phase].name}.</span> {PHASE_TEXT[phase].line}
+        <span
+          key={said}
+          className={`block ${phaseMoved ? 'transition-[opacity,filter] duration-[120ms] ease-out starting:opacity-0 starting:blur-[2px]' : ''} ${going ? 'opacity-0 blur-[2px]' : ''}`}
+        >
+          <span className="font-semibold">{PHASE_TEXT[said].name}.</span> {PHASE_TEXT[said].line}
         </span>
       </p>
 
@@ -818,30 +843,38 @@ function Margin({
 /**
  * The Greeks open and close with a short glide rather than a jump: their rows grow into place (200ms) and go first
  * when closed (150ms, exits faster), on the site's ease-out; everything under them moves with the rows, not at once.
- * A keyboard's Enter or Space opens them at once, as keyboard actions here never animate; under reduced motion the
- * rows only fade in, and close at once.
+ * A click during either glide turns it back from where it is. A keyboard's Enter or Space opens them at once, as
+ * keyboard actions here never animate, and so does reduced motion, which is static on this site.
  */
+const gliding = new WeakMap<HTMLDetailsElement, { anim: Animation; opening: boolean }>()
 function glideDetails(e: MouseEvent<HTMLElement>) {
   const details = e.currentTarget.parentElement as HTMLDetailsElement | null
   const rows = details?.querySelector<HTMLElement>(':scope > dl')
-  if (!details || !rows || e.detail === 0) return
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (!details || !rows || e.detail === 0 || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  e.preventDefault()
+  const run = gliding.get(details)
+  const opening = run ? !run.opening : !details.open
+  // Where the rows are now, the glide under way included, before it is let go.
+  const from = details.open ? rows.offsetHeight : 0
+  const seen = details.open ? Number(getComputedStyle(rows).opacity) : 0
+  run?.anim.cancel()
   const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
-  if (!details.open) {
-    e.preventDefault()
+  const clip = { overflow: 'clip' }
+  let anim: Animation
+  if (opening) {
     details.open = true
-    const h = rows.offsetHeight
-    rows.animate(
-      reduced ? [{ opacity: 0 }, { opacity: 1 }] : [{ height: '0px', opacity: 0, overflow: 'clip' }, { height: `${h}px`, opacity: 1, overflow: 'clip' }],
-      { duration: reduced ? 150 : 200, easing: ease },
-    )
-  } else if (!reduced) {
-    e.preventDefault()
-    const h = rows.offsetHeight
-    rows.animate([{ height: `${h}px`, opacity: 1, overflow: 'clip' }, { height: '0px', opacity: 0, overflow: 'clip' }], { duration: 150, easing: ease }).onfinish = () => {
+    const to = rows.offsetHeight
+    anim = rows.animate([{ height: `${from}px`, opacity: seen, ...clip }, { height: `${to}px`, opacity: 1, ...clip }], { duration: 200, easing: ease })
+  } else {
+    anim = rows.animate([{ height: `${from}px`, opacity: seen, ...clip }, { height: '0px', opacity: 0, ...clip }], { duration: 150, easing: ease })
+    anim.onfinish = () => {
       details.open = false
     }
   }
+  gliding.set(details, { anim, opening })
+  anim.addEventListener('finish', () => {
+    if (gliding.get(details)?.anim === anim) gliding.delete(details)
+  })
 }
 
 /** The point's rows as the margin shows them: where it is, then (after its volatilities and price) its Greeks. */

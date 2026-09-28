@@ -295,6 +295,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       drag.x = e.clientX
       drag.y = e.clientY
       if (drag.moved > 4) {
+        // The hand's grip shows while the surface turns under it.
+        canvas.style.cursor = 'grabbing'
         // The surface follows the hand 1:1 while dragging, easing into soft limits (tanh) instead of stopping
         // dead, and the hand's speed is kept so the release carries it.
         const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
@@ -329,6 +331,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       spring.vp *= k
     }
     drag = null
+    canvas.style.cursor = ''
     // Hand the orbit back: the spring carries it home from wherever it was let go.
     spring.ty = 0
     spring.tp = 0
@@ -345,6 +348,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   }
   const onCancel = () => {
     drag = null
+    canvas.style.cursor = ''
     spring.ty = 0
     spring.tp = 0
   }

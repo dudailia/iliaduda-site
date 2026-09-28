@@ -577,6 +577,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       drag.x = e.clientX
       drag.y = e.clientY
       if (drag.moved > (drag.touch ? 8 : 4)) {
+        // The hand's grip shows while the terrain turns under it.
+        canvas.style.cursor = 'grabbing'
         const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
         drag.t = e.timeStamp
         drag.rawYaw -= dx * 0.006
@@ -617,6 +619,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       }
     }
     drag = null
+    canvas.style.cursor = ''
     if (click) {
       const p = local(e)
       const hit = pick(p[0], p[1])
@@ -629,6 +632,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   }
   const onCancel = () => {
     drag = null
+    canvas.style.cursor = ''
     dirty = true
   }
   canvas.addEventListener('pointerdown', onDown)
