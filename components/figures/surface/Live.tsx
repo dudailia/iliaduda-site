@@ -6,7 +6,7 @@ import { CONTROL } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
-import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
+import { saveData, supportsWebGL2, useColorScheme, whenIdle } from '@/components/stage/env'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create } from '@/components/stage/useStage'
@@ -503,9 +503,23 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   // for a new framing (a phone turned to landscape, or back) and for the other colour scheme.
   const scheme = useColorScheme()
   const stillFor = mounted && !live && why !== null
+  // The build's picture is the first frame; the smooth one, and its code, wait until the page has loaded and gone
+  // idle, so nothing the first frame does not need is fetched with it. Once drawn, it is redrawn at once.
+  const [stillReady, setStillReady] = useState(false)
   useEffect(() => {
-    if (stillFor) redrawStill(level.current)
-  }, [stillFor, kind, scheme, redrawStill])
+    if (!stillFor || stillReady) return
+    let cancel = () => {}
+    const go = () => (cancel = whenIdle(() => setStillReady(true)))
+    if (document.readyState === 'complete') go()
+    else addEventListener('load', go, { once: true })
+    return () => {
+      removeEventListener('load', go)
+      cancel()
+    }
+  }, [stillFor, stillReady])
+  useEffect(() => {
+    if (stillFor && stillReady) redrawStill(level.current)
+  }, [stillFor, stillReady, kind, scheme, redrawStill])
 
   const debugInfo = useRef<() => LiveInfo>(null)
   useEffect(() => {
