@@ -168,6 +168,27 @@ describe('the camera director', () => {
     expect(s.depth).toBe(0)
   })
 
+  it('carries the camera’s speed into the way home when a flight is stopped mid-move: it slows, it never stops dead', () => {
+    const d = new Director()
+    run(d, 2, () => ({ sequence: true }))
+    run(d, 200, () => ({}))
+    const f = new Flight()
+    f.start()
+    const eyes: Pose['eye'][] = []
+    for (let i = 0; i < 400; i++) {
+      // Stopped a little after the middle of the flight, where the camera moves fastest.
+      if (i === Math.round(FLIGHT_MS / 1000 / DT / 2)) f.stop()
+      f.advance(DT * 1000)
+      eyes.push(d.step(moment({ flight: f.p })).eye)
+    }
+    const speed = (i: number) => Math.hypot(eyes[i]![0] - eyes[i - 1]![0], eyes[i]![1] - eyes[i - 1]![1], eyes[i]![2] - eyes[i - 1]![2])
+    const at = Math.round(FLIGHT_MS / 1000 / DT / 2)
+    const before = speed(at - 1)
+    // The frames just after the stop keep most of the speed the camera had.
+    expect(speed(at + 1)).toBeGreaterThan(before * 0.5)
+    expect(speed(at + 2)).toBeGreaterThan(before * 0.4)
+  })
+
   it('ends a rewind on the composed frame and runs what comes next once', () => {
     const d = rested()
     let n = 0

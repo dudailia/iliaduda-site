@@ -1,7 +1,8 @@
 import { program, toLinear } from '@/lib/gl'
-import { EASE_OUT } from '@/lib/ease'
+import { EASE_IN_OUT_QUAD, EASE_OUT } from '@/lib/ease'
 import { FILL, KEY, LIGHT, LINE_FLIP, RAMP, STOPS, UP_LIGHT } from '@/lib/surface/look'
 import { lineReveal } from '@/lib/surface/sequence'
+import { spring as spring2 } from '@/lib/stage/spring'
 import { params } from '@/lib/surface/shock'
 import { DOMAIN, iv, type Params } from '@/lib/surface/ssvi'
 import {
@@ -123,6 +124,16 @@ function invert(a: M4): M4 | null {
 }
 
 // ── the renderer ─────────────────────────────────────────────────────────────
+
+/** One spring step on a pair of fields of an object (its position and its velocity), without making a new one. */
+const pair = { x: 0, v: 0 }
+function step2<K extends string, V extends string>(o: Record<K | V, number>, x: K, v: V, target: number, dt: number, omega: number) {
+  pair.x = o[x]
+  pair.v = o[v]
+  spring2(pair, target, dt, omega)
+  o[x] = pair.x
+  o[v] = pair.v
+}
 
 /** How long Replay takes to lower the sheet into the page (its labels go in 150ms). */
 const SINK_S = 0.35
@@ -255,6 +266,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   // ── state ──────────────────────────────────────────────────────────────────
   let w = 1, h = 1, cssW = 1, cssH = 1
   let swayT = 0
+  /** The sway's speed (coasting on Pause) and how far it has come in (0 during the story). */
+  let swayK = 1
+  let swayIn = 0
   let resized = true
   let drawnOnce = false
   let draws = 0
@@ -438,23 +452,17 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       if (!progs.every((p) => p.ready())) return false
       const paused = hooks.paused()
       const ph = hooks.sequence()
-      const step = Math.min(dt, 1 / 30)
 
-      // Springs: the drag's (ω = 7/s) and the lean's (ω = 5/s), critically damped, semi-implicit Euler.
-      const W = 7
+      // Springs, the figures' one (lib/stage/spring.ts), stepped exactly at any frame rate: the drag's return (ω 7),
+      // the reader's lean (ω 4, the home figure's), and below, the reader's shock (ω 30).
       if (!drag || drag.moved <= 4) {
-        spring.vy += (W * W * (spring.ty - spring.yaw) - 2 * W * spring.vy) * step
-        spring.vp += (W * W * (spring.tp - spring.pitch) - 2 * W * spring.vp) * step
-        spring.yaw += spring.vy * step
-        spring.pitch += spring.vp * step
+        step2(spring, 'yaw', 'vy', spring.ty, dt, 7)
+        step2(spring, 'pitch', 'vp', spring.tp, dt, 7)
       }
       const leaning = paused ? null : hooks.lean()
-      const LW = 5
       const ly = leaning ? -LEAN.yaw * leaning.x : lean.yaw, lp = leaning ? -LEAN.pitch * leaning.y : lean.pitch
-      lean.vy += (LW * LW * (ly - lean.yaw) - 2 * LW * lean.vy) * step
-      lean.vp += (LW * LW * (lp - lean.pitch) - 2 * LW * lean.vp) * step
-      lean.yaw += lean.vy * step
-      lean.pitch += lean.vp * step
+      step2(lean, 'yaw', 'vy', ly, dt, 4)
+      step2(lean, 'pitch', 'vp', lp, dt, 4)
 
       // The shock: the signature's while it plays; after it, the reader's level on a quick spring (ω = 30/s).
       let x: number
@@ -463,9 +471,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         shock.x = x
         shock.v = 0
       } else {
-        const SW = 30
-        shock.v += (SW * SW * (hooks.level() - shock.x) - 2 * SW * shock.v) * step
-        shock.x += shock.v * step
+        spring2(shock, hooks.level(), dt, 30)
         // Within a ten-thousandth of a full shock and all but still, it is there: settle it, so a paused figure stops
         // drawing rather than spend most of a second on a change no one could see.
         if (Math.abs(hooks.level() - shock.x) < 1e-4 && Math.abs(shock.v) < 1e-3) {
@@ -499,6 +505,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const moving =
         !!drag ||
         sinking !== null ||
+        (paused && swayK > 0) ||
         Math.abs(spring.yaw) + Math.abs(spring.pitch) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
         Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
         Math.abs(shock.v) > 1e-5 ||
@@ -513,7 +520,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
 
       const p = params(Math.max(0, x))
       lastParams = p
-      const cam = camera(Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
+      // The sway comes in after the story, and from a still start on a visit without one (so the first frame is the
+      // poster's exactly), over 1.5s on the in-out; Pause lets it coast to rest (240ms) and pick up again (400ms).
+      swayIn = ph ? 0 : Math.min(1, swayIn + (dt / 1.5) * swayK)
+      const cam = camera(Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
       const m = mvp(cam, cssW / cssH)
       inv = invert(m)
       const e = eye(cam)
@@ -585,7 +595,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // The clocks move after the frame, so the first frame is the poster's moment exactly. The story plays out
       // whether or not the figure is paused; the drift holds.
       hooks.tick(dt * 1000)
-      if (!paused) swayT += dt
+      swayK = paused ? Math.max(0, swayK - dt / 0.24) : Math.min(1, swayK + dt / 0.4)
+      swayT += dt * swayK
       return true
     },
     resize(bw, bh, cw, ch) {

@@ -45,7 +45,7 @@ export interface Camera {
 export const FOV = (34 * Math.PI) / 180
 export const REST = { yaw: -0.16, pitch: 0.6, ty: 0.12, tz: -0.25 }
 /** How far the resting camera swings, in radians: the slow drift in yaw, and the reader's lean (pointer or tilt). */
-export const SWAY = { drift: 0.045, period: 48, yaw: 0.04, pitch: 0.02 }
+export const SWAY = { drift: 0.03, period: 48, yaw: 0.055, pitch: 0.025 }
 /**
  * The walls at the valley's ends stand about 1.16 H tall, and 1.38 H at the 95th percentile over ten calm minutes
  * (cumulative depth sixty-four ticks out): the fit leaves room for that, not just for H.

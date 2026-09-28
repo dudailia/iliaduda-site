@@ -1,4 +1,5 @@
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
+import { arrived, spring } from '@/lib/stage/spring'
 import { EASE_IN_OUT, EASE_OUT } from '@/lib/ease'
 import { BAR_D, ZWALL, driftAt, project, restPose, viewProjection, wallPrice, type M4, type Pose, type V3 } from '@/lib/futures/camera'
 import { DENSITY_SCALE, densityFormat, glOverride, type Density } from '@/lib/futures/caps'
@@ -340,20 +341,6 @@ const smooth = (a: number, b: number, x: number) => {
 }
 
 /** Critically damped spring, solved exactly, so a long frame cannot overshoot. */
-function spring(s: { x: number; v: number }, target: number, dt: number, omega: number) {
-  const d = s.x - target
-  const e = Math.exp(-omega * dt)
-  const c = s.v + omega * d
-  s.x = target + (d + c * dt) * e
-  s.v = (s.v - omega * c * dt) * e
-}
-/** Whether a spring has arrived; if it has, it is put exactly there, so a still figure stays still. */
-function arrived(s: { x: number; v: number }, target: number, eps: number) {
-  if (Math.abs(s.x - target) > eps || Math.abs(s.v) > eps * 10) return false
-  s.x = target
-  s.v = 0
-  return true
-}
 
 /**
  * Vertex data reused frame to frame: the bars and hairlines are rebuilt every
@@ -495,6 +482,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
    */
   let timeK = -1
   let fadeMul = 1
+  /** How far the fade back in has come after a Replay (0…1, eased). */
+  let fadeUp = 0
   let firstFrame = true
   /** The one batch priced while the sequence waits has gone out. */
   let warmed = false
@@ -1098,7 +1087,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         fadeTo.t += dt * 1000
         fadeMul = 1 - EASE_OUT(Math.min(1, fadeTo.t / fadeTo.ms))
         if (fadeTo.t >= fadeTo.ms) fadeTo = null
-      } else if (!director.rewinding) fadeMul = Math.min(1, fadeMul + dt / 0.24)
+      } else if (!director.rewinding && fadeMul < 1) {
+        // Back in on the same ease-out it went out on, over the same 240ms.
+        fadeUp = Math.min(1, fadeUp + dt / 0.24)
+        fadeMul = Math.max(fadeMul, EASE_OUT(fadeUp))
+      } else fadeUp = 0
       advanceSequence()
       const paused = o.paused()
       if (timeK < 0) timeK = paused ? 0 : 1
@@ -1112,12 +1105,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       spring(kv, previewK ?? strike, dt, 30)
       if (Math.round(kv.x) !== k0) setStrikeText()
       // The reader leans the view, on a critically damped spring (ω 4: a heavy scene that visibly follows, 95% in
-      // about 1.2s); paused, it holds where it was.
-      if (!paused) {
-        const lean = o.parallax()
-        spring(par.x, lean.x, dt, 4)
-        spring(par.y, lean.y, dt, 4)
-      }
+      // about 1.2s); paused, it comes to rest where it is, its speed spent on the same spring rather than frozen in a
+      // frame and handed back whole on Resume.
+      const lean = paused ? { x: par.x.x, y: par.y.x } : o.parallax()
+      spring(par.x, lean.x, dt, 4)
+      spring(par.y, lean.y, dt, 4)
       const aspect = cssW / Math.max(1, cssH)
       pose = moveCamera(dt, aspect)
       // Alongside the fan the futures step back by half, so the camera is among them without drowning in them; at

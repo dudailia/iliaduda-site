@@ -1,5 +1,5 @@
 import { EASE_IN_OUT, EASE_IN_OUT_QUAD } from '../ease'
-import { blend, flightPose, framePose, type Pose } from './camera'
+import { along, blend, driftOf, flightPose, framePose, type Drift, type Pose } from './camera'
 
 /**
  * Where the camera is in the figure's story, frame by frame: the composed
@@ -59,6 +59,8 @@ export class Director {
   private flightMax = 0
   private first = true
   private then: (() => void) | null = null
+  /** How fast the camera was moving when a flight was stopped, carried into its way home. */
+  private carry: Drift | null = null
 
   get rewinding(): boolean {
     return this.then != null
@@ -74,9 +76,12 @@ export class Director {
   }
 
   step(m: Moment): Pose {
+    const was = this.pose
     this.pose = this.move(m)
+    if (was && this.mode === 'flight') this.speed = driftOf(was, this.pose, m.dt)
     return this.pose
   }
+  private speed: Drift | null = null
 
   private move(m: Moment): Pose {
     const { rest, aspect } = m
@@ -95,7 +100,8 @@ export class Director {
       this.t += m.dt * 1000
       const u = EASE_IN_OUT(clamp01(this.t / REWIND_MS))
       this.depth = this.depth0 * (1 - u)
-      this.labels = 1
+      // The frame's labels come back as the camera gets there, as they do on the way home from a flight.
+      this.labels = Math.max(this.labels, smooth(0.3, 0.8, u))
       const next = blend(this.from ?? rest, framePose(aspect), u)
       if (this.t >= REWIND_MS) {
         this.mode = 'frame'
@@ -111,6 +117,7 @@ export class Director {
       this.depth0 = this.depth
       this.mode = 'return'
       this.t = 0
+      this.carry = this.speed
     }
     this.flightMax = this.mode === 'flight' ? Math.max(this.flightMax, p) : 0
     // The composed frame holds until the sequence is over, so the price lands, and is read, before the view swings.
@@ -142,11 +149,18 @@ export class Director {
         return flightPose(p, aspect, this.flightFrom ?? rest)
       case 'return': {
         this.t += m.dt * 1000
-        const u = EASE_IN_OUT(clamp01(this.t / HOME_MS))
+        const s = clamp01(this.t / HOME_MS)
+        const u = EASE_IN_OUT(s)
         this.depth = this.depth0 + (1 - this.depth0) * u
         this.labels = Math.max(this.labels, smooth(0.3, 0.8, u))
-        if (this.t >= HOME_MS) this.mode = 'rest'
-        return blend(this.from ?? rest, rest, u)
+        if (this.t >= HOME_MS) {
+          this.mode = 'rest'
+          this.carry = null
+        }
+        // Home on the in-out, plus the speed the camera had when it was stopped, spent over the way (a Hermite
+        // tangent: all of it at the start, none at the end), so it slows rather than stopping dead and starting again.
+        const home = blend(this.from ?? rest, rest, u)
+        return this.carry ? along(home, this.carry, (HOME_MS / 1000) * (s - 2 * s * s + s * s * s)) : home
       }
     }
   }

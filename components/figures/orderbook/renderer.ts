@@ -4,6 +4,7 @@ import { fmt, readAt, rowAfter, type Reading } from '@/lib/orderbook/read'
 import { DX, DZ, H, POW, REF, REST, ROWS_BY_Q, SWAY, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 import { EASE_IN_OUT_QUAD, EASE_OUT } from '@/lib/ease'
+import { spring } from '@/lib/stage/spring'
 import { rowRise } from '@/lib/orderbook/sequence'
 import { PAD, boxAt, fits, labelSpecs, type Anchor, type Box, type LabelKind } from '@/lib/orderbook/labels'
 
@@ -58,11 +59,14 @@ export interface Shared {
 
 const MAXP = 512
 const SPARK_LIFE = 0.6
-/** Window follow speed, ticks per second: linear, never eased. */
-const FOLLOW = 4
-// The orbit follows the reader's lean quickly (settles in ~0.5s) and swings little:
-// a slow, wide orbit slid the level under the probe while the reader aimed.
-const OMEGA = 9
+/**
+ * The price window follows the mid on the figures' spring (ω 3: most of a step in about a second), and jumps outright
+ * only where the whole terrain has changed anyway: a gap of 40 ticks, or seconds of rows written while it was away.
+ */
+const FOLLOW = 3
+/** The reader's lean: the home figure's spring (ω 4), held while the pointer reads the terrain, so the level under it
+ *  stays put while the reader aims. */
+const LEAN_W = 4
 /** The signature opens looking down on the flat page, and settles into the resting three-quarter view. */
 const PAGE_PITCH = 1.05
 /** Labels fade in and out over about 150ms (95%), never pop. */
@@ -455,16 +459,21 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // Gone, or crowded out: it fades where it last stood.
     l.want = 0
   }
-  /** Ease every label toward shown or hidden, times the signature's labels phase. */
+  /**
+   * Ease every label toward shown or hidden, times the signature's labels phase: through the phase's 640ms they arrive
+   * one after another, 40ms apart in the order they matter, each over 200ms on the ease-out.
+   */
   const fadeLabels = (dt: number, k: number): boolean => {
     const f = 1 - Math.exp(-Math.max(0, dt) / LABEL_TAU)
     let fading = false
+    let rank = 0
     for (const [id, l] of pool) {
+      const ki = k >= 1 ? 1 : EASE_OUT(Math.min(1, Math.max(0, (k * 640 - rank++ * 40) / 200)))
       if (!l.seen) l.want = 0
       l.seen = false
       l.o += (l.want - l.o) * (dt > 0 ? f : 1)
       if (Math.abs(l.want - l.o) > 0.002) fading = true
-      const a = l.o * k
+      const a = l.o * ki
       l.el.style.opacity = a.toFixed(3)
       l.el.style.visibility = a > 0.01 ? 'visible' : 'hidden'
       // A price the window has left for good leaves the page once it has faded.
@@ -488,7 +497,12 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   let shown = { rise: 1, river: 1, settle: 1, labels: 1 }
   let draws = 0
   let centre = sim.mids[sim.row(0)]!
-  const spring = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
+  const lean = { yaw: { x: 0, v: 0 }, pitch: { x: 0, v: 0 } }
+  const follow = { x: centre, v: 0 }
+  /** The drift's speed: 1 running, coasting to 0 over 240ms on Pause and back over 400ms on Resume, as the home figure's. */
+  let driftK = 1
+  /** Whether the pointer was reading the terrain last frame. */
+  let reading0 = false
   let hover: [number, number] | null = null
   let mvp: M4 = new Float32Array(16)
   let inv: M4 | null = null
@@ -505,8 +519,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
 
   /** The camera: from the page to rest as the signature settles (`k` 0 → 1), then drifting and leaning with the reader. */
   const cam = (t: number, k: number): Camera => ({
-    yaw: REST.yaw + (SWAY.drift * Math.sin((2 * Math.PI * t) / SWAY.period) + spring.yaw) * k,
-    pitch: page.pitch + (rest.pitch - page.pitch) * k + spring.pitch * k,
+    yaw: REST.yaw + (SWAY.drift * Math.sin((2 * Math.PI * t) / SWAY.period) + lean.yaw.x) * k,
+    pitch: page.pitch + (rest.pitch - page.pitch) * k + lean.pitch.x * k,
     dist: page.dist + (rest.dist - page.dist) * k,
     tx: page.tx + (rest.tx - page.tx) * k,
     ty: rest.ty,
@@ -633,8 +647,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // The page's one market moves once a frame, whichever figure asks first (./market.ts): this figure uploads every
     // row written since it last drew, however many, and whoever wrote them. dt is capped by the stage.
     sh.advance()
-    if (sim.written !== uploaded) {
-      uploadRows(Math.min(ROWS, sim.written - uploaded))
+    const fresh = sim.written - uploaded
+    if (fresh) {
+      uploadRows(Math.min(ROWS, fresh))
       uploaded = sim.written
     }
     if (pDirty) {
@@ -645,24 +660,21 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     const head = sim.row(0)
     fracZ = Math.min(1, (sim.t - sim.times[head]!) * HZ)
     const target = sim.mids[head]!
-    const step = FOLLOW * dt
-    centre += Math.max(-step, Math.min(step, target - centre))
-    if (Math.abs(target - centre) > 40) centre = target
+    if (Math.abs(target - follow.x) > 40 || fresh > 5 * HZ) {
+      follow.x = target
+      follow.v = 0
+    } else spring(follow, target, dt, FOLLOW)
+    centre = follow.x
 
-    // The reader's lean (pointer or tilt): a critically damped spring toward it. Paused, it holds.
-    const leaning = sh.paused ? null : sh.lean()
-    const ty = leaning ? -SWAY.yaw * leaning.x : spring.yaw
-    const tp = leaning ? -SWAY.pitch * leaning.y : spring.pitch
-    for (let left = dt; left > 1e-6; left -= 1 / 60) {
-      const h = Math.min(left, 1 / 60)
-      spring.vy += (-OMEGA * OMEGA * (spring.yaw - ty) - 2 * OMEGA * spring.vy) * h
-      spring.vp += (-OMEGA * OMEGA * (spring.pitch - tp) - 2 * OMEGA * spring.vp) * h
-      spring.yaw += spring.vy * h
-      spring.pitch += spring.vp * h
-    }
+    // The reader's lean (pointer or tilt), on the spring. Paused, or while the pointer reads the terrain, it comes to
+    // rest where it is.
+    const leaning = sh.paused || reading0 ? null : sh.lean()
+    spring(lean.yaw, leaning ? -SWAY.yaw * leaning.x : lean.yaw.x, dt, LEAN_W)
+    spring(lean.pitch, leaning ? -SWAY.pitch * leaning.y : lean.pitch.x, dt, LEAN_W)
 
     const aspect = cssW / cssH
-    if (!sh.paused) clock += dt
+    driftK = sh.paused ? Math.max(0, driftK - dt / 0.24) : Math.min(1, driftK + dt / 0.4)
+    clock += dt * driftK
     const c = cam(clock, settleK)
     const e = eye(c)
     mvp = mul(perspective(aspect, lens(aspect)), view(c))
@@ -670,6 +682,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
 
     // Probe: hover wins; else the keyboard/tap probe.
     const hovered = hover ? pick(hover[0], hover[1]) : null
+    reading0 = hovered !== null
     // The reader's own probe wins; otherwise the order chosen in Fig. 2, where and when it was, while it is in view.
     const chosen = !hovered && !sh.key ? sh.highlight() : null
     const probe =
@@ -844,7 +857,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     const fading = fadeLabels(dt, labelsK)
     settling =
       fading ||
-      Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-5 ||
+      Math.abs(lean.yaw.v) + Math.abs(lean.pitch.v) > 1e-5 ||
+      (sh.paused && driftK > 0) ||
+      Math.abs(follow.v) > 1e-4 ||
       Math.abs(rowsTarget - rowsF) > 0.01 ||
       Math.abs(target - centre) > 1e-3 ||
       ph !== null ||

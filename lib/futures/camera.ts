@@ -179,6 +179,47 @@ export function blend(a: Pose, b: Pose, u: number): Pose {
   })
 }
 
+/** How fast a camera is moving, in the coordinates `blend` moves it in, per second: distance as a log-rate. */
+export interface Drift {
+  target: V3
+  dist: number
+  yaw: number
+  pitch: number
+  stretch: number
+  fov: number
+}
+
+/** The rate a camera moved at between two poses a frame apart. */
+export function driftOf(a: Pose, b: Pose, dt: number): Drift {
+  const A = toSph(a), B = toSph(b)
+  let dyaw = B.yaw - A.yaw
+  if (dyaw > Math.PI) dyaw -= 2 * Math.PI
+  if (dyaw < -Math.PI) dyaw += 2 * Math.PI
+  const k = 1 / Math.max(1e-4, dt)
+  return {
+    target: [(B.target[0] - A.target[0]) * k, (B.target[1] - A.target[1]) * k, (B.target[2] - A.target[2]) * k],
+    dist: Math.log(B.dist / A.dist) * k,
+    yaw: dyaw * k,
+    pitch: (B.pitch - A.pitch) * k,
+    stretch: (B.stretch - A.stretch) * k,
+    fov: (B.fov - A.fov) * k,
+  }
+}
+
+/** A pose carried `t` seconds along a drift. */
+export function along(p: Pose, d: Drift, t: number): Pose {
+  if (t === 0) return p
+  const P = toSph(p)
+  return fromSph({
+    target: [P.target[0] + d.target[0] * t, P.target[1] + d.target[1] * t, P.target[2] + d.target[2] * t],
+    dist: P.dist * Math.exp(d.dist * t),
+    yaw: P.yaw + d.yaw * t,
+    pitch: P.pitch + d.pitch * t,
+    stretch: P.stretch + d.stretch * t,
+    fov: P.fov + d.fov * t,
+  })
+}
+
 /** The widest a set of points reaches, in clip space, from a pose; Infinity if any is behind the eye. */
 function reach(pose: Pose, aspect: number, pts: readonly V3[]): { worst: number; cx: number; cy: number } {
   const m = viewProjection(pose, aspect)
