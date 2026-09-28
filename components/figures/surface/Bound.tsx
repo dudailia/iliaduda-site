@@ -22,24 +22,34 @@ const K1 = 0.4
 const N = 240
 const ETA_MAX = 4
 const T = DOMAIN.tMin
+/**
+ * The scale is fixed, so moving η changes the curve and never the axes: from under the deepest dip the slider reaches
+ * (−0.43 at η 4) to 3, over the hump at the surface's own η (1.64). Past 3 the hump is cut off at the top, with its
+ * height written there.
+ */
+const LO = -0.6
+const HI = 3
+const GRID = [1, 2] as const
 
 export function BoundLive({ caption, table, description }: { caption: ReactNode; table: ReactNode; description: string }) {
   const [eta, setEta] = useState(P.eta)
   const ks = Array.from({ length: N + 1 }, (_, i) => K0 + ((K1 - K0) * i) / N)
   const gs = ks.map((k) => gWithEta(k, T, eta))
-  const lo = Math.min(-0.5, ...gs)
-  // Headroom over the peak, so the curve never touches the frame.
-  const top = Math.max(1.1, ...gs)
-  const hi = top + (top - lo) * 0.08
   const x = (i: number) => (i / N) * 100
-  const y = (v: number) => ((hi - v) / (hi - lo)) * 100
+  const y = (v: number) => ((HI - v) / (HI - LO)) * 100
   const path = gs.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(2)} ${y(v).toFixed(2)}`).join('')
+  const peak = Math.max(...gs)
+  const peakAt = gs.indexOf(peak)
   // The region below zero, filled between the curve and the axis.
   const neg = gs.map((v, i) => [x(i), y(Math.min(0, v))] as const)
   const negPath = `M0 ${y(0)}${neg.map(([a, b]) => `L${a.toFixed(2)} ${b.toFixed(2)}`).join('')}L100 ${y(0)}Z`
   const minG = Math.min(...gs)
-  const at = ks[gs.indexOf(minG)]!
+  const lowest = gs.indexOf(minG)
+  const at = ks[lowest]!
   const arbitrage = minG < 0
+  // Where g comes back up through zero after its dip: the label stands just past it, under zero, where the curve is not.
+  let up = lowest
+  while (up < N && gs[up]! < 0) up++
   const sufficient = eta * (1 + Math.abs(P.rho)) <= 2
 
   return (
@@ -63,18 +73,33 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
       }
     >
       <div className="relative h-56" role="img" aria-label={description}>
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
-          <rect x={0} y={0} width={100} height={100} fill="none" stroke="var(--color-graphite)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-hidden" aria-hidden>
+          {GRID.map((v) => (
+            <line key={v} x1={0} x2={100} y1={y(v)} y2={y(v)} stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          ))}
           <line x1={0} x2={100} y1={y(0)} y2={y(0)} stroke="var(--color-ink)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
           <line x1={((0 - K0) / (K1 - K0)) * 100} x2={((0 - K0) / (K1 - K0)) * 100} y1={0} y2={100} stroke="var(--color-rule)" strokeDasharray="3 3" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-          {arbitrage ? <path d={negPath} fill="var(--color-indigo-wash)" stroke="none" /> : null}
-          <path d={path} fill="none" stroke="var(--color-indigo)" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
+          {/* The claim: where the density is negative, in indigo, strong enough to see. */}
+          {arbitrage ? <path d={negPath} fill="var(--color-indigo)" fillOpacity={0.35} stroke="none" /> : null}
+          <path data-g="" d={path} fill="none" stroke="var(--color-indigo)" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
+          <rect x={0} y={0} width={100} height={100} fill="none" stroke="var(--color-graphite)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
         </svg>
         <span aria-hidden className="text-meta absolute left-1.5 bg-paper px-0.5 font-mono text-ink" style={{ top: `calc(${y(0)}% + 2px)` }}>
           g = 0
         </span>
+        {GRID.map((v) => (
+          <span key={v} aria-hidden className="text-meta absolute left-1.5 bg-paper px-0.5 font-mono text-graphite" style={{ top: `calc(${y(v)}% + 2px)` }}>
+            {v}
+          </span>
+        ))}
+        {peak > HI ? (
+          // The hump runs off the top of the scale: its height, written where it leaves.
+          <span aria-hidden className="text-meta absolute top-1 -translate-x-1/2 bg-paper px-0.5 font-mono text-graphite" style={{ left: `${Math.min(88, Math.max(12, x(peakAt)))}%` }}>
+            peak {peak.toFixed(2)}
+          </span>
+        ) : null}
         {arbitrage ? (
-          <span aria-hidden className="text-meta absolute bg-paper px-0.5 font-mono text-indigo" style={{ left: `${Math.min(70, Math.max(2, ((at - K0) / (K1 - K0)) * 100 + 2))}%`, top: `calc(${y(minG)}% - 1.25rem)` }}>
+          <span aria-hidden className="text-meta absolute bg-paper px-0.5 font-mono text-indigo" style={{ left: `calc(${Math.min(72, x(up))}% + 6px)`, top: `calc(${y(0)}% + 2px)` }}>
             negative density
           </span>
         ) : null}

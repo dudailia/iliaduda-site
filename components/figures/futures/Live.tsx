@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
+import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { fade, underlay, useStage, type Create, type Renderer } from '@/components/stage/useStage'
@@ -47,8 +48,6 @@ const pct = (x: number) => `${Math.round(x * 100)}%`
 const dollars = (x: number) => `$${x.toFixed(2)}`
 
 /** A figure control: quiet, 4px corners, the border goes to ink on hover, and a press is felt. */
-const CONTROL =
-  'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
 
 type Mode = 'server' | 'cpu' | 'gpu'
 type Seq = 'off' | 'pending' | 'playing' | 'done'

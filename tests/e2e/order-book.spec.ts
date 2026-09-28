@@ -357,11 +357,12 @@ test('?debug=1 reports the live figure, and whether this browser computes the sa
   expect(errors).toEqual([])
 })
 
-test('?debug=1 gives the reason the figure keeps its still frame, and the hint says it too', async ({ page }) => {
+test('?debug=1 gives the reason the figure keeps its still frame, and the hint says it too', async ({ page, isMobile }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/order-book?debug=1')
   await expect(row(page, /^figure$/)).toHaveText('declined: Still frame: your system asks for reduced motion.')
-  await expect(page.locator('#fig-order-book p').filter({ hasText: 'Still frame' }).first()).toContainText('arrow keys')
+  // And how to read it, for the pointer this reader has: a finger taps, a mouse and keyboard click or step.
+  await expect(page.locator('#fig-order-book p').filter({ hasText: 'Still frame' }).first()).toContainText(isMobile ? 'Tap the terrain' : 'arrow keys')
   await expect(row(page, /^market$/)).toHaveText(/^same as Node/, { timeout: 15_000 })
 })
 

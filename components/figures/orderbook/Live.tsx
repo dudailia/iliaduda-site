@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
+import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
@@ -46,8 +47,6 @@ export interface Initial {
 const PROBE_START: KeyProbe = { dp: 4, age: 12 }
 const MAX_DP = 60
 const STAGE_OPTS = { maxQ: { mid: 3 } } as const
-const CONTROL =
-  'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
 
 type Mod = typeof import('./renderer')
 const noop = () => () => {}
@@ -436,9 +435,12 @@ export function OrderBookLive({
       hint={
         // Room kept for the longest hint (the live figure's), so going live never moves the page below.
         <span className="block min-h-[3lh] sm:min-h-[2lh]">
-          {live
-            ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.'
-            : `${why ? `${why} ` : ''}${mounted && matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click'} the terrain, or tab to it and use the arrow keys, to read a price level.`}
+          {/* Said for the pointer this reader has: a finger taps, and has no keys to name. */}
+          {mounted && matchMedia('(pointer: coarse)').matches
+            ? `${why ? `${why} ` : ''}Tap the terrain to read a price level.`
+            : live
+              ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.'
+              : `${why ? `${why} ` : ''}Click the terrain, or tab to it and use the arrow keys, to read a price level.`}
         </span>
       }
       caption={caption}

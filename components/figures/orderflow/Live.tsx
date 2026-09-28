@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
+import { CONTROL } from '@/components/stage/controls'
 import { cssColor, useColorScheme, useInView, useReducedMotion } from '@/components/stage/env'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { fade, underlay } from '@/components/stage/useStage'
@@ -36,8 +37,6 @@ export interface Initial {
   emptied: number
 }
 
-const CONTROL =
-  'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
 const noop = () => () => {}
 const onVisibility = (fn: () => void) => {
   document.addEventListener('visibilitychange', fn)
@@ -330,7 +329,17 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       subtitle={subtitle}
       rail={<Stats initial={initial} set={ref} suffix="" />}
       railBelow={false}
-      hint={`${mounted && !reduced ? 'Point at an order, or tap it' : 'Tap an order'}, or tab to the figure and use the arrow keys, to read what set it off.${live && !reduced && !still ? ' Space pauses both figures.' : ''}`}
+      hint={
+        // Room kept for the longest hint (the live figure's, three lines on a phone), so going live never moves the page below.
+        <span className="block min-h-[3lh] sm:min-h-[2lh]">
+          {/* Said for the pointer this reader has, once the browser has said which: a finger taps, and has no keys to name. */}
+          {!mounted
+            ? 'Tap or click an order, or tab to the figure and use the arrow keys, to read what set it off.'
+            : matchMedia('(pointer: coarse)').matches
+              ? 'Tap an order to read what set it off.'
+              : `${reduced ? 'Click an order' : 'Point at an order, or click it'}, or tab to the figure and use the arrow keys, to read what set it off.${live && !reduced && !still ? ' Space pauses both figures.' : ''}`}
+        </span>
+      }
       caption={caption}
       table={table}
     >

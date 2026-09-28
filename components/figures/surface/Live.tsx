@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
+import { CONTROL } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
@@ -36,8 +37,6 @@ const PROBE_START: Probe = { k: 0, T: 0.25 }
 const STEP_U = 1 / 28
 const STEP_V = 1 / 20
 const PAUSED = 'surface-paused'
-const CONTROL =
-  'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
 const noop = () => () => {}
 
 /** The reading point's tag: up and to the right of the dot, in the axis labels' type, on a paper fill. */
@@ -678,16 +677,18 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             {shock.toFixed(2)}×
           </output>
         </label>
-        {live ? (
-          <>
-            <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>
-              {paused ? 'Resume' : 'Pause'}
-            </button>
-            <button type="button" data-replay="" onClick={replay} className={CONTROL}>
-              Replay
-            </button>
-          </>
-        ) : null}
+        {/* Pause and Replay have their place from the first paint, so going live moves nothing under the figure (on a
+            phone they take a row of their own); a reader who asked for reduced motion never gets them, and no room is
+            kept for them. */}
+        <div className={`flex gap-2 motion-reduce:hidden ${live ? '' : 'invisible'}`}>
+          <button type="button" onClick={togglePause} disabled={!live} className={`${CONTROL} min-w-[4.5rem]`}>
+            {/* The server cannot know a pause kept for the visit: its word waits for the browser's, as the hints do. */}
+            {mounted && paused ? 'Resume' : 'Pause'}
+          </button>
+          <button type="button" data-replay="" onClick={replay} disabled={!live} className={CONTROL}>
+            Replay
+          </button>
+        </div>
       </div>
       <p className="sr-only" aria-live="polite">
         {spoken}

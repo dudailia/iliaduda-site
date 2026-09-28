@@ -9,7 +9,7 @@ import { GPU, errorsOf } from './hero-kit'
  * arbitrage check included; a click-pin and the arrow keys agree; Pause holds
  * the drawing; reduced motion is a still frame that the slider still redraws;
  * and the phone's path survives its missing extensions and a lost context.
- * Fig. 2, the arbitrage bound, is unchanged.
+ * Fig. 2, the arbitrage bound, breaks on demand, on a fixed scale.
  */
 
 test.use({ launchOptions: { args: GPU } })
@@ -84,6 +84,7 @@ test('while the story plays and its narration is below the fold, the stage says 
 
 test('a story the page starts while the figure is paused still plays through, and the figure stays paused', async ({ page }) => {
   test.setTimeout(60_000)
+  const errors = errorsOf(page)
   // Paused in an earlier look at the page, before its story was ever seen.
   await page.addInitScript(() => sessionStorage.setItem('surface-paused', '1'))
   await page.goto('/iv-surface')
@@ -100,6 +101,8 @@ test('a story the page starts while the figure is paused still plays through, an
   if (!live) return test.skip(true, 'no GPU here')
   await expect.poll(() => seq(page), { timeout: 12_000 }).toBe('done')
   await expect(page.locator(FIG).getByRole('button', { name: 'Resume' })).toBeVisible()
+  // The pause kept for the visit is the browser's to know: the server's page hydrates without a mismatch.
+  expect(errors).toEqual([])
 })
 
 test('a click finishes the signature at once; a scroll does not', async ({ page, isMobile }) => {
@@ -472,6 +475,51 @@ test('?debug=1 reports the figure', async ({ page }) => {
   const row = (k: RegExp) => page.locator('[data-stage-debug] div').filter({ has: page.locator('dt', { hasText: k }) }).locator('dd')
   await expect(row(/^figure$/)).toHaveText(/^(live|starting|declined: Still frame.*)$/, { timeout: 10_000 })
   await expect(row(/^shock$/)).toHaveText(/^0\.00× · calm$/)
+})
+
+test('Fig. 2 holds its scale as the curvature moves: zero stays where it is, and a hump past the top says how high it goes', async ({ page }) => {
+  await page.goto('/iv-surface')
+  const fig = page.locator('#fig-bound')
+  const eta = fig.getByRole('slider')
+  // The zero line's label against the plot, both read in one frame: filling the slider scrolls the page.
+  const at = () =>
+    fig.evaluate((f) => {
+      const plot = f.querySelector('[role="img"]')!
+      const zero = [...plot.querySelectorAll('span')].find((s) => s.textContent === 'g = 0')!
+      return zero.getBoundingClientRect().y - plot.getBoundingClientRect().y
+    })
+  const calm = await at()
+  await eta.fill('3.5')
+  expect(await at()).toBeCloseTo(calm, 0)
+  await expect(fig.getByText(/^peak \d\.\d\d$/)).toBeVisible()
+  await eta.fill('1.1')
+  await expect(fig.getByText(/^peak /)).toHaveCount(0)
+})
+
+test('Fig. 2 names the negative density beside its dip, under zero and clear of the curve', async ({ page }) => {
+  await page.goto('/iv-surface')
+  const fig = page.locator('#fig-bound')
+  await fig.getByRole('slider').fill('4')
+  const label = fig.getByText('negative density', { exact: true })
+  await expect(label).toBeVisible()
+  const l = (await label.boundingBox())!
+  const z = (await fig.getByText('g = 0', { exact: true }).boundingBox())!
+  // Under the zero line, with the g = 0 label.
+  expect(l.y).toBeGreaterThanOrEqual(z.y - 1)
+  // Clear of the curve: nothing of the plotted line runs through the label's box.
+  const crossed = await page.evaluate((b) => {
+    const path = document.querySelector<SVGPathElement>('#fig-bound svg path[data-g]')!
+    const svg = path.ownerSVGElement!
+    const r = svg.getBoundingClientRect()
+    const n = path.getTotalLength()
+    for (let i = 0; i <= 400; i++) {
+      const p = path.getPointAtLength((n * i) / 400)
+      const x = r.left + (p.x / 100) * r.width, y = r.top + (p.y / 100) * r.height
+      if (x > b.x && x < b.x + b.width && y > b.y && y < b.y + b.height) return true
+    }
+    return false
+  }, l)
+  expect(crossed).toBe(false)
 })
 
 test('Fig. 2 still breaks the surface on demand', async ({ page }) => {
