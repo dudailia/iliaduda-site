@@ -375,7 +375,9 @@ export function MarketLive({
   const mounted = useSyncExternalStore(noop, () => true, () => false)
   // The market runs wherever the surface will not be drawn by a CPU (the software tier, as Lighthouse runs, keeps the
   // still frames), and where there is no WebGL2 at all, for the flat views.
-  const allowed = mounted && !saveData() && (tier !== null ? tier !== 'software' : !supportsWebGL2())
+  // The market runs where its surface can: a browser with no WebGL2 (a blocklisted GPU, or a headless audit, which
+  // Chrome no longer lends a software one) or a software rasteriser keeps the still frames, which Liquidity shock swaps.
+  const allowed = mounted && !saveData() && tier !== null && tier !== 'software'
 
   // ── the flat views, drawn in the market's own frame ────────────────────────────────────────────────────────────
   const lastDraw = useRef(0)
@@ -784,10 +786,9 @@ export function MarketLive({
             ? 'Still frames: the market could not start in this browser.'
           : tier === 'software'
             ? 'Still frames: this device draws with its processor, not a graphics chip, so the market is not run here.'
-            : null
-  // Where only the surface cannot run (no WebGL2), the market still does: the book and the futures are live, and so
-  // is Liquidity shock; only the surface is a still frame, drawn at the market's stress.
-  const partial = mounted && !why && !eligible && !supportsWebGL2() ? 'This browser has no WebGL2, so the surface is a still frame at the market’s stress.' : null
+            : !eligible && !supportsWebGL2()
+              ? 'Still frames: this browser has no WebGL2, so the market is not run here.'
+              : null
   const live = market.live && flat && !market.declined
   // The line says the story and the market's state while it runs; where it does not, which still frame it shows.
   const line: Story | null = live ? said : why ? (still === 'shock' ? 'still-shock' : 'still-calm') : null
@@ -826,7 +827,7 @@ export function MarketLive({
       const m = mirrorRef.current
       return {
         state: live ? 'live' : why ? 'declined' : mounted ? 'starting' : 'server',
-        reason: why ?? partial,
+        reason: why,
         tier,
         quality,
         fps,
@@ -847,12 +848,12 @@ export function MarketLive({
   })
   const readDebug = useCallback((): LiveInfo => debugInfo.current!(), [])
   // Where the surface is not live, its still frame is drawn smooth (../surface/still.ts, the IV figure's): for the still
-  // frame shown, or, where only WebGL2 is missing and the flat views run, at the market's stress once a second.
+  // frame shown, or, where the surface was lost while the market runs, at the market's stress once a second.
   const stillMod = useRef<typeof import('../surface/still') | null>(null)
   useEffect(() => {
     if (!mounted || surfaceLive || !box.current) return
-    // Only where the surface will not be live: the still frames stand, or the market runs without WebGL2.
-    if (!why && !(market.live && !eligible)) return
+    // Only where the still frames stand.
+    if (!why) return
     let gone = false
     // If the smooth frame does not load, the build's still frame of the surface stands.
     void import('../surface/still').then(
@@ -865,7 +866,7 @@ export function MarketLive({
     return () => {
       gone = true
     }
-  }, [mounted, surfaceLive, why, still, scheme, kind, market.live, eligible, stillSurface, box])
+  }, [mounted, surfaceLive, why, still, scheme, kind, stillSurface, box])
   const lastStill = useRef(0)
   useEffect(() => {
     stillTick.current = (m: Mirror, now: number) => {
@@ -919,8 +920,6 @@ export function MarketLive({
           <span className="block min-h-[3lh] sm:min-h-[2lh] print:hidden">
             {why
               ? `${why} Liquidity shock shows the same market ${stillAfter === 1 ? 'a second' : `${stillAfter} seconds`} after one.`
-              : partial
-                ? `${partial} Press Liquidity shock to hit the market; ${coarse ? 'drag across' : 'point at a moment in'} the book to see the market as it was then.`
               : coarse
                 ? 'Press Liquidity shock to hit the market; drag across the book to see the market as it was then, or across the surface to turn it.'
                 : 'Press Liquidity shock to hit the market; point at a moment in the book to see the market as it was then, or drag the surface to turn it.'}
@@ -976,12 +975,13 @@ export function MarketLive({
         </div>
 
         {/* One line between the views: the story while it plays, then the market's state. Its room is kept, so what it
-            says never moves the page; each turn dips to nothing and back (120ms, a 2px blur). */}
+            says never moves the page; each turn blurs out and the next blurs in (120ms each way, 3px), at full opacity, so
+            every frame keeps the text's contrast. */}
         <p aria-hidden data-market-story={line ?? ''} className="text-note mt-2 min-h-[1lh] leading-snug text-ink print:hidden">
           {line ? (
             <span
               key={line}
-              className={`inline-block transition-[opacity,filter] duration-[120ms] ease-out starting:opacity-0 starting:blur-[2px] motion-reduce:transition-none ${going && live ? 'opacity-0 blur-[2px]' : ''}`}
+              className={`inline-block transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none ${going && live ? 'blur-[3px]' : ''}`}
             >
               <span className="font-semibold">{STORY[line].name}.</span> <span className="hidden sm:inline">{STORY[line].text}</span>
               <span className="sm:hidden">{STORY[line].short}</span>

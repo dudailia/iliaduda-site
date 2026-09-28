@@ -373,46 +373,12 @@
 :root[data-orderbook-seq] [data-orderbook-poster] [data-fill] {
   opacity: 0;
 }
-/* Its live controls, and Fig. 2's, arrive as the hero's do: rising 4px into place, 40ms apart. */
+/* The live figures' controls arrive with the canvas they drive (the order book's and its Fig. 2's, /market's, the home
+   figure's): 240ms on the crossfade's curve, rising 4px into place one after another, 40ms apart. The rise is
+   `translate`, so a press's `scale` keeps its own quick 150ms, and only the arrival waits its turn. */
 [data-orderbook-controls] > button,
-[data-orderflow-controls] > button {
-  transition:
-    border-color 150ms var(--ease-out),
-    scale 150ms var(--ease-out),
-    opacity 240ms var(--ease-out) var(--arrive, 0ms),
-    translate 240ms var(--ease-out) var(--arrive, 0ms);
-  @starting-style {
-    opacity: 0;
-    translate: 0 4px;
-  }
-}
-[data-orderbook-controls] > button:nth-child(2) {
-  --arrive: 40ms;
-}
-
-/* /market's live controls arrive the same way, with the three views they drive: rising 4px, 40ms apart. */
-[data-market-controls] > button {
-  transition:
-    border-color 150ms var(--ease-out),
-    scale 150ms var(--ease-out),
-    opacity 240ms var(--ease-out) var(--arrive, 0ms),
-    translate 240ms var(--ease-out) var(--arrive, 0ms);
-  @starting-style {
-    opacity: 0;
-    translate: 0 4px;
-  }
-}
-[data-market-controls] > button:nth-child(2) {
-  --arrive: 40ms;
-}
-[data-market-controls] > button:nth-child(3) {
-  --arrive: 80ms;
-}
-
-/* The home figure's live controls arrive with the canvas they drive: 240ms on the crossfade's curve, rising 4px into
-   place one after another, 40ms apart. The rise is `translate`, so a press's `scale` keeps its own quick 150ms, and
-   only the arrival waits its turn: a hover or a press never does. Reset, which appears as the reader first moves an
-   input, enters from 0.97 over 160ms. */
+[data-orderflow-controls] > button,
+[data-market-controls] > button,
 [data-futures-controls] > button {
   transition:
     border-color 150ms var(--ease-out),
@@ -424,12 +390,14 @@
     translate: 0 4px;
   }
 }
-[data-futures-controls] > button:nth-child(2) {
+:is([data-orderbook-controls], [data-market-controls], [data-futures-controls]) > button:nth-child(2) {
   --arrive: 40ms;
 }
-[data-futures-controls] > button:nth-child(3) {
+:is([data-market-controls], [data-futures-controls]) > button:nth-child(3) {
   --arrive: 80ms;
 }
+
+/* The home figure's Reset, which appears as the reader first moves an input, enters from 0.97 over 160ms. */
 [data-futures-controls] > button[data-reset] {
   transition:
     border-color 150ms var(--ease-out),

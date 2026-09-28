@@ -307,3 +307,25 @@ test('reduced motion: still frames, no worker, and Liquidity shock swaps the sho
   expect(workers).toEqual([])
   expect(errors).toEqual([])
 })
+
+test.describe('a browser with no WebGL2', () => {
+  test('keeps the still frames and starts no worker: a headless audit, or a blocklisted GPU, runs nothing it cannot draw', async ({ page }) => {
+    const errors = errorsOf(page)
+    const workers: string[] = []
+    page.on('worker', (w) => workers.push(w.url()))
+    await page.addInitScript(() => {
+      const get = HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+        if (type === 'webgl2') return null
+        return (get as (...a: unknown[]) => unknown).call(this, type, ...rest)
+      } as typeof get
+    })
+    await page.goto('/market')
+    await page.evaluate(() => document.querySelector('[data-market-stage]')?.scrollIntoView({ block: 'start' }))
+    await expect(page.locator('#fig-1')).toContainText('Still frames: this browser has no WebGL2, so the market is not run here.')
+    await page.waitForTimeout(2_500)
+    expect(workers).toEqual([])
+    await expect(page.locator('[data-market-still-shock]')).toHaveText('Liquidity shock')
+    expect(errors).toEqual([])
+  })
+})

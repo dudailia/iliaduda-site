@@ -131,10 +131,12 @@ function orderBook(): Thumb {
 
 function market(): Thumb {
   // Fig. 1's stage as it is laid out: the market's vol surface above, through the surface's own camera, and under it
-  // the book's price over its last twenty seconds beside a year of its futures. The one-month smile and a dozen of the
-  // year's paths are the claim; the other smiles, the strike lines, the price and the fan's 5th–95th the context.
+  // the book's price over its last twenty seconds beside a year of its futures. The one-month smile and eight of the
+  // year's paths are the claim; the other smiles, the strike lines, the price and the fan's 5th–95th the context. At
+  // a thumbnail's size (9rem) a dozen points a line draw it; whole units, since every byte ships twice.
   const { m, fan, surface } = marketFrame()
   const f = m.flow
+  const int = (pts: readonly (readonly [number, number])[]) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${Math.round(x)} ${Math.round(y)}`).join('')
   // The surface, in a box of its own frame's aspect across the top of the thumbnail.
   const sh = TH * 0.56, sw = sh * 1.62, sx0 = (TW - sw) / 2
   const mv = mvp('wide', camera('wide'))
@@ -142,27 +144,27 @@ function market(): Thumb {
     const q = apply(mv, wx(k), wy(iv(surface, k, T)), wz(T))
     return [sx0 + ((q[0] / q[3]) * 0.5 + 0.5) * sw, (1 - ((q[1] / q[3]) * 0.5 + 0.5)) * sh] as const
   }
-  const smile = (T: number) => line(Array.from({ length: 25 }, (_, i) => at(kOfU(i / 24), T)))
-  const across = (K: number) => line(Array.from({ length: 17 }, (_, j) => at(Math.log(K), tOfV(j / 16))))
+  const smile = (T: number) => int(Array.from({ length: 13 }, (_, i) => at(kOfU(i / 12), T)))
+  const across = (K: number) => int(Array.from({ length: 9 }, (_, j) => at(Math.log(K), tOfV(j / 8))))
   const [first, ...rest] = EXPIRY_TICKS
   // The row under it: the book's price on the left, the year from now on the right.
   const y0 = TH * 0.64, rh = TH - y0, split = TW * 0.56, gap = 24
   const mids: number[] = []
-  for (let a = 239; a >= 0; a--) {
+  for (let a = 239; a >= 0; a -= 5) {
     const r = f.row(a)
     if (r >= 0) mids.push(f.mids[r]!)
   }
   const lo = Math.min(...mids) - 6, hi = Math.max(...mids) + 6
   const midY = (v: number) => y0 + rh / 2 + ((v - f.book.mid) / (hi - lo)) * -rh * 0.8
-  const past = line(mids.map((v, i) => [(i / (mids.length - 1)) * split, midY(v)] as const))
+  const past = int(mids.map((v, i) => [(i / (mids.length - 1)) * split, midY(v)] as const))
   const yr = (v: number) => y0 + rh / 2 - (Math.log(v) / Math.log(3)) * (rh / 2)
   const x = (j: number) => split + gap + (j / 64) * (TW - split - gap)
-  const band = (b: number) => line(Array.from({ length: 65 }, (_, j) => [x(j), yr(fan.band(b, j))] as const))
+  const band = (b: number) => int(Array.from({ length: 17 }, (_, j) => [x(j * 4), yr(fan.band(b, j * 4))] as const))
   const st = fan.strands()
-  const strand = (i: number) => line(Array.from({ length: 33 }, (_, k) => [x(k * 2), yr(st[i * 65 + k * 2]!)] as const))
+  const strand = (i: number) => int(Array.from({ length: 17 }, (_, k) => [x(k * 4), yr(st[i * 65 + k * 4]!)] as const))
   return {
     context: [...rest.map(([T]) => smile(T)), ...STRIKE_TICKS.map((K) => across(K)), past, band(0), band(4)],
-    claim: [smile(first[0]), ...Array.from({ length: 12 }, (_, i) => strand(i * 4))],
+    claim: [smile(first[0]), ...Array.from({ length: 8 }, (_, i) => strand(i * 6))],
   }
 }
 

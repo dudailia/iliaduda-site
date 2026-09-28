@@ -100,9 +100,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const phaseRef = useRef<Phase>('calm')
   const [phaseMoved, setPhaseMoved] = useState(false)
   /**
-   * The words the narration says, and whether they are on their way out: a turn of the story dips to nothing and back
-   * (120ms out, then 120ms in, a 2px blur), as the home figure's label does, so one sentence never cuts or smears into
-   * the next; a change the reader made on the slider is simply there.
+   * The words the narration says, and whether they are on their way out: a turn of the story blurs out and the next
+   * blurs in (120ms each way, 3px), at full opacity, so one sentence never cuts or smears into the next and every frame
+   * of it keeps the text's contrast; a change the reader made on the slider is simply there.
    */
   const [said, setSaid] = useState<Phase>('calm')
   const [going, setGoing] = useState(false)
@@ -621,7 +621,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           >
             <span
               key={said}
-              className={`inline-block rounded-sm bg-paper/90 px-1.5 py-0.5 transition-[opacity,filter] duration-[120ms] ease-out starting:opacity-0 starting:blur-[2px] ${going ? 'opacity-0 blur-[2px]' : ''}`}
+              className={`inline-block rounded-sm bg-paper/90 px-1.5 py-0.5 transition-[filter] duration-[120ms] ease-out starting:blur-[3px] ${going ? 'blur-[3px]' : ''}`}
             >
               <span className="font-semibold">{PHASE_TEXT[said].name}.</span> {PHASE_TEXT[said].short}
             </span>
@@ -675,7 +675,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em]" aria-live="off">
         <span
           key={said}
-          className={`block ${phaseMoved ? 'transition-[opacity,filter] duration-[120ms] ease-out starting:opacity-0 starting:blur-[2px]' : ''} ${going ? 'opacity-0 blur-[2px]' : ''}`}
+          className={`block ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
         >
           <span className="font-semibold">{PHASE_TEXT[said].name}.</span> {PHASE_TEXT[said].line}
         </span>
