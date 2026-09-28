@@ -140,6 +140,11 @@ export class Flow {
     return this.hawkes.t
   }
 
+  /** Whole quanta run so far, the burn-in's included. */
+  get quanta(): number {
+    return this.q
+  }
+
   private run(tEnd: number, keep: boolean) {
     this.hawkes.run(tEnd, (t, type, before) => {
       const b = this.book
