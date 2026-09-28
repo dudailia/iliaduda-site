@@ -54,6 +54,11 @@ export class Fan {
     if (!this.cols.length || this.cols[0]!.length !== n) this.cols = Array.from({ length: STEPS }, () => new Float64Array(n))
   }
 
+  /** Paths drawn so far. */
+  get progress(): number {
+    return this.drawn
+  }
+
   /** Draw up to `budget` more paths; true once the fan is whole and its bands are ready. */
   work(budget: number): boolean {
     if (this.ready) return true
