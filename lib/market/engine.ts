@@ -45,11 +45,15 @@ export class Market {
   readonly rowStress = new Float64Array(ROWS)
   private rowsSeen = 0
 
-  constructor(seed = SEED, market = MARKET) {
+  /**
+   * `burn` false leaves the burn-in to the caller, whose `advance` runs the same quanta: a page that builds the market
+   * on its main thread (the Contents miniatures) runs it a slice at a time, and gets the same market to the bit.
+   */
+  constructor(seed = SEED, market = MARKET, burn = true) {
     this.flow = new Flow(seed, market, false)
     this.sellRate = stationaryRates(market.hawkes)[MARKET_SELL]!
     // The flow's own burn-in, quantum for quantum, with the volatility taking its seconds as they pass.
-    while (this.flow.quanta < BURN * QUANTA) this.step()
+    if (burn) while (this.flow.quanta < BURN * QUANTA) this.step()
   }
 
   /** Simulated seconds. */

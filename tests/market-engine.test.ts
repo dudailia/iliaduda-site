@@ -83,3 +83,15 @@ describe('each row keeps the market as it was written', () => {
     expect(checked).toBe(60)
   })
 })
+
+describe('a market built a slice at a time', () => {
+  it('is the market built at once: its burn-in left to the caller, run in slices, gives the same market to the bit', () => {
+    const whole = new Market(SEED)
+    whole.advance(150)
+    const sliced = new Market(SEED, undefined, false)
+    // Nothing run yet: the page runs it in slices, on idle frames.
+    expect(sliced.t).toBe(0)
+    for (let t = 0.5; t <= 150 + 1e-9; t += 0.5) sliced.advance(t)
+    expect(sliced.hash()).toBe(whole.hash())
+  })
+})

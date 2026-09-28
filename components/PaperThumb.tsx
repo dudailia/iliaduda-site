@@ -15,9 +15,9 @@ export function PaperThumb({ slug, href }: { slug: string; href: string }) {
       tabIndex={-1}
       aria-hidden
       data-vt-thumb={`fig-${slug}`}
-      className="block aspect-[5/3] w-full border border-rule bg-paper p-1.5 no-underline transition-colors duration-150 ease-out hover:border-graphite"
+      className="relative block aspect-[5/3] w-full border border-rule bg-paper p-1.5 no-underline transition-colors duration-150 ease-out hover:border-graphite"
     >
-      <svg viewBox={`0 0 ${TW} ${TH}`} preserveAspectRatio="none" className="h-full w-full overflow-visible">
+      <svg viewBox={`0 0 ${TW} ${TH}`} preserveAspectRatio="none" className="h-full w-full overflow-visible" data-mini={t.mini}>
         {t.context.map((d, i) => (
           <path key={`c${i}`} d={d} fill="none" stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
         ))}

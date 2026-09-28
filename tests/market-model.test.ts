@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Book, CANCEL_ASK, CANCEL_BID, LIMIT_BUY, LIMIT_SELL, MARKET_BUY, MARKET_SELL, type Trade } from '@/lib/market/book'
 import { Hawkes, branchingMatrix, solve, spectralRadius, stationaryRates, type HawkesParams } from '@/lib/market/hawkes'
 import { mulberry32 } from '@/lib/market/rng'
-import { BOOK, HALF, HAWKES, LEVELS, POSTER_T, ROWS, Flow, posterFlow } from '@/lib/market/flow'
+import { BOOK, HALF, HAWKES, LEVELS, MARKET, POSTER_T, ROWS, SEED, Flow, posterFlow } from '@/lib/market/flow'
 import { GOLDEN, fingerprint } from '@/lib/market/fingerprint'
 
 /**
@@ -316,5 +316,15 @@ describe('the market on every engine', () => {
     const f = posterFlow()
     f.advance(f.t + 20)
     expect(fingerprint(f)).toBe(GOLDEN)
+  })
+})
+
+describe('the order book’s miniature, built a slice at a time', () => {
+  it('reaches the thumbnail’s flow: a flow with no burn-in, advanced in slices to the poster’s moment, is the poster’s', () => {
+    const want = posterFlow()
+    const f = new Flow(SEED, MARKET, false)
+    for (let t = 4; t < POSTER_T; t += 4) f.advance(t)
+    f.advance(POSTER_T)
+    expect(fingerprint(f)).toBe(fingerprint(want))
   })
 })

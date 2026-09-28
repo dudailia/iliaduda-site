@@ -3,6 +3,7 @@ import { roles } from '@/content/experience'
 import { SITE } from '@/lib/site'
 import { Items, Row } from './Layout'
 import { PaperThumb } from './PaperThumb'
+import { ContentsLive } from './thumbs/ContentsLive'
 
 /**
  * The issue's table of contents. Deliberately a typeset list separated by
@@ -38,6 +39,7 @@ export function Contents() {
       {/* Opening a paper names only its own thumbnail for the view
           transition; every other thumbnail stays out of it. */}
       <script dangerouslySetInnerHTML={{ __html: VT_CLICK }} />
+      <ContentsLive />
       <Row rail={<SectionHeading id="contents">Contents</SectionHeading>}>
         <ol className="grid list-none border-t border-rule" data-vt-contents>
           {papers.map((p) => (
@@ -53,7 +55,8 @@ export function Contents() {
                 </p>
                 <p className="text-note mt-3 max-w-[38rem]">{p.abstract}</p>
               </div>
-              <div className="hidden pt-1.5 sm:block">
+              {/* On a phone under the abstract, at the laptop's size; beside it from sm. */}
+              <div className="mt-4 w-36 sm:mt-0 sm:w-auto sm:pt-1.5">
                 <PaperThumb slug={p.slug} href={p.href} />
               </div>
             </li>
