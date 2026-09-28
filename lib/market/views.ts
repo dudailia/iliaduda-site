@@ -1,4 +1,3 @@
-import { stepCoefficients } from '../futures/mc'
 import { spring } from '../stage/spring'
 import { dexp, dlog } from './detmath'
 
@@ -60,12 +59,20 @@ export const depthTone = (c: number) => (c > 0 ? DEPTH.floor + DEPTH.range * (1 
 
 /**
  * A fan drawn at volatility `base.sigma`, as it is at `sigma`: the same paths, the same normal draws, stretched. In
- * log price a path is its drift plus σ times a sum of normals at each step, so every path, and every quantile taken
- * in log price (lib/futures/fan.ts), maps exactly: nothing is drawn again, and the fan can move with the volatility
- * frame by frame. Rows of 65 steps, today first; `outBands` and `outStrands` take the result.
+ * log price a path is its drift, (r − σ²/2) a step of `dt` years, plus σ√dt times a sum of normals at each step, so
+ * every path, and every quantile taken in log price (lib/futures/fan.ts), maps exactly: nothing is drawn again, and
+ * the fan can move with the volatility frame by frame. `r` and `dt` are the fan's own (the worker sends them with it,
+ * lib/futures/mc.ts's MODEL), so the page needs no Monte Carlo code to do it. Rows of 65 steps, today first;
+ * `outBands` and `outStrands` take the result.
  */
-export function fanAt(base: { sigma: number; bands: ArrayLike<number>; strands: ArrayLike<number> }, sigma: number, outBands: Float64Array, outStrands: Float64Array): void {
-  const a = stepCoefficients(base.sigma), b = stepCoefficients(sigma)
+export function fanAt(
+  base: { sigma: number; r: number; dt: number; bands: ArrayLike<number>; strands: ArrayLike<number> },
+  sigma: number,
+  outBands: Float64Array,
+  outStrands: Float64Array,
+): void {
+  const step = (s: number) => ({ drift: (base.r - 0.5 * s * s) * base.dt, vol: s * Math.sqrt(base.dt) })
+  const a = step(base.sigma), b = step(sigma)
   const k = b.vol / a.vol
   const map = (src: ArrayLike<number>, out: Float64Array) => {
     for (let i = 0; i < src.length; i++) {
@@ -76,6 +83,12 @@ export function fanAt(base: { sigma: number; bands: ArrayLike<number>; strands: 
   map(base.bands, outBands)
   map(base.strands, outStrands)
 }
+
+/** Seconds of the book the heat strip shows, and the width of the book at now beside it, in CSS pixels. */
+export const SPAN = 20
+export const LADDER = 56
+/** A year's futures are drawn between these multiples of the price now: the fan's bottom and top. */
+export const FAN_RANGE = { lo: 1 / 3, hi: 3 } as const
 
 /** Price ticks (in ticks) across `lo`…`hi` at a round step: three to six of them. */
 export function priceTicks(lo: number, hi: number): number[] {

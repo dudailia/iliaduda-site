@@ -78,7 +78,7 @@ describe('the futures fan', () => {
     while (!a.work(4096));
     while (!b.work(4096));
     const bands = new Float64Array(a.bandsData().length), strands = new Float64Array(a.strands().length)
-    fanAt({ sigma: 0.25, bands: a.bandsData(), strands: a.strands() }, 0.7, bands, strands)
+    fanAt({ sigma: 0.25, r: MODEL.r, dt: MODEL.T / MODEL.steps, bands: a.bandsData(), strands: a.strands() }, 0.7, bands, strands)
     const close = (x: ArrayLike<number>, y: ArrayLike<number>) => {
       let worst = 0
       for (let i = 0; i < x.length; i++) worst = Math.max(worst, Math.abs(x[i]! / y[i]! - 1))

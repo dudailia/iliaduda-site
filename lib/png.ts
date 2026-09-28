@@ -33,21 +33,54 @@ function chunk(type: string, body: Buffer): Buffer {
   return Buffer.concat([head, body, crc])
 }
 
-/** A `w` × `h` PNG of white, each pixel's opacity from `opacity` (row by row, top first). */
+const paeth = (a: number, b: number, c: number) => {
+  const p = a + b - c
+  const pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c)
+  return pa <= pb && pa <= pc ? a : pb <= pc ? b : c
+}
+
+/**
+ * A `w` × `h` PNG of white, each pixel's opacity from `opacity` (row by row, top first). Each row is filtered with
+ * whichever of PNG's five filters leaves it smallest by the usual measure (the least sum of its bytes as signed
+ * differences), so a smooth image — a book's depth, rising away from the price — compresses to a fraction of its size.
+ */
 export function whitePng(w: number, h: number, opacity: Uint8Array): Buffer {
   const ihdr = Buffer.alloc(13)
   ihdr.writeUInt32BE(w, 0)
   ihdr.writeUInt32BE(h, 4)
   ihdr[8] = 8
   ihdr[9] = 4
-  const raw = Buffer.alloc(h * (1 + 2 * w))
+  const bpp = 2, row = w * bpp
+  const px = new Uint8Array(h * row)
+  for (let i = 0; i < w * h; i++) {
+    px[i * 2] = 255
+    px[i * 2 + 1] = opacity[i]!
+  }
+  const raw = Buffer.alloc(h * (1 + row))
+  const cand = [0, 1, 2, 3, 4].map(() => new Uint8Array(row))
   for (let y = 0; y < h; y++) {
-    const o = y * (1 + 2 * w)
-    raw[o] = 0
-    for (let x = 0; x < w; x++) {
-      raw[o + 1 + 2 * x] = 255
-      raw[o + 2 + 2 * x] = opacity[y * w + x]!
+    const at = y * row
+    let best = 0, bestCost = Infinity
+    for (let f = 0; f < 5; f++) {
+      const out = cand[f]!
+      let cost = 0
+      for (let i = 0; i < row; i++) {
+        const x = px[at + i]!
+        const a = i >= bpp ? px[at + i - bpp]! : 0
+        const b = y > 0 ? px[at - row + i]! : 0
+        const c = y > 0 && i >= bpp ? px[at - row + i - bpp]! : 0
+        const pred = f === 0 ? 0 : f === 1 ? a : f === 2 ? b : f === 3 ? (a + b) >> 1 : paeth(a, b, c)
+        const v = (x - pred) & 255
+        out[i] = v
+        cost += v < 128 ? v : 256 - v
+      }
+      if (cost < bestCost) {
+        bestCost = cost
+        best = f
+      }
     }
+    raw[y * (1 + row)] = best
+    raw.set(cand[best]!, y * (1 + row) + 1)
   }
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))])
 }

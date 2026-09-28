@@ -142,6 +142,9 @@ export interface FanMsg {
   /** Simulated time it was begun at, and the volatility it was drawn at. */
   t: number
   sigma: number
+  /** Its model's rate and step, in years: what the page needs to draw it at another volatility (lib/market/views.ts, fanAt). */
+  r: number
+  dt: number
   /** The 5th, 25th, 50th, 75th and 95th percentiles at each of the 65 steps, a row a percentile. */
   bands: Float64Array
   /** 48 whole paths, a row a path, today first. */

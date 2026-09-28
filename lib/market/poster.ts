@@ -72,6 +72,12 @@ export function bookFrame(moment: Moment = 'calm') {
   return { centre, base, ticks }
 }
 
+/**
+ * A depth's byte in the heat strip's mask: its tone, in steps of 4 of 255 (1.6% of the indigo mix, below what an eye can
+ * tell in a gradient), so the image compresses to a third of its size; the live strip draws the exact tone.
+ */
+export const maskByte = (depth: number) => Math.min(255, Math.round((depthTone(depth) * 255) / 4) * 4)
+
 /** The heat strip: twenty seconds of the book's queues as a mask of the indigo, with the price and the trades over it. */
 export function bookSvg(moment: Moment = 'calm'): string {
   const { m } = marketFrame(moment)
@@ -88,7 +94,7 @@ export function bookSvg(moment: Moment = 'calm'): string {
       const j = off - yy
       // The book's depth there: the flow's own, every share between the price and the touch (+ asks, − bids).
       const d = j >= 0 && j < LEVELS ? Math.abs(f.depth[r * LEVELS + j]!) : 0
-      opacity[yy * 256 + c] = Math.round(depthTone(d) * 255)
+      opacity[yy * 256 + c] = maskByte(d)
     }
   }
   const png = whitePng(256, ROWS, opacity).toString('base64')

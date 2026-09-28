@@ -82,7 +82,9 @@ export function useMarket(
     const tick = (now: number) => {
       raf = 0
       if (!ready || !visible() || document.hidden) return
-      if (!inFlight && !paused.current && pool.length) {
+      // Paused, it asks for nothing more, once it has the frame it opens on (a market paused on an earlier page of the
+      // visit still goes live, to be resumed).
+      if (!inFlight && (!paused.current || mirror.frames === 0) && pool.length) {
         const buf = pool.pop()!
         inFlight = true
         post({ kind: 'frame', at: now, buf }, [buf])
@@ -134,6 +136,7 @@ export function useMarket(
         setDeclined('no worker')
       }
       post({ kind: 'start', seed, t })
+      if (paused.current) post({ kind: 'pause' })
     }
 
     const io = new IntersectionObserver(

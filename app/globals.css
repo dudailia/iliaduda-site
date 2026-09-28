@@ -390,6 +390,25 @@
   --arrive: 40ms;
 }
 
+/* /market's live controls arrive the same way, with the three views they drive: rising 4px, 40ms apart. */
+[data-market-controls] > button {
+  transition:
+    border-color 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
+    opacity 240ms var(--ease-out) var(--arrive, 0ms),
+    translate 240ms var(--ease-out) var(--arrive, 0ms);
+  @starting-style {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+[data-market-controls] > button:nth-child(2) {
+  --arrive: 40ms;
+}
+[data-market-controls] > button:nth-child(3) {
+  --arrive: 80ms;
+}
+
 /* The home figure's live controls arrive with the canvas they drive: 240ms on the crossfade's curve, rising 4px into
    place one after another, 40ms apart. The rise is `translate`, so a press's `scale` keeps its own quick 150ms, and
    only the arrival waits its turn: a hover or a press never does. Reset, which appears as the reader first moves an

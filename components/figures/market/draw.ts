@@ -1,7 +1,7 @@
 import { EASE_OUT } from '@/lib/ease'
 import type { Mirror } from '@/lib/market/mirror'
 import { PROTOCOL } from '@/lib/market/protocol'
-import { depthTone, fanAt, PriceWindow, WINDOW } from '@/lib/market/views'
+import { depthTone, FAN_RANGE, fanAt, LADDER, PriceWindow, SPAN, WINDOW } from '@/lib/market/views'
 import { spring } from '@/lib/stage/spring'
 import type { Palette, RGB } from '@/components/stage/useStage'
 
@@ -11,9 +11,7 @@ import type { Palette, RGB } from '@/components/stage/useStage'
  * are the page's, placed over the canvases from `layout()`.
  */
 
-/** Seconds of the book shown, and the width of the book at now, in CSS pixels. */
-export const SPAN = 20
-export const LADDER = 56
+export { FAN_RANGE, LADDER, SPAN }
 /** The book at now: a depth of this many shares or more runs the whole width. */
 const LADDER_FULL = 800
 const L = PROTOCOL.levels
@@ -67,6 +65,12 @@ export class BookView {
   hover: number | null = null
   /** The page's margin on a phone, where the canvas runs to the screen's edges: the book at now keeps inside it. */
   inset = 0
+
+  /** The market started over: its window lands on the new price at once, where the new strip opens, not sliding to it. */
+  restart(): void {
+    this.win = null
+    this.builtFrames = -1
+  }
 
   constructor(private readonly cv: HTMLCanvasElement) {
     this.g = cv.getContext('2d')
@@ -250,8 +254,6 @@ export class BookView {
   }
 }
 
-/** A year's futures drawn between these multiples of the price now: the view's bottom and top. */
-export const FAN_RANGE = { lo: 1 / 3, hi: 3 } as const
 
 /**
  * The futures: a year of the market's futures from its price now, at its realised volatility (lib/futures/fan.ts,
@@ -273,6 +275,8 @@ export class FanView {
   private lastPal: Palette | null = null
   /** The volatility the fan is drawn at while the reader points at a past moment. */
   as: number | null = null
+  /** When the reader last pointed, on the page's clock: the fan follows pointing, and its end, on the quick spring. */
+  private pointedAt = -Infinity
   /** The page's margin on a phone, where the canvas runs to the screen's edges: the fan keeps inside it. */
   inset = 0
 
@@ -309,7 +313,10 @@ export class FanView {
     const resized = fit(this.cv, this.box)
     const target = this.as ?? m.h.sigma
     if (!this.sig.x) this.sig.x = target
-    spring(this.sig, target, dt, 8)
+    // The market's own moves breathe the fan out on ω 8; a moment the reader points at, and the return from it, on the
+    // surface's quick ω 30, so the three views agree about "then" within a sixth of a second.
+    if (this.as !== null) this.pointedAt = now
+    spring(this.sig, target, dt, now - this.pointedAt < 600 ? 30 : 8)
     const flash = landing ? (now - landing.at) / 1000 : Infinity
     if (!resized && this.last === m.frames && Math.abs(this.sig.x - this.lastSig) < 1e-7 && flash > 0.8 && this.lastPal === pal) return false
     this.last = m.frames

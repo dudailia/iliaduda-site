@@ -16,13 +16,16 @@ import { syntheticValue } from '@/content/synthetic'
 import type { Mirror } from '@/lib/market/mirror'
 import type { LiveInfo } from '@/lib/stage/debug'
 import { MARKET_SEQ, marketSequence, punch, storyOf } from '@/lib/market/sequence'
-import { logTicks, priceTicks, WINDOW } from '@/lib/market/views'
+import { FAN_RANGE, logTicks, priceTicks, SPAN, WINDOW } from '@/lib/market/views'
 import { params } from '@/lib/surface/shock'
 import { iv, type Params } from '@/lib/surface/ssvi'
 import { LABELS, WIDE_QUERY, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel } from '../surface/marks'
 import type { Hooks, SurfaceRenderer } from '../surface/renderer'
-import { BookView, FAN_RANGE, FanView, SPAN, type Landing } from './draw'
+import type { BookView, FanView, Landing } from './draw'
+
+/** The flat views' drawers load with the market, never before it runs (./draw.ts). */
+type Draw = typeof import('./draw')
 
 /**
  * /market's Fig. 1, live: one simulated market drawn three ways in the same frame — its vol surface in 3D (the IV
@@ -69,6 +72,8 @@ const pct = (x: number) => `${(x * 100).toFixed(1)}%`
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 const atmOf = (s: number) => iv(params(Math.min(1, Math.max(0, s))), 0, 1 / 12)
 const STAGE_OPTS = { maxQ: { mid: 3 } } as const
+/** Pause is remembered for the visit, as every figure's is. */
+const PAUSED = 'market-paused'
 const noop = () => () => {}
 
 type Mod = typeof import('../surface/renderer')
@@ -108,6 +113,7 @@ export function MarketLive({
   const bookCv = useRef<HTMLCanvasElement>(null)
   const fanCv = useRef<HTMLCanvasElement>(null)
   const views = useRef<{ book: BookView; fan: FanView } | null>(null)
+  const drawMod = useRef<Promise<Draw> | null>(null)
   const out = useRef<Record<string, HTMLElement | null>>({})
   const priceEls = useRef<(HTMLElement | null)[]>([])
   const fanEls = useRef<(HTMLElement | null)[]>([])
@@ -119,9 +125,20 @@ export function MarketLive({
   /** A landed shock's blow for the surface, and when it landed: taken if drawn within a quarter second, else let go. */
   const impact = useRef({ k: 0, at: 0 })
   const lastLoad = useRef(0)
-  const pausedRef = useRef(false)
-  const [paused, setPaused] = useState(false)
+  const [paused, setPaused] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && sessionStorage.getItem(PAUSED) === '1'
+    } catch {
+      return false
+    }
+  })
+  const pausedRef = useRef(paused)
   const [flat, setFlat] = useState(false)
+  // Live once both flat views have drawn a frame, so no view's words arrive before its picture.
+  const drewOnce = useRef({ book: false, fan: false })
+  // The book's picture as it was when the market started over, fading out over the new one.
+  const ghostCv = useRef<HTMLCanvasElement>(null)
+  const lastQuanta = useRef(0)
   const mirrorRef = useRef<Mirror | null>(null)
   /** The moment the reader points at in the book, in simulated seconds, and what the market was then. */
   const pointed = useRef<{ t: number; stress: number; sigma: number; mid: number } | null>(null)
@@ -290,9 +307,17 @@ export function MarketLive({
       mirrorRef.current = m
       const p = pal.current
       if (!p) return
-      if (!views.current && bookCv.current && fanCv.current) views.current = { book: new BookView(bookCv.current), fan: new FanView(fanCv.current) }
+      // The drawers arrive with the market's first frames; until they are here the still frames stand.
+      if (!views.current) {
+        const bc = bookCv.current, fc = fanCv.current
+        if (bc && fc && !drawMod.current)
+          drawMod.current = import('./draw').then((d) => {
+            views.current = { book: new d.BookView(bc), fan: new d.FanView(fc) }
+            return d
+          })
+        return
+      }
       const v = views.current
-      if (!v) return
       // On a phone the flat views run to the screen's edges, and their words keep the page's margin (1.5rem).
       v.book.inset = v.fan.inset = kindRef.current === 'tall' ? 24 : 0
       const dt = lastDraw.current ? Math.min(0.1, (now - lastDraw.current) / 1000) : 1 / 60
@@ -325,10 +350,24 @@ export function MarketLive({
         else tell(stateOf(m))
       } else tell(stateOf(m))
 
+      // The market started over (Reset): the new strip opens under the old, which fades (240ms, the ease-out).
+      if (m.h.quanta < lastQuanta.current) {
+        v.book.restart()
+        const g = ghostCv.current
+        if (g) {
+          g.style.transition = 'none'
+          g.style.opacity = '1'
+          requestAnimationFrame(() => {
+            g.style.transition = 'opacity 240ms var(--ease-out)'
+            g.style.opacity = '0'
+          })
+        }
+      }
+      lastQuanta.current = m.h.quanta
       v.fan.as = pointed.current?.sigma ?? null
-      const drewBook = v.book.draw(m, p, now, landing.current, dt)
-      v.fan.draw(m, p, now, landing.current, dt)
-      if (!flat && (drewBook || m.fan)) setFlat(true)
+      if (v.book.draw(m, p, now, landing.current, dt)) drewOnce.current.book = true
+      if (v.fan.draw(m, p, now, landing.current, dt)) drewOnce.current.fan = true
+      if (!flat && drewOnce.current.book && drewOnce.current.fan) setFlat(true)
 
       // The book's words: prices up its side, where the window has them now.
       const lay = v.book.layout()
@@ -466,7 +505,7 @@ export function MarketLive({
     pointed.current = { t, stress: hist.stress(k), sigma: hist.sigma(k), mid: hist.mid(k) }
     v.book.hover = x
     if (hoverEl.current) {
-      hoverEl.current.textContent = `${(m.h.t - t).toFixed(1)} s ago · σ̂ ${pct(hist.sigma(k))} · stress ${hist.stress(k).toFixed(2)}`
+      hoverEl.current.textContent = `${(m.h.t - t).toFixed(1)} s ago · realised vol ${pct(hist.sigma(k))} · stress ${hist.stress(k).toFixed(2)}`
       hoverEl.current.style.opacity = '1'
     }
   }
@@ -476,26 +515,63 @@ export function MarketLive({
     if (hoverEl.current) hoverEl.current.style.opacity = '0'
   }
 
+  const setPause = (next: boolean) => {
+    pausedRef.current = next
+    setPaused(next)
+    if (next) market.pause()
+    else market.resume()
+    try {
+      sessionStorage.setItem(PAUSED, next ? '1' : '0')
+    } catch {}
+  }
+  const togglePause = () => setPause(!pausedRef.current)
+  // A market paused on an earlier page of the visit opens paused.
+  const pauseOnce = useRef(false)
+  useEffect(() => {
+    if (pauseOnce.current) return
+    pauseOnce.current = true
+    if (pausedRef.current) market.pause()
+  }, [market])
+
   // The reader's shock. Pressed while the story is still calm, it is the story's shock: the story does not press again.
+  // Pressed while paused, the market goes on, so the shock lands where it can be seen.
   const shockNow = () => {
     if (!storyPressed.current) {
       storyPressed.current = true
       if (sig.armed.current && !seq.current.done) seq.current.finish()
     }
+    if (pausedRef.current) setPause(false)
     market.act('shock')
   }
   const resetNow = () => {
     if (sig.armed.current) sig.release()
     storyPressed.current = true
+    // The book's picture now, to fade out over the new market's first.
+    const g = ghostCv.current, b = bookCv.current
+    if (g && b) {
+      g.width = b.width
+      g.height = b.height
+      g.getContext('2d')?.drawImage(b, 0, 0)
+      g.style.transition = 'none'
+      g.style.opacity = '1'
+    }
     market.reset()
   }
 
-  const togglePause = () => {
-    const next = !pausedRef.current
-    pausedRef.current = next
-    setPaused(next)
-    if (next) market.pause()
-    else market.resume()
+  // The still frames' shock: its pictures fetched on the reader's approach (hover or focus), and swapped in only once
+  // they can be drawn, so the figure never shows bare paper between the two.
+  const shockStills = useRef<Promise<unknown> | null>(null)
+  const fetchShock = () =>
+    (shockStills.current ??= Promise.all(
+      ['book', 'ladder', 'fan', matchMedia(WIDE_QUERY).matches ? 'surface' : 'surface-tall'].map((f) => {
+        const img = new Image()
+        img.src = `/market/${f}-shock.svg`
+        return img.decode().catch(() => {})
+      }),
+    ))
+  const toggleStill = () => {
+    if (still === 'shock') return setStill('calm')
+    void fetchShock().then(() => setStill('shock'))
   }
 
   const why = !mounted
@@ -615,7 +691,16 @@ export function MarketLive({
       <div ref={stage} className="relative" data-market-stage="" data-market-live={live ? '1' : '0'}>
         {/* The surface: the market's stress sets its shock. */}
         <div className="-mx-6 sm:mx-0">
-          <div ref={box} className="relative aspect-[1.1] w-full overflow-hidden bg-paper sm:aspect-[1.62]" data-market-surface="">
+          {/* The surface leans with the reader, as every 3D figure does: toward a fine pointer, with a phone's tilt (iOS
+              asks on the first tap). */}
+          <div
+            ref={box}
+            className="relative aspect-[1.1] w-full overflow-hidden bg-paper sm:aspect-[1.62]"
+            data-market-surface=""
+            onPointerMove={lean.onPointerMove}
+            onPointerLeave={lean.onPointerLeave}
+            onClick={() => lean.onTap()}
+          >
             <div style={underlay(surfaceLive)}>{posters.surface}</div>
             <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={fade(surfaceLive)} aria-hidden="true" />
             {/* The axes' words, placed by the renderer each frame with its own projection (the IV figure's). */}
@@ -661,7 +746,8 @@ export function MarketLive({
             <div className="relative h-24 overflow-hidden bg-paper sm:h-44" onPointerMove={onBookMove} onPointerLeave={onBookLeave} data-market-book="">
               <div style={underlay(live)}>{posters.book}</div>
               <canvas ref={bookCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
-              <div className="pointer-events-none absolute inset-0" style={{ opacity: live ? 1 : 0 }} aria-hidden="true">
+              <canvas ref={ghostCv} data-ghost="" className="pointer-events-none absolute inset-0 h-full w-full opacity-0" aria-hidden="true" />
+              <div className="pointer-events-none absolute inset-0" style={fade(live)} aria-hidden="true">
                 {Array.from({ length: 6 }, (_, i) => (
                   <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-6 rounded-sm bg-paper/85 px-0.5 font-mono leading-none text-graphite sm:left-1" />
                 ))}
@@ -679,7 +765,7 @@ export function MarketLive({
             <div className="relative h-[6.5rem] overflow-hidden bg-paper sm:h-44" data-market-fan="">
               <div style={underlay(live)}>{posters.fan}</div>
               <canvas ref={fanCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
-              <div className="pointer-events-none absolute inset-0" style={{ opacity: live ? 1 : 0 }} aria-hidden="true">
+              <div className="pointer-events-none absolute inset-0" style={fade(live)} aria-hidden="true">
                 {Array.from({ length: 4 }, (_, i) => (
                   <span key={i} ref={(el) => void (fanEls.current[i] = el)} className="text-meta absolute top-0 right-7 font-mono leading-none text-graphite sm:right-1" />
                 ))}
@@ -692,9 +778,9 @@ export function MarketLive({
           </div>
         </div>
 
-        <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2">
+        <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2" data-market-controls="">
           {mounted && why && !live ? (
-            <button type="button" className={CONTROL} onClick={() => setStill(still === 'calm' ? 'shock' : 'calm')} aria-pressed={still === 'shock'} data-market-still-shock="">
+            <button type="button" className={CONTROL} onClick={toggleStill} onPointerEnter={() => void fetchShock()} onFocus={() => void fetchShock()} data-market-still-shock="">
               {still === 'calm' ? 'Liquidity shock' : 'Back to calm'}
             </button>
           ) : null}
@@ -703,7 +789,7 @@ export function MarketLive({
               <button type="button" className={CONTROL} onClick={shockNow} data-market-shock="">
                 Liquidity shock
               </button>
-              <button type="button" className={CONTROL} onClick={togglePause} aria-pressed={paused}>
+              <button type="button" className={`${CONTROL} min-w-[4.5rem]`} onClick={togglePause}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" className={CONTROL} onClick={resetNow}>

@@ -1,5 +1,6 @@
 import type { Trade } from './book'
 import { Fan, FAN } from '../futures/fan'
+import { MODEL } from '../futures/mc'
 import { Market } from './engine'
 import { writeFrame } from './frame'
 import type { Act, FanMsg } from './protocol'
@@ -130,6 +131,8 @@ export class MarketHost {
           seq: ++this.fanSeq,
           t: this.fanT,
           sigma: this.fanSigma,
+          r: MODEL.r,
+          dt: MODEL.T / MODEL.steps,
           bands: this.fan.bandsData().slice(),
           strands: this.fan.strands().slice(),
           call: this.fan.call(),

@@ -24,7 +24,7 @@ async function goLive(page: Page) {
 }
 
 /** The animation frame each view took the latest landing in (document.timeline's clock). */
-const stamps = (page: Page) => page.locator(`${STAGE} canvas`).evaluateAll((cs) => cs.map((c) => (c as HTMLCanvasElement).dataset.landed ?? null))
+const stamps = (page: Page) => page.locator(`${STAGE} canvas:not([data-ghost])`).evaluateAll((cs) => cs.map((c) => (c as HTMLCanvasElement).dataset.landed ?? null))
 
 test.describe('before any script runs', () => {
   test.use({ javaScriptEnabled: false })
@@ -49,7 +49,7 @@ test('goes live with the site’s own worker, and all three views draw, fetching
   expect(workers.length).toBeGreaterThan(0)
   const origin = new URL(page.url()).origin
   for (const w of workers) expect(new URL(w).origin).toBe(origin)
-  for (const c of await page.locator(`${STAGE} canvas`).all()) await expect.poll(() => c.evaluate((e) => Number(getComputedStyle(e).opacity))).toBe(1)
+  for (const c of await page.locator(`${STAGE} canvas:not([data-ghost])`).all()) await expect.poll(() => c.evaluate((e) => Number(getComputedStyle(e).opacity))).toBe(1)
   await expect(page.locator('#fig-1 dd').first()).toHaveText(/^\d+:\d\d$/)
   const t0 = await t(page)
   await expect.poll(() => t(page), { timeout: 5_000 }).toBeGreaterThan(t0 + 0.5)
