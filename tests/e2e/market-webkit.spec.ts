@@ -27,7 +27,7 @@ test('goes live or says why, lands a shock in all three views at once, and leave
     // As a reader looking at all three views presses it: the button is under them, and a tap that scrolled it into
     // view would carry the surface off the screen, where it does not draw.
     await page.locator('[data-market-shock]').evaluate((b) => (b as HTMLButtonElement).click())
-    const stamps = () => page.locator('[data-market-stage] canvas:not([data-ghost])').evaluateAll((cs) => cs.map((c) => (c as HTMLCanvasElement).dataset.landed ?? null))
+    const stamps = () => page.locator('[data-market-stage] canvas:not([data-ghost]):not([data-still-sheet])').evaluateAll((cs) => cs.map((c) => (c as HTMLCanvasElement).dataset.landed ?? null))
     await expect.poll(async () => (await stamps()).every((s) => s !== null), { timeout: 5_000 }).toBe(true)
     expect(new Set(await stamps()).size).toBe(1)
   } else await expect(page.locator('#fig-1').getByText(/Still frames/).first()).toBeVisible()

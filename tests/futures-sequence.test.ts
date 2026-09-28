@@ -188,7 +188,6 @@ describe('isSkipInput', () => {
     expect(isSkipInput({ type: 'click' })).toBe(true)
     expect(isSkipInput({ type: 'keydown', key: 'a' })).toBe(true)
     expect(isSkipInput({ type: 'keydown', key: 'Enter' })).toBe(true)
-    expect(isSkipInput({ type: 'keydown', key: 'Tab' })).toBe(true)
     expect(isSkipInput({ type: 'pointerdown', pointerType: 'mouse' })).toBe(true)
     expect(isSkipInput({ type: 'pointerdown', pointerType: 'pen' })).toBe(true)
   })
@@ -203,6 +202,18 @@ describe('isSkipInput', () => {
 
   it('does not count a modifier key pressed on its own', () => {
     for (const key of ['Shift', 'Meta', 'Control', 'Alt']) expect(isSkipInput({ type: 'keydown', key })).toBe(false)
+  })
+
+  it('does not count Tab, which moves through the page rather than asking anything of it', () => {
+    expect(isSkipInput({ type: 'keydown', key: 'Tab' })).toBe(false)
+  })
+
+  it('does not count anything on a control that holds the story rather than hurrying it (data-hold)', () => {
+    const on = (sel: string) => ({ closest: (q: string) => (q.split(',').includes(sel) ? {} : null) })
+    expect(isSkipInput({ type: 'click', target: on('[data-hold]') })).toBe(false)
+    expect(isSkipInput({ type: 'pointerdown', pointerType: 'mouse', target: on('[data-hold]') })).toBe(false)
+    expect(isSkipInput({ type: 'click', target: on('[data-replay]') })).toBe(false)
+    expect(isSkipInput({ type: 'click', target: on('[data-other]') })).toBe(true)
   })
 
   it('does not count the keys that scroll the page', () => {

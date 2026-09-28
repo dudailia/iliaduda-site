@@ -95,8 +95,8 @@ export class Sequence<P extends string> {
   }
 }
 
-/** Keys that are not a request: modifiers on their own, and the keys that scroll the page. */
-const NOT_A_REQUEST = new Set(['Shift', 'Meta', 'Control', 'Alt', ' ', 'Spacebar', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'Home', 'End'])
+/** Keys that are not a request: modifiers on their own, Tab, which moves through the page, and the keys that scroll it. */
+const NOT_A_REQUEST = new Set(['Shift', 'Meta', 'Control', 'Alt', 'Tab', ' ', 'Spacebar', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'Home', 'End'])
 
 /**
  * Whether an event is the reader asking to get on with it: a click or tap, a
@@ -104,11 +104,13 @@ const NOT_A_REQUEST = new Set(['Shift', 'Meta', 'Control', 'Alt', ' ', 'Spacebar
  * a finger landing on the glass, which on a phone is usually the start of a
  * scroll towards the figure. Nor anything on a Replay control (`data-replay`):
  * that starts the story over, and finishing it first would rush the figure
- * forward in the moment between the press and the click.
+ * forward in the moment between the press and the click. Nor anything on a
+ * control that holds the story rather than hurrying it (`data-hold`): Pause,
+ * or turning a figure to look at it.
  */
 export function isSkipInput(e: { type: string; pointerType?: string; key?: string; target?: EventTarget | { closest?(sel: string): unknown } | null }): boolean {
   const t = e.target as { closest?(sel: string): unknown } | null | undefined
-  if (typeof t?.closest === 'function' && t.closest('[data-replay]')) return false
+  if (typeof t?.closest === 'function' && t.closest('[data-replay],[data-hold]')) return false
   switch (e.type) {
     case 'click':
       return true

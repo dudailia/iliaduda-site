@@ -14,6 +14,8 @@ export interface MarketRates {
   paths: number
   busy: number
   held: number
+  /** The reader has paused the market: its rates are those of a market held, not running. */
+  paused: boolean
 }
 
 let last: MarketRates | null = null

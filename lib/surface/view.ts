@@ -49,7 +49,7 @@ export type FrameKind = 'wide' | 'tall'
 /**
  * The frame the surface is fitted to, and the camera's resting pose, for each framing. The stage has the frame's own
  * aspect and letterboxes it (like SVG's xMidYMid meet) at any other, so poster and canvas agree at any size. A phone's
- * frame is taller, looks down a little more and sways less: on a 390px phone the calm surface spans 315 × 217px, where
+ * frame is taller, looks down a little more and sways less: on a 390px phone the calm surface spans 297 × 211px, where
  * the wide frame letterboxed into it gave 245 × 145px. Each frame is fitted to its own labels only.
  */
 export const FRAMES = {
@@ -150,6 +150,11 @@ const CHAR_PX = LABEL_PX * 0.6
  * `sm` the text column (640px less its two 24px gutters). A label that is whole there is whole on every wider stage.
  */
 export const NARROWEST: Record<FrameKind, number> = { tall: 360, wide: 592 }
+/**
+ * How far in from the stage's side a label keeps, in CSS pixels: a phone's stage runs to the screen's edges and its
+ * words keep the page's margin (1.5rem), as the flat views' do; the column's keeps a sliver.
+ */
+export const LABEL_INSET: Record<FrameKind, number> = { tall: 24, wide: 6 }
 
 /**
  * A label's box in normalised device coordinates, from where its anchor projects, at the framing's narrowest stage:
@@ -187,12 +192,13 @@ export function fitDistance(kind: FrameKind): number {
         const q = apply(m, x, y, z)
         return q[3] > 0 && Math.abs(q[0] / q[3]) <= 0.92 && Math.abs(q[1] / q[3]) <= 0.94
       })
-      // Every label whole, its text and not only its anchor, with a sliver of room at the edge.
+      // Every label whole, its text and not only its anchor, clear of the stage's side by its inset.
       return solid && labels.every((l) => {
         const q = apply(m, l.at[0], l.at[1], l.at[2])
         if (q[3] <= 0) return false
         const [x0, x1, y0, y1] = labelBox(kind, l, q[0] / q[3], q[1] / q[3])
-        return x0 >= -0.98 && x1 <= 0.98 && y0 >= -0.98 && y1 <= 0.98
+        const side = 1 - LABEL_INSET[kind] / (NARROWEST[kind] / 2)
+        return x0 >= -side && x1 <= side && y0 >= -0.98 && y1 <= 0.98
       })
     })
     if (ok) hi = d

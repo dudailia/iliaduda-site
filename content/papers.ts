@@ -44,11 +44,11 @@ export const papers: readonly Paper[] = [
   {
     slug: 'market',
     href: '/market',
-    title: 'One market, three views: an order book, its futures and its vol surface from one simulation',
+    title: 'One market, three views',
     abstract:
-      'One simulated market runs in a worker in your browser, and three views are drawn from it in the same frame: its Hawkes order book, a year of Monte Carlo futures from its price at its own realised volatility, and an arbitrage-free SSVI vol surface whose shock is the market’s stress. Press Liquidity shock and a sell sweeps the bids: all three views take it in the frame it lands, and what follows is the model’s own.',
+      'One simulated market runs in your browser, and its Hawkes order book, a year of its futures and an arbitrage-free SSVI vol surface are drawn from it in the same frame. Press Liquidity shock: a sell sweeps the bids, and all three views take it at once.',
     standfirst:
-      'One simulated market runs in your browser, and its order book, its futures and its vol surface are drawn from it in the same frame. A liquidity shock lands in all three at once; what follows is the model’s own.',
+      'One simulated market, drawn three ways in the same frame as it runs in your browser: its order book, a year of its futures and the vol surface its stress sets. A liquidity shock lands in all three at once; what follows is the model’s own.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
   },

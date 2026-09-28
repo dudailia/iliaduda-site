@@ -29,27 +29,21 @@ export default function Market() {
 
         <MarketFigure />
 
-        <Section heading="What you are looking at">
+        <Section heading="What it shows">
           <p>
-            Fig. 1 is one simulated market, drawn three ways in the same frame. Below on the left is its order book, the
-            last twenty seconds of it, price up the side and time across. Each price is in the tone of the book&rsquo;s depth
-            there, every share waiting between it and the touch, so the book darkens away from the price on both sides and the
-            spread between them is paper; the ink line is the mid-price, each dot a trade, and on the right is the depth now,
-            the exchange&rsquo;s depth chart on its side. Beside it are the market&rsquo;s futures: a year of geometric
-            Brownian motion from its price now, at its own realised volatility, the 5th to 95th and the 25th to 75th percentiles
-            as washes and 48 of the paths themselves. Above both is the IV paper&rsquo;s vol surface, its shock set by the
-            market&rsquo;s stress.
-          </p>
-          <p>
-            The three are drawn from one copy of the market in one animation frame, so they are never out of step: point at a
-            moment in the book, and the futures and the surface show the market as it was then.
+            The three views are one market, not three pictures of similar ones. The surface, the order book and the futures
+            (simulated paths of the price, a year of them) are drawn from one copy of the market in one animation frame, so
+            they are never out of step: read the book at a moment, and the futures and the surface show the market as it was
+            then. Press Liquidity shock and the sweep lands in all three in the frame it arrives, the book drained at the touch,
+            the futures lit and widening, the surface lifting at its short end. Everything after that is the model&rsquo;s own,
+            and the numbers below are measured over twenty seeds, not chosen for the picture.
           </p>
         </Section>
 
         <Section heading="The market">
           <Annotated note={<>Synthetic throughout: every parameter is set by hand, none fitted to any market.</>}>
             <p>
-              The market is <a href="/order-book">the order book paper&rsquo;s</a>, the same seed and the same Hawkes order flow
+              It is <a href="/order-book">the order book paper&rsquo;s</a> market: the same seed and the same Hawkes order flow
               into the same limit order book, advanced in whole quanta of 1/60 of a simulated second. Three numbers are read from
               it for the other two views, each on the market&rsquo;s own clock.
             </p>
@@ -59,12 +53,12 @@ export default function Market() {
             half-life, annualised over 252 trading days of 6.5 hours. The futures are drawn at it.
           </p>
           <p>
-            Stress, from 0 to 1, reads four things a trader would read as stress, each nothing across the calm market&rsquo;s
-            own range and all at its far end: the market sells&rsquo; intensity, which the model knows exactly, against their
-            stationary rate (from {STRESS.pressureFrom} times it, all at {STRESS.pressureTo}); realised volatility against a
-            calm {Math.round(STRESS.sigma0 * 100)}% (from {STRESS.volFrom} times, all at {STRESS.volTo}); a spread wider than{' '}
-            {STRESS.spreadFrom} ticks (all at {STRESS.spreadTo}); and fewer than {STRESS.touchFloor} shares within three ticks of
-            the touch on the book&rsquo;s thinner side (all at none). They combine as an &ldquo;or&rdquo;,
+            Stress runs from 0 to 1 and combines four signals a trader watches, each 0 across the calm market&rsquo;s range and
+            1 at its extreme: the intensity of market sells against its stationary rate (0 at {STRESS.pressureFrom} times it, 1
+            at {STRESS.pressureTo}); realised volatility against a calm {Math.round(STRESS.sigma0 * 100)}% (0 at{' '}
+            {STRESS.volFrom} times, 1 at {STRESS.volTo}); the spread (0 at {STRESS.spreadFrom} ticks, 1 at {STRESS.spreadTo});
+            and the shares within three ticks of the touch on the book&rsquo;s thinner side (0 at {STRESS.touchFloor}, 1 at
+            none). They combine as an &ldquo;or&rdquo;,
             <span className="my-3 block text-center whitespace-nowrap">s = 1 − (1 − p)(1 − a)(1 − b)(1 − c),</span>
             so any one alone can carry the market to full stress, and the result follows on a {STRESS.halfLife}-second
             half-life. Over ten calm seeds of ten simulated minutes, it averages under 0.05.
@@ -78,11 +72,11 @@ export default function Market() {
 
         <Section heading="A liquidity shock">
           <p>
-            Liquidity shock does two things at the start of the next quantum. A market sell takes every bid within{' '}
-            {SHOCK.ticks} ticks of the best at once, level by level, each fill a trade on the tape. And the Hawkes state takes
-            an exogenous lift: market sells arrive {SHOCK.sells} a second faster and bid cancellations {SHOCK.cancels} a second
-            faster, both fading as a market sell&rsquo;s own excitation does, with a third of a second&rsquo;s half-life.
-            Nothing after that is scripted: the refill, the price, the volatility and the stress are the model&rsquo;s own.
+            Pressing Liquidity shock does two things at the start of the next quantum. A market sell takes every bid within{' '}
+            {SHOCK.ticks} ticks of the best at once, level by level, each fill a trade on the tape. And the Hawkes state takes an
+            exogenous lift: market sells arrive {SHOCK.sells} a second faster and bid cancellations {SHOCK.cancels} a second
+            faster, both fading as a market sell&rsquo;s own excitation does, with a third of a second&rsquo;s half-life. Nothing
+            after that is scripted.
           </p>
           <p>
             Over twenty seeds, within a second the spread opens to at least four ticks, the touch loses four fifths of its
@@ -95,31 +89,21 @@ export default function Market() {
 
         <MarketPipelineFigure />
 
-        <Section heading="Where it runs">
+        <Section heading="Where it runs, and what is the same everywhere">
           <p>
-            The market runs in a worker, a thread of its own, so the page&rsquo;s thread only draws. Each animation frame the
-            page asks the worker for the market at its own clock; the worker moves the market on by the time since the last
-            frame, never more than {HOST.cap} of a second, and answers with one frame, written into a buffer the page lends
-            it and gets back: moved between the threads, never copied. A tab left in the background finds the market where it
-            left it, and the time held is counted. The worker also draws the futures, {FAN.paths.toLocaleString('en-US')} paths
-            each simulated second, {HOST.pathsPerFrame} a frame, for a price of one; the page scales them by the price now,
-            which is exact for geometric Brownian motion, so the fan moves with the price in the frame the price moves.
+            The market runs in a worker, a thread of its own, so the page&rsquo;s thread only draws. Each animation frame the page
+            asks for the market at its own clock; the worker moves it on by the time since the last frame, never more than{' '}
+            {HOST.cap} of a second, so a tab left in the background finds the market where it left it, and answers in one buffer
+            the page lends it and gets back. It also draws the futures, {FAN.paths.toLocaleString('en-US')} paths each simulated
+            second, {HOST.pathsPerFrame} a frame, for a price of one, which the page scales by the price now, exact for geometric
+            Brownian motion, so the fan moves with the price in the frame the price moves.
           </p>
           <p>
-            Each frame is taken into the page&rsquo;s copy of the market the moment it arrives, before the next animation frame,
-            and every view draws in that frame from that copy: a shock lands in all three at once.
-          </p>
-        </Section>
-
-        <Section heading="One market, in every browser">
-          <p>
-            Everything the market is comes out the same to the bit on every engine: its events, its book, its realised
-            volatility, its stress and the shock still in it, from the same seed and the same log of shocks, each stamped with
-            the quantum it took effect at. That holds because the clock moves in whole quanta and the market computes its own
-            exponentials and logarithms, as the order book paper explains, and because a shock is an action taken at the start
-            of a quantum and logged, not a moment of the wall clock. The futures are the one thing drawn with the
-            platform&rsquo;s own exponential: they keep the home figure&rsquo;s arithmetic, so their paths are that
-            figure&rsquo;s path for path, and nothing they compute feeds back into the market.
+            The market itself, its events, its book, its realised volatility, its stress and the shock still in it, comes out the
+            same to the bit on every engine, from the same seed and the same log of shocks, each stamped with the quantum it took
+            effect at: the clock moves in whole quanta, the market computes its own exponentials and logarithms, and a shock is an
+            action taken at a quantum&rsquo;s start, not a moment of the wall clock. The futures are the one part drawn with the
+            platform&rsquo;s own exponential: they keep the home figure&rsquo;s arithmetic, path for path, and feed nothing back.
           </p>
         </Section>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEPTH, HEAT, PriceWindow, WINDOW, depthTone, heat, logTicks, priceTicks } from '../lib/market/views'
+import { HEAT, LEVEL, PriceWindow, WINDOW, heat, levelTone, logTicks, priceTicks, smoothedQueue } from '../lib/market/views'
 
 /**
  * The views' own arithmetic (lib/market/views.ts): the order book's price
@@ -39,20 +39,28 @@ describe('the tone of a queue', () => {
   })
 })
 
-describe('the tone of the book’s depth', () => {
-  it('is paper where nothing waits, and darkens with every share between a price and the touch, never to full', () => {
-    expect(depthTone(0)).toBe(0)
+describe('the tone of a price’s own queue, as the heat strip draws it', () => {
+  it('is paper where nothing waits and darkens with the shares waiting there, never to full', () => {
+    expect(levelTone(0)).toBe(0)
     let prev = 0
-    for (let c = 1; c <= 3000; c += 7) {
-      expect(depthTone(c)).toBeGreaterThan(prev)
-      prev = depthTone(c)
+    for (let q = 1; q <= 400; q++) {
+      expect(levelTone(q)).toBeGreaterThan(prev)
+      prev = levelTone(q)
     }
-    // A calm book's median depth three ticks out (about 80 shares) is light, its median at the window's edge (about
-    // 430) near half.
-    expect(depthTone(80)).toBeLessThan(0.25)
-    expect(depthTone(430)).toBeGreaterThan(0.4)
-    expect(depthTone(430)).toBeLessThan(0.65)
-    expect(prev).toBeLessThan(DEPTH.floor + DEPTH.range + 1e-9)
+    // The median queue (10 shares) light, one of 45 past half.
+    expect(levelTone(10)).toBeLessThan(0.3)
+    expect(levelTone(LEVEL.shares)).toBeGreaterThan(0.55)
+    expect(prev).toBeLessThan(LEVEL.floor + LEVEL.range + 1e-9)
+  })
+
+  it('averages a queue over the row and its neighbours in time, those there are, so resting orders read as bands', () => {
+    const rows = [[10, 0], [20, 5], [30, 0]]
+    const at = (age: number, j: number) => rows[age]?.[j] ?? 0
+    expect(smoothedQueue(at, 1, 0, rows.length)).toBeCloseTo(20, 12)
+    // At the newest row there is no newer one: two rows, not three with a zero.
+    expect(smoothedQueue(at, 0, 0, rows.length)).toBeCloseTo(15, 12)
+    expect(smoothedQueue(at, 2, 0, rows.length)).toBeCloseTo(25, 12)
+    expect(smoothedQueue(at, 1, 1, rows.length)).toBeCloseTo(5 / 3, 12)
   })
 })
 

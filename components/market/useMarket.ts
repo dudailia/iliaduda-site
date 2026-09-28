@@ -82,9 +82,10 @@ export function useMarket(
     const tick = (now: number) => {
       raf = 0
       if (!ready || !visible() || document.hidden) return
-      // Paused, it asks for nothing more, once it has the frame it opens on (a market paused on an earlier page of the
-      // visit still goes live, to be resumed).
-      if (!inFlight && (!paused.current || mirror.frames === 0) && pool.length) {
+      // Paused, it asks for nothing more once it has the frame it opens on and that frame's fan (a market paused on an
+      // earlier page of the visit still goes live, all its views drawn, to be resumed); the held market draws the fan
+      // on, and nothing else moves.
+      if (!inFlight && (!paused.current || mirror.frames === 0 || !mirror.fan) && pool.length) {
         const buf = pool.pop()!
         inFlight = true
         post({ kind: 'frame', at: now, buf }, [buf])

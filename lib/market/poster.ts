@@ -3,9 +3,9 @@ import { palette, type Palette } from '../palette'
 import { whitePng } from '../png'
 import { dlog } from './detmath'
 import { Market } from './engine'
-import { HALF, HZ, LEVELS, POSTER_T, SEED, TICK } from './flow'
+import { HZ, POSTER_T, SEED, TICK } from './flow'
 import { surfaceOf } from './surface'
-import { depthTone, logTicks, priceTicks, WINDOW } from './views'
+import { levelTone, logTicks, priceTicks, smoothedQueue, WINDOW } from './views'
 
 /**
  * /market's still frames, drawn on the server from the same seeded market at the same moment the live figure starts
@@ -73,29 +73,25 @@ export function bookFrame(moment: Moment = 'calm') {
 }
 
 /**
- * A depth's byte in the heat strip's mask: its tone, in steps of 4 of 255 (1.6% of the indigo mix, below what an eye can
+ * A queue's byte in the heat strip's mask: its tone, in steps of 4 of 255 (1.6% of the indigo mix, below what an eye can
  * tell in a gradient), so the image compresses to a third of its size; the live strip draws the exact tone.
  */
-export const maskByte = (depth: number) => Math.min(255, Math.round((depthTone(depth) * 255) / 4) * 4)
+export const maskByte = (queue: number) => Math.min(255, Math.round((levelTone(queue) * 255) / 4) * 4)
 
-/** The heat strip: twenty seconds of the book's queues as a mask of the indigo, with the price and the trades over it. */
+/** The heat strip: twenty seconds of the book's resting queues as a mask of the indigo, with the price and the trades over it. */
 export function bookSvg(moment: Moment = 'calm'): string {
   const { m } = marketFrame(moment)
   const f = m.flow
   const { centre, base } = bookFrame(moment)
   const top = base + WINDOW.half
   // A column a row, the newest last, as the live strip lays them (its newest ends at now).
+  // Each price in the tone of the shares resting there, averaged over a quarter second, as the live strip draws it.
+  const rows = Math.min(256, f.written)
+  const queueAt = (age: number, price: number) => f.queueAt(f.row(age), price)
   const opacity = new Uint8Array(256 * ROWS)
   for (let c = 0; c < 256; c++) {
-    const r = f.row(255 - c)
-    if (r < 0) continue
-    const off = top - (f.centre[r]! - HALF)
-    for (let yy = 0; yy < ROWS; yy++) {
-      const j = off - yy
-      // The book's depth there: the flow's own, every share between the price and the touch (+ asks, − bids).
-      const d = j >= 0 && j < LEVELS ? Math.abs(f.depth[r * LEVELS + j]!) : 0
-      opacity[yy * 256 + c] = maskByte(d)
-    }
+    if (255 - c >= rows) continue
+    for (let yy = 0; yy < ROWS; yy++) opacity[yy * 256 + c] = maskByte(smoothedQueue(queueAt, 255 - c, top - yy, rows))
   }
   const png = whitePng(256, ROWS, opacity).toString('base64')
   const now = m.t

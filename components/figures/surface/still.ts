@@ -1,4 +1,7 @@
+import { cssColor } from '@/components/stage/env'
 import { diffuse, linOf, rampLab, rampStops, rampT, srgbOf } from '@/lib/surface/look'
+import { FRAME_H, poster, RAMP_CSS, type PosterData } from '@/lib/surface/poster'
+import { MESH_CSS, meshMarkup } from '@/lib/surface/posterMarkup'
 import { iv, type Params } from '@/lib/surface/ssvi'
 import { apply, camera, kOfU, mvp, tOfV, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 
@@ -77,4 +80,48 @@ export function drawSheet(canvas: HTMLCanvasElement, p: Params, kind: FrameKind,
       g.strokeStyle = col
       g.stroke()
     }
+}
+
+/**
+ * The still frame put in place of a poster's picture, and drawn for surface `p`: the first time, the poster's image
+ * ([data-iv-poster] [data-mesh], inside `root`) gives way to the sheet painted smooth on a canvas and, over it, inline,
+ * the walls, contours and ticks, with their style beside them; every time, both are drawn for `p` in the page's
+ * colours now. Returns the poster's data for `p`, for a figure that places marks of its own (the IV paper's notes).
+ */
+export function smoothStill(root: HTMLElement, p: Params, kind: FrameKind): PosterData {
+  const d = poster(p, kind)
+  let mesh = root.querySelector('[data-iv-poster] [data-mesh]')
+  if (mesh && mesh.tagName.toLowerCase() === 'img') {
+    const sheet = document.createElement('canvas')
+    sheet.setAttribute('class', 'absolute inset-0 h-full w-full')
+    sheet.setAttribute('aria-hidden', 'true')
+    sheet.setAttribute('data-fill', '')
+    sheet.setAttribute('data-still-sheet', '')
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('class', 'absolute inset-0 h-full w-full overflow-visible')
+    svg.setAttribute('aria-hidden', 'true')
+    svg.setAttribute('data-fill', '')
+    svg.setAttribute('data-mesh', '')
+    ;(mesh.closest('picture') ?? mesh).replaceWith(sheet, svg)
+    mesh = svg
+    const style = document.createElement('style')
+    style.setAttribute('data-mesh-css', '')
+    root.querySelector('[data-iv-poster]')?.prepend(style)
+  }
+  const sheet = root.querySelector<HTMLCanvasElement>('[data-iv-poster] [data-still-sheet]')
+  if (sheet)
+    drawSheet(sheet, p, kind, {
+      wash: cssColor('--color-indigo-wash'),
+      indigo: cssColor('--color-indigo'),
+      ink: cssColor('--color-ink'),
+      dark: matchMedia('(prefers-color-scheme: dark)').matches,
+    })
+  if (mesh) {
+    // Each framing's picture is its own width: a phone turned to landscape changes it.
+    mesh.setAttribute('viewBox', `0 0 ${d.width} ${FRAME_H}`)
+    mesh.innerHTML = meshMarkup(d, !sheet)
+  }
+  const style = root.querySelector('[data-iv-poster] style[data-mesh-css]')
+  if (style) style.textContent = MESH_CSS + RAMP_CSS + d.css
+  return d
 }

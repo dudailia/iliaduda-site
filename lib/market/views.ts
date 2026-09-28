@@ -47,17 +47,6 @@ export const heat = (q: number) => (q > 0 ? 1 - dexp(-q / HEAT.q) : 0)
 export const tone = (q: number) => (q > 0 ? 0.05 + 0.9 * heat(q) : 0)
 
 /**
- * The order book's depth at a price as a tone: every share waiting between that price and the touch on its side,
- * the quantity /order-book's terrain stands as height. So the book darkens away from the price on both sides, the
- * spread between them paper, and a side a sweep has drained shows light until it fills again. Its tone is
- * a trace for any depth at all, 1 − e^(−c/700): a calm book's median depth three ticks out (about 80 shares) is
- * drawn light, its median at the window's edge (about 430) near half, so the gradient runs the window's height;
- * never full.
- */
-export const DEPTH = { shares: 700, floor: 0.04, range: 0.86 } as const
-export const depthTone = (c: number) => (c > 0 ? DEPTH.floor + DEPTH.range * (1 - dexp(-c / DEPTH.shares)) : 0)
-
-/**
  * A fan drawn at volatility `base.sigma`, as it is at `sigma`: the same paths, the same normal draws, stretched. In
  * log price a path is its drift, (r − σ²/2) a step of `dt` years, plus σ√dt times a sum of normals at each step, so
  * every path, and every quantile taken in log price (lib/futures/fan.ts), maps exactly: nothing is drawn again, and
@@ -82,6 +71,29 @@ export function fanAt(
   }
   map(base.bands, outBands)
   map(base.strands, outStrands)
+}
+
+/**
+ * A price's own queue as the heat strip tones it, the depth heatmap's convention: the shares resting there, 1 −
+ * e^(−q/45) over a trace for any queue at all, so the median queue (10 shares) is light and one of 45 past half; never
+ * full. The book at now beside the strip keeps the depth (every share between a price and the touch), the depth chart's.
+ */
+export const LEVEL = { shares: 45, floor: 0.04, range: 0.86 } as const
+export const levelTone = (q: number) => (q > 0 ? LEVEL.floor + LEVEL.range * (1 - dexp(-q / LEVEL.shares)) : 0)
+
+/**
+ * The queue at price `j` of the row `age` rows back (0 the newest, `rows` of them), averaged with the rows either side
+ * of it in time, those there are: a quarter second of rows, so orders that rest read as bands and a single row's churn
+ * does not flicker. `at(age, j)` is the queue there.
+ */
+export function smoothedQueue(at: (age: number, j: number) => number, age: number, j: number, rows: number): number {
+  let sum = 0, n = 0
+  for (let a = age - 1; a <= age + 1; a++)
+    if (a >= 0 && a < rows) {
+      sum += at(a, j)
+      n++
+    }
+  return n ? sum / n : 0
 }
 
 /** Seconds of the book the heat strip shows, and the width of the book at now beside it, in CSS pixels. */

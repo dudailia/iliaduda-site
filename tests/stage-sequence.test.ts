@@ -98,7 +98,8 @@ describe('a signature sequence', () => {
 })
 
 describe('what counts as asking to get on with it', () => {
-  const on = (replay: boolean) => ({ closest: (sel: string) => (replay && sel === '[data-replay]' ? {} : null) })
+  // An element inside a Replay control or not, as `closest` finds it for a list of selectors.
+  const on = (replay: boolean) => ({ closest: (sel: string) => (replay && sel.split(',').includes('[data-replay]') ? {} : null) })
   it('is not a press on Replay: that starts the story over, it does not ask to finish it', () => {
     expect(isSkipInput({ type: 'pointerdown', pointerType: 'mouse', target: on(true) })).toBe(false)
     expect(isSkipInput({ type: 'click', target: on(true) })).toBe(false)

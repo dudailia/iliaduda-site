@@ -86,6 +86,8 @@ export interface Hooks {
   reading?(): boolean
   /** /market's surface only: the camera's distance as a share of its fitted one (a shock's blow draws it in). */
   zoom?(): number
+  /** /market's surface only: where the keyboard has turned the view to, in radians, within the drag's own soft limits. */
+  aim?(): { yaw: number; pitch: number }
 }
 
 /** Grid vertices per side and wall segments, by quality level. */
@@ -449,16 +451,23 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
 
       // Springs, the figures' one (lib/stage/spring.ts), stepped exactly at any frame rate: the drag's return (ω 7),
       // the reader's lean (ω 4, the home figure's), and below, the reader's shock (ω 30).
+      // /market's keys aim the view, within the drag's soft limits, on the drag's own spring; home is zero.
+      const aimed = hooks.aim?.()
+      if (aimed && !drag) {
+        spring.ty = aimed.yaw ? soft.yaw(aimed.yaw) : 0
+        spring.tp = aimed.pitch ? soft.pitch(aimed.pitch) : 0
+      }
       if (!drag || drag.moved <= 4) {
         step2(spring, 'yaw', 'vy', spring.ty, dt, 7)
         step2(spring, 'pitch', 'vp', spring.tp, dt, 7)
       }
       // A shock's blow: the camera nods (a kick to the drag spring's speed, ω 7, which carries it home without an
-      // overshoot) and the one-month smile lights.
+      // overshoot) and the one-month smile lights. The kick sets the speed rather than adding to it, so shocks pressed
+      // in a row nod no harder than the hardest of them.
       const blow = hooks.impact?.() ?? 0
       if (blow > 0) {
-        spring.vp += 0.55 * blow
-        spring.vy -= 0.3 * blow
+        spring.vp = Math.max(spring.vp, 0.55 * blow)
+        spring.vy = Math.min(spring.vy, -0.3 * blow)
         flash = Math.max(flash, blow)
         // For the specs: the animation frame the blow landed in, on the frame's own clock.
         canvas.dataset.landed = String(document.timeline?.currentTime ?? performance.now())
@@ -512,7 +521,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         sinking !== null ||
         (paused && swayK > 0) ||
         Math.abs((q === 0 ? 0 : 1) - finishK) > 0.01 ||
-        Math.abs(spring.yaw) + Math.abs(spring.pitch) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
+        Math.abs(spring.yaw - spring.ty) + Math.abs(spring.pitch - spring.tp) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
         Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
         Math.abs(shock.v) > 1e-5 ||
         Math.abs(hooks.level() - shock.x) > 1e-4 ||

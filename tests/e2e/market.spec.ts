@@ -24,7 +24,7 @@ async function goLive(page: Page) {
 }
 
 /** The animation frame each view took the latest landing in (document.timeline's clock). */
-const stamps = (page: Page) => page.locator(`${STAGE} canvas:not([data-ghost])`).evaluateAll((cs) => cs.map((c) => (c as HTMLCanvasElement).dataset.landed ?? null))
+const stamps = (page: Page) => page.locator(`${STAGE} canvas:not([data-ghost]):not([data-still-sheet])`).evaluateAll((cs) => cs.map((c) => (c as HTMLCanvasElement).dataset.landed ?? null))
 
 test.describe('before any script runs', () => {
   test.use({ javaScriptEnabled: false })
@@ -49,7 +49,7 @@ test('goes live with the site’s own worker, and all three views draw, fetching
   expect(workers.length).toBeGreaterThan(0)
   const origin = new URL(page.url()).origin
   for (const w of workers) expect(new URL(w).origin).toBe(origin)
-  for (const c of await page.locator(`${STAGE} canvas:not([data-ghost])`).all()) await expect.poll(() => c.evaluate((e) => Number(getComputedStyle(e).opacity))).toBe(1)
+  for (const c of await page.locator(`${STAGE} canvas:not([data-ghost]):not([data-still-sheet])`).all()) await expect.poll(() => c.evaluate((e) => Number(getComputedStyle(e).opacity))).toBe(1)
   await expect(page.locator('#fig-1 dd').first()).toHaveText(/^\d+:\d\d$/)
   const t0 = await t(page)
   await expect.poll(() => t(page), { timeout: 5_000 }).toBeGreaterThan(t0 + 0.5)
@@ -68,8 +68,9 @@ test('tells its shock once: calm, then a shock landing in all three views in one
   await expect.poll(async () => (await stamps(page)).every((s) => s !== null), { timeout: 5_000 }).toBe(true)
   const s = await stamps(page)
   expect(new Set(s).size).toBe(1)
-  await expect(story).toHaveAttribute('data-market-story', 'recovery', { timeout: 10_000 })
-  await expect(story).toHaveAttribute('data-market-story', /running|absorbing/, { timeout: 10_000 })
+  await expect(story).toHaveAttribute('data-market-story', 'recovering', { timeout: 10_000 })
+  // Told, the line says the market's own state: still recovering while the stress is up, then running.
+  await expect(story).toHaveAttribute('data-market-story', /running|recovering/, { timeout: 10_000 })
   // Once a session: a reload does not tell it again.
   await page.reload()
   await goLive(page)
@@ -83,7 +84,8 @@ test('a reader’s shock lands in all three views in one frame, and a click in t
   await page.goto('/market')
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   await expect(page.locator('[data-market-story]')).toHaveAttribute('data-market-story', 'calm', { timeout: 10_000 })
-  await page.locator('[data-market-shock]').click()
+  // Pressed where it is, without scrolling the stage: on a phone, bringing the button into view takes the surface out.
+  await page.locator('[data-market-shock]').evaluate((b) => (b as HTMLButtonElement).click())
   await expect.poll(async () => new Set(await stamps(page)).size === 1 && (await stamps(page))[0] !== null, { timeout: 5_000 }).toBe(true)
   const first = (await stamps(page))[0]
   // The story does not press again: after its calm would have ended, the only landing is the reader's.
@@ -104,6 +106,72 @@ test('Pause holds the market, and Resume carries it on from there', async ({ pag
   await expect(page.locator('[data-market-story]')).toHaveAttribute('data-market-story', 'paused')
   await page.getByRole('button', { name: 'Resume' }).click()
   await expect.poll(() => t(page), { timeout: 5_000 }).toBeGreaterThan(held + 0.5)
+})
+
+test('Pause is remembered for the visit: the market opens held on the next page, and Pause during the calm holds the story', async ({ page }) => {
+  test.setTimeout(60_000)
+  await page.goto('/market')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const story = page.locator('[data-market-story]')
+  await expect(story).toHaveAttribute('data-market-story', 'calm', { timeout: 10_000 })
+  // A press of Pause is not a request to hurry: the calm holds, and no shock lands while it does.
+  await page.getByRole('button', { name: 'Pause' }).click()
+  await expect(story).toHaveAttribute('data-market-story', 'paused')
+  await page.waitForTimeout(3_500)
+  expect(await stamps(page)).toEqual([null, null, null])
+  await page.reload()
+  await goLive(page)
+  await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible()
+  const held = await t(page)
+  await page.waitForTimeout(1_000)
+  expect(await t(page)).toBeCloseTo(held, 1)
+})
+
+test('Replay starts the market over from its opening moment and tells the story again', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seenStory(page)
+  await page.goto('/market')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect.poll(() => t(page), { timeout: 5_000 }).toBeGreaterThan(146)
+  await page.locator('[data-replay]').click()
+  const story = page.locator('[data-market-story]')
+  await expect(story).toHaveAttribute('data-market-story', 'calm', { timeout: 5_000 })
+  expect(await t(page)).toBeLessThan(146)
+  await expect(story).toHaveAttribute('data-market-story', 'shock', { timeout: 10_000 })
+})
+
+test('the book reads the market at a moment by keyboard, and the surface turns with the arrow keys', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a keyboard')
+  test.setTimeout(60_000)
+  await seenStory(page)
+  await page.goto('/market')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const book = page.locator('[data-market-book]')
+  await book.focus()
+  await page.keyboard.press('Shift+ArrowLeft')
+  await page.keyboard.press('ArrowLeft')
+  await expect(book).toHaveAttribute('aria-valuenow', '2.5')
+  await expect(book).toHaveAttribute('aria-valuetext', /^2\.5 s ago · vol \d+\.\d% · stress \d\.\d\d$/)
+  await expect(page.locator('[data-market-book-title]')).toContainText('2.5 s ago')
+  await page.keyboard.press('Home')
+  await expect(book).toHaveAttribute('aria-valuetext', 'now')
+  const surface = page.locator('[data-market-surface]')
+  await surface.focus()
+  await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('Space')
+  await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible()
+})
+
+test('Fig. 2 fills its rail with the market’s own rates at a laptop’s width', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'the margin shows from lg')
+  test.setTimeout(60_000)
+  await seenStory(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/market')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const rail = page.locator('#fig-2 dd:visible')
+  await expect.poll(() => rail.allTextContents(), { timeout: 10_000 }).not.toContain('—')
+  await expect(rail.first()).toContainText(/a second/)
 })
 
 test('a tab left in the background comes back to the market it left, with no long task', async ({ page }) => {
@@ -149,7 +217,7 @@ test('fifty presses in a second leave the market bounded and the page clean', as
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   const button = page.locator('[data-market-shock]')
   for (let i = 0; i < 50; i++) await button.click({ delay: 0, noWaitAfter: true })
-  await expect(page.locator('[data-market-story]')).toHaveAttribute('data-market-story', 'absorbing', { timeout: 5_000 })
+  await expect(page.locator('[data-market-story]')).toHaveAttribute('data-market-story', /shock|topped/, { timeout: 5_000 })
   await page.waitForTimeout(3_000)
   const stress = Number(await page.locator('#fig-1 dd').nth(4).textContent())
   expect(stress).toBeGreaterThanOrEqual(0)
@@ -190,10 +258,15 @@ test('reduced motion: still frames, no worker, and Liquidity shock swaps the sho
   await expect(page.locator('#fig-1')).toContainText('Still frames: your system asks for reduced motion.')
   await toggle.click()
   await expect(toggle).toHaveText('Back to calm')
-  await expect(page.locator('[data-market-poster="book"]')).toHaveAttribute('data-moment', 'shock')
+  // The shocked frames over the calm ones, shown; then hidden again, the calm ones under them all along.
+  const shocked = page.locator('[data-market-shocked]:has([data-market-poster="book"][data-moment="shock"])')
+  await expect(shocked).toHaveAttribute('data-market-shocked', '1')
+  await expect(shocked).toHaveCSS('opacity', '1')
   await expect(page.locator('#fig-1 img[src="/market/fan-shock.svg"]')).toHaveCount(1)
   await toggle.click()
-  await expect(page.locator('[data-market-poster="book"]')).toHaveAttribute('data-moment', 'calm')
+  await expect(shocked).toHaveAttribute('data-market-shocked', '0')
+  await expect(shocked).toHaveCSS('opacity', '0')
+  await expect(page.locator('[data-market-poster="book"][data-moment="calm"]')).toHaveCount(1)
   await page.waitForTimeout(2_000)
   expect(workers).toEqual([])
   expect(errors).toEqual([])

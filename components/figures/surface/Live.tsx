@@ -6,7 +6,7 @@ import { CONTROL } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
-import { cssColor, saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
+import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create } from '@/components/stage/useStage'
@@ -342,7 +342,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   }, [probe, write])
 
   // Where the live figure does not run, the still frame is redrawn for the shock the reader sets.
-  const still = useRef<{ poster: typeof import('@/lib/surface/poster'); markup: typeof import('@/lib/surface/posterMarkup'); sheet: typeof import('./still') } | null>(null)
+  const still = useRef<{ sheet: typeof import('./still') } | null>(null)
   const stillWant = useRef(0)
   const stillFrame = useRef(0)
   const redrawStill = useCallback(
@@ -352,42 +352,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         const s = still.current
         if (!s || !el) return
         const kind = kindRef.current
-        const d = s.poster.poster(params(x), kind)
-        // The first redraw puts the still frame in place of the poster's picture: the sheet painted smooth on a canvas,
-        // and over it, inline, the walls, contours and ticks, with their style beside them.
-        let mesh = el.querySelector('[data-iv-poster] [data-mesh]')
-        if (mesh && mesh.tagName.toLowerCase() === 'img') {
-          const sheet = document.createElement('canvas')
-          sheet.setAttribute('class', 'absolute inset-0 h-full w-full')
-          sheet.setAttribute('aria-hidden', 'true')
-          sheet.setAttribute('data-fill', '')
-          sheet.setAttribute('data-still-sheet', '')
-          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-          svg.setAttribute('class', 'absolute inset-0 h-full w-full overflow-visible')
-          svg.setAttribute('aria-hidden', 'true')
-          svg.setAttribute('data-fill', '')
-          svg.setAttribute('data-mesh', '')
-          ;(mesh.closest('picture') ?? mesh).replaceWith(sheet, svg)
-          mesh = svg
-          const style = document.createElement('style')
-          style.setAttribute('data-mesh-css', '')
-          el.querySelector('[data-iv-poster]')?.prepend(style)
-        }
-        const sheet = el.querySelector<HTMLCanvasElement>('[data-iv-poster] [data-still-sheet]')
-        if (sheet)
-          s.sheet.drawSheet(sheet, params(x), kind, {
-            wash: cssColor('--color-indigo-wash'),
-            indigo: cssColor('--color-indigo'),
-            ink: cssColor('--color-ink'),
-            dark: matchMedia('(prefers-color-scheme: dark)').matches,
-          })
-        if (mesh) {
-          // Each framing's picture is its own width: a phone turned to landscape changes it.
-          mesh.setAttribute('viewBox', `0 0 ${d.width} ${s.poster.FRAME_H}`)
-          mesh.innerHTML = s.markup.meshMarkup(d, !sheet)
-        }
-        const style = el.querySelector('[data-iv-poster] style[data-mesh-css]')
-        if (style) style.textContent = s.markup.MESH_CSS + s.poster.RAMP_CSS + d.css
+        // The first redraw puts the still frame in place of the poster's picture (./still.ts, smoothStill).
+        const d = s.sheet.smoothStill(el, params(x), kind)
         for (const n of d.notes) {
           const at = el.querySelector<HTMLElement>(`[data-iv-poster] [data-note="${n.id}"]`)
           if (at) {
@@ -410,8 +376,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           run()
         }
         if (still.current) return go()
-        void Promise.all([import('@/lib/surface/poster'), import('@/lib/surface/posterMarkup'), import('./still')]).then(([poster, markup, sheet]) => {
-          still.current = { poster, markup, sheet }
+        void import('./still').then((sheet) => {
+          still.current = { sheet }
           go()
         })
       })

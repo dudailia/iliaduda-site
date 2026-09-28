@@ -93,7 +93,10 @@ export interface Stage {
   tier: Tier | null
 }
 
-export function useStage(create: Create, opts: { threshold?: number; maxQ?: Partial<Record<Tier, number>> } = {}): Stage {
+export function useStage(
+  create: Create,
+  opts: { threshold?: number; maxQ?: Partial<Record<Tier, number>>; hold?: () => boolean } = {},
+): Stage {
   const box = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const reduced = useReducedMotion()
@@ -111,6 +114,12 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
   const threshold = opts.threshold ?? 0.2
   // A figure may let a tier go higher than the kit's default: the home figure lets a phone draw at two device pixels.
   const tierMax = useRef(opts.maxQ)
+  // A figure may hold the quality from climbing while its signature plays, so it never sharpens mid-moment; a step down
+  // is never held.
+  const hold = useRef(opts.hold)
+  useEffect(() => {
+    hold.current = opts.hold
+  })
 
   useEffect(() => {
     if (reduced) return
@@ -205,7 +214,7 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
         renderer.setQuality?.(q)
         size()
         setQuality(q)
-      } else if (fast > 3 && q < maxQ && now >= (blockedUntil[q + 1] ?? 0)) {
+      } else if (fast > 3 && q < maxQ && now >= (blockedUntil[q + 1] ?? 0) && !hold.current?.()) {
         q++
         fast = 0
         renderer.setQuality?.(q)

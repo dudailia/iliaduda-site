@@ -1,7 +1,7 @@
 import { EASE_OUT } from '@/lib/ease'
 import type { Mirror } from '@/lib/market/mirror'
 import { PROTOCOL } from '@/lib/market/protocol'
-import { depthTone, FAN_RANGE, fanAt, LADDER, PriceWindow, SPAN, WINDOW } from '@/lib/market/views'
+import { FAN_RANGE, fanAt, LADDER, levelTone, PriceWindow, smoothedQueue, SPAN, WINDOW } from '@/lib/market/views'
 import { spring } from '@/lib/stage/spring'
 import type { Palette, RGB } from '@/components/stage/useStage'
 
@@ -44,10 +44,11 @@ export interface Landing {
 
 /**
  * The order book: twenty simulated seconds of it as a heat strip, price up the side and time across, each price in
- * the tone of the book's depth there, every share waiting between it and the touch (lib/market/views.ts, depthTone;
- * both sides indigo, the shares waiting, the spread between them paper), the price through the middle in ink, every
- * trade a dot, and the book at now on the right, its depth at each price a bar: the exchange's depth chart, on its
- * side. A liquidity shock's sweep lands as a bright streak run down the levels it took (180ms), fading over 900ms.
+ * the tone of the shares resting there, averaged over a quarter second (lib/market/views.ts, levelTone and
+ * smoothedQueue; both sides indigo, the shares waiting, the spread between them paper), the price through the middle
+ * in ink, every trade a dot, and the book at now on the right, its depth at each price a bar: the exchange's depth
+ * chart, on its side. A liquidity shock's sweep lands as a bright streak run down the levels it took (180ms), fading
+ * over 900ms; its fills and the book at now empty behind its front.
  */
 export class BookView {
   readonly box = { w: 1, h: 1 }
@@ -57,6 +58,9 @@ export class BookView {
   private readonly heatG: CanvasRenderingContext2D | null
   private img: ImageData | null = null
   private readonly cum = new Float32Array(L)
+  /** The book at now as it stood before a sweep, by price from `heldCentre − half`: what the sweep's front has yet to take. */
+  private readonly held = new Float32Array(L)
+  private heldCentre = 0
   private builtFrames = -1
   private builtBase = NaN
   private builtPal: Palette | null = null
@@ -146,24 +150,31 @@ export class BookView {
     g.lineTo(lay.x1, lay.y(m.h.mid))
     g.stroke()
 
-    // Every trade in the window, a dot, its area the shares.
-    g.fillStyle = css(pal.ink, 0.85)
-    for (let a = 0; a < m.tradeCount; a++) {
-      const tr = m.trade(a)
-      if (tr.t < t - SPAN) break
+    // The shock's sweep, its geometry first: its fills are revealed behind the streak's front, not drawn before it.
+    const sweep = landing && flash < 1.2 ? landing : null
+    const run = sweep ? EASE_OUT(Math.min(1, Math.max(0, flash) / 0.18)) : 0
+    const sy0 = sweep ? lay.y(sweep.hi) - lay.px / 2 : 0
+    const sy1 = sweep ? sy0 + (lay.y(sweep.lo) + lay.px / 2 - sy0) * run : 0
+    const dot = (tr: { t: number; price: number; size: number }) => {
       const r = Math.min(2.6, 0.7 + 0.28 * Math.sqrt(tr.size))
       g.beginPath()
       g.arc(lay.x(tr.t, t), lay.y(tr.price), r, 0, Math.PI * 2)
       g.fill()
     }
 
-    // The shock's sweep: a streak run down the levels it took, then gone.
-    if (landing && flash < 1.2) {
-      const run = EASE_OUT(Math.min(1, flash / 0.18))
+    // Every trade in the window, a dot, its area the shares.
+    g.fillStyle = css(pal.ink, 0.85)
+    for (let a = 0; a < m.tradeCount; a++) {
+      const tr = m.trade(a)
+      if (tr.t < t - SPAN) break
+      if (sweep && tr.t === sweep.t) continue
+      dot(tr)
+    }
+
+    // The sweep: a streak run down the levels it took (180ms), then fading (900ms), kept inside the strip at now.
+    if (sweep) {
       const fade = flash < 0.18 ? 1 : Math.max(0, 1 - EASE_OUT((flash - 0.18) / 0.9))
-      const x = lay.x(landing.t, t)
-      const y0 = lay.y(landing.hi) - lay.px / 2
-      const y1 = y0 + (lay.y(landing.lo) + lay.px / 2 - y0) * run
+      const x = Math.min(lay.x(sweep.t, t), lay.x1 - 1.5)
       if (pal.dark) {
         g.globalCompositeOperation = 'lighter'
         const glow = g.createLinearGradient(x - 10, 0, x + 10, 0)
@@ -171,15 +182,22 @@ export class BookView {
         glow.addColorStop(0.5, css(pal.indigo, 0.55 * fade))
         glow.addColorStop(1, css(pal.indigo, 0))
         g.fillStyle = glow
-        g.fillRect(x - 10, y0 - 4, 20, y1 - y0 + 8)
+        g.fillRect(x - 10, sy0 - 4, 20, sy1 - sy0 + 8)
         g.fillStyle = css(pal.ink, 0.9 * fade)
-        g.fillRect(x - 1.25, y0, 2.5, y1 - y0)
+        g.fillRect(x - 1.25, sy0, 2.5, sy1 - sy0)
         g.globalCompositeOperation = 'source-over'
       } else {
         g.fillStyle = css(pal.paper, 0.8 * fade)
-        g.fillRect(x - 5, y0 - 2, 10, y1 - y0 + 4)
+        g.fillRect(x - 5, sy0 - 2, 10, sy1 - sy0 + 4)
         g.fillStyle = css(pal.ink, fade)
-        g.fillRect(x - 1.25, y0, 2.5, y1 - y0)
+        g.fillRect(x - 1.25, sy0, 2.5, sy1 - sy0)
+      }
+      // Its fills, where the front has reached.
+      g.fillStyle = css(pal.ink, 0.85)
+      for (let a = 0; a < m.tradeCount; a++) {
+        const tr = m.trade(a)
+        if (tr.t < sweep.t) break
+        if (tr.t === sweep.t && lay.y(tr.price) <= sy1 + lay.px / 2) dot(tr)
       }
     }
 
@@ -194,11 +212,19 @@ export class BookView {
     g.fillStyle = css(pal.indigo)
     const c = m.h.centre
     this.depthOf(m.ladder, m.h.bestBid - c + HALF, m.h.bestAsk - c + HALF)
+    // While the sweep runs, the levels its front has not reached keep their bars: the book empties behind the streak.
+    const running = sweep !== null && flash < 0.18
+    if (!running) {
+      this.held.set(this.cum)
+      this.heldCentre = c
+    }
     const barW = LADDER - 8
     for (let p = base - WINDOW.half - 1; p <= base + WINDOW.half + 1; p++) {
       const j = p - c + HALF
       if (j < 0 || j >= L) continue
-      const d = this.cum[j]!
+      const k = p - this.heldCentre + HALF
+      const was = running && lay.y(p) > sy1 && k >= 0 && k < L ? this.held[k]! : 0
+      const d = Math.max(this.cum[j]!, was)
       if (!d) continue
       // Level to level with no gap, so the depth reads as one silhouette.
       const len = Math.max(1, (Math.min(d, LADDER_FULL) / LADDER_FULL) * barW)
@@ -231,15 +257,16 @@ export class BookView {
     if (!this.img) this.img = hg.createImageData(256, ROWS)
     const d = this.img.data
     const top = base + WINDOW.half
+    // The queue at a price in the row `age` back: each row is stored around its own mid.
+    const at = (age: number, price: number) => {
+      const i = m.row(age)
+      const j = price - (m.centre(i) - HALF)
+      return j >= 0 && j < L ? m.levels(i)[j]! : 0
+    }
     for (let c = 0; c < 256; c++) {
       const age = 255 - c
-      const has = age < m.rows
-      const i = has ? m.row(age) : 0
-      if (has) this.depthOf(m.levels(i), m.bid(i) - m.centre(i) + HALF, m.ask(i) - m.centre(i) + HALF)
-      const off = has ? top - (m.centre(i) - HALF) : 0
       for (let y = 0; y < ROWS; y++) {
-        const j = off - y
-        const k = has && j >= 0 && j < L ? depthTone(this.cum[j]!) : 0
+        const k = age < m.rows ? levelTone(smoothedQueue(at, age, top - y, m.rows)) : 0
         const o = (y * 256 + c) * 4
         d[o] = Math.round(mix(pal.paper, pal.indigo, k, 0) * 255)
         d[o + 1] = Math.round(mix(pal.paper, pal.indigo, k, 1) * 255)
@@ -262,7 +289,8 @@ export class BookView {
  * and 48 of the paths themselves thin lines, glowing by night. The fan is drawn at the volatility shown, which
  * follows the market's on a spring (ω 8), from the latest fan mapped exactly (lib/market/views.ts, fanAt), so when a
  * shock lifts the volatility the fan breathes out rather than jumps; it is rooted at the price now, so it moves with
- * the price in the frame the price moves. A shock's landing lights the paths for 700ms.
+ * the price in the frame the price moves. A shock's landing lights the paths as long as the book's
+ * streak: held 180ms, fading over 900ms.
  */
 export class FanView {
   readonly box = { w: 1, h: 1 }
@@ -318,7 +346,9 @@ export class FanView {
     if (this.as !== null) this.pointedAt = now
     spring(this.sig, target, dt, now - this.pointedAt < 600 ? 30 : 8)
     const flash = landing ? (now - landing.at) / 1000 : Infinity
-    if (!resized && this.last === m.frames && Math.abs(this.sig.x - this.lastSig) < 1e-7 && flash > 0.8 && this.lastPal === pal) return false
+    // Lit while its volatility moves fast, as after a shock's jump, so the landing and the widening are one gesture.
+    const moving = Math.min(1, Math.abs(this.sig.v) / Math.max(0.05, this.sig.x) / 1.2)
+    if (!resized && this.last === m.frames && Math.abs(this.sig.x - this.lastSig) < 1e-7 && flash > 1.1 && moving < 0.01 && this.lastPal === pal) return false
     this.last = m.frames
     this.lastSig = this.sig.x
     this.lastPal = pal
@@ -345,8 +375,8 @@ export class FanView {
     band(0, 4, css(pal.indigo, pal.dark ? 0.16 : 0.1))
     band(1, 3, css(pal.indigo, pal.dark ? 0.2 : 0.14))
 
-    // The paths, and by night their glow; a landing lights them.
-    const lit = flash < 0.7 ? 1 - EASE_OUT(flash / 0.7) : 0
+    // The paths, and by night their glow; a landing lights them, and they stay lit while the fan breathes out.
+    const lit = Math.max(flash < 0.18 ? 1 : flash < 1.08 ? 1 - EASE_OUT((flash - 0.18) / 0.9) : 0, moving)
     const path = (s: number) => {
       g.beginPath()
       for (let j = 0; j <= 64; j++) {
@@ -388,6 +418,18 @@ export class FanView {
       g.beginPath()
       g.arc(lay.x(0), lay.y(1), 3 + 9 * ring, 0, Math.PI * 2)
       g.stroke()
+    }
+    // Paths leaving the view fade into the paper at its top and bottom rather than stop at a line.
+    const edge = 10
+    for (const [y0, y1] of [
+      [0, edge],
+      [this.box.h, this.box.h - edge],
+    ] as const) {
+      const fadeOut = g.createLinearGradient(0, y0, 0, y1)
+      fadeOut.addColorStop(0, css(pal.paper))
+      fadeOut.addColorStop(1, css(pal.paper, 0))
+      g.fillStyle = fadeOut
+      g.fillRect(0, Math.min(y0, y1), this.box.w, edge)
     }
     g.restore()
     return true

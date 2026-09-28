@@ -11,13 +11,26 @@ runs on any WebGL2 device, iPhones included; `?debug=1` reports what the figure
 chose on this device and why. Readers without the live figure get the same
 view as a still frame on a 2D canvas.
 
-Five papers, each built around one live figure: an implied-volatility surface
-drawn in raw WebGL2, CloseBooks' categorisation pipeline, a T20 World Cup final
-replayed ball by ball, a startup-segment ranking under three treatments of the
-data, and a debt-settlement portal's arithmetic and statutory contact limits.
+Seven papers, each built around one live figure: one simulated market drawn
+three ways at once (`/market`), CloseBooks' categorisation pipeline, a T20 World
+Cup final replayed ball by ball, a limit order book driven by a Hawkes process
+(`/order-book`), an implied-volatility surface drawn in raw WebGL2, a
+startup-segment ranking under three treatments of the data, and a
+debt-settlement portal's arithmetic and statutory contact limits.
 There are also two shorter write-ups (nucarbon, AdConfirm), an About page with
 the OFZ yield curve through the Bank of Russia's summer 2023 rate decisions, and
 a one-page CV that the build prints to PDF.
+
+`/market` runs one deterministic synthetic market (`lib/market/`: Hawkes order
+flow into a limit order book, advanced in whole quanta of 1/60 of a simulated
+second, with its own `exp` and `log`) in a module Web Worker loaded from the
+site's own origin, and draws its order book, a year of its futures and its
+vol surface from the same frame of it. The market comes out the same to the bit
+in Node, V8, JavaScriptCore and SpiderMonkey from the same seed and the same
+log of shocks (`tests/e2e/market-engines.spec.ts`); the futures, drawn with the
+platform's own exponential, are the one part that is not claimed bit for bit.
+The home figure's volatility is that market's realised volatility where
+`/market` opens, worked out by the server and again by the browser.
 
 The figures are hand-authored SVG and WebGL, with no chart library. Every
 number in them comes from `content/facts.ts`, where each entry names the file
@@ -46,7 +59,9 @@ build image has no browser.
 | Figure | Data | Written by |
 |---|---|---|
 | Futures (home Fig. 1) | synthetic GBM parameters, labelled simulated | `content/synthetic.ts`, `lib/futures/mc.ts` |
-| IV surface (`/iv-surface`) | synthetic SSVI parameters, labelled synthetic | `content/synthetic.ts`, `lib/svi.ts` |
+| One market (`/market`) | a seeded synthetic market, labelled simulated | `lib/market/params.ts`, `lib/market/engine.ts` |
+| Order book (`/order-book`) | the same seeded market, labelled simulated | `lib/market/params.ts`, `lib/market/flow.ts` |
+| IV surface (`/iv-surface`) | synthetic SSVI parameters, labelled synthetic | `content/synthetic.ts`, `lib/surface/ssvi.ts`, `lib/svi.ts` |
 | cricstate replay | the 2026 Men's T20 World Cup final | `scripts/cricket_replay.py`, run inside the cricstate repo; asserts the paper's test NLL |
 | startup ranking | the capstone notebook's own cells | `scripts/startup_ranking.py`; asserts variant A reproduces the notebook |
 | CloseBooks pipeline | a synthetic feed through the product's ported rules | `content/data/closebooks-feed.ts`, `lib/closebooks.ts` |

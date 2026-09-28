@@ -60,15 +60,16 @@ export function MarketFigure() {
         posters={{ calm: calm.posters, shock: shock.posters }}
         stillAfter={SHOCK_FRAME_S}
         hashes={{ start: m.hash(), shocked: shockedHash(SEED, POSTER_T) }}
-        title="One simulated market, three views of it in the same frame: its vol surface, its order book and a year of its futures."
+        stillSurface={{ calm: calm.surface, shock: shock.surface }}
+        title="Its vol surface, the last twenty seconds of its order book and a year of its futures, each drawn from the same copy of the market in the same frame."
         subtitle={`Simulated · one seed · Hawkes order flow · realised volatility · SSVI · tick ${usd(1)} · not market data`}
         caption={
           <>
-            Above, the vol surface the market&rsquo;s stress sets; below, the last twenty seconds of its order book, price up the side
-            and time across, each price in the tone of the shares waiting between it and the touch, with the price through the middle
-            and every trade a dot, and the book&rsquo;s depth now beside it; and a year of futures from its price now, at its own
-            realised volatility. A liquidity shock sweeps the bids and sets off a burst of selling: every view takes it in the frame it
-            lands.
+            First the vol surface, its shock set by the market&rsquo;s stress. Then the order book: price up the side and time
+            across, each price in the tone of the shares waiting there, the price through the middle in ink and each trade a
+            dot, and at its right edge the book&rsquo;s depth now, every share between a price and the best one. Then a year of its futures, simulated paths of its
+            price from now at its own realised volatility: the 5th to 95th and 25th to 75th percentiles as washes, and 48 of the
+            paths.
           </>
         }
         table={

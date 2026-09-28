@@ -7,7 +7,7 @@ import { numbers, probeText, text } from '../lib/surface/readouts'
 import { FRAME_ASPECT, noteRise } from '../components/figures/surface/marks'
 import { poster, describe as describePoster } from '../lib/surface/poster'
 import { invert } from '../lib/m4'
-import { camera, fitDistance, FRAMES, H, kOfU, labelBox, LABELS, mvp, apply, pickSurface, tOfV, fu, fv, wx, wy, wz, XW, ZW, type FrameKind } from '../lib/surface/view'
+import { camera, fitDistance, FRAMES, H, kOfU, labelBox, LABEL_INSET, LABELS, mvp, NARROWEST, apply, pickSurface, tOfV, fu, fv, wx, wy, wz, XW, ZW, type FrameKind } from '../lib/surface/view'
 import { diffuse, linOf, oklab, rampLab, srgbOf, UP_LIGHT } from '../lib/surface/look'
 
 /**
@@ -189,8 +189,9 @@ describe('the view', () => {
     }
     expect(FRAMES.tall.aspect).toBeLessThan(FRAMES.wide.aspect)
     const [w, h] = size('tall')
-    // Letterboxed into a phone, the wide frame gave it 250 × 146px.
-    expect(w).toBeGreaterThan(300)
+    // Letterboxed into a phone, the wide frame gave it 250 × 146px; its own, with its words inside the page's margin,
+    // about 297 × 211px.
+    expect(w).toBeGreaterThan(290)
     expect(h).toBeGreaterThan(200)
   })
 
@@ -243,6 +244,9 @@ describe('the view', () => {
           const [x0, x1, y0, y1] = labelBox(kind, l, q[0] / q[3], q[1] / q[3])
           expect(Math.min(x0, y0), `${kind} ${l.id} ${s}`).toBeGreaterThanOrEqual(-0.99)
           expect(Math.max(x1, y1), `${kind} ${l.id} ${s}`).toBeLessThanOrEqual(0.99)
+          // Clear of the stage's side by its inset: on a phone, the page's margin.
+          const side = 1 - LABEL_INSET[kind] / (NARROWEST[kind] / 2) + 1e-3
+          expect(Math.max(-x0, x1), `${kind} ${l.id} ${s} inset`).toBeLessThanOrEqual(side)
         }
       }
     }

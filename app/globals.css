@@ -668,4 +668,13 @@
   .cv-h2 {
     text-align: right;
   }
+
+  /* /market prints its still frames: its canvases are drawn in the screen's palette, and their live words with them. */
+  [data-market-stage] canvas,
+  [data-market-stage] [data-market-words] {
+    display: none;
+  }
+  [data-market-stage] [data-market-still] {
+    visibility: visible !important;
+  }
 }

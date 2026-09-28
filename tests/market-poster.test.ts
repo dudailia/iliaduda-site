@@ -2,7 +2,7 @@ import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { HALF, LEVELS } from '../lib/market/flow'
 import { bookFrame, bookSvg, fanFrame, fanSvg, ladderSvg, marketFrame, maskByte, SHOCK_FRAME_S } from '../lib/market/poster'
-import { depthTone, WINDOW } from '../lib/market/views'
+import { levelTone, smoothedQueue, WINDOW } from '../lib/market/views'
 
 /**
  * /market's still frames (lib/market/poster.ts): drawn at build from the seeded market at the moment the live figure
@@ -36,22 +36,30 @@ function mask(svg: string) {
 }
 
 describe('the still frames of /market', () => {
-  it('tone every cell of the heat strip by the book’s depth there, as the live strip does', () => {
+  it('tone every cell of the heat strip by the shares resting there, over a quarter second, as the live strip does', () => {
     const { m } = marketFrame()
     const f = m.flow
     const { base } = bookFrame()
     const img = mask(bookSvg())
     expect([img.w, img.h]).toEqual([256, 2 * WINDOW.half + 1])
     // Its tones are the live strip's, to within half a step of 4 of 255.
-    for (let d = 0; d < 3000; d += 13) expect(Math.abs(maskByte(d) / 255 - depthTone(d))).toBeLessThanOrEqual(2 / 255 + 1e-12)
+    for (let q = 0; q < 400; q += 0.7) expect(Math.abs(maskByte(q) / 255 - levelTone(q))).toBeLessThanOrEqual(2 / 255 + 1e-12)
     const top = base + WINDOW.half
+    const rows = Math.min(256, f.written)
+    // The queue there, read straight from the book's rows: each row is stored around its own mid.
+    const queue = (age: number, price: number) => {
+      const r = f.row(age)
+      const j = price - (f.centre[r]! - HALF)
+      return j >= 0 && j < LEVELS ? f.queue[r * LEVELS + j]! : 0
+    }
+    let dark = 0
     for (const c of [0, 64, 128, 200, 255])
       for (let y = 0; y < img.h; y += 6) {
-        const r = f.row(255 - c)
-        const j = top - y - (f.centre[r]! - HALF)
-        const d = j >= 0 && j < LEVELS ? Math.abs(f.depth[r * LEVELS + j]!) : 0
-        expect(img.at(c, y), `column ${c}, row ${y}`).toBe(maskByte(d))
+        const q = smoothedQueue(queue, 255 - c, top - y, rows)
+        if (q > 0) dark++
+        expect(img.at(c, y), `column ${c}, row ${y}`).toBe(maskByte(q))
       }
+    expect(dark).toBeGreaterThan(20)
   })
 
   it('draw the book at now and the fan as the market has them, with their words where they fall', () => {

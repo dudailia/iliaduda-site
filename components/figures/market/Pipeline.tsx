@@ -12,12 +12,34 @@ import { marketRates, type MarketRates } from '@/components/market/stats'
 
 const n = (x: number, d = 0) => x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 
+/** One side of the boundary: a hairline frame, its name in mono, what runs there in the page's own type. */
 function Box({ label, title, children }: { label: string; title: string; children: ReactNode }) {
   return (
-    <div className="rounded-sm border border-rule bg-paper px-4 py-3" data-pipeline-box={label}>
+    <div className="border border-rule bg-paper px-4 py-3" data-pipeline-box={label}>
       <p className="text-meta font-mono text-graphite">{label}</p>
-      <p className="text-note mt-1 text-ink">{title}</p>
-      <ul className="text-meta mt-2 grid gap-y-1 font-mono text-graphite">{children}</ul>
+      <p className="text-note mt-1 font-semibold text-ink">{title}</p>
+      <ul className="text-note mt-1.5 grid gap-y-1 text-graphite">{children}</ul>
+    </div>
+  )
+}
+
+/**
+ * One way across the boundary: a hairline arrow in ink with its words over it. Across on a wide screen, where the
+ * worker is on the left and the page on the right; down or up on a phone, where they are stacked.
+ */
+function Crossing({ to, words }: { to: 'worker' | 'page'; words: ReactNode }) {
+  const left = to === 'worker'
+  return (
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-1 sm:flex-none" aria-hidden="true">
+      <span className="text-meta text-center font-mono leading-snug text-graphite">{words}</span>
+      <svg className="hidden h-2.5 w-full text-ink sm:block" viewBox="0 0 100 10" preserveAspectRatio="none">
+        <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        <path d={left ? 'M8 1 L2 5 L8 9' : 'M92 1 L98 5 L92 9'} fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <svg className="h-8 w-2.5 text-ink sm:hidden" viewBox="0 0 10 40" preserveAspectRatio="none">
+        <line x1="5" y1="2" x2="5" y2="38" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        <path d={left ? 'M1 8 L5 2 L9 8' : 'M1 32 L5 38 L9 32'} fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      </svg>
     </div>
   )
 }
@@ -33,9 +55,10 @@ export function PipelineLive({ title, subtitle, caption, table }: { title: strin
     }
     const show = (r: MarketRates) => {
       write('events', `${n(r.rate, 1)} a second`)
-      write('frames', r.frames > 0 ? `${n(r.frames, 1)} a second` : '—')
-      write('paths', r.paths > 0 ? `${n(Math.round(r.paths / 1000) * 1000)} a second` : '—')
-      write('headroom', r.busy > 0 ? `×${n(Math.round(1 / r.busy))} real time` : '—')
+      // Held, the worker draws nothing and the page takes nothing: its rates would be an idle worker's.
+      write('frames', r.paused ? 'held' : r.frames > 0 ? `${n(r.frames, 1)} a second` : '—')
+      write('paths', r.paused ? 'held' : r.paths > 0 ? `${n(Math.round(r.paths / 1000) * 1000)} a second` : '—')
+      write('headroom', r.paused ? 'held' : r.busy > 0 ? `×${n(Math.round(1 / r.busy))} real time` : '—')
       write('held', `${n(r.held, 1)} s`)
     }
     const r = marketRates.get()
@@ -69,26 +92,20 @@ export function PipelineLive({ title, subtitle, caption, table }: { title: strin
     ),
   }))
   return (
-    <FigureFrame id="fig-2" number="Fig. 2" title={title} subtitle={subtitle} rail={<Readouts rows={rows} />} caption={caption} table={table}>
-      <div data-market-follow="" className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_7.5rem_minmax(0,1fr)]">
+    <FigureFrame id="fig-2" number="Fig. 2" title={title} subtitle={subtitle} railBelow={false} rail={<Readouts rows={rows} />} caption={caption} table={table}>
+      <div data-market-follow="" className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] sm:gap-4">
         <Box label="A worker" title="The market, and its futures">
           <li>Hawkes order flow into a limit order book, in quanta of 1/60 of a second</li>
-          <li>realised volatility, stress, the liquidity shock</li>
+          <li>its realised volatility, its stress, and the liquidity shock</li>
           <li>a fan of 4,096 futures each simulated second, a slice a frame</li>
         </Box>
-        <div className="text-meta flex flex-row items-center justify-center gap-4 font-mono text-graphite sm:flex-col sm:gap-3" aria-hidden="true">
-          <span className="text-center">
-            <span className="block">to the worker</span>
-            <span className="block text-ink">a frame, asked for at the page’s clock</span>
-          </span>
-          <span className="text-center">
-            <span className="block">to the page</span>
-            <span className="block text-ink">one buffer, lent and given back</span>
-          </span>
+        <div className="flex flex-row items-center justify-center gap-6 sm:flex-col sm:justify-center sm:gap-5">
+          <Crossing to="worker" words="a frame, asked for at the page’s clock" />
+          <Crossing to="page" words="one buffer, lent and given back, never copied" />
         </div>
         <Box label="The page" title="Three views, one animation frame">
           <li>the vol surface (WebGL2), from the stress</li>
-          <li>the order book, from its rows, its trades and the depth now</li>
+          <li>the order book, from its rows, its trades and its depth now</li>
           <li>the futures, from the fan, the price and the volatility</li>
         </Box>
       </div>
