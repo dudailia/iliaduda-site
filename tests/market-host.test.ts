@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { FAN, Fan } from '../lib/futures/fan'
 import { Market } from '../lib/market/engine'
 import { POSTER_T, QUANTA, ROWS, SEED } from '../lib/market/flow'
-import { HOST, MarketHost } from '../lib/market/host'
+import { HOST, MarketHost, shockedHash } from '../lib/market/host'
 import { FRAME_BYTES, H, readFrame, type FanMsg } from '../lib/market/protocol'
 
 /**
@@ -114,6 +114,18 @@ describe('the worker’s market', () => {
     expect(h[H.busy]).toBeGreaterThan((60 + 2 * 8) / 1000 - 0.01)
     expect(h[H.busy]).toBeLessThan((60 + 2 * 8) / 1000 + 0.02)
     expect(h[H.speed]).toBeCloseTo(1, 2)
+  })
+
+  it('names the shocked market ?debug=1 checks each browser against: shocked five seconds in, hashed fifteen after', () => {
+    const m = new Market(SEED)
+    m.advance(POSTER_T + 5)
+    m.apply('shock')
+    m.advance(POSTER_T + 20)
+    expect(shockedHash(SEED, POSTER_T)).toBe(m.hash())
+    // And the shock is in it: the same market left calm is another.
+    const calm = new Market(SEED)
+    calm.advance(POSTER_T + 20)
+    expect(shockedHash(SEED, POSTER_T)).not.toBe(calm.hash())
   })
 
   it('resets to the market it started as', () => {

@@ -17,3 +17,18 @@ test('computes the market Node computes', async ({ page }) => {
     .locator('dd')
   await expect(market).toHaveText(/^same as Node · /, { timeout: 30_000 })
 })
+
+test('runs /market’s market as Node does: where the figure opens, and after a liquidity shock', async ({ page }) => {
+  test.setTimeout(60_000)
+  await page.addInitScript(() => sessionStorage.setItem('market-seq', '1'))
+  await page.goto('/market?debug=1')
+  await page.evaluate(() => document.querySelector('[data-market-stage]')?.scrollIntoView({ block: 'start' }))
+  const row = (k: RegExp) =>
+    page
+      .locator('[data-stage-debug] div')
+      .filter({ has: page.locator('dt', { hasText: k }) })
+      .locator('dd')
+  // Checked in a worker of its own, whether or not the figure runs live in this browser.
+  await expect(row(/^market$/)).toHaveText(/^same as Node · /, { timeout: 30_000 })
+  await expect(row(/^shocked market$/)).toHaveText(/^same as Node · /, { timeout: 30_000 })
+})

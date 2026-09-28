@@ -132,6 +132,8 @@ export type ToWorker =
   | { kind: 'resume' }
   /** Back to the market as it was at the start. */
   | { kind: 'reset' }
+  /** ?debug=1: build the shocked market of lib/market/host.ts (shockedHash) and say its hash. */
+  | { kind: 'check'; seed: number; t: number }
 
 /** A fan of futures from the market's price at its volatility (lib/futures/fan.ts), for a price of 1: the page scales it by the mid. */
 export interface FanMsg {
@@ -155,4 +157,5 @@ export type FromWorker =
   | { kind: 'ready'; t: number; hash: string; sigma: number }
   | { kind: 'frame'; buf: ArrayBuffer }
   | FanMsg
+  | { kind: 'check'; hash: string }
   | { kind: 'error'; message: string }

@@ -24,6 +24,19 @@ export const HOST = {
   pathsPerFrame: 512,
 } as const
 
+/**
+ * The market /market's ?debug=1 checks each browser against: the seeded market from the moment the figure opens on,
+ * shocked five simulated seconds later, and hashed fifteen after that (lib/market/engine.ts). Node computes it at
+ * build; the browser's worker computes it again, so a browser that ran a different market would say so.
+ */
+export function shockedHash(seed: number, t: number): string {
+  const m = new Market(seed)
+  m.advance(t + 5)
+  m.apply('shock')
+  m.advance(t + 20)
+  return m.hash()
+}
+
 export class MarketHost {
   market!: Market
   private sim = 0

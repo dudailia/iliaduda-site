@@ -1,4 +1,4 @@
-import { MarketHost } from './host'
+import { MarketHost, shockedHash } from './host'
 import type { FanMsg, FromWorker, ToWorker } from './protocol'
 
 /**
@@ -45,6 +45,9 @@ scope.onmessage = (e) => {
         break
       case 'reset':
         host?.reset()
+        break
+      case 'check':
+        scope.postMessage({ kind: 'check', hash: shockedHash(msg.seed, msg.t) })
         break
     }
   } catch (err) {

@@ -6,6 +6,7 @@ import { marketRates } from '@/components/market/stats'
 import { useMarket } from '@/components/market/useMarket'
 import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
+import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
 import { useLean } from '@/components/stage/useLean'
@@ -13,6 +14,7 @@ import { useSignature } from '@/components/stage/useSignature'
 import { fade, palette as stagePalette, underlay, useStage, type Create, type Palette } from '@/components/stage/useStage'
 import { syntheticValue } from '@/content/synthetic'
 import type { Mirror } from '@/lib/market/mirror'
+import type { LiveInfo } from '@/lib/stage/debug'
 import { MARKET_SEQ, marketSequence, punch, storyOf } from '@/lib/market/sequence'
 import { logTicks, priceTicks, WINDOW } from '@/lib/market/views'
 import { params } from '@/lib/surface/shock'
@@ -77,6 +79,7 @@ export function MarketLive({
   posters: stills,
   initial: initials,
   stillAfter,
+  hashes,
   seed,
   t0,
   title,
@@ -88,6 +91,8 @@ export function MarketLive({
   posters: { calm: Posters; shock: Posters }
   initial: { calm: MarketInitial; shock: MarketInitial }
   stillAfter: number
+  /** The market's hash where the figure opens, and after the shock ?debug=1 checks (lib/market/host.ts), from Node. */
+  hashes: { start: string; shocked: string }
   seed: number
   t0: number
   title: string
@@ -111,7 +116,8 @@ export function MarketLive({
   const hoverEl = useRef<HTMLSpanElement>(null)
   const landing = useRef<Landing | null>(null)
   const seenLanding = useRef(-1)
-  const impact = useRef(0)
+  /** A landed shock's blow for the surface, and when it landed: taken if drawn within a quarter second, else let go. */
+  const impact = useRef({ k: 0, at: 0 })
   const lastLoad = useRef(0)
   const pausedRef = useRef(false)
   const [paused, setPaused] = useState(false)
@@ -211,10 +217,11 @@ export function MarketLive({
       sync: (_p: Params, shown: number) => {
         void shown
       },
+      // A blow the surface was not drawn in time to take (it was off screen) is let go, never struck late.
       impact: () => {
-        const k = impact.current
-        impact.current = 0
-        return k
+        const { k, at } = impact.current
+        impact.current = { k: 0, at: 0 }
+        return k > 0 && performance.now() - at < 250 ? k : 0
       },
       reading: () => false,
       zoom: () => 1 - MARKET_SEQ.punch.depth * blow.current.k * punch((performance.now() - blow.current.at) / 1000),
@@ -258,7 +265,7 @@ export function MarketLive({
     }
   }, [])
 
-  const { box, canvas, live: surfaceLive, eligible, reduced, tier } = useStage(create, STAGE_OPTS)
+  const { box, canvas, live: surfaceLive, eligible, reduced, tier, quality, fps } = useStage(create, STAGE_OPTS)
   // The story waits for most of the stage to be in view, so the shock lands where all three views can be seen.
   const sig = useSignature('market', stage, seq, { start: 0.75, hold: 0.5 })
   const sigRef = useRef(sig)
@@ -376,6 +383,11 @@ export function MarketLive({
         write('paths', h.paths > 0 ? `${Math.round(h.paths / 1000).toLocaleString('en-US')},000 a second` : '—')
         write('headroom', h.busy > 0 ? `×${Math.round(1 / h.busy).toLocaleString('en-US')} real time` : '—')
         write('state', h.absorbing ? 'absorbing a shock' : h.paused ? 'paused' : 'running')
+        // For the specs: the market's own clock.
+        if (stage.current) {
+          stage.current.dataset.marketT = h.t.toFixed(3)
+          stage.current.dataset.marketHeld = h.held.toFixed(3)
+        }
         // Frames taken from the worker in the last wall second, for Fig. 2.
         const fa = framesAt.current
         if (now - fa.at >= 1000) {
@@ -407,7 +419,7 @@ export function MarketLive({
       const at = performance.now()
       if (hi >= lo) landing.current = { at, t: m.landedT, hi, lo }
       const k = Math.min(1, Math.max(0.25, m.h.load - lastLoad.current * 0.9))
-      impact.current = k
+      impact.current = { k, at }
       blow.current = { at, k }
       stampLanding.current = true
     }
@@ -500,6 +512,61 @@ export function MarketLive({
               ? 'This browser has no WebGL2: the book and the futures are live, the surface a still frame.'
               : null
   const live = market.live && flat
+
+  // ?debug=1 (DebugSlot): the shared report, and whether this browser runs the market Node does — where the figure
+  // opens, and after a shock — worked out once, the first time the panel reads, in a worker of its own (the market's
+  // own script), so it is checked in any browser, whether or not the figure runs live there.
+  const checked = useRef<{ start: string | null; shocked: string | null }>({ start: null, shocked: null })
+  const checking = useRef(false)
+  const debugInfo = useRef<() => LiveInfo>(null)
+  useEffect(() => {
+    debugInfo.current = () => {
+      if (!checking.current) {
+        checking.current = true
+        try {
+          const w = new Worker(new URL('../../../lib/market/market.worker.ts', import.meta.url), { type: 'module' })
+          w.onmessage = (e: MessageEvent<{ kind: string; hash?: string }>) => {
+            if (e.data?.kind === 'ready') {
+              checked.current.start = e.data.hash ?? null
+              w.postMessage({ kind: 'check', seed, t: t0 })
+            } else if (e.data?.kind === 'check') {
+              checked.current.shocked = e.data.hash ?? null
+              w.terminate()
+            }
+          }
+          w.onerror = (ev) => {
+            ev.preventDefault()
+            w.terminate()
+          }
+          w.postMessage({ kind: 'start', seed, t: t0 })
+        } catch {}
+      }
+      const st = stage.current?.getBoundingClientRect()
+      const cv = canvas.current
+      const same = (got: string | null, want: string) => (got === null ? 'computing…' : got === want ? `same as Node · ${got}` : `not the same as Node (${want}) · ${got}`)
+      const m = mirrorRef.current
+      return {
+        state: live ? 'live' : why ? 'declined' : mounted ? 'starting' : 'server',
+        reason: why,
+        tier,
+        quality,
+        fps,
+        dpr: window.devicePixelRatio,
+        stage: [st?.width ?? 0, st?.height ?? 0],
+        canvas: surfaceLive && cv ? [cv.width, cv.height] : null,
+        seq: paused ? `${sig.state} · paused` : sig.state,
+        reduced,
+        saveData: saveData(),
+        ua: navigator.userAgent,
+        renderer: {
+          market: same(checked.current.start, hashes.start),
+          'shocked market': same(checked.current.shocked, hashes.shocked),
+          ...(m ? { 'simulated time': `${m.h.t.toFixed(1)} s · ${m.frames} frames · held ${m.h.held.toFixed(1)} s` } : {}),
+        },
+      }
+    }
+  })
+  const readDebug = useCallback((): LiveInfo => debugInfo.current!(), [])
   // A figure that will not go live here shows its still frames at once, and spends no story.
   const release = sig.release
   useEffect(() => {
@@ -545,7 +612,7 @@ export function MarketLive({
       caption={caption}
       table={table}
     >
-      <div ref={stage} className="relative">
+      <div ref={stage} className="relative" data-market-stage="" data-market-live={live ? '1' : '0'}>
         {/* The surface: the market's stress sets its shock. */}
         <div className="-mx-6 sm:mx-0">
           <div ref={box} className="relative aspect-[1.1] w-full overflow-hidden bg-paper sm:aspect-[1.62]" data-market-surface="">
@@ -587,11 +654,11 @@ export function MarketLive({
           ) : null}
         </p>
 
-        <div className="mt-3 grid grid-cols-1 gap-y-4 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] sm:gap-x-3">
+        <div className="mt-3 grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-4">
           {/* The book: the last twenty seconds, and the book at now. */}
           <div className="-mx-6 sm:mx-0">
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite sm:px-0">Order book, the last 20 seconds</p>
-            <div className="relative h-28 overflow-hidden bg-paper sm:h-44" onPointerMove={onBookMove} onPointerLeave={onBookLeave} data-market-book="">
+            <div className="relative h-24 overflow-hidden bg-paper sm:h-44" onPointerMove={onBookMove} onPointerLeave={onBookLeave} data-market-book="">
               <div style={underlay(live)}>{posters.book}</div>
               <canvas ref={bookCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
               <div className="pointer-events-none absolute inset-0" style={{ opacity: live ? 1 : 0 }} aria-hidden="true">
@@ -609,7 +676,7 @@ export function MarketLive({
           {/* The futures: a year from the price now. */}
           <div className="-mx-6 sm:mx-0">
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite sm:px-0">Futures, the next year</p>
-            <div className="relative h-[7.5rem] overflow-hidden bg-paper sm:h-44" data-market-fan="">
+            <div className="relative h-[6.5rem] overflow-hidden bg-paper sm:h-44" data-market-fan="">
               <div style={underlay(live)}>{posters.fan}</div>
               <canvas ref={fanCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
               <div className="pointer-events-none absolute inset-0" style={{ opacity: live ? 1 : 0 }} aria-hidden="true">
@@ -649,6 +716,7 @@ export function MarketLive({
       <div className="mt-4 lg:hidden">
         <Readouts rows={rowsBelow} across />
       </div>
+      <DebugSlot title="Fig. 1" read={readDebug} />
     </FigureFrame>
   )
 }

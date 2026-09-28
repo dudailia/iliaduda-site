@@ -26,7 +26,7 @@ const shown = (kind: FrameKind) => (kind === 'wide' ? 'hidden sm:block' : 'sm:hi
 /** The mesh's two files: the IV paper's, unless a page draws its own surface (/market's, at the market's stress). */
 const IV_MESH = { wide: '/iv-surface/poster.svg', tall: '/iv-surface/poster-tall.svg' } as const
 
-export function Poster({ at, mesh = IV_MESH, notes = true }: { at: Params; mesh?: { wide: string; tall: string }; notes?: boolean }) {
+export function Poster({ at, mesh = IV_MESH, notes = true, lazy = false }: { at: Params; mesh?: { wide: string; tall: string }; notes?: boolean; lazy?: boolean }) {
   const wide = poster(at, 'wide')
   const tall = poster(at, 'tall')
   return (
@@ -34,7 +34,7 @@ export function Poster({ at, mesh = IV_MESH, notes = true }: { at: Params; mesh?
       <Frame>
         <picture>
           <source media="(width < 40rem)" srcSet={mesh.tall} width={tall.width} height={FRAME_H} />
-          <img data-fill="" data-mesh="" src={mesh.wide} width={wide.width} height={FRAME_H} alt="" decoding="async" className="absolute inset-0 h-full w-full" />
+          <img data-fill="" data-mesh="" src={mesh.wide} width={wide.width} height={FRAME_H} alt="" decoding="async" loading={lazy ? 'lazy' : undefined} className="absolute inset-0 h-full w-full" />
         </picture>
         <Marks d={wide} kind="wide" notes={notes} />
         <Marks d={tall} kind="tall" notes={notes} />

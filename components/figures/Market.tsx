@@ -1,5 +1,6 @@
 import { syntheticValue as value } from '@/content/synthetic'
 import { POSTER_T, SEED } from '@/lib/market/flow'
+import { shockedHash } from '@/lib/market/host'
 import { bookFrame, fanFrame, marketFrame, SHOCK_FRAME_S, type Moment } from '@/lib/market/poster'
 import { prepaint } from '@/lib/stage/prepaint'
 import { STAGE_CSS } from '@/lib/surface/poster'
@@ -34,6 +35,7 @@ export function MarketFigure() {
             at={surface}
             mesh={moment === 'shock' ? { wide: '/market/surface-shock.svg', tall: '/market/surface-tall-shock.svg' } : { wide: '/market/surface.svg', tall: '/market/surface-tall.svg' }}
             notes={false}
+            lazy={moment === 'shock'}
           />
         ),
         book: <BookPoster ticks={book.ticks} usd={usd} moment={moment} />,
@@ -57,6 +59,7 @@ export function MarketFigure() {
         initial={{ calm: calm.initial, shock: shock.initial }}
         posters={{ calm: calm.posters, shock: shock.posters }}
         stillAfter={SHOCK_FRAME_S}
+        hashes={{ start: m.hash(), shocked: shockedHash(SEED, POSTER_T) }}
         title="One simulated market, three views of it in the same frame: its vol surface, its order book and a year of its futures."
         subtitle={`Simulated · one seed · Hawkes order flow · realised volatility · SSVI · tick ${usd(1)} · not market data`}
         caption={
