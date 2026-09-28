@@ -79,3 +79,12 @@ test('BCS: the OFZ curve opens on the extraordinary hike and scrubs by trading d
   await page.getByRole('button', { name: /21 Jul/ }).click()
   await expect(slider).toHaveAttribute('aria-valuetext', /21 Jul 2023/)
 })
+
+test('a paper’s running head says when the author is free for a co-op, on a phone too', async ({ page, isMobile }) => {
+  await page.goto('/order-book')
+  const head = page.locator('header').first()
+  await expect(head.getByText(isMobile ? 'Co-op Jan 2027' : 'Co-op from January 2027', { exact: true })).toBeVisible()
+  // One line or two, it never runs past the screen.
+  const box = (await head.boundingBox())!
+  expect(box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+})

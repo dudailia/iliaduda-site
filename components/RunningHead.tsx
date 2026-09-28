@@ -23,7 +23,11 @@ export function RunningHead() {
             <a href="/" className="inline-block py-2.5 font-serif underline decoration-transparent hover:decoration-ink text-note text-ink">
               {PERSON.name}
             </a>
-            <span className="hidden text-graphite sm:inline">Co-op from January 2027</span>
+            {/* The one thing a recruiter on a phone most needs, in the room a phone has: the head takes two lines there. */}
+            <span className="text-graphite">
+              <span className="sm:hidden">Co-op Jan 2027</span>
+              <span className="hidden sm:inline">Co-op from January 2027</span>
+            </span>
           </p>
           <nav aria-label="Site">
             <ul className="flex gap-x-4">
