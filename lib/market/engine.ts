@@ -1,6 +1,7 @@
 import { BURN, Flow, MARKET, QUANTA, SEED } from './flow'
 import { fingerprint } from './fingerprint'
 import { Realised } from './realised'
+import { Stress, stressOf } from './stress'
 
 /**
  * The market behind /market: the order book's own market (lib/market/flow.ts,
@@ -16,6 +17,7 @@ import { Realised } from './realised'
 export class Market {
   readonly flow: Flow
   readonly realised = new Realised(60)
+  private readonly stressed = new Stress()
 
   constructor(seed = SEED, market = MARKET) {
     this.flow = new Flow(seed, market, false)
@@ -33,10 +35,24 @@ export class Market {
     return this.realised.sigma
   }
 
+  /** How far the market is from calm, 0 to 1 (lib/market/stress.ts), now. */
+  get stress(): number {
+    return this.stressed.s
+  }
+
+  /** The shares waiting within three ticks of the touch, both sides: what a sweep drains. */
+  get touch(): number {
+    const b = this.flow.book
+    let d = 0
+    for (let k = 0; k < 3; k++) d += b.bidAt(b.bestBid - k) + b.askAt(b.bestAsk + k)
+    return d
+  }
+
   /** One quantum of simulated time. */
   step(): void {
     this.flow.step()
     if (this.flow.quanta % QUANTA === 0) this.realised.push(this.flow.book.mid)
+    this.stressed.update(stressOf(this.realised.sigma, this.flow.book.spread, this.touch), 1 / QUANTA)
   }
 
   /** Run whole quanta up to `tEnd`; a fraction of one left over waits for the next call. */
@@ -47,6 +63,6 @@ export class Market {
 
   /** Everything the market is, the volatility included, as one string: two runs compared in one comparison. */
   hash(): string {
-    return `${fingerprint(this.flow)}:${this.realised.sigma.toFixed(12)}`
+    return `${fingerprint(this.flow)}:${this.realised.sigma.toFixed(12)}:${this.stressed.s.toFixed(12)}`
   }
 }
