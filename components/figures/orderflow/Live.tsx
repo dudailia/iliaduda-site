@@ -487,7 +487,7 @@ function Labels() {
       <div className="absolute right-2 left-(--g) border-t border-graphite/60" style={top(LAM_MID)} />
 
       <span className={`${text} left-1.5 text-ink @min-[520px]:left-(--g)`} style={top(Y.queue - 17)}>
-        Shares at the touch: <Swatch className="bg-indigo" /> ran out<span className="hidden @min-[520px]:inline">, the price stepped</span>
+        Shares at the touch: <Swatch className="bg-ink" /> ran out<span className="hidden @min-[520px]:inline">, the price stepped</span>
       </span>
       <span className={gutter} style={top(QUEUE_MID - 26)}>
         Best bid

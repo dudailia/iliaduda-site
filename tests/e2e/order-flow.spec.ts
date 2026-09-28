@@ -31,6 +31,18 @@ test.describe('before any script runs', () => {
   })
 })
 
+test('the key’s swatch for an emptied queue is the ink its marks are drawn in', async ({ page }) => {
+  await page.goto('/order-book')
+  const [swatch, ink] = await page.evaluate(() => {
+    const key = [...document.querySelectorAll<HTMLElement>('#fig-order-flow span')].find((s) => s.textContent?.startsWith('Shares at the touch'))!
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--color-ink)'
+    document.body.append(probe)
+    return [getComputedStyle(key.querySelector('span')!).backgroundColor, getComputedStyle(probe).color]
+  })
+  expect(swatch).toBe(ink)
+})
+
 test('goes live on the market Fig. 1 draws, and one Pause holds both figures', async ({ page }) => {
   test.setTimeout(60_000)
   const errors = errorsOf(page)

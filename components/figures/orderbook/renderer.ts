@@ -136,10 +136,10 @@ void main() {
   vec3 n = normalize(vN);
   // Ink comes with height: a row still flat on the page is paper, with the graph-paper grid on it.
   float t = clamp(pow(abs(vCum) / REF, POW), 0.0, 1.3) * vRise;
-  // By day the two sides are two inks on paper: bids a clear indigo, asks graphite deepening to ink, each well apart
-  // from the paper and from the other.
-  vec3 bid = uDark > 0.5 ? mix(uWash, uIndigo, 0.16 + 0.34 * t) : mix(uWash, uIndigo, 0.42 + 0.4 * t);
-  vec3 ask = uDark > 0.5 ? mix(uRule, uGraphite, 0.18 + 0.40 * t) : mix(uGraphite, uInk, 0.12 + 0.5 * t);
+  // The shares waiting are the figure's claim, so both walls are indigo, the one colour a figure keeps for what it
+  // claims: bids the lighter, asks the deeper, either side of the price, which is ink, the threshold between them.
+  vec3 bid = uDark > 0.5 ? mix(uWash, uIndigo, 0.16 + 0.34 * t) : mix(uWash, uIndigo, 0.36 + 0.4 * t);
+  vec3 ask = uDark > 0.5 ? mix(uWash, uIndigo, 0.45 + 0.45 * t) : mix(uWash, uIndigo, 0.6 + 0.36 * t);
   vec3 floorC = uDark > 0.5 ? mix(uPaper, uRule, 0.6) : mix(uPaper, uRule, 0.7);
   vec3 c = mix(floorC, vCum < 0.0 ? bid : ask, smoothstep(0.0, 2.5, abs(vCum)) * vRise);
   float diff = max(dot(n, uLight), 0.0);
@@ -222,7 +222,7 @@ void main() {
 
 const POINT_FS = `${HEAD}
 in float vA;
-uniform vec3 uColor, uCore; uniform float uMode;
+uniform vec3 uColor; uniform float uMode;
 out vec4 o;
 void main() {
   vec2 q = gl_PointCoord * 2.0 - 1.0;
@@ -231,9 +231,8 @@ void main() {
   if (uMode > 0.5) {
     float g = exp(-3.5 * r) * vA;
     float core = (1.0 - smoothstep(0.05, 0.2, r)) * vA;
-    vec3 col = mix(uColor, uCore, core);
     float a = max(g, core);
-    o = vec4(col * a, a);
+    o = vec4(uColor * a, a);
   } else {
     float a = (1.0 - smoothstep(0.55, 1.0, r)) * vA;
     o = vec4(uColor * a, a);
@@ -412,7 +411,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   type Kind = LabelKind | 'probe'
   type Label = { el: HTMLSpanElement; kind: Kind; text: string; w: number; h: number; o: number; want: number; seen: boolean }
   const LOOK: Record<Kind, string> = {
-    tag: 'text-paper bg-indigo',
+    tag: 'text-paper bg-ink',
     wall: 'text-ink bg-paper/85',
     time: 'text-graphite bg-paper/90',
     tick: 'text-graphite bg-paper/90',
@@ -811,8 +810,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     gl.uniform1f(points.u('uHist'), rowsF || rows)
     gl.uniform1f(points.u('uMode'), 0)
     gl.uniform1f(points.u('uShow'), Math.min(1, Math.max(0, (rise - 0.55) / 0.45)) * lift)
-    setVec(points, 'uColor', pal.indigo)
-    setVec(points, 'uCore', dark ? pal.ink : mixc(pal.indigo, pal.paper, 0.45))
+    // Trades are the price's own marks: ink, the threshold's colour, which by night is light.
+    setVec(points, 'uColor', pal.ink)
     over()
     gl.drawArrays(gl.POINTS, 0, MAXP)
 
@@ -821,12 +820,19 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     gl.bindVertexArray(ribVao)
     // The halo fades out and in with a quality step (over about a quarter of a second) rather than switching.
     haloK += ((q > 0 ? 1 : 0) - haloK) * (1 - Math.exp(-dt / 0.08))
+    // The price is ink, the threshold between the two walls: by night it glows, and by day a paper halo lifts it off
+    // the indigo either side, as a value label's halo lifts it off a band.
     if (haloK > 0.01) {
-      glow()
-      strip(riverR, dark ? 14 : 12, pal.indigo, (dark ? 0.38 : 0.3) * haloK, true)
+      if (dark) {
+        glow()
+        strip(riverR, 14, pal.ink, 0.3 * haloK, true)
+      } else {
+        over()
+        strip(riverR, 8, pal.paper, 0.55 * haloK, true)
+      }
     }
     over()
-    strip(riverR, 2.1, dark ? mixc(pal.indigo, pal.ink, 0.35) : pal.indigo, 1, false)
+    strip(riverR, 2.1, pal.ink, 1, false)
     if (dropR) strip(dropR, 1, pal.ink, 1, false)
 
     // Sparks: short, strong ease-out rise and fade.
@@ -963,4 +969,3 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   }
 }
 
-const mixc = (a: readonly number[], b: readonly number[], t: number) => [a[0]! + (b[0]! - a[0]!) * t, a[1]! + (b[1]! - a[1]!) * t, a[2]! + (b[2]! - a[2]!) * t]

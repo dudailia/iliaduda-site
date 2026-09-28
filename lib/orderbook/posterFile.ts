@@ -17,19 +17,20 @@ export function posterSvg(sim: Flow, variant: Variant): string {
   const g = posterOf(sim, variant)
   const { light, dark } = palette()
   const tokens = (c: Palette) => `--p:${c.paper};--i:${c.indigo};--w:${c['indigo-wash']};--k:${c.ink};--g:${c.graphite};--r:${c.rule}`
-  // The walls as the live shader colours them (components/figures/orderbook/renderer.ts): by day bids a clear indigo
-  // and asks graphite deepening toward ink, the past fading to a wash (55%); by night both lit from the dark, the
-  // past fading to the paper (94%). Mixed from the six tokens, never a seventh colour.
+  // The walls as the live shader colours them (components/figures/orderbook/renderer.ts): both indigo, the figure's
+  // claim, bids the lighter and asks the deeper, the past fading by day to a wash (55%) and by night to the paper
+  // (94%); the price between them in ink, with a paper halo by day and a glow by night. Mixed from the six tokens,
+  // never a seventh colour.
   const style =
-    `:root{${tokens(light)};--bn:color-mix(in oklab,var(--i) 66%,var(--w));--sn:color-mix(in oklab,var(--k) 42%,var(--g));--f:color-mix(in oklab,var(--p) 50%,var(--w));--fk:.55}` +
-    `@media (prefers-color-scheme:dark){:root{${tokens(dark)};--bn:color-mix(in oklab,var(--i) 40%,var(--w));--sn:color-mix(in oklab,var(--g) 42%,var(--r));--f:var(--p);--fk:.94}}` +
+    `:root{${tokens(light)};--bn:color-mix(in oklab,var(--i) 60%,var(--w));--sn:color-mix(in oklab,var(--i) 82%,var(--w));--f:color-mix(in oklab,var(--p) 50%,var(--w));--fk:.55;--h:var(--p);--ho:.55;--hw:8}` +
+    `@media (prefers-color-scheme:dark){:root{${tokens(dark)};--bn:color-mix(in oklab,var(--i) 36%,var(--w));--sn:color-mix(in oklab,var(--i) 72%,var(--w));--f:var(--p);--fk:.94;--h:var(--k);--ho:.22;--hw:12}}` +
     'path{stroke-width:1;stroke-linejoin:round}' +
     '.b{fill:color-mix(in oklab,var(--f) calc(var(--a)*var(--fk)*100%),var(--bn));stroke:var(--i)}' +
-    '.s{fill:color-mix(in oklab,var(--f) calc(var(--a)*var(--fk)*100%),var(--sn));stroke:var(--k)}' +
+    '.s{fill:color-mix(in oklab,var(--f) calc(var(--a)*var(--fk)*100%),var(--sn));stroke:var(--i)}' +
     // Nothing stands in front of now: the front row's ridge is the terrain's edge, drawn in ink, with the page below it.
     '.n path{stroke:var(--k);fill:var(--p)}' +
-    // The price river, with the live figure's soft indigo halo.
-    '.w,.r{fill:none;stroke-linecap:round;stroke:var(--i)}.w{stroke-width:8;stroke-opacity:.22}.r{stroke-width:2}circle{fill:var(--i)}'
+    // The price river in ink, with the live figure's halo; the trades in ink.
+    '.w,.r{fill:none;stroke-linecap:round}.w{stroke:var(--h);stroke-width:var(--hw);stroke-opacity:var(--ho)}.r{stroke:var(--k);stroke-width:2}circle{fill:var(--k)}'
   let body = ''
   g.rows.forEach((r, i) => {
     body += `<g style="--a:${r.fade}"${i === g.rows.length - 1 ? ' class="n"' : ''} stroke-opacity="${(0.2 + 0.8 * r.near).toFixed(2)}">`
