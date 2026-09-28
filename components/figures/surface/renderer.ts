@@ -11,7 +11,7 @@ import {
   VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type FrameKind, type M4,
 } from '@/lib/surface/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
-import { LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
+import { GLOW_FS, LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
 import { noteRise, setNoteRise } from './marks'
 
 /**
@@ -113,7 +113,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const lite = env.tier === 'software'
   const surf = program(gl, surfaceVS(lite), surfaceFS(lite))
   const line = program(gl, LINE_VS, LINE_FS)
-  const progs = [surf, line]
+  const glow = program(gl, LINE_VS, GLOW_FS)
+  const progs = [surf, line, glow]
 
   let palette: Palette = env.palette
   let q = 0
@@ -188,6 +189,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   gl.bufferData(gl.ARRAY_BUFFER, smileData.byteLength, gl.DYNAMIC_DRAW)
   const smileVao = lineVao(smileBuf)
   let smileCount = 0
+  /** The one-month smile's corners, first in the buffer: the smile a shock lifts most, which glows by night. */
+  let frontCount = 0
+  /** Its glow's colour, indigo toward ink by night (kept, not made again every frame). */
+  const glowColor = new Float32Array(3)
   let smileKey = ''
   const buildSmiles = (p: Params, lines: number) => {
     const key = `${p.s0},${p.s1},${p.kappa},${p.rho},${p.eta},${lines}`
@@ -220,6 +225,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         py = y
         pz = z
       }
+      if (T === EXPIRY_TICKS[0][0]) frontCount = n * 6
     }
     smileCount = n * 6
     gl.bindBuffer(gl.ARRAY_BUFFER, smileBuf)
@@ -530,6 +536,24 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         gl.uniform3fv(line.u('uColor'), palette.graphite)
         gl.bindVertexArray(smileVao)
         gl.drawArrays(gl.TRIANGLES, 0, smileCount)
+        // By night the one-month smile glows while a shock lifts it, as strongly as the shock shown: light from the
+        // moment the story's shock lands, or the reader's, gone again at calm.
+        const lit = palette.dark ? Math.min(1, Math.max(0, x)) * labelsK : 0
+        if (lit > 0.01 && frontCount) {
+          glow.use()
+          gl.uniformMatrix4fv(glow.u('uMVP'), false, m)
+          gl.uniform2f(glow.u('uPx'), 2 / cssW, 2 / cssH)
+          gl.uniform1f(glow.u('uWidth'), 14)
+          for (let i = 0; i < 3; i++) glowColor[i] = palette.indigo[i]! + (palette.ink[i]! - palette.indigo[i]!) * 0.4
+          gl.uniform3fv(glow.u('uColor'), glowColor)
+          gl.uniform1f(glow.u('uAlpha'), 0.45 * lit)
+          gl.enable(gl.BLEND)
+          gl.blendFunc(gl.ONE, gl.ONE)
+          gl.depthMask(false)
+          gl.drawArrays(gl.TRIANGLES, 0, frontCount)
+          gl.depthMask(true)
+          gl.disable(gl.BLEND)
+        }
       }
       gl.bindVertexArray(null)
 

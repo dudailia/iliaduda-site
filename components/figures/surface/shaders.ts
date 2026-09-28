@@ -155,7 +155,9 @@ precision highp float;
 // Fixed locations, so a vertex array can be set up before the program links.
 layout(location = 0) in vec3 aA; layout(location = 1) in vec3 aB; layout(location = 2) in vec2 aS;
 uniform mat4 uMVP; uniform vec2 uPx; uniform float uWidth;
+out float vSide;
 void main() {
+  vSide = aS.y;
   vec4 A = uMVP * vec4(aA, 1.0), B = uMVP * vec4(aB, 1.0);
   vec2 a = A.xy / A.w, b = B.xy / B.w;
   vec2 dir = normalize((b - a) / uPx);
@@ -170,3 +172,14 @@ precision highp float;
 uniform vec3 uColor;
 out vec4 o;
 void main() { o = vec4(uColor, 1.0); }`
+
+/** A line's glow: the same quad, soft across its width (a Gaussian), premultiplied, for additive light at night. */
+export const GLOW_FS = `#version 300 es
+precision highp float;
+in float vSide;
+uniform vec3 uColor; uniform float uAlpha;
+out vec4 o;
+void main() {
+  float a = exp(-3.2 * vSide * vSide) * uAlpha;
+  o = vec4(uColor * a, a);
+}`
