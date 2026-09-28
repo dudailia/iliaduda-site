@@ -349,12 +349,16 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   gl.bindVertexArray(null)
   let ribN = 0
   /** Append a polyline; returns [first vertex, count] for drawArrays(TRIANGLE_STRIP). */
-  const addRibbon = (pts: number[], fades: number[]): [number, number] => {
-    const n = pts.length / 3
+  /**
+   * A ribbon of `n` points, `pts` three numbers a point and `fades` one, written into the ribbons' buffer; returns
+   * where it starts and how many vertices it has. Its points come from buffers kept for it (below), so a frame's
+   * ribbons make no arrays.
+   */
+  const addRibbon = (pts: ArrayLike<number>, fades: ArrayLike<number>, n: number): [number, number] => {
     const first = ribN
     for (let i = 0; i < n; i++) {
       const pi = Math.max(0, i - 1), ni = Math.min(n - 1, i + 1)
-      for (const side of [-1, 1]) {
+      for (let side = -1; side <= 1; side += 2) {
         const o = ribN * 11
         ribData[o] = pts[i * 3]!
         ribData[o + 1] = pts[i * 3 + 1]!
@@ -372,6 +376,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     }
     return [first, n * 2]
   }
+
+  /** The buffers each frame's ribbons are built in: the river (a point a row), the front profile, the probe's drop. */
+  const riverPts = new Float64Array(ROWS * 3), riverFades = new Float64Array(ROWS)
+  const frontPts = new Float64Array((VIS + 1) * 3), dropPts = new Float64Array(6)
+  const ONES = new Float64Array(VIS + 1).fill(1)
 
   // ── trades ─────────────────────────────────────────────────────────────────
   const pData = new Float32Array(MAXP * 4).fill(0)
@@ -631,6 +640,47 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   // ── frame ──────────────────────────────────────────────────────────────────
   const setVec = (p: Prog, name: string, c: readonly number[]) => gl.uniform3f(p.u(name), c[0]!, c[1]!, c[2]!)
 
+  // The frame's helpers, made once, so the calls to them in every frame's loops go to the same functions and are
+  // inlined, rather than to new closures each frame whose every answer is boxed.
+  const xOf = (price: number) => (price - centre) * DX
+  const zOf = (age: number) => Z_NOW - (age + fracZ) * DZ
+  const glow = () => (pal.dark ? gl.blendFunc(gl.ONE, gl.ONE) : gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA))
+  const over = () => gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
+  const strip = (r: [number, number], width: number, color: readonly number[], opacity: number, soft: boolean) => {
+    gl.uniform1f(ribbon.u('uWidth'), width)
+    setVec(ribbon, 'uColor', color)
+    gl.uniform1f(ribbon.u('uAlpha'), opacity)
+    gl.uniform1f(ribbon.u('uSoft'), soft ? 1 : 0)
+    gl.drawArrays(gl.TRIANGLE_STRIP, r[0], r[1])
+  }
+  const S = (x: number, y: number, z: number) => toScreen(mvp, cssW, cssH, x, y, z)
+  /** The river: the mid price down the valley floor, a point a row, fading into the past. */
+  const buildRiver = (count: number, rise: number, lift: number) => {
+    const hist = rowsF || rows
+    for (let a = 0; a < count; a++) {
+      const r = sim.row(a)
+      const mid = sim.mids[r]!
+      const lo = Math.floor(mid), f = mid - lo
+      const y = (height(sim.depthAt(r, lo)) * (1 - f) + height(sim.depthAt(r, lo + 1)) * f) * rowRise(rise, a, hist) * lift
+      riverPts[a * 3] = xOf(mid)
+      riverPts[a * 3 + 1] = y + 0.006
+      riverPts[a * 3 + 2] = zOf(a)
+      riverFades[a] = 1 - Math.min(1, Math.max(0, (a / hist - 0.45) / 0.55))
+    }
+    return addRibbon(riverPts, riverFades, count)
+  }
+  /** The front profile: the newest row's depth across the window, the terrain's edge. */
+  const buildFront = (r0: number, b: number, fracX: number, rise: number, lift: number) => {
+    const up = rowRise(rise, 0, rowsF || rows) * lift
+    const z = zOf(0)
+    for (let j = 0; j <= VIS; j++) {
+      frontPts[j * 3] = (j - VIS / 2 - fracX) * DX
+      frontPts[j * 3 + 1] = height(sim.depthAt(r0, b + j)) * up + 0.002
+      frontPts[j * 3 + 2] = z
+    }
+    return addRibbon(frontPts, ONES, VIS + 1)
+  }
+
   const draw = (dt: number): boolean => {
     sh.tick(dt * 1000)
     const ph = sh.sequence()
@@ -769,40 +819,25 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // Overlays: premultiplied; additive at night so the glow reads as light.
     gl.enable(gl.BLEND)
     gl.depthMask(false)
-    const glow = () => (dark ? gl.blendFunc(gl.ONE, gl.ONE) : gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA))
-    const over = () => gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
     // The river's history eases with the terrain's (rowsF) when quality steps, rather than growing 48 rows in a frame.
     const n = Math.min(Math.round(rowsF || rows), sim.written)
-    const xOf = (price: number) => (price - centre) * DX
-    const zOf = (age: number) => Z_NOW - (age + fracZ) * DZ
 
     // Build ribbons: the river (mid price), the front profile, the probe's drop line.
     ribN = 0
-    const river: number[] = [], riverFade: number[] = []
-    const riverN = Math.ceil(n * riverK)
-    for (let a = 0; a < riverN; a++) {
-      const r = sim.row(a)
-      const mid = sim.mids[r]!
-      const lo = Math.floor(mid), f = mid - lo
-      const y = (height(sim.depthAt(r, lo)) * (1 - f) + height(sim.depthAt(r, lo + 1)) * f) * rowRise(rise, a, rowsF || rows) * lift
-      river.push(xOf(mid), y + 0.006, zOf(a))
-      riverFade.push(1 - Math.min(1, Math.max(0, (a / (rowsF || rows) - 0.45) / 0.55)))
-    }
-    const riverR = addRibbon(river, riverFade)
-    const front: number[] = [], frontFade: number[] = []
-    const r0 = head
-    for (let j = 0; j <= VIS; j++) {
-      const price = b + j
-      front.push((j - VIS / 2 - fracX) * DX, height(sim.depthAt(r0, price)) * rowRise(rise, 0, rowsF || rows) * lift + 0.002, zOf(0))
-      frontFade.push(1)
-    }
-    const frontR = addRibbon(front, frontFade)
+    const riverR = buildRiver(Math.min(ROWS, Math.ceil(n * riverK)), rise, lift)
+    const frontR = buildFront(head, b, fracX, rise, lift)
     let dropR: [number, number] | null = null
     if (reading) {
       const r = sim.row(probeAge)
       const x = xOf(probePrice), z = zOf(probeAge)
       const y = height(sim.depthAt(r, probePrice))
-      dropR = addRibbon([x, y, z, x, y + 0.16, z], [1, 1])
+      dropPts[0] = x
+      dropPts[1] = y
+      dropPts[2] = z
+      dropPts[3] = x
+      dropPts[4] = y + 0.16
+      dropPts[5] = z
+      dropR = addRibbon(dropPts, ONES, 2)
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, ribBuf)
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, ribData, 0, ribN * 11)
@@ -811,13 +846,6 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     gl.bindVertexArray(ribVao)
     gl.uniformMatrix4fv(ribbon.u('uMVP'), false, mvp)
     gl.uniform2f(ribbon.u('uView'), cssW / 2, cssH / 2)
-    const strip = (r: [number, number], width: number, color: readonly number[], opacity: number, soft: boolean) => {
-      gl.uniform1f(ribbon.u('uWidth'), width)
-      setVec(ribbon, 'uColor', color)
-      gl.uniform1f(ribbon.u('uAlpha'), opacity)
-      gl.uniform1f(ribbon.u('uSoft'), soft ? 1 : 0)
-      gl.drawArrays(gl.TRIANGLE_STRIP, r[0], r[1])
-    }
     over()
     strip(frontR, 0.9, pal.ink, dark ? 0.75 : 0.85, false)
 
@@ -868,7 +896,6 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // Labels follow the projection, most important first (lib/orderbook/labels.ts); any that would cover one
     // already placed waits for room.
     placed.length = 0
-    const S = (x: number, y: number, z: number) => toScreen(mvp, cssW, cssH, x, y, z)
     // First every label's text and where it would go; then the new texts are measured, all at once; then they are
     // placed: one layout a frame at most, never one after another label's write.
     const todo: { l: Label; text: string; at: [number, number] | null; anchor: Anchor }[] = []

@@ -352,11 +352,13 @@ const smooth = (a: number, b: number, x: number) => {
 class Floats {
   a = new Float32Array(1 << 15)
   n = 0
-  private room(k: number) {
-    if (this.n + k <= this.a.length) return
-    const b = new Float32Array(this.a.length * 2)
+  /** Makes room for `k` more numbers, and returns the array to write them to (it may be a new, larger one). */
+  room(k: number): Float32Array {
+    if (this.n + k <= this.a.length) return this.a
+    const b = new Float32Array(Math.max(this.a.length * 2, this.n + k))
     b.set(this.a)
     this.a = b
+    return b
   }
   put6(a: number, b: number, c: number, d: number, e: number, f: number) {
     this.room(6)
@@ -817,32 +819,55 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
 
   // The bars, as slabs: each bin a box behind the z = 0 plane, its front face the flat bar of the composed frame.
   const solid = new Floats()
-  const mixc = (a: readonly number[], b: readonly number[], t: number) => [a[0]! + (b[0]! - a[0]!) * t, a[1]! + (b[1]! - a[1]!) * t, a[2]! + (b[2]! - a[2]!) * t]
-  /** A quad as two triangles, corners counter-clockwise from outside, so back faces are culled. */
-  function face(ax: number, ay: number, az: number, bx: number, by: number, bz: number, cx: number, cy: number, cz: number, dx: number, dy: number, dz: number, c: readonly number[]) {
-    const r = c[0]!, g = c[1]!, b = c[2]!
-    solid.put7(ax, ay, az, r, g, b, 1)
-    solid.put7(bx, by, bz, r, g, b, 1)
-    solid.put7(cx, cy, cz, r, g, b, 1)
-    solid.put7(ax, ay, az, r, g, b, 1)
-    solid.put7(cx, cy, cz, r, g, b, 1)
-    solid.put7(dx, dy, dz, r, g, b, 1)
+  /** Mixes two colours into `out`, one of the few kept for the bars, so no bar makes colours of its own each frame. */
+  const mixInto = (out: Float64Array, a: ArrayLike<number>, b: ArrayLike<number>, t: number) => {
+    out[0] = a[0]! + (b[0]! - a[0]!) * t
+    out[1] = a[1]! + (b[1]! - a[1]!) * t
+    out[2] = a[2]! + (b[2]! - a[2]!) * t
+    return out
   }
-  function slab(x0: number, x1: number, y0: number, y1: number, base: number[]) {
+  const barBase = new Float64Array(3), barTop = new Float64Array(3), barEnd = new Float64Array(3), barLow = new Float64Array(3)
+  /**
+   * A slab's six faces, as its box's corners (bit 0 the far end in x, bit 1 the top, bit 2 the front), each quad
+   * counter-clockwise from outside so back faces are culled, and the tone each is lit in: 0 the base colour, 1 the
+   * top, 2 the far end, 3 the back and underside.
+   */
+  const SLAB_FACES = [4, 5, 7, 6, 6, 7, 3, 2, 5, 1, 3, 7, 0, 4, 6, 2, 1, 0, 2, 3, 0, 1, 5, 4] as const
+  const SLAB_TONE = [0, 1, 2, 0, 3, 3] as const
+  /** A quad's two triangles, as its corners. */
+  const QUAD_TRIS = [0, 1, 2, 0, 2, 3] as const
+  /**
+   * A bar as a slab behind the z = 0 plane, its front face the flat bar of the composed frame: written straight into
+   * the vertex buffer, 36 vertices, without a call a face that would hand each of its numbers over boxed.
+   */
+  function slab(x0: number, x1: number, y0: number, y1: number, base: Float64Array) {
     const z0 = -2 * BAR_D, z1 = 0
     const dark = palette.dark
     // Lit from above and in front: the top catches the light, the far end and the back fall away from it. The
     // base at the wall takes the front's tone: every bar's base lies in one plane, and shaded apart they stacked
     // into a column that read as a tower rather than a distribution.
-    const top = mixc(base, dark ? palette.ink : palette.paper, dark ? 0.2 : 0.24)
-    const end = mixc(base, dark ? palette.paper : palette.ink, dark ? 0.3 : 0.14)
-    const low = mixc(base, dark ? palette.paper : palette.ink, dark ? 0.45 : 0.24)
-    face(x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, base) // front, z+
-    face(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, top) // top, y+
-    face(x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, end) // far end, x+
-    face(x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, base) // base at the wall, x−
-    face(x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0, low) // back, z−
-    face(x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, low) // underside, y−
+    const top = mixInto(barTop, base, dark ? palette.ink : palette.paper, dark ? 0.2 : 0.24)
+    const end = mixInto(barEnd, base, dark ? palette.paper : palette.ink, dark ? 0.3 : 0.14)
+    const low = mixInto(barLow, base, dark ? palette.paper : palette.ink, dark ? 0.45 : 0.24)
+    const a = solid.room(36 * 7)
+    let n = solid.n
+    for (let f = 0; f < 6; f++) {
+      const t = SLAB_TONE[f]!
+      const c = t === 0 ? base : t === 1 ? top : t === 2 ? end : low
+      const r = c[0]!, g = c[1]!, b = c[2]!
+      for (let v = 0; v < 6; v++) {
+        const k = SLAB_FACES[f * 4 + QUAD_TRIS[v]!]!
+        a[n] = k & 1 ? x1 : x0
+        a[n + 1] = k & 2 ? y1 : y0
+        a[n + 2] = k & 4 ? z1 : z0
+        a[n + 3] = r
+        a[n + 4] = g
+        a[n + 5] = b
+        a[n + 6] = 1
+        n += 7
+      }
+    }
+    solid.n = n
   }
 
   /** New histogram data, or a previewed strike, gives the bars new targets. */
@@ -893,11 +918,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         const pays = lo + binWidth / 2 > kv.x
         const a = ((1 - w) * (pays ? (dark ? 0.62 : 0.5) : dark ? 0.4 : 0.28) + w * 0.95) * fadeMul
         // Opaque, so depth sorts them: the ink's strength is mixed into paper instead of blended over it.
-        slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixc(palette.paper, pays ? palette.indigo : palette.graphite, a))
+        slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixInto(barBase, palette.paper, pays ? palette.indigo : palette.graphite, a))
       }
     }
     // The first frame builds the bars' pipeline with one slab far off screen, before any bar is due.
-    if (!solid.n && !solidBound) slab(1e3, 1e3 + 1, 1e3, 1e3 + 1, [...palette.paper])
+    if (!solid.n && !solidBound) slab(1e3, 1e3 + 1, 1e3, 1e3 + 1, mixInto(barBase, palette.paper, palette.paper, 0))
     if (!solid.n) return
     gl.bindVertexArray(solidVao)
     gl.bindBuffer(gl.ARRAY_BUFFER, solidBuf)
@@ -924,21 +949,24 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
 
   // Flat overlay: hairlines and dashes built on the CPU in clip space, without an array per point.
   const flat = new Floats()
-  let sx = 0, sy = 0, sw = 0
-  /** Project a world point into sx, sy (clip) and sw (w). */
+  /**
+   * Where pj puts its answer, x and y in clip space and w: a typed array, so the numbers are written as they are
+   * rather than boxed afresh for every point of every frame, as a closure's variables would be.
+   */
+  const S = new Float64Array(3)
   function pj(x: number, y: number, z: number) {
     const m = vp
     const w = m[3]! * x + m[7]! * y + m[11]! * z + m[15]!
-    sx = (m[0]! * x + m[4]! * y + m[8]! * z + m[12]!) / w
-    sy = (m[1]! * x + m[5]! * y + m[9]! * z + m[13]!) / w
-    sw = w
+    S[0] = (m[0]! * x + m[4]! * y + m[8]! * z + m[12]!) / w
+    S[1] = (m[1]! * x + m[5]! * y + m[9]! * z + m[13]!) / w
+    S[2] = w
   }
   function segment(ax: number, ay: number, az: number, bx: number, by: number, bz: number, px: number, c: readonly number[], opacity: number) {
     pj(ax, ay, az)
-    const x0 = sx, y0 = sy, w0 = sw
+    const x0 = S[0]!, y0 = S[1]!, w0 = S[2]!
     pj(bx, by, bz)
-    if (w0 < 0.05 || sw < 0.05) return
-    const x1 = sx, y1 = sy
+    if (w0 < 0.05 || S[2]! < 0.05) return
+    const x1 = S[0]!, y1 = S[1]!
     const dx = (x1 - x0) * cw, dy = (y1 - y0) * ch
     const l = Math.hypot(dx, dy) || 1
     const nx = (-dy / l) * (px / cw), ny = (dx / l) * (px / ch)

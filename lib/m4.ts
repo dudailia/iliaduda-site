@@ -1,9 +1,9 @@
 /** A 4×4 matrix, column-major, as WebGL takes it. */
 export type M4 = Float32Array
 
-/** The inverse of a 4×4 matrix, by cofactors over the determinant; null for one that has none. */
-export function invert(a: M4): M4 | null {
-  const inv = new Float32Array(16)
+/** The inverse of a 4×4 matrix, by cofactors over the determinant, into `out` if given; null for one that has none. */
+export function invert(a: M4, out?: M4): M4 | null {
+  const inv = out ?? new Float32Array(16)
   inv[0] = a[5]! * a[10]! * a[15]! - a[5]! * a[11]! * a[14]! - a[9]! * a[6]! * a[15]! + a[9]! * a[7]! * a[14]! + a[13]! * a[6]! * a[11]! - a[13]! * a[7]! * a[10]!
   inv[4] = -a[4]! * a[10]! * a[15]! + a[4]! * a[11]! * a[14]! + a[8]! * a[6]! * a[15]! - a[8]! * a[7]! * a[14]! - a[12]! * a[6]! * a[11]! + a[12]! * a[7]! * a[10]!
   inv[8] = a[4]! * a[9]! * a[15]! - a[4]! * a[11]! * a[13]! - a[8]! * a[5]! * a[15]! + a[8]! * a[7]! * a[13]! + a[12]! * a[5]! * a[11]! - a[12]! * a[7]! * a[9]!

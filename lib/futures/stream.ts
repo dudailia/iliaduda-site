@@ -35,7 +35,6 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 const frac = (x: number) => x - Math.floor(x)
 /** The burst's own curve: a quintic, the power curve closest to cubic-bezier(0.23, 1, 0.32, 1). */
 const quint = (u: number) => (u >= 1 ? 1 : 1 - (1 - u) ** 5)
-const smooth = (u: number) => u * u * (3 - 2 * u)
 
 /** Slot i during the burst: its first path, its front easing out of today on the golden-ratio stagger. */
 export function burstSlot(i: number, burst: number): Slot {
@@ -64,8 +63,11 @@ export class Stream {
   /** Where every slot is `tau` seconds after the hand-off from the burst, with slots `active` and above resting. */
   update(tau: number, active: number): void {
     const { cycle, fade, travel } = STREAM
+    // Run for every slot every frame, so the easings are written out here rather than called: a call's answer is
+    // boxed where the call is not inlined, thousands of times a frame.
     for (let i = 0; i < this.n; i++) {
-      const t = tau - frac(i * PHI) * cycle
+      const ip = i * PHI
+      const t = tau - (ip - Math.floor(ip)) * cycle
       if (t < 0) {
         // Still holding its first path, the one the burst drew.
         this.ids[i] = i
@@ -83,12 +85,16 @@ export class Stream {
         this.cycleOf[i] = c
       }
       if (u < fade) {
+        const s = u / fade
         this.ids[i] = c === 0 ? i : i + this.n * c
         this.reveal[i] = 1
-        this.opacity[i] = this.fades[i] ? 1 - smooth(u / fade) : 0
+        // smooth(s)
+        this.opacity[i] = this.fades[i] ? 1 - s * s * (3 - 2 * s) : 0
       } else {
+        const x = (u - fade) / travel, w = 1 - x
         this.ids[i] = i + this.n * (c + 1)
-        this.reveal[i] = this.launches[i] ? quint((u - fade) / travel) : 0
+        // quint(x)
+        this.reveal[i] = this.launches[i] ? (x >= 1 ? 1 : 1 - w * w * w * w * w) : 0
         this.opacity[i] = this.launches[i] ? 1 : 0
       }
     }

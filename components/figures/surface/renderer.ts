@@ -7,7 +7,7 @@ import { spring as spring2 } from '@/lib/stage/spring'
 import { params } from '@/lib/surface/shock'
 import { DOMAIN, iv, type Params } from '@/lib/surface/ssvi'
 import {
-  apply, camera, EXPIRY_TICKS, eye, H, kOfU, LABELS, mvp, NOTES, pickSurface, POST, STRIKE_TICKS, SWAY_PERIOD, V0, V1,
+  camera, EXPIRY_TICKS, eye, H, kOfU, LABELS, mvp, NOTES, pickSurface, POST, STRIKE_TICKS, SWAY_PERIOD, V0, V1,
   VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type FrameKind, type M4,
 } from '@/lib/surface/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
@@ -147,6 +147,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
 
   // Lines are screen-space quads: 6 vertices a segment, each A, B and (end, side).
   const CORNERS = [[0, -1], [1, -1], [1, 1], [0, -1], [1, 1], [0, 1]] as const
+  /** The same corners, flat, for the loops run every frame of a shock: read by index, they make no iterators. */
+  const CORNER_E = [0, 1, 1, 0, 1, 0] as const, CORNER_SIDE = [-1, -1, 1, -1, 1, 1] as const
   const writeSegs = (out: Float32Array, segs: readonly (readonly number[])[]) => {
     let o = 0
     for (const s of segs)
@@ -209,15 +211,15 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         const k = kOfU(u)
         const x = wx(k), y = wy(iv(p, k, T)) + 0.008, z = wz(T)
         if (i > 0) {
-          for (const [e, side] of CORNERS) {
+          for (let c = 0; c < 6; c++) {
             smileData[o++] = px
             smileData[o++] = py
             smileData[o++] = pz
             smileData[o++] = x
             smileData[o++] = y
             smileData[o++] = z
-            smileData[o++] = e
-            smileData[o++] = side
+            smileData[o++] = CORNER_E[c]!
+            smileData[o++] = CORNER_SIDE[c]!
           }
           n++
         }
@@ -246,6 +248,12 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   let drawnOnce = false
   let draws = 0
   let inv: M4 | null = null
+  /** The inverse's own matrix, written again each frame rather than made anew. */
+  const invBuf: M4 = new Float32Array(16)
+  /** The ramp's stops and the two ends' oklab, for the palette they were worked out for. */
+  let stopsFor: Palette | null = null
+  let stops = rampStops(palette)
+  let inkLab = oklab(palette.ink), paperLab = oklab(palette.paper)
   /** The shock shown: the signature's, or the reader's level followed on a quick spring (ω = 30/s, the home figure's). */
   const shock = { x: hooks.level(), v: 0 }
   /** Replay's way back into the page: from what was shown when it was pressed, on the site's ease-out. */
@@ -363,12 +371,18 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniformMatrix4fv(prog.u('uMVP'), false, m)
   }
   const setLook = (prog: typeof surf, e: [number, number, number], probe: Probe | null, probeK = 1) => {
-    const stops = rampStops(palette)
+    // The ramp's stops follow the palette, which changes only with the colour scheme: worked out once for each.
+    if (stopsFor !== palette) {
+      stopsFor = palette
+      stops = rampStops(palette)
+      inkLab = oklab(palette.ink)
+      paperLab = oklab(palette.paper)
+    }
     gl.uniform3fv(prog.u('uLo'), stops.lo)
     gl.uniform3fv(prog.u('uMid'), stops.mid)
     gl.uniform3fv(prog.u('uTop'), stops.top)
-    gl.uniform3fv(prog.u('uInk'), oklab(palette.ink))
-    gl.uniform3fv(prog.u('uPaper'), oklab(palette.paper))
+    gl.uniform3fv(prog.u('uInk'), inkLab)
+    gl.uniform3fv(prog.u('uPaper'), paperLab)
     gl.uniform2f(prog.u('uRamp'), RAMP.lo, RAMP.hi)
     gl.uniform1f(prog.u('uFlip'), LINE_FLIP)
     gl.uniform3fv(prog.u('uKey'), KEY)
@@ -382,13 +396,16 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniform3f(prog.u('uProbe'), probe ? fu(probe.k) : -1, probe ? Math.min(0.995, fv(probe.T)) : -1, probe ? probeK : 0)
   }
 
-  /** Moves `el` to where (x, y, z) is drawn; returns where that is on the stage, in CSS pixels. */
-  const place = (el: HTMLElement | null, m: M4, x: number, y: number, z: number): [number, number] => {
-    const c = apply(m, x, y, z)
-    const sx = ((c[0] / c[3]) * 0.5 + 0.5) * cssW
-    const sy = (1 - ((c[1] / c[3]) * 0.5 + 0.5)) * cssH
+  /** Where `place` put its element, in CSS pixels across and down the stage: kept, so no point makes an array. */
+  const placed = new Float64Array(2)
+  /** Moves `el` to where (x, y, z) is drawn, and leaves where that is in `placed`. */
+  const place = (el: HTMLElement | null, m: M4, x: number, y: number, z: number) => {
+    const w = m[3]! * x + m[7]! * y + m[11]! * z + m[15]!
+    const sx = (((m[0]! * x + m[4]! * y + m[8]! * z + m[12]!) / w) * 0.5 + 0.5) * cssW
+    const sy = (1 - (((m[1]! * x + m[5]! * y + m[9]! * z + m[13]!) / w) * 0.5 + 0.5)) * cssH
+    placed[0] = sx
+    placed[1] = sy
     if (el) el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`
-    return [sx, sy]
   }
   /** Each note's words: their height (measured once a size), and how far above the point they last stood. */
   const noteH: number[] = []
@@ -489,7 +506,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const kind = hooks.frame()
       const cam = camera(kind, Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
       const m = mvp(kind, cam, cssW / cssH)
-      inv = invert(m)
+      inv = invert(m, invBuf)
       const e = eye(cam)
       const probe = sim.hover ?? sim.probe
 
@@ -565,7 +582,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const notes = hooks.notes()
       NOTES.forEach((nt, i) => {
         const el = notes[i] ?? null
-        const [, sy] = place(el, m, wx(nt.k), wy(iv(p, nt.k, nt.T)) * rise, wz(nt.T))
+        place(el, m, wx(nt.k), wy(iv(p, nt.k, nt.T)) * rise, wz(nt.T))
+        const sy = placed[1]!
         const o = nt.offset[kind]
         if (!el || !o) return
         // At a shock's peak the words would rise past the stage's top: they stop there, and the leader shortens.
@@ -575,7 +593,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       })
       const dot = hooks.dot()
       const at = iv(p, probe.k, probe.T)
-      const [dotX] = place(dot, m, wx(probe.k), wy(at) * rise, wz(probe.T))
+      place(dot, m, wx(probe.k), wy(at) * rise, wz(probe.T))
+      const dotX = placed[0]!
       // The reading point arrives with the labels, once the sheet is up to be read.
       if (dot) dot.style.opacity = labelsK.toFixed(3)
       // While the reader reads a point, its tag names the volatility there, beside the dot, on whichever side has room.
