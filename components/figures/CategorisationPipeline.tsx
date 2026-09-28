@@ -1,6 +1,7 @@
 import { fact } from '@/content/facts'
 import { chart, feed, remap } from '@/content/data/closebooks-feed'
 import { categorise } from '@/lib/closebooks'
+import { prepaint } from '@/lib/stage/prepaint'
 import { CategorisationLive } from './closebooks/Live'
 
 /**
@@ -12,6 +13,10 @@ import { CategorisationLive } from './closebooks/Live'
 export function CategorisationPipeline() {
   const results = feed.map((l) => categorise(l, chart))
   return (
+    <>
+    {/* A first look this visit plays the batch arriving: from first paint its rows are still to come, so the replay
+        never runs a finished batch backwards (lib/stage/prepaint.ts; the CSS in app/globals.css). */}
+    <script dangerouslySetInnerHTML={{ __html: prepaint('closebooks', { webgl: false }) }} />
     <CategorisationLive
       chart={chart}
       feed={feed}
@@ -53,5 +58,6 @@ export function CategorisationPipeline() {
         </table>
       }
     />
+    </>
   )
 }

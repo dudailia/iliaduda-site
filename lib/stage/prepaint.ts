@@ -8,7 +8,10 @@
  * figure never takes over (its bundle failed), the mark is dropped after 8 s
  * and the finished picture shows. `name` is one lowercase word.
  */
-export function prepaint(name: string): string {
+export function prepaint(name: string, { webgl = true }: { webgl?: boolean } = {}): string {
   if (!/^[a-z]+$/.test(name)) throw new Error(`prepaint: "${name}" must be one lowercase word`)
-  return `try{var d=document.documentElement;var still=matchMedia('(prefers-reduced-motion: reduce)').matches||!('WebGL2RenderingContext' in window)||!!(navigator.connection&&navigator.connection.saveData);if(still)d.dataset.${name}Still='1';else if(!sessionStorage.getItem('${name}-seq')){d.dataset.${name}Seq='1';setTimeout(function(){if(!d.dataset.${name}Live)delete d.dataset.${name}Seq},8000)}}catch(e){}`
+  // A figure drawn without WebGL (a replay in SVG) plays wherever motion is welcome; a WebGL one needs WebGL2 and a
+  // reader not saving data.
+  const needs = webgl ? `||!('WebGL2RenderingContext' in window)||!!(navigator.connection&&navigator.connection.saveData)` : ''
+  return `try{var d=document.documentElement;var still=matchMedia('(prefers-reduced-motion: reduce)').matches${needs};if(still)d.dataset.${name}Still='1';else if(!sessionStorage.getItem('${name}-seq')){d.dataset.${name}Seq='1';setTimeout(function(){if(!d.dataset.${name}Live)delete d.dataset.${name}Seq},8000)}}catch(e){}`
 }

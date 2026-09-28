@@ -6,5 +6,7 @@
  * from the small-tablet width up, clear of the labels along its edges.
  */
 export function FocusRing() {
-  return <span aria-hidden className="pointer-events-none absolute inset-1 z-10 rounded-sm opacity-0 outline-2 outline-ink peer-focus-visible:opacity-100 sm:-inset-1" />
+  // It never animates, reduced motion or not: a focus ring is there the moment focus is (transition-none also keeps
+  // the reduced-motion guard's hairline transition off it).
+  return <span aria-hidden className="pointer-events-none absolute inset-1 z-10 rounded-sm opacity-0 outline-2 outline-ink transition-none peer-focus-visible:opacity-100 sm:-inset-1" />
 }

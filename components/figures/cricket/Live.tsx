@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
@@ -10,10 +10,15 @@ import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
  * that the side batting first wins, with the match state at the playhead in
  * the margin.
  *
- * The line draws itself once, the first time the figure is properly on screen:
- * a replay, so it runs at constant speed — linear is right for time passing —
- * and any scrub, key or button press takes over from wherever it is. Reduced
- * motion: the whole match is simply there, playhead at the end.
+ * The line draws itself once a visit, the first time the figure is properly
+ * on screen: a replay, so it runs at constant speed (linear is right for time
+ * passing), on the frames the figure is seen for (off screen, or in a hidden
+ * tab, it waits), and any scrub, key or button press takes over from wherever
+ * it is. On that first look the line is still to be drawn from first paint (the
+ * pre-paint mark), so the replay never wipes a finished figure the reader has
+ * already read. Reduced motion, a visit that has seen it, or an arrival
+ * through the contents morph: the whole match is simply there, playhead at the
+ * end.
  */
 
 /** [innings, over, ball, runs, wickets, legalBalls, target|0, runsOffBall, wicketsOffBall, p] */
@@ -54,15 +59,40 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const reduced = useReducedMotion()
   const [at, setAt] = useState(n - 1)
   const [playing, setPlaying] = useState(false)
+  /** Said only for what the reader did not do on the control itself: the replay coming to its end. */
+  const [said, setSaid] = useState('')
   const raf = useRef(0)
-  const start = useRef(0)
   const from = useRef(0)
+  const elapsed = useRef(0)
+  const seen = useRef(true)
+  /** This visit's replay is still to come: the pre-paint mark hides the drawn line until it starts. */
+  const armed = useRef(false)
 
   // Where the innings changes, and the x of every ball.
   const breakAt = balls.findIndex((b) => b[0] === 2)
   const x = (i: number) => (i / (n - 1)) * W
   const y = (p: number) => ((L - logit(Math.min(CLAMP, Math.max(1 - CLAMP, p)))) / (2 * L)) * H
-  const path = balls.map((b, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(b[9]).toFixed(1)}`).join('')
+  // Built once: the line does not change, only how much of it is drawn.
+  const path = useMemo(() => balls.map((b, i) => `${i ? 'L' : 'M'}${((i / (n - 1)) * W).toFixed(1)} ${(((L - logit(Math.min(CLAMP, Math.max(1 - CLAMP, b[9])))) / (2 * L)) * H).toFixed(1)}`).join(''), [balls, n])
+  const wickets = useMemo(
+    () => balls.map((bb, i) => (bb[8] ? <line key={i} x1={(i / (n - 1)) * W} x2={(i / (n - 1)) * W} y1={H} y2={H - 45} stroke="var(--color-ink)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /> : null)),
+    [balls, n],
+  )
+
+  /**
+   * This visit's replay is spent: it starts now, or it will not come (the reader took the figure first, or it is not to
+   * play). `show` drops the mark at once; a replay that starts drops it once it has drawn its first frame at ball 1.
+   */
+  const release = (show = true) => {
+    armed.current = false
+    if (show) delete document.documentElement.dataset.cricketSeq
+    try {
+      sessionStorage.setItem('cricket-seq', '1')
+    } catch {}
+  }
+  useEffect(() => {
+    if (playing) delete document.documentElement.dataset.cricketSeq
+  }, [playing])
 
   const stop = () => {
     cancelAnimationFrame(raf.current)
@@ -72,27 +102,61 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const play = (fromIndex: number) => {
     cancelAnimationFrame(raf.current)
     from.current = fromIndex
-    start.current = 0
+    elapsed.current = 0
     setPlaying(true)
+    let last = 0
+    // Time passes on the frames the figure is seen for: off screen or in a hidden tab the playhead waits.
     const tick = (t: number) => {
-      if (!start.current) start.current = t
-      const remaining = n - 1 - from.current
-      const i = Math.min(n - 1, from.current + Math.floor(((t - start.current) / REPLAY_MS) * (n - 1)))
+      const dt = last ? Math.min(100, t - last) : 0
+      last = t
+      if (seen.current && !document.hidden) elapsed.current += dt
+      const i = Math.min(n - 1, from.current + Math.floor((elapsed.current / REPLAY_MS) * (n - 1)))
       setAt(i)
-      if (i < n - 1 && remaining > 0) raf.current = requestAnimationFrame(tick)
-      else setPlaying(false)
+      if (i < n - 1) raf.current = requestAnimationFrame(tick)
+      else {
+        setPlaying(false)
+        setSaid(`Replayed to the end: ${result}.`)
+      }
     }
     raf.current = requestAnimationFrame(tick)
   }
 
-  // The one self-drawing replay, once, when the figure is actually seen — and
-  // not if the reader has already taken the scrubber.
+  useEffect(() => {
+    const d = document.documentElement
+    d.dataset.cricketLive = '1'
+    armed.current = d.dataset.cricketSeq === '1'
+    const el = box.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => (seen.current = !!e?.isIntersecting), { threshold: 0 })
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      cancelAnimationFrame(raf.current)
+    }
+  }, [])
+
+  // The one self-drawing replay, once a visit, when the figure is actually seen, and not if the reader has already
+  // taken the scrubber.
   useOnceSeen(box, 0.6, () => {
-    if (reduced || arrivedByMorph() || box.current?.contains(document.activeElement)) return
+    // The browser's own answer (hydration reads reduced motion as on: the server cannot know).
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!armed.current || still || arrivedByMorph() || box.current?.contains(document.activeElement)) return release()
+    release(false)
     setAt(0)
     play(0)
   })
-  useEffect(() => () => cancelAnimationFrame(raf.current), [])
+
+  // Reduced motion asked for while it plays: the whole match, at once. (The browser's own answer: hydration reads
+  // reduced motion as on, which is not the reader asking.)
+  useEffect(() => {
+    if (!reduced || !matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    cancelAnimationFrame(raf.current)
+    queueMicrotask(() => {
+      setPlaying(false)
+      setAt(n - 1)
+    })
+    if (armed.current) release()
+  }, [reduced, n])
 
   const b = balls[at]!
   const [inn, over, ball, runs, wkts, legal, target, offRuns, offWkts, p] = b
@@ -123,7 +187,11 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       vt="cricstate"
       title={`${first} v ${second}, replayed ball by ball`}
       subtitle="probability the side batting first wins · gradient boosting on match state · calibrated on the season before · a match it never saw · log-odds scale"
-      rail={<Readouts rows={rows} />}
+      rail={
+        <div data-played-rail="">
+          <Readouts rows={rows} />
+        </div>
+      }
       caption={caption}
       table={table}
       hint="Scrub or use the arrow keys to move ball by ball · Home and End jump · the line is the model’s output before each ball"
@@ -137,7 +205,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               </span>
             ))}
           </div>
-          <div className="relative aspect-[5/3] min-w-0 flex-1 sm:aspect-[16/7]">
+          <div className="relative aspect-[5/3] min-w-0 flex-1 [container-type:size] sm:aspect-[16/7]">
             <svg
               role="img"
               aria-labelledby="fig-replay-svg-title"
@@ -162,16 +230,16 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               <clipPath id="replay-clip">
                 <rect x={0} y={-20} width={x(at) + 0.5} height={H + 40} />
               </clipPath>
-              <path d={path} fill="none" stroke="var(--color-indigo)" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" clipPath="url(#replay-clip)" />
-              {balls.map((bb, i) =>
-                bb[8] ? <line key={i} x1={x(i)} x2={x(i)} y1={H} y2={H - 45} stroke="var(--color-ink)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /> : null,
-              )}
-              <line x1={x(at)} x2={x(at)} y1={0} y2={H} stroke="var(--color-indigo)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+              <path data-played="" d={path} fill="none" stroke="var(--color-indigo)" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" clipPath="url(#replay-clip)" />
+              {wickets}
+              <line data-played="" x1={x(at)} x2={x(at)} y1={0} y2={H} stroke="var(--color-indigo)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
             </svg>
+            {/* Moved by transform, in the plot's own units (a size container), never by left and top. */}
             <span
               aria-hidden
-              className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-indigo"
-              style={{ left: `${Math.min(99, (x(at) / W) * 100)}%`, top: `${(y(p) / H) * 100}%` }}
+              data-played=""
+              className="pointer-events-none absolute top-0 left-0 size-2.5 rounded-full border-2 border-paper bg-indigo"
+              style={{ transform: `translate(calc(${Math.min(99, (x(at) / W) * 100).toFixed(2)}cqw - 50%), calc(${((y(p) / H) * 100).toFixed(2)}cqh - 50%))` }}
             />
           </div>
         </div>
@@ -196,8 +264,12 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
         <div className="mt-3 flex items-center gap-3 pl-11">
           <button
             type="button"
-            onClick={() => (playing ? stop() : play(at >= n - 1 ? 0 : at))}
-            className="text-meta w-[4.5rem] shrink-0 rounded-sm border border-graphite px-2 py-1.5 font-mono transition-colors duration-150 ease-out hover:border-ink"
+            onClick={() => {
+              if (armed.current) release()
+              if (playing) stop()
+              else play(at >= n - 1 ? 0 : at)
+            }}
+            className="text-meta w-[4.5rem] shrink-0 rounded-sm border border-graphite px-2 py-1.5 font-mono transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]"
           >
             {playing ? 'Pause' : at >= n - 1 ? 'Replay' : 'Play'}
           </button>
@@ -210,15 +282,20 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             aria-label="Ball"
             aria-valuetext={valueText}
             onChange={(e) => {
+              if (armed.current) release()
               stop()
               setAt(Number(e.currentTarget.value))
             }}
-            onKeyDown={() => playing && stop()}
+            onKeyDown={() => {
+              if (armed.current) release()
+              if (playing) stop()
+            }}
             className="h-6 w-full accent-[var(--color-indigo)]"
           />
         </div>
+        {/* The slider speaks for itself (aria-valuetext); this says only what the reader did not do there. */}
         <p className="sr-only" aria-live="polite">
-          {playing ? '' : valueText}
+          {said}
         </p>
       </div>
     </FigureFrame>

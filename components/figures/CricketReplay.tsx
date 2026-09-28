@@ -1,5 +1,6 @@
 import { fact } from '@/content/facts'
 import replay from '@/content/data/cricket-final.json'
+import { prepaint } from '@/lib/stage/prepaint'
 import { CricketLive, type Ball } from './cricket/Live'
 
 /**
@@ -41,6 +42,10 @@ export function CricketReplay() {
     `${second} are all out for ${total2}; ${margin}.`
 
   return (
+    <>
+    {/* A first look this visit replays the match: from first paint the line is still to be drawn, so the replay never
+        wipes a finished figure (lib/stage/prepaint.ts; the CSS in app/globals.css). */}
+    <script dangerouslySetInnerHTML={{ __html: prepaint('cricket', { webgl: false }) }} />
     <CricketLive
       balls={data}
       maxBalls={balls[0]!.max}
@@ -83,5 +88,6 @@ export function CricketReplay() {
         </table>
       }
     />
+    </>
   )
 }

@@ -13,9 +13,13 @@ import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
  * status. A reviewer can approve what is waiting and remap what the chart does
  * not have; the export gate counts what may leave.
  *
- * Motion, once, when the figure is first seen: a 45ms stagger as the feed
- * arrives and a 240ms ease-out as each confidence settles. A click changes only
- * the row it touches. Reduced motion: settled at once.
+ * Motion, once a visit, when the figure is first seen: a 45ms stagger as the
+ * feed arrives and a 240ms ease-out as each confidence settles. On that first
+ * look the rows are still to come from first paint (the pre-paint mark), so
+ * the batch never plays backwards out of its finished state. A click changes
+ * only the row it touches, and the count it moved lights for a moment. Reduced
+ * motion, a visit that has seen it, or an arrival through the contents morph:
+ * settled at once.
  */
 
 type Human = 'approved-by-reviewer' | 'remapped'
@@ -45,6 +49,10 @@ export function CategorisationLive({
   const [arrived, setArrived] = useState(feed.length)
   const [settled, setSettled] = useState(true)
   const [human, setHuman] = useState<Record<number, Human>>({})
+  /** The batch leaving before it runs again, so a new run does not cut the list to nothing in one frame. */
+  const [leaving, setLeaving] = useState(false)
+  /** This visit's batch is still to come: the pre-paint mark hides the rows until it starts. */
+  const armed = useRef(false)
   const statusRefs = useRef<(HTMLSpanElement | null)[]>([])
   // After a reviewer acts, focus lands on the row's new status rather than
   // falling to the page, and the gate's new count is announced.
@@ -56,18 +64,47 @@ export function CategorisationLive({
   const results: Result[] = feed.map((l) => categorise(l, chart))
 
   const stream = () => {
-    setHuman({})
-    setRun((r) => r + 1)
-    if (reduced) return
-    setArrived(0)
-    setSettled(false)
+    if (reduced) {
+      setHuman({})
+      setRun((r) => r + 1)
+      return
+    }
+    // The rows leave together (150ms), then the batch arrives again from the first line.
+    setLeaving(true)
+    window.setTimeout(() => {
+      setHuman({})
+      setRun((r) => r + 1)
+      setArrived(0)
+      setSettled(false)
+      setLeaving(false)
+    }, 150)
   }
 
-  // The batch arrives once, when the figure is first properly on screen — but
-  // never under a reader who is already inside it: replaying would unmount the
-  // very button they have focused.
+  /** This visit's batch is spent: it arrives now, or it will not (the reader was in first, or it is not to play). */
+  const release = (show = true) => {
+    armed.current = false
+    if (show) delete document.documentElement.dataset.closebooksSeq
+    try {
+      sessionStorage.setItem('closebooks-seq', '1')
+    } catch {}
+  }
+  useEffect(() => {
+    const d = document.documentElement
+    d.dataset.closebooksLive = '1'
+    armed.current = d.dataset.closebooksSeq === '1'
+  }, [])
+  // Once the batch is on its way, its rows' own styles hide what has not arrived: the mark can go.
+  useEffect(() => {
+    if (!settled) delete document.documentElement.dataset.closebooksSeq
+  }, [settled])
+
+  // The batch arrives once a visit, when the figure is first properly on screen, but never under a reader who is
+  // already inside it: replaying would unmount the very button they have focused.
   useOnceSeen(box, 0.3, () => {
-    if (reduced || arrivedByMorph() || box.current?.contains(document.activeElement)) return
+    // The browser's own answer (hydration reads reduced motion as on: the server cannot know).
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!armed.current || still || arrivedByMorph() || box.current?.contains(document.activeElement)) return release()
+    release(false)
     setArrived(0)
     setSettled(false)
   })
@@ -103,13 +140,24 @@ export function CategorisationLive({
     ? `Exportable ${counts.out} of ${feed.length}; ${counts.review} waiting, ${counts.blocked} blocked.`
     : ''
 
+  // A count a reviewer's click moved lights for a moment (the export gate the hint asks the reader to watch); counts
+  // filling as the batch arrives do not.
+  const acted = Object.keys(human).length
+  const lit = (value: string, key: string) =>
+    acted ? (
+      <span key={`${key}-${acted}`} className="-mx-0.5 rounded-sm px-0.5 transition-[background-color] duration-700 ease-out starting:bg-indigo-wash">
+        {value}
+      </span>
+    ) : (
+      value
+    )
   const rows = [
     { label: 'Batch', value: `${feed.length} lines, indexed 0–${feed.length - 1}` },
     { label: 'Approval threshold', value: threshold.toFixed(2) },
     { label: 'Approved by the rules', value: String(counts.auto) },
-    { label: 'Waiting for a reviewer', value: String(counts.review) },
-    { label: 'Blocked: account not in chart', value: String(counts.blocked) },
-    { label: 'Exportable', value: `${counts.out} of ${feed.length}` },
+    { label: 'Waiting for a reviewer', value: lit(String(counts.review), 'review') },
+    { label: 'Blocked: account not in chart', value: lit(String(counts.blocked), 'blocked') },
+    { label: 'Exportable', value: lit(`${counts.out} of ${feed.length}`, 'out') },
   ]
 
   const money = (a: number) => a.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -121,7 +169,11 @@ export function CategorisationLive({
       vt="closebooks"
       title="A bank feed through the categorisation pipeline"
       subtitle="synthetic feed and model outputs · the rules applied to them are the product’s own, from the shipped code"
-      rail={<Readouts rows={rows} />}
+      rail={
+        <div data-batch-rail="">
+          <Readouts rows={rows} />
+        </div>
+      }
       railBelow={false}
       hint="Approve a row waiting for review, or remap a blocked one, and watch the export gate"
       caption={caption}
@@ -130,7 +182,7 @@ export function CategorisationLive({
       <div ref={box}>
         {/* The gate, where a phone reader can see it change: above the rows,
             pinned while they scroll past. The rail carries it on wide screens. */}
-        <p className="text-meta sticky top-0 z-10 -mx-1 mb-2 bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
+        <p data-batch-gate="" className="text-meta sticky top-0 z-10 -mx-1 mb-2 bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
           approved {counts.auto} · waiting {counts.review} · blocked {counts.blocked} · exportable {counts.out} of {feed.length}
         </p>
         <ol className="grid list-none border-t border-rule" aria-label="Categorised bank lines">
@@ -163,9 +215,9 @@ export function CategorisationLive({
                 key={`${run}-${i}`}
                 className="min-w-0 border-b border-rule py-2.5"
                 style={{
-                  opacity: shown ? 1 : 0,
+                  opacity: shown && !leaving ? 1 : 0,
                   transform: shown ? 'none' : 'translateY(6px)',
-                  transition: reduced ? 'none' : `opacity 200ms ${EASE_OUT}, transform 200ms ${EASE_OUT}`,
+                  transition: reduced ? 'none' : leaving ? `opacity 150ms ${EASE_OUT}` : `opacity 200ms ${EASE_OUT}, transform 200ms ${EASE_OUT}`,
                 }}
               >
                 <div className="flex items-baseline gap-x-3">
@@ -176,7 +228,7 @@ export function CategorisationLive({
                     {money(l.amount)}
                   </span>
                 </div>
-                <div className="mt-1 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 sm:grid-cols-[1.25rem_minmax(0,1fr)_7.5rem_6.5rem] sm:items-center">
+                <div className="mt-1 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 sm:grid-cols-[1.25rem_minmax(0,1fr)_7.5rem_9.5rem] sm:items-center">
                   <span />
                   <span className="text-meta min-w-0 font-mono text-graphite">
                     → {acct ? `${acct.code} ${acct.name}` : `${l.suggested.code} ${l.suggested.name}`}
@@ -244,8 +296,11 @@ export function CategorisationLive({
         <div className="mt-3 flex justify-end">
           <button
             type="button"
-            onClick={stream}
-            className="text-meta rounded-sm border border-graphite px-2 py-1 font-mono transition-colors duration-150 ease-out hover:border-ink"
+            onClick={() => {
+              if (armed.current) release()
+              stream()
+            }}
+            className="text-meta rounded-sm border border-graphite px-2 py-1 font-mono transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]"
           >
             Run the batch again
           </button>

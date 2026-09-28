@@ -20,7 +20,7 @@ export function RunningHead() {
       <Shell>
         <div className="text-meta flex flex-wrap items-baseline justify-between gap-x-6 font-mono">
           <p className="flex items-baseline gap-x-3">
-            <a href="/" className="inline-block py-2.5 font-serif no-underline hover:underline text-note text-ink">
+            <a href="/" className="inline-block py-2.5 font-serif underline decoration-transparent hover:decoration-ink text-note text-ink">
               {PERSON.name}
             </a>
             <span className="hidden text-graphite sm:inline">Co-op from January 2027</span>

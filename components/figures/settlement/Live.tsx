@@ -69,7 +69,9 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
   }
   const inEpisode = allowance.episodes.length > 0 && now - allowance.episodes.at(-1)! < EPISODE_MS
 
-  const btn = 'text-meta rounded-sm border px-2.5 py-1.5 font-mono transition-transform duration-150 ease-out active:scale-[0.97]'
+  // Controls that act press to 0.97; a radio group's selection changes fill instead (DESIGN.md, Buttons).
+  const btn = 'text-meta rounded-sm border px-2.5 py-1.5 font-mono transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
+  const radio = 'text-meta rounded-sm border px-2.5 py-1.5 font-mono transition-[border-color,background-color,color] duration-150 ease-out hover:border-ink'
 
   const rail = (
     <Readouts
@@ -134,7 +136,7 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                   chooseDebt(DEBTS[next]!)
                   debtButtons.current[next]?.focus()
                 }}
-                className={`${btn} ${debt === d ? 'border-ink bg-ink text-paper' : 'border-graphite text-ink'}`}
+                className={`${radio} ${debt === d ? 'border-ink bg-ink text-paper' : 'border-graphite text-ink'}`}
               >
                 {rub(d)}
               </button>
@@ -173,7 +175,8 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
             </label>
           </div>
 
-          <dl className="text-meta mt-4 grid grid-cols-2 gap-x-6 gap-y-2 font-mono sm:grid-cols-4 lg:hidden" aria-live="polite">
+          {/* Not a live region: these follow the reader's own inputs, which speak for themselves. */}
+          <dl className="text-meta mt-4 grid grid-cols-2 gap-x-6 gap-y-2 font-mono sm:grid-cols-4 lg:hidden">
             <div>
               <dt className="text-graphite">Discount</dt>
               <dd className="tabular text-ink">{(s.bp / 100).toFixed(0)}%</dd>

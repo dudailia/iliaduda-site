@@ -102,7 +102,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
         <button
           type="button"
           onClick={() => setEta(P.eta)}
-          className="text-meta rounded-sm border border-rule px-2.5 py-1.5 font-mono transition-transform duration-150 ease-out active:scale-[0.97]"
+          className="text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]"
         >
           Back to the surface’s η
         </button>

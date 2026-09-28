@@ -44,7 +44,7 @@ export function Contents() {
             <li key={p.slug} className="grid gap-x-6 border-b border-rule py-6 sm:grid-cols-[minmax(0,1fr)_9rem]">
               <div className="min-w-0">
                 <h3 className="text-h3">
-                  <a href={p.href} className="no-underline hover:underline">
+                  <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
                     {p.title}
                   </a>
                 </h3>
@@ -71,7 +71,7 @@ export function OtherWork() {
         <ul className="grid list-none border-t border-rule">
           {otherWork.map((o) => (
             <li key={o.slug} className="border-b border-rule py-4">
-              <a href={o.href} className="text-body no-underline hover:underline">
+              <a href={o.href} className="text-body underline decoration-transparent hover:decoration-ink">
                 {o.name}
               </a>
               <span className="text-note mt-1 block max-w-[38rem]">{o.what}</span>

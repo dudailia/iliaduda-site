@@ -18,6 +18,8 @@
    --------------------------------------------------------------------------- */
 
 @theme {
+  /* The site's one ease-out, for Tailwind's `ease-out` too: the strong curve every arrival and press uses. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --color-ink: #16181c;
   --color-paper: #faf9f7;
   --color-graphite: #5b6068;
@@ -298,6 +300,25 @@
   opacity: 0;
 }
 
+/* The cricket replay's first look this visit (the pre-paint mark, lib/stage/prepaint.ts): until it starts, the line is
+   still to be drawn and the margin still to be read, so the replay never wipes a finished figure. */
+:root[data-cricket-seq] #fig-replay [data-played] {
+  opacity: 0;
+}
+:root[data-cricket-seq] #fig-replay [data-played-rail] dd {
+  visibility: hidden;
+}
+
+/* The CloseBooks batch's first look this visit: its rows are still to come, and the gate still to count them. */
+:root[data-closebooks-seq] #fig-pipeline ol > li {
+  opacity: 0 !important;
+  transform: translateY(6px) !important;
+}
+:root[data-closebooks-seq] #fig-pipeline [data-batch-rail] dd,
+:root[data-closebooks-seq] #fig-pipeline [data-batch-gate] {
+  visibility: hidden;
+}
+
 /* The supplement to the site's two faces: the Greek and mathematical characters the papers use (scripts/subset-
    fonts.py). Declared as further faces of the same families, with a unicode-range, so a browser fetches one only on a
    page that shows one of its characters; the home page, whose only Greek letter (σ) is in the main faces, never does. */
@@ -331,8 +352,8 @@
 /* Its live controls arrive as the others' do: rising 4px into place, 40ms apart. */
 [data-surface-controls] > button {
   transition:
-    border-color 150ms ease-out,
-    scale 150ms ease-out,
+    border-color 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
     opacity 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms),
     translate 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms);
   @starting-style {
@@ -356,8 +377,8 @@
 [data-orderbook-controls] > button,
 [data-orderflow-controls] > button {
   transition:
-    border-color 150ms ease-out,
-    scale 150ms ease-out,
+    border-color 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
     opacity 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms),
     translate 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms);
   @starting-style {
@@ -375,8 +396,8 @@
    input, enters from 0.97 over 160ms. */
 [data-futures-controls] > button {
   transition:
-    border-color 150ms ease-out,
-    scale 150ms ease-out,
+    border-color 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
     opacity 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms),
     translate 240ms cubic-bezier(0.23, 1, 0.32, 1) var(--arrive, 0ms);
   @starting-style {
