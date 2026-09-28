@@ -97,6 +97,8 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   const stillCanvas = useRef<HTMLCanvasElement>(null)
   const stillLabels = useRef<HTMLDivElement>(null)
   const [stillReady, setStillReady] = useState(false)
+  const stillWasShown = useRef(false)
+  const sigmaInput = useRef<HTMLInputElement>(null)
   const [stillKey, setStillKey] = useState(0)
   /** The live figure has not drawn within FIRST_FRAME_MS: show the still frame while it may yet come. */
   const [timedOut, setTimedOut] = useState(false)
@@ -164,7 +166,15 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     if (!liveRef.current) return
     // Ten reports a second; a figure that is paused or finished pricing sends the same one each time, and re-rendering
     // the figure for it would be work for nothing.
-    setShown((was) => (was.mode === 'gpu' && was.n === s.n && was.mean === s.mean && was.se === s.se && was.rate === s.rate && was.done === s.done ? was : { n: s.n, mean: s.mean, se: s.se, rate: s.rate, mode: 'gpu', done: s.done }))
+    // A new run's first moment (the reader just moved an input) holds the last estimate in the margin until the new
+    // one is back, rather than blinking to "…"; the sequence's own run starts from nothing, as its convergence is shown.
+    setShown((was) =>
+      was.mode === 'gpu' && was.n === s.n && was.mean === s.mean && was.se === s.se && was.rate === s.rate && was.done === s.done
+        ? was
+        : s.n === 0 && was.mode === 'gpu' && was.n > 0 && !(armed.current && !timeline.current.done)
+          ? was
+          : { n: s.n, mean: s.mean, se: s.se, rate: s.rate, mode: 'gpu', done: s.done },
+    )
     if (s.hist) {
       const { sigma: sg, strike: k } = params.current
       setTable({ sigma: sg, strike: k, n: s.n, mean: s.mean, se: s.se, counts: s.hist.counts, payoff: s.hist.payoff })
@@ -246,6 +256,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
                 tick: onTick,
                 onStats,
                 onSequenceFrame,
+                atRest: () => stillWasShown.current,
               },
             )
             real.setQuality!(quality)
@@ -587,6 +598,10 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
     }
   }, [stillMode, box])
   const stillShown = stillMode && stillReady
+  // Whether the reader has seen the still frame (the resting view): a live figure that then takes over opens there.
+  useEffect(() => {
+    if (stillShown) stillWasShown.current = true
+  }, [stillShown])
 
   const exact = useMemo(() => bs(sigma, strike), [sigma, strike])
   const posterStrands = useMemo(() => strands(sigma, strike), [sigma, strike])
@@ -807,6 +822,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
               </span>
             </span>
             <input
+              ref={sigmaInput}
               type="range"
               min={MODEL.sigmaMin * 100}
               max={MODEL.sigmaMax * 100}
@@ -853,7 +869,16 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
             </>
           )}
           {changed && (
-            <button type="button" data-reset="" onClick={() => commit(MODEL.sigma, MODEL.strike)} className={CONTROL}>
+            <button
+              type="button"
+              data-reset=""
+              onClick={() => {
+                commit(MODEL.sigma, MODEL.strike)
+                // Reset takes itself away (nothing is left to reset): focus goes to the first input, not to the page.
+                sigmaInput.current?.focus()
+              }}
+              className={CONTROL}
+            >
               Reset
             </button>
           )}

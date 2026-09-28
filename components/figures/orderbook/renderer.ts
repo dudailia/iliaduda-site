@@ -842,9 +842,12 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // already placed waits for room.
     placed.length = 0
     const S = (x: number, y: number, z: number) => toScreen(mvp, cssW, cssH, x, y, z)
+    // First every label's text and where it would go; then the new texts are measured, all at once; then they are
+    // placed: one layout a frame at most, never one after another label's write.
+    const todo: { l: Label; text: string; at: [number, number] | null; anchor: Anchor }[] = []
     for (const l of labelSpecs(sim, { centre, fracZ, narrow: aspect < 1, rows, rise, lift })) {
       const at = S(l.at[0], l.at[1], l.at[2])
-      place(label(l.id, l.kind), l.text, at ? [at[0] + l.dx, at[1] + l.dy] : null, l.anchor)
+      todo.push({ l: label(l.id, l.kind), text: l.text, at: at ? [at[0] + l.dx, at[1] + l.dy] : null, anchor: l.anchor })
       if (l.id !== 'price') continue
       // The probe's reading, beside the pin, second only to the price: the answer where the hand is.
       const probeTag = label('probe', 'probe')
@@ -852,9 +855,21 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         const r = sim.row(probeAge)
         const pin = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) + 0.16, zOf(probeAge))
         const text = reading.side === 'spread' ? `${fmt.usd(reading.price)} · inside the spread` : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)} · ${fmt.ago(reading.ago)}`
-        place(probeTag, text, pin ? [pin[0] + 6, pin[1] - 10] : null, 'l')
-      } else place(probeTag, '', null)
+        todo.push({ l: probeTag, text, at: pin ? [pin[0] + 6, pin[1] - 10] : null, anchor: 'l' })
+      } else todo.push({ l: probeTag, text: '', at: null, anchor: 'c' })
     }
+    for (const t of todo)
+      if (t.l.text !== t.text) {
+        t.l.el.textContent = t.text
+        t.l.text = t.text
+        t.l.w = 0
+      }
+    for (const t of todo)
+      if (t.text && !t.l.w) {
+        t.l.w = t.l.el.offsetWidth
+        t.l.h = t.l.el.offsetHeight
+      }
+    for (const t of todo) place(t.l, t.text, t.at, t.anchor)
 
     const fading = fadeLabels(dt, labelsK)
     settling =

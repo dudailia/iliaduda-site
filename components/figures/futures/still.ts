@@ -168,13 +168,13 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     g.globalCompositeOperation = 'source-over'
     g.globalAlpha = 1
     // The ink stops at the token, as the live figure's does: every stroke crosses at today, where they would
-    // otherwise multiply to black by day and add up to white by night.
-    const img = g.getImageData(0, 0, W, H)
-    const d = img.data
-    const cap = pal.indigo.map((v) => Math.round(v * 255))
-    for (let i = 0; i < d.length; i += 4)
-      for (let c = 0; c < 3; c++) d[i + c] = dark ? Math.min(d[i + c]!, cap[c]!) : Math.max(d[i + c]!, cap[c]!)
-    g.putImageData(img, 0, 0)
+    // otherwise multiply to black by day and add up to white by night. A fill in the token's colour, composited per
+    // channel (lighten keeps the larger value, darken the smaller), is that cap in one step on the GPU: no readback
+    // and no loop over every pixel. The paper is lighter than the token by day and darker by night, so it is untouched.
+    g.globalCompositeOperation = dark ? 'darken' : 'lighten'
+    g.fillStyle = css(pal.indigo, 1)
+    g.fillRect(0, 0, W, H)
+    g.globalCompositeOperation = 'source-over'
     const line = (a: V3, b: V3, width: number, col: string, dash?: number[]) => {
       const p = toPx(...a), q = toPx(...b)
       g.strokeStyle = col
@@ -229,6 +229,8 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
 
   const placeLabels = () => {
     labels.replaceChildren()
+    // Every label is added first, then all are measured at once, then all are placed: one layout, not one a label.
+    const placed: { el: HTMLSpanElement; cls: string; sx: number; sy: number }[] = []
     const put = (text: string, cls: string, at: V3) => {
       const [sx, sy, w] = project(vp, at[0], at[1], at[2])
       if (w <= 0.05) return
@@ -236,18 +238,25 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
       el.textContent = text
       el.className = `${LABEL} left-0 top-0 ${cls}`
       labels.appendChild(el)
-      const side = cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0
-      const vside = cls.includes('-translate-y-full') ? -1 : cls.includes('translate-y-full') ? 1 : cls.includes('-translate-y-1/2') ? -0.5 : 0
-      let px = ((sx + 1) / 2) * cssW
-      let py = ((1 - sy) / 2) * cssH
-      // Kept inside the stage both ways, 4px in.
-      const left = px + side * el.offsetWidth
-      if (left < 4) px += 4 - left
-      else if (left + el.offsetWidth > cssW - 4) px -= left + el.offsetWidth - (cssW - 4)
-      const top = py + vside * el.offsetHeight
-      if (top < 4) py += 4 - top
-      else if (top + el.offsetHeight > cssH - 4) py -= top + el.offsetHeight - (cssH - 4)
-      el.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`
+      placed.push({ el, cls, sx, sy })
+    }
+    const layout = () => {
+      const sizes = placed.map(({ el }) => [el.offsetWidth, el.offsetHeight] as const)
+      placed.forEach(({ el, cls, sx, sy }, i) => {
+        const [ew, eh] = sizes[i]!
+        const side = cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0
+        const vside = cls.includes('-translate-y-full') ? -1 : cls.includes('translate-y-full') ? 1 : cls.includes('-translate-y-1/2') ? -0.5 : 0
+        let px = ((sx + 1) / 2) * cssW
+        let py = ((1 - sy) / 2) * cssH
+        // Kept inside the stage both ways, 4px in.
+        const left = px + side * ew
+        if (left < 4) px += 4 - left
+        else if (left + ew > cssW - 4) px -= left + ew - (cssW - 4)
+        const top = py + vside * eh
+        if (top < 4) py += 4 - top
+        else if (top + eh > cssH - 4) py -= top + eh - (cssH - 4)
+        el.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`
+      })
     }
     put(`Today · $${MODEL.s0}`, LABELS.today.cls, [LABELS.today.at[0], LABELS.today.at[1], 0])
     put('One year out', LABELS.expiry.cls, [LABELS.expiry.at[0], LABELS.expiry.at[1], ZWALL])
@@ -260,6 +269,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
       `${LABELS.value.cls} text-indigo`,
       [LABELS.hist.at[0], LABELS.hist.at[1], 0],
     )
+    layout()
   }
 
   raf = requestAnimationFrame(slice)

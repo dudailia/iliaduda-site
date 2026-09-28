@@ -127,3 +127,31 @@ test('on iOS, the first tap on the figure asks to read the tilt, once, and then 
   await expect(motion(page)).toContainText(/lean from tilt 0\.[4-9]\d/, { timeout: 2_000 })
   expect(errors).toEqual([])
 })
+
+test('the price on the figure holds through a step of the volatility slider: it never blinks out while the new run starts', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  // A settled estimate first.
+  await page.waitForTimeout(1_500)
+  const texts = await page.evaluate(async () => {
+    // The live figure's own label layer, not the still frame's copy under it.
+    const value = [...document.querySelectorAll<HTMLElement>('[data-live-canvas] + div span')].find((s) => s.textContent?.startsWith('Call price'))
+    const slider = document.querySelector<HTMLInputElement>('input[type="range"]')!
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    set.call(slider, String(Number(slider.value) + 1))
+    slider.dispatchEvent(new Event('input', { bubbles: true }))
+    const seen: string[] = []
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => requestAnimationFrame(r))
+      seen.push(value ? `${value.textContent}|${getComputedStyle(value).opacity}` : 'missing')
+    }
+    return seen
+  })
+  for (const t of texts) {
+    const [text, op] = t.split('|')
+    expect(text, t).toMatch(/^Call price/)
+    expect(Number(op), t).toBeGreaterThan(0.5)
+  }
+})

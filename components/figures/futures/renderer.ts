@@ -70,6 +70,8 @@ export interface Options {
   onStats: (s: Stats) => void
   /** The sequence's first frame is on screen. */
   onSequenceFrame: () => void
+  /** The still frame was on screen when this renderer was made: open on the resting view it shows. */
+  atRest?: () => boolean
 }
 
 export interface FuturesRenderer extends Renderer {
@@ -469,6 +471,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let ph: Phases | null = null
   /** The camera's place in the story (lib/futures/director.ts); `cam` and `flightP` are its reading this frame. */
   const director = new Director()
+  // Replacing the still frame (a late first frame, a context given back), the figure opens where the still stood.
+  if (o.atRest?.()) director.startAtRest()
   let cam: CamMode = 'frame'
   let flightP = 0
   let fadeTo: { t: number; ms: number } | null = null
@@ -559,10 +563,16 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // In the composed frame it stands under the strike line, where the payoff bars are empty; in depth, a point further
   // along the time axis rises on screen, so it moves under the strike's own name on the wall's edge, stacked.
   const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.hist.at[0], LABELS.hist.at[1], 0], () =>
-    est.n > 0 ? labelU * smooth(0.55, 1, morph.x) * (inSeq() ? EASE_OUT(clamp01(ph!.price / 0.24)) : 1) : 0,
+    est.n > 0 || held ? labelU * smooth(0.55, 1, morph.x) * (inSeq() ? EASE_OUT(clamp01(ph!.price / 0.24)) : 1) : 0,
     true,
   )
   let valueText = ''
+  /**
+   * The last price shown, held through the moment after the reader moves an input and before the new run's first
+   * estimate is back, so the claim does not blink out on every step of a drag. The sequence starts from nothing, as
+   * its convergence is the point.
+   */
+  let held = ''
   const setStrikeText = () => (strikeEl.textContent = `Strike $${Math.round(kv.x)}`)
   setStrikeText()
 
@@ -618,7 +628,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
           ? narrow
             ? `Call price: $${est.mean.toFixed(2)}`
             : `Call price, the average discounted payoff: $${est.mean.toFixed(2)}`
-          : ''
+          : inSeq()
+            ? ''
+            : held
+    if (est.n > 0 && previewK == null) held = v
+    else if (inSeq()) held = ''
     if (v !== valueText) valueEl.textContent = valueText = v
     const rate = pricer.rate()
     if (!force && now - statsAt < 0.1) return
@@ -1013,6 +1027,14 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   }
 
   function placeLabels() {
+    // Labels whose text changed are measured first, all together, before any style is written this frame: one
+    // layout at most, never one for each label after another's write.
+    for (const l of labels)
+      if (l.text !== l.el.textContent) {
+        l.text = l.el.textContent ?? ''
+        l.w = l.el.offsetWidth
+        l.h = l.el.offsetHeight
+      }
     for (const l of labels) {
       const a = l.show() * (l.data ? fadeMul : 1)
       const [x, y, z] = l.at()
@@ -1021,11 +1043,6 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       l.el.style.opacity = on ? a.toFixed(3) : '0'
       l.el.style.visibility = on ? 'visible' : 'hidden'
       if (!on) continue
-      if (l.text !== l.el.textContent) {
-        l.text = l.el.textContent ?? ''
-        l.w = l.el.offsetWidth
-        l.h = l.el.offsetHeight
-      }
       // Kept inside the stage both ways, 4px in, however the camera sits.
       let px = ((s[0] + 1) / 2) * cssW
       const left = px + l.side * l.w

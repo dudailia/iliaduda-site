@@ -66,6 +66,17 @@ export class Director {
     return this.then != null
   }
 
+  /**
+   * Take over from the still frame, which shows the resting view: open there, rather than on the composed frame and
+   * its swing into depth, which would stage the entrance a second time.
+   */
+  startAtRest(): void {
+    this.mode = 'rest'
+    this.first = false
+    this.depth = 1
+    this.labels = 1
+  }
+
   /** Replay's way back to the composed frame; `then` runs once it is there. A second call on the way changes nothing. */
   rewind(then: () => void): void {
     if (this.then) return

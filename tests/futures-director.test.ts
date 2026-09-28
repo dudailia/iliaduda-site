@@ -66,6 +66,18 @@ describe('the camera director', () => {
     expect(d.depth).toBe(1)
   })
 
+  it('opens at rest when it takes over from the still frame: the entrance is never staged a second time', () => {
+    const d = new Director()
+    d.startAtRest()
+    const pose = d.step(moment())
+    expect(d.mode).toBe('rest')
+    expect(d.depth).toBe(1)
+    expect(d.labels).toBe(1)
+    for (let i = 0; i < 3; i++) expect(pose.eye[i]).toBeCloseTo(rest.eye[i]!, 9)
+    run(d, 120, () => ({}))
+    expect(d.mode).toBe('rest')
+  })
+
   it('takes off when Fly through is pressed while the camera holds the composed frame', () => {
     const d = new Director()
     run(d, 30, () => ({ sequence: true }))
