@@ -79,7 +79,14 @@ const SLICE = 1024
 /** If the live figure has not drawn by now, the finished poster shows instead of the empty frame it was waiting on. */
 const FIRST_FRAME_MS = 6000
 
-export function FuturesLive({ initial }: { initial: PosterFrame }) {
+/** The simulated market the stock's volatility comes from: its seed, the moment it is read at, and what the server read. */
+export interface MarketSigma {
+  seed: number
+  t: number
+  sigma: number
+}
+
+export function FuturesLive({ initial, market }: { initial: PosterFrame; market: MarketSigma }) {
   const [sigma, setSigma] = useState<number>(MODEL.sigma)
   const [strike, setStrike] = useState<number>(MODEL.strike)
   const [shown, setShown] = useState<Shown>({ ...initial.stats, rate: 0, mode: 'server', done: true })
@@ -303,6 +310,40 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
   )
 
   const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, STAGE_OPTS)
+
+  // One market, checked here: once the figure runs live, this browser builds the same seeded market in a worker
+  // (lib/market/market.worker.ts, /market's own) to the moment the volatility is read at, and marks what it got
+  // beside what the server did, for ?debug=1 and the specs. The figure prices at the server's; by the market's
+  // determinism the two are one number (tests/futures.test.ts, tests/e2e/hero.spec.ts).
+  const browserSigma = useRef<number | null>(null)
+  const sigmaChecked = useRef(false)
+  useEffect(() => {
+    if (!live || sigmaChecked.current) return
+    sigmaChecked.current = true
+    let w: Worker | null = null
+    try {
+      w = new Worker(new URL('../../../lib/market/market.worker.ts', import.meta.url), { type: 'module' })
+    } catch {
+      return
+    }
+    w.onmessage = (e: MessageEvent<{ kind: string; sigma?: number }>) => {
+      if (e.data?.kind !== 'ready' || typeof e.data.sigma !== 'number') return
+      const got = e.data.sigma
+      browserSigma.current = got
+      const el = box.current
+      if (el) {
+        el.dataset.sigmaMarket = String(got)
+        el.dataset.sigmaBrowser = String(Math.round(got * 100) / 100)
+      }
+      w?.terminate()
+    }
+    w.onerror = (ev) => {
+      ev.preventDefault()
+      w?.terminate()
+    }
+    w.postMessage({ kind: 'start', seed: market.seed, t: market.t })
+    return () => w?.terminate()
+  }, [live, market.seed, market.t, box])
   // The kit reports live once the renderer draws; from then the GPU owns the counter.
   useEffect(() => {
     liveRef.current = live
@@ -661,6 +702,10 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         renderer: renderer.current
           ? {
               ...renderer.current.debug(),
+              'σ, this browser’s market':
+                browserSigma.current === null
+                  ? 'computing…'
+                  : `${(browserSigma.current * 100).toFixed(2)}% → ${pct(Math.round(browserSigma.current * 100) / 100)} · ${Math.round(browserSigma.current * 100) / 100 === MODEL.sigma ? 'the same as the server’s' : `not the server’s (${pct(MODEL.sigma)})`}`,
               motion: `${pausedRef.current ? 'paused' : 'moving'} · lean from ${leanFrom.current} ${lean.current.x.toFixed(2)}, ${lean.current.y.toFixed(2)}`,
               tilt: !window.matchMedia('(pointer: coarse)').matches
                 ? 'not used (fine pointer)'
@@ -736,7 +781,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         number="Fig. 1"
         className="mt-10 mb-12 lg:mt-6 lg:mb-16"
         title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
-        subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised volatility' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
         railBelow={false}
         hint={hint}
@@ -746,13 +791,17 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
             counter-based hash, so any path can be regenerated on the CPU, where the tests check the estimator against
             Black–Scholes. A call pays whatever the stock finishes above the strike, and its price is that payoff averaged
             over every path and discounted to today: the indigo bars, what each ending pays weighted by how often it
-            happens, add up to it. The margin shows the estimate closing in on the formula as the paths pile up.
+            happens, add up to it. The margin shows the estimate closing in on the formula as the paths pile up. The
+            volatility starts at the simulated market&rsquo;s own, the <a href="/market">market on /market</a>: its
+            realised volatility where that figure opens, {(market.sigma * 100).toFixed(1)}%, rounded to the slider&rsquo;s
+            1% step, worked out by the server for the still frame and again by your browser where this figure runs live.
           </>
         }
         table={tableView}
       >
         <div
           ref={box}
+          data-sigma-server={MODEL.sigma}
           data-seq={seq}
           data-fps={fps}
           data-quality={quality}

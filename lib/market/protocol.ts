@@ -151,7 +151,8 @@ export interface FanMsg {
 
 /** The worker to the page. */
 export type FromWorker =
-  | { kind: 'ready'; t: number; hash: string }
+  /** The market is built: its clock, its hash (lib/market/engine.ts), and its realised volatility then. */
+  | { kind: 'ready'; t: number; hash: string; sigma: number }
   | { kind: 'frame'; buf: ArrayBuffer }
   | FanMsg
   | { kind: 'error'; message: string }

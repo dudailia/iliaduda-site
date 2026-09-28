@@ -113,10 +113,10 @@ export const synthetic = {
     kind: 'synthetic',
   },
   fuSigma: {
-    value: 0.25,
+    value: 0.23,
     unit: 'none',
-    label: 'default volatility of the simulated stock',
-    source: 'lib/futures/mc.ts — synthetic, set by hand',
+    label: 'default volatility of the simulated stock: the simulated market’s realised volatility where /market opens, rounded to 1%',
+    source: 'lib/market/engine.ts — synthetic: the seeded market’s realised volatility at the moment /market’s figure opens on, rounded to the slider’s 1% step; tests/futures.test.ts holds them equal',
     kind: 'synthetic',
   },
   fuStrike: {

@@ -1,4 +1,6 @@
 import { syntheticValue as value } from '@/content/synthetic'
+import { Market } from '@/lib/market/engine'
+import { POSTER_T, SEED } from '@/lib/market/flow'
 import { POSTER_PATHS, ensemble, summarize } from '@/lib/futures/poster'
 import { FuturesLive } from './futures/Live'
 
@@ -25,10 +27,14 @@ const PREPAINT = `try{var d=document.documentElement;var still=matchMedia('(pref
 
 export function FuturesFigure() {
   const { stats, counts, payoff, payBars, outline } = summarize(ensemble(value('fuSigma'), POSTER_PATHS), value('fuStrike'))
+  // One market: the stock's volatility starts at the simulated market's own, where /market's figure opens
+  // (tests/futures.test.ts holds the fact to it); the browser works it out again where the figure runs live.
+  const m = new Market(SEED)
+  m.advance(POSTER_T)
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: PREPAINT }} />
-      <FuturesLive initial={{ stats, counts, payoff, payBars, outline }} />
+      <FuturesLive initial={{ stats, counts, payoff, payBars, outline }} market={{ seed: SEED, t: POSTER_T, sigma: m.sigma }} />
     </>
   )
 }

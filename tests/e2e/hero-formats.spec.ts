@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { MODEL } from '../../lib/futures/mc'
 import { GPU, STAGE, errorsOf, goLive, luminance, num, patch, seen } from './hero-kit'
 
 /**
@@ -54,7 +55,7 @@ const Phi = (x: number) => {
 
 /**
  * The screen-reader table's bands against the lognormal law the model implies
- * (S0 100, r 3%, σ 25%, one year). A lost or doubled count moves a band by far
+ * (the model's own S0, r, σ and year). A lost or doubled count moves a band by far
  * more than its rounding to a tenth of a percent.
  */
 async function countsExactly(page: Page) {
@@ -64,7 +65,8 @@ async function countsExactly(page: Page) {
   const rows = await page.locator('#fig-futures table tbody tr').evaluateAll((trs) =>
     trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent ?? '')),
   )
-  const mu = Math.log(100) + (0.03 - 0.5 * 0.25 * 0.25), sd = 0.25
+  const sd = MODEL.sigma * Math.sqrt(MODEL.T)
+  const mu = Math.log(MODEL.s0) + (MODEL.r - 0.5 * MODEL.sigma * MODEL.sigma) * MODEL.T
   let total = 0
   for (const [range, share] of rows) {
     const [lo, hi] = range!.replace(/\$/g, '').split('–').map(Number) as [number, number]

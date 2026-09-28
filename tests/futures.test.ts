@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs'
+import { Market } from '../lib/market/engine'
+import { POSTER_T, SEED, START, TICK } from '../lib/market/flow'
 import { describe, expect, it } from 'vitest'
 import { RNG } from '@/lib/futures/glsl'
 import { Estimator, MODEL, SALT, bs, bsCall, discount, lane, normals4, path, pcg4d, price, terminal, unit } from '@/lib/futures/mc'
@@ -220,5 +222,17 @@ describe('the depth lanes', () => {
     }
     expect(Math.abs(s / n)).toBeLessThan(0.03)
     expect(Math.abs(Math.sqrt(s2 / n) - 1)).toBeLessThan(0.03)
+  })
+})
+
+describe('one market: the hero’s stock is the simulated market’s', () => {
+  it('starts at the market’s opening price', () => {
+    expect(MODEL.s0).toBe(START * TICK)
+  })
+
+  it('and at its realised volatility where /market opens, rounded to the slider’s 1% step', () => {
+    const m = new Market(SEED)
+    m.advance(POSTER_T)
+    expect(MODEL.sigma).toBe(Math.round(m.sigma * 100) / 100)
   })
 })

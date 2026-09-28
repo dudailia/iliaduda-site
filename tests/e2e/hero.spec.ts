@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { MODEL, bsCall } from '../../lib/futures/mc'
 import { GPU, STAGE, canvasShown, contrast, darkest, errorsOf, fillOpacity, goLive, holdRenderer, inkTones, luminance, num, patch, seen, seq } from './hero-kit'
 
 /**
@@ -29,10 +30,21 @@ test.describe('before any script runs', () => {
     await page.goto('/')
     expect(await page.locator('[data-futures-poster] path').count()).toBeGreaterThan(50)
     expect(await page.locator('[data-futures-poster] rect').count()).toBeGreaterThan(10)
-    // S = 100, K = 100, T = 1, r = 3%, σ = 25%.
-    expect(await num(page, '[data-bs-price]', 'data-bs-price')).toBeCloseTo(11.3485, 3)
+    // The model's own inputs: S 100, K 100, a year, r 3%, and the simulated market's volatility.
+    expect(await num(page, '[data-bs-price]', 'data-bs-price')).toBeCloseTo(bsCall(MODEL.s0, MODEL.strike, MODEL.T, MODEL.r, MODEL.sigma), 3)
     await expect(page.locator('[data-futures-poster]')).toContainText(/Call price.*: \$\d+\.\d\d/)
   })
+})
+
+test('its volatility is the simulated market’s: this browser builds the same market and gets the server’s number', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await expect(page.locator('#fig-futures')).toContainText('the simulated market’s realised volatility')
+  await expect(page.locator('[data-one-market] a[href="/market"]')).toHaveText('These futures, its order book and its vol surface: one simulated market, running in your browser.')
+  const box = page.locator('[data-sigma-server]')
+  expect(Number(await box.getAttribute('data-sigma-server'))).toBe(MODEL.sigma)
+  if (!(await goLive(page))) test.skip(true, 'no GPU here: the figure keeps its still frame, and the browser does not run the market')
+  await expect(box).toHaveAttribute('data-sigma-browser', String(MODEL.sigma), { timeout: 20_000 })
 })
 
 test('goes live on the GPU where it can, and the estimate converges to Black–Scholes', async ({ page }) => {
@@ -52,6 +64,9 @@ test('goes live on the GPU where it can, and the estimate converges to Black–S
   expect(Math.abs(mc - bs)).toBeLessThan(4 * se)
 })
 
+/** The volatility slider's starting place, in its own units: the simulated market's volatility, as a whole percent. */
+const VOL0 = Math.round(MODEL.sigma * 100)
+
 test('the volatility and strike inputs move the Black–Scholes price, and Reset returns them', async ({ page }) => {
   await page.goto('/')
   const vol = page.getByRole('slider', { name: 'Volatility' })
@@ -59,7 +74,7 @@ test('the volatility and strike inputs move the Black–Scholes price, and Reset
   const bs0 = await num(page, '[data-bs-price]', 'data-bs-price')
   await vol.focus()
   for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight')
-  await expect(vol).toHaveValue('30')
+  await expect(vol).toHaveValue(String(VOL0 + 5))
   const bs1 = await num(page, '[data-bs-price]', 'data-bs-price')
   expect(bs1).toBeGreaterThan(bs0)
   await strike.focus()
@@ -67,7 +82,7 @@ test('the volatility and strike inputs move the Black–Scholes price, and Reset
   await expect(strike).toHaveValue('110')
   expect(await num(page, '[data-bs-price]', 'data-bs-price')).toBeLessThan(bs1)
   await page.getByRole('button', { name: 'Reset' }).click()
-  await expect(vol).toHaveValue('25')
+  await expect(vol).toHaveValue(String(VOL0))
   await expect(strike).toHaveValue('100')
   await expect(page.getByRole('button', { name: 'Reset' })).toHaveCount(0)
 })
@@ -224,13 +239,13 @@ test('the screen-reader table follows the live figure', async ({ page }) => {
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   const caption = page.locator('#fig-futures table caption')
   const row = page.locator('#fig-futures table tbody tr').nth(3)
-  await expect(caption).toContainText('at 25% volatility')
+  await expect(caption).toContainText(`at ${VOL0}% volatility`)
   const before = await row.textContent()
   const vol = page.getByRole('slider', { name: 'Volatility' })
   await vol.focus()
   for (let i = 0; i < 20; i++) await page.keyboard.press('ArrowRight')
-  await expect(vol).toHaveValue('45')
-  await expect(caption).toContainText('at 45% volatility', { timeout: 5_000 })
+  await expect(vol).toHaveValue(String(VOL0 + 20))
+  await expect(caption).toContainText(`at ${VOL0 + 20}% volatility`, { timeout: 5_000 })
   // Its rows are the new run's, not the old distribution under a new caption.
   expect(await row.textContent()).not.toBe(before)
 })
