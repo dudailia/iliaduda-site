@@ -94,11 +94,12 @@ describe('the liquidity shock', () => {
       }
     })
 
-    it('lifts realised volatility several times over: within ten seconds, a median of twice its level or more, never six', () => {
-      // 1.37 to 5.57 times, median 2.8.
+    it('lifts realised volatility 1.4 to 5.6 times within ten seconds, as the page says, a median of twice its level or more', () => {
       const peaks = runs.map((r) => r.sigma10s).sort((a, b) => a - b)
+      // The page's range is these, to one decimal.
+      expect(peaks[0]!.toFixed(1)).toBe('1.4')
+      expect(peaks[19]!.toFixed(1)).toBe('5.6')
       expect(peaks[9]! + peaks[10]!).toBeGreaterThan(4)
-      expect(peaks[19]!).toBeLessThan(6)
     })
 
     it('relaxes: the spread is back within two ticks inside two seconds, the stress below 0.05 inside five minutes', () => {

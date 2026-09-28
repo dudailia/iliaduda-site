@@ -21,7 +21,7 @@ import type { Act, FanMsg } from './protocol'
 export const HOST = {
   /** Simulated seconds a frame may move the market at most. */
   cap: 0.1,
-  /** Fan paths drawn a frame at most: a fan of 4096 in eight frames. */
+  /** Fan paths drawn a frame at most: a fan of 4096 in eight frames, and eight more to take its percentiles. */
   pathsPerFrame: 512,
 } as const
 
@@ -60,6 +60,7 @@ export class MarketHost {
   private drawMs = 0
   private ran = 0
   private stats = { paths: 0, busy: 0, speed: 1 }
+  private resets = 0
 
   constructor(
     private readonly seed: number,
@@ -93,6 +94,7 @@ export class MarketHost {
   }
 
   reset(): void {
+    this.resets++
     this.build()
   }
 
@@ -102,7 +104,9 @@ export class MarketHost {
     const dt = this.lastAt == null ? 0 : Math.max(0, (at - this.lastAt) / 1000)
     this.lastAt = at
     const step = this.paused ? 0 : Math.min(dt, HOST.cap)
-    this.held += dt - step
+    // Held: the time the page was away or too slow to follow, which the market did not run; the reader's own pause is
+    // not that.
+    if (!this.paused) this.held += dt - step
     const t = this.market.t
     this.sim += step
     this.market.advance(this.sim)
@@ -146,13 +150,14 @@ export class MarketHost {
       seq: ++this.seq,
       rowsFrom: this.rowsFrom,
       trades: this.tape,
-      stats: { ...this.stats, held: this.held, fanSeq: this.fanSeq, paused: this.paused },
+      stats: { ...this.stats, held: this.held, fanSeq: this.fanSeq, paused: this.paused, resets: this.resets },
     })
     this.rowsFrom = this.market.flow.written
     this.tape.length = 0
 
     this.work += this.now() - start
-    this.wall += dt * 1000
+    // A frame's share of the wall second is at most the cap: a page back from away is measured from its return.
+    this.wall += Math.min(dt, HOST.cap) * 1000
     if (this.wall >= 1000) {
       this.stats = { paths: this.drawMs > 0 ? (this.drawn * 1000) / this.drawMs : this.stats.paths, busy: this.work / this.wall, speed: (this.ran * 1000) / this.wall }
       this.wall = this.work = this.drawn = this.drawMs = this.ran = 0

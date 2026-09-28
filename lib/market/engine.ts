@@ -1,7 +1,7 @@
 import { CANCEL_BID, MARKET_SELL } from './book'
-import { BURN, Flow, MARKET, QUANTA, SEED } from './flow'
+import { BURN, Flow, MARKET, QUANTA, ROWS, SEED } from './flow'
 import { stationaryRates } from './hawkes'
-import { fingerprint } from './fingerprint'
+import { bitsHash, fingerprint } from './fingerprint'
 import { Realised } from './realised'
 import { SHOCK, Shock } from './shock'
 import { Stress, stressOf } from './stress'
@@ -40,6 +40,10 @@ export class Market {
   private readonly pending: Action[] = []
   private script: readonly Logged[] = []
   private played = 0
+  /** Realised volatility and stress as each of the flow's rows was written, by the row's ring index. */
+  readonly rowSigma = new Float64Array(ROWS)
+  readonly rowStress = new Float64Array(ROWS)
+  private rowsSeen = 0
 
   constructor(seed = SEED, market = MARKET) {
     this.flow = new Flow(seed, market, false)
@@ -109,6 +113,12 @@ export class Market {
     if (this.flow.quanta % QUANTA === 0) this.realised.push(this.flow.book.mid)
     this.stressed.update(stressOf(this.pressure, this.realised.sigma, this.flow.book.spread, this.touch), 1 / QUANTA)
     this.shock.decay()
+    if (this.flow.written !== this.rowsSeen) {
+      this.rowsSeen = this.flow.written
+      const r = this.flow.row(0)
+      this.rowSigma[r] = this.realised.sigma
+      this.rowStress[r] = this.stressed.s
+    }
   }
 
   /** Run whole quanta up to `tEnd`; a fraction of one left over waits for the next call. */
@@ -117,8 +127,14 @@ export class Market {
     while (this.flow.quanta < last) this.step()
   }
 
-  /** Everything the market is, the volatility included, as one string: two runs compared in one comparison. */
+  /**
+   * Everything the market is, the volatility included, as one string: two runs compared in one comparison. Its
+   * floating-point state (the clock, the Hawkes excitations, every trade's time, realised volatility, stress and the
+   * shock's load) is hashed by its exact bits, so two markets that agree on it agree to the bit.
+   */
   hash(): string {
-    return `${fingerprint(this.flow)}:${this.realised.sigma.toFixed(12)}:${this.stressed.s.toFixed(12)}:${this.shock.load.toFixed(12)}`
+    const f = this.flow
+    const exact = [f.t, ...f.hawkes.state(), ...f.trades.map((tr) => tr.t), this.realised.sigma, this.stressed.s, this.shock.load]
+    return `${fingerprint(f)}:${this.realised.sigma.toFixed(12)}:${this.stressed.s.toFixed(12)}:${this.shock.load.toFixed(12)}:${bitsHash(exact)}`
   }
 }

@@ -38,7 +38,7 @@ describe('the page’s market', () => {
     }
   })
 
-  it('keeps every trade, a second of the market a second of history, and the last minutes at one a second', () => {
+  it('keeps every trade, and the market as each row was written: its volatility and stress there', () => {
     const host = new MarketHost(SEED, POSTER_T, () => 0)
     const model = new Mirror()
     const seen: number[] = []
@@ -53,10 +53,13 @@ describe('the page’s market', () => {
     expect(seen.length).toBeGreaterThan(100)
     expect(model.tradeCount).toBe(Math.min(seen.length, model.tradeCapacity))
     expect(model.trade(0).t).toBe(seen[seen.length - 1])
-    // One sample a simulated second, each the market's volatility and stress at that second.
-    const secs = model.history.length
-    expect(secs).toBeGreaterThanOrEqual(20)
-    for (let k = 1; k < secs; k++) expect(model.history.t(k) - model.history.t(k - 1)).toBe(1)
+    // Every row carries the market's volatility and stress when it was written.
+    const f = host.market
+    for (const age of [0, 5, 100]) {
+      const i = model.row(age), r = f.flow.row(age)
+      expect(model.sigma(i)).toBe(f.rowSigma[r])
+      expect(model.stress(i)).toBe(f.rowStress[r])
+    }
   })
 
   it('takes a shock in the frame that carries it, and says which frame that was', () => {
@@ -99,7 +102,25 @@ describe('the page’s market', () => {
     expect(model.rows).toBe(ROWS)
     expect(model.shocks).toBe(0)
     expect(model.time(model.row(0))).toBe(host.market.flow.times[host.market.flow.row(0)])
-    expect(model.history.t(model.history.length - 1)).toBeLessThanOrEqual(host.market.t)
+  })
+
+  it('starts over on a reset even when the new market’s clock runs past the old one: a market opened held, then Replay', () => {
+    const host = new MarketHost(SEED, POSTER_T, () => 0)
+    const model = new Mirror()
+    host.pause()
+    const buf = new ArrayBuffer(FRAME_BYTES)
+    host.frame(0, buf)
+    model.take(readFrame(buf))
+    const q = model.h.quanta
+    host.resume()
+    host.reset()
+    // The first frame after a long wait moves the new market on by the whole cap, past where the old one held.
+    host.frame(5_000, buf)
+    model.take(readFrame(buf))
+    expect(model.h.quanta).toBeGreaterThan(q)
+    expect(model.h.resets).toBe(1)
+    expect(model.taken).toBe(model.rows)
+    expect(model.time(model.row(0))).toBe(host.market.flow.times[host.market.flow.row(0)])
   })
 
   it('keeps the newest fan, and scales it to the price now: exact for geometric Brownian motion', () => {

@@ -63,6 +63,20 @@ describe('the worker’s market', () => {
     expect(host.market.t - t).toBeLessThanOrEqual(HOST.cap + 1 / QUANTA)
     const f = readFrame(buf)
     expect(f.h[H.held]).toBeGreaterThan(29.8)
+    // And its rates straight after are a running market's: the thirty seconds away are not in the tally.
+    const after = run(host, 1000 / 60, 0.5, at + 30_000)
+    const g = readFrame(after.buf).h
+    expect(g[H.speed]).toBeGreaterThan(0.8)
+    expect(g[H.busy]).toBeGreaterThan(0.03)
+  })
+
+  it('counts time held for the page being away, not the reader’s own pause', () => {
+    const host = new MarketHost(SEED, POSTER_T, ticking())
+    let { at } = run(host, 1000 / 60, 1)
+    host.pause()
+    const buf = new ArrayBuffer(FRAME_BYTES)
+    for (let i = 0; i < 120; i++) host.frame((at += 1000 / 60), buf)
+    expect(readFrame(buf).h[H.held]).toBeLessThan(0.01)
   })
 
   it('holds while paused and carries on from there, and a shock waits for the next frame’s first quantum', () => {
@@ -107,12 +121,13 @@ describe('the worker’s market', () => {
     const host = new MarketHost(SEED, POSTER_T, ticking())
     const { buf } = run(host, 1000 / 60, 3)
     const h = readFrame(buf).h
-    // The clock is read before and after each frame, and around each slice of a fan: a slice of 512 paths costs a
-    // millisecond, so it draws them at 512,000 a second of its own time.
-    expect(h[H.paths]).toBe(HOST.pathsPerFrame * 1000)
-    // A frame costs a millisecond, a frame with a slice three; eight slices a fan, a fan a second, sixty frames.
-    expect(h[H.busy]).toBeGreaterThan((60 + 2 * 8) / 1000 - 0.01)
-    expect(h[H.busy]).toBeLessThan((60 + 2 * 8) / 1000 + 0.02)
+    // The clock is read before and after each frame, and around each slice of a fan: a slice costs a millisecond, and
+    // a fan is sixteen of them (eight to draw its 4,096 paths, eight to take their percentiles), so it draws them at
+    // 256,000 a second of its own time.
+    expect(h[H.paths]).toBe((FAN.paths * 1000) / 16)
+    // A frame costs a millisecond, a frame with a slice three; sixteen slices a fan, a fan a second, sixty frames.
+    expect(h[H.busy]).toBeGreaterThan((60 + 2 * 16) / 1000 - 0.01)
+    expect(h[H.busy]).toBeLessThan((60 + 2 * 16) / 1000 + 0.02)
     expect(h[H.speed]).toBeCloseTo(1, 2)
   })
 

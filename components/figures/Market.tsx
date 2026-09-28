@@ -30,14 +30,6 @@ export function MarketFigure() {
       fan,
       initial: { t: m.t, mid: m.flow.book.mid, spread: m.flow.book.spread, sigma: m.sigma, stress: m.stress, rate: s.rate, expected: m.flow.expected, lo: fan.lo, hi: fan.hi },
       posters: {
-        surface: (
-          <SurfacePoster
-            at={surface}
-            mesh={moment === 'shock' ? { wide: '/market/surface-shock.svg', tall: '/market/surface-tall-shock.svg' } : { wide: '/market/surface.svg', tall: '/market/surface-tall.svg' }}
-            notes={false}
-            lazy={moment === 'shock'}
-          />
-        ),
         book: <BookPoster ticks={book.ticks} usd={usd} moment={moment} />,
         fan: <FanPoster ticks={fan.ticks} moment={moment} />,
       },
@@ -57,7 +49,11 @@ export function MarketFigure() {
         seed={SEED}
         t0={POSTER_T}
         initial={{ calm: calm.initial, shock: shock.initial }}
-        posters={{ calm: calm.posters, shock: shock.posters }}
+        posters={{
+          // The surface's picture is the calm one; a shocked surface is drawn on the page, smooth, at its stress then.
+          calm: { ...calm.posters, surface: <SurfacePoster at={calm.surface} mesh={{ wide: '/market/surface.svg', tall: '/market/surface-tall.svg' }} notes={false} /> },
+          shock: shock.posters,
+        }}
         stillAfter={SHOCK_FRAME_S}
         hashes={{ start: m.hash(), shocked: shockedHash(SEED, POSTER_T) }}
         stillSurface={{ calm: calm.surface, shock: shock.surface }}

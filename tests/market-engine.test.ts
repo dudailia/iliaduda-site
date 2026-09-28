@@ -54,3 +54,32 @@ describe('the market engine', () => {
     expect(Math.abs(rate / m.flow.expected - 1)).toBeLessThan(0.02)
   })
 })
+
+describe('the market’s hash compares its numbers to the bit', () => {
+  it('tells apart two doubles one unit in the last place apart, and agrees on the same ones', async () => {
+    const { bitsHash } = await import('../lib/market/fingerprint')
+    const x = 0.2301234567891234
+    const next = new Float64Array([x])
+    new BigInt64Array(next.buffer)[0]! += 1n
+    expect(bitsHash([x, 1, 2])).toBe(bitsHash([x, 1, 2]))
+    expect(bitsHash([x, 1, 2])).not.toBe(bitsHash([next[0]!, 1, 2]))
+  })
+})
+
+describe('each row keeps the market as it was written', () => {
+  it('holds the realised volatility and stress of the quantum its row was written in', () => {
+    const m = new Market(SEED)
+    let seen = m.flow.written, checked = 0
+    for (let q = 0; q < 5 * QUANTA; q++) {
+      m.step()
+      if (m.flow.written !== seen) {
+        seen = m.flow.written
+        const r = m.flow.row(0)
+        expect(m.rowSigma[r]).toBe(m.sigma)
+        expect(m.rowStress[r]).toBe(m.stress)
+        checked++
+      }
+    }
+    expect(checked).toBe(60)
+  })
+})

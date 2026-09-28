@@ -61,7 +61,8 @@ export class BookView {
   /** The book at now as it stood before a sweep, by price from `heldCentre − half`: what the sweep's front has yet to take. */
   private readonly held = new Float32Array(L)
   private heldCentre = 0
-  private builtFrames = -1
+  /** Rows the heat image holds, as the mirror counts them (`taken`); -1: none. */
+  private builtTaken = -1
   private builtBase = NaN
   private builtPal: Palette | null = null
   private last = -1
@@ -73,7 +74,7 @@ export class BookView {
   /** The market started over: its window lands on the new price at once, where the new strip opens, not sliding to it. */
   restart(): void {
     this.win = null
-    this.builtFrames = -1
+    this.builtTaken = -1
   }
 
   constructor(private readonly cv: HTMLCanvasElement) {
@@ -121,7 +122,7 @@ export class BookView {
 
     // The heat, a column a row, built again when a row comes in, the window moves a tick, or the colours change.
     const base = Math.round(this.win.centre)
-    if (this.builtFrames !== m.frames || this.builtBase !== base || this.builtPal !== pal) this.build(m, base, pal)
+    if (this.builtTaken !== m.taken || this.builtBase !== base || this.builtPal !== pal) this.build(m, base, pal)
     const t = m.h.t
     const newest = m.time(m.row(0))
     const col = 1 / PROTOCOL.hz
@@ -251,31 +252,42 @@ export class BookView {
     }
   }
 
+  /**
+   * The heat image, a column a row, newest at the right. When only rows have come in (the window and the colours as
+   * they were), the image moves left by that many columns and only the new ones, and the one before them (the smoothing
+   * reaches a row either side), are worked out: at twelve rows a second, two columns, not the whole strip.
+   */
   private build(m: Mirror, base: number, pal: Palette) {
     const hg = this.heatG
     if (!hg) return
     if (!this.img) this.img = hg.createImageData(256, ROWS)
     const d = this.img.data
     const top = base + WINDOW.half
+    const fresh = m.taken - this.builtTaken
+    const whole = this.builtTaken < 0 || this.builtBase !== base || this.builtPal !== pal || fresh < 0 || fresh >= 255
+    if (!whole && fresh > 0) for (let y = 0; y < ROWS; y++) d.copyWithin(y * 1024, y * 1024 + fresh * 4, (y + 1) * 1024)
     // The queue at a price in the row `age` back: each row is stored around its own mid.
     const at = (age: number, price: number) => {
       const i = m.row(age)
-      const j = price - (m.centre(i) - HALF)
-      return j >= 0 && j < L ? m.levels(i)[j]! : 0
+      return m.level(i, price - (m.centre(i) - HALF))
     }
-    for (let c = 0; c < 256; c++) {
-      const age = 255 - c
+    const r0 = mix(pal.paper, pal.indigo, 0, 0), r1 = mix(pal.paper, pal.indigo, 1, 0)
+    const g0 = mix(pal.paper, pal.indigo, 0, 1), g1 = mix(pal.paper, pal.indigo, 1, 1)
+    const b0 = mix(pal.paper, pal.indigo, 0, 2), b1 = mix(pal.paper, pal.indigo, 1, 2)
+    const last = whole ? 255 : Math.min(255, fresh)
+    for (let age = 0; age <= last; age++) {
+      const c = 255 - age
       for (let y = 0; y < ROWS; y++) {
         const k = age < m.rows ? levelTone(smoothedQueue(at, age, top - y, m.rows)) : 0
         const o = (y * 256 + c) * 4
-        d[o] = Math.round(mix(pal.paper, pal.indigo, k, 0) * 255)
-        d[o + 1] = Math.round(mix(pal.paper, pal.indigo, k, 1) * 255)
-        d[o + 2] = Math.round(mix(pal.paper, pal.indigo, k, 2) * 255)
+        d[o] = Math.round((r0 + (r1 - r0) * k) * 255)
+        d[o + 1] = Math.round((g0 + (g1 - g0) * k) * 255)
+        d[o + 2] = Math.round((b0 + (b1 - b0) * k) * 255)
         d[o + 3] = 255
       }
     }
     hg.putImageData(this.img, 0, 0)
-    this.builtFrames = m.frames
+    this.builtTaken = m.taken
     this.builtBase = base
     this.builtPal = pal
   }

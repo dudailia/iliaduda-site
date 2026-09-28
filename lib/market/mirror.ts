@@ -6,8 +6,8 @@ import { H, PROTOCOL, ROW_META, type FanMsg, type Frame } from './protocol'
  * Each frame is taken in when it arrives, in its own task, before any view draws; every view then draws in the next
  * animation frame, whose callbacks all run before another message can land, so all three draw the same market —
  * the sync the page promises. What a frame carries is copied out here (its buffer goes straight back to the
- * worker): the rows of the book the heat strip draws, every trade, and one sample a simulated second of volatility,
- * stress and the mid for the linked hover. The newest fan is kept as the worker drew it, for a price of 1, and
+ * worker): the rows of the book the heat strip draws, each with the volatility and stress it was written at (for a
+ * moment read in the book), and every trade. The newest fan is kept as the worker drew it, for a price of 1, and
  * scaled by the mid now: exact for geometric Brownian motion, so the fan moves with the price in the frame the
  * price moves.
  */
@@ -15,7 +15,6 @@ import { H, PROTOCOL, ROW_META, type FanMsg, type Frame } from './protocol'
 /** Rows held: the flow's whole ring, twenty-one simulated seconds. */
 export const MIRROR_ROWS = 256
 const TRADES = 4096
-const SECONDS = 600
 const L = PROTOCOL.levels
 const STEPS = 65
 
@@ -45,53 +44,14 @@ export interface Header {
   speed: number
   paused: boolean
   centre: number
-}
-
-/** A ring of samples a simulated second, oldest first. */
-class Seconds {
-  private readonly ts = new Float64Array(SECONDS)
-  private readonly sig = new Float64Array(SECONDS)
-  private readonly str = new Float64Array(SECONDS)
-  private readonly mids = new Float64Array(SECONDS)
-  private head = -1
-  length = 0
-
-  clear() {
-    this.head = -1
-    this.length = 0
-  }
-
-  push(t: number, sigma: number, stress: number, mid: number) {
-    this.head = (this.head + 1) % SECONDS
-    this.ts[this.head] = t
-    this.sig[this.head] = sigma
-    this.str[this.head] = stress
-    this.mids[this.head] = mid
-    if (this.length < SECONDS) this.length++
-  }
-
-  private at(k: number) {
-    return (this.head - (this.length - 1 - k) + SECONDS * 2) % SECONDS
-  }
-  t(k: number) {
-    return this.ts[this.at(k)]!
-  }
-  sigma(k: number) {
-    return this.sig[this.at(k)]!
-  }
-  stress(k: number) {
-    return this.str[this.at(k)]!
-  }
-  mid(k: number) {
-    return this.mids[this.at(k)]!
-  }
+  resets: number
 }
 
 export class Mirror {
   readonly h: Header = {
     seq: 0, t: 0, quanta: 0, mid: 0, spread: 0, bestBid: 0, bestAsk: 0, sigma: 0, stress: 0, pressure: 0, touch: 0, load: 0,
     absorbing: false, shocks: 0, rate: 0, expected: 0, trades: 0, shares: 0, paths: 0, busy: 0, held: 0, speed: 1, paused: false,
-    centre: 0,
+    centre: 0, resets: 0,
   }
   /** The book at now, a row's layout around `h.centre`. */
   readonly ladder = new Float32Array(L)
@@ -99,11 +59,12 @@ export class Mirror {
   private readonly metaRing = new Float64Array(MIRROR_ROWS * ROW_META)
   private rowHead = -1
   rows = 0
+  /** Rows taken in all since the market (re)started: a view that has drawn up to one knows what is new. */
+  taken = 0
   private readonly tradeRing = new Float64Array(TRADES * 4)
   private tradeHead = -1
   tradeCount = 0
   readonly tradeCapacity = TRADES
-  readonly history = new Seconds()
   fan: FanMsg | null = null
   /** The frame the newest shock landed in, and the simulated time it landed at. */
   landedSeq = -1
@@ -122,8 +83,12 @@ export class Mirror {
     const v = f.h
     // Not a frame: a buffer the worker gave back unwritten.
     if (v[H.version] !== PROTOCOL.version) return
-    // The worker's market started over (a reset): so does everything kept from the old one.
-    if (v[H.quanta]! < this.h.quanta) this.clear()
+    // The worker's market started over (a reset): so does everything kept from the old one. Told by the worker's count
+    // of resets, not by the clock, which a market that opened held and was reset may carry past where it was.
+    if (v[H.resets]! !== this.h.resets) {
+      this.clear()
+      this.h.resets = v[H.resets]!
+    }
     const shocks = v[H.shocks]!
     if (shocks > this.h.shocks) {
       this.landedSeq = v[H.seq]!
@@ -161,14 +126,13 @@ export class Mirror {
       this.levelRing.set(f.rows.subarray(i * L, (i + 1) * L), r * L)
       this.metaRing.set(f.rowMeta.subarray(i * ROW_META, (i + 1) * ROW_META), r * ROW_META)
       if (this.rows < MIRROR_ROWS) this.rows++
+      this.taken++
     }
     for (let i = 0; i < f.nTrades; i++) {
       const r = (this.tradeHead = (this.tradeHead + 1) % TRADES)
       this.tradeRing.set(f.trades.subarray(i * 4, i * 4 + 4), r * 4)
       if (this.tradeCount < TRADES) this.tradeCount++
     }
-    const second = Math.floor(h.t)
-    if (!this.history.length || second > this.history.t(this.history.length - 1)) this.history.push(second, h.sigma, h.stress, h.mid)
     this.frames++
   }
 
@@ -176,12 +140,19 @@ export class Mirror {
     this.fan = fan
   }
 
+  /** A new run of the worker: its market is its own, so nothing is kept from the last. */
+  restart(): void {
+    this.clear()
+    this.h.resets = 0
+    this.fan = null
+  }
+
   private clear() {
     this.rowHead = -1
     this.rows = 0
+    this.taken = 0
     this.tradeHead = -1
     this.tradeCount = 0
-    this.history.clear()
     this.h.shocks = 0
     this.h.quanta = 0
     this.landedSeq = this.landedT = -1
@@ -206,17 +177,36 @@ export class Mirror {
   ask(i: number) {
     return this.metaRing[i * ROW_META + 4]!
   }
+  /** Realised volatility and stress when row `i` was written. */
+  sigma(i: number) {
+    return this.metaRing[i * ROW_META + 8]!
+  }
+  stress(i: number) {
+    return this.metaRing[i * ROW_META + 9]!
+  }
   /** Shares waiting at each level of row `i`, from `centre(i) − half` up. */
   levels(i: number): Float32Array {
     return this.levelRing.subarray(i * L, (i + 1) * L)
   }
+  /** Shares waiting at level `j` of row `i` (0 outside the row), read in place. */
+  level(i: number, j: number): number {
+    return j >= 0 && j < L ? this.levelRing[i * L + j]! : 0
+  }
 
-  /** The trade `age` trades before the newest. */
+  /**
+   * The trade `age` trades before the newest, written into one object the mirror keeps (read it before asking for
+   * another), so a view walking the tape every frame allocates nothing.
+   */
   trade(age: number): { t: number; price: number; size: number; side: number } {
     const r = ((((this.tradeHead - age) % TRADES) + TRADES) % TRADES) * 4
-    const g = this.tradeRing
-    return { t: g[r]!, price: g[r + 1]!, size: g[r + 2]!, side: g[r + 3]! }
+    const g = this.tradeRing, o = this.tradeOut
+    o.t = g[r]!
+    o.price = g[r + 1]!
+    o.size = g[r + 2]!
+    o.side = g[r + 3]!
+    return o
   }
+  private readonly tradeOut = { t: 0, price: 0, size: 0, side: 0 }
 
   /** The newest fan's `b`-th percentile at `step` (0 is now), at the price now, in ticks. */
   band(b: number, step: number): number {

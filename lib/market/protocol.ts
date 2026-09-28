@@ -8,7 +8,7 @@
  */
 
 /** The protocol's version, and the flow's layout and clock (lib/market/flow.ts; tests/market-protocol.test.ts holds them equal). */
-export const PROTOCOL = { version: 1, levels: 160, half: 80, quanta: 60, hz: 12 } as const
+export const PROTOCOL = { version: 2, levels: 160, half: 80, quanta: 60, hz: 12 } as const
 
 /** Rows and trades a frame can carry: the flow's whole ring (twenty-one seconds) and its whole tape. */
 export const MAX_ROWS = 256
@@ -57,11 +57,16 @@ export const H = {
   nTrades: 29,
   dropped: 30,
   lostRows: 31,
+  /** Times the market has started over (Reset, Replay): the page's copy starts over when it changes. */
+  resets: 32,
 } as const
-export const HEADER = 32
+export const HEADER = 34
 
-/** Per row: its time, the tick at its middle, mid, best bid, best ask, queues at the two touches, events in it. */
-export const ROW_META = 8
+/**
+ * Per row: its time, the tick at its middle, mid, best bid, best ask, queues at the two touches, events in it, and
+ * the realised volatility and stress when it was written (so a moment read in the book is the market's at that row).
+ */
+export const ROW_META = 10
 const TRADE = 4
 
 const OFF = (() => {

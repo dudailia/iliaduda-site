@@ -49,13 +49,13 @@ export default function Market() {
             </p>
           </Annotated>
           <p>
-            Realised volatility is an exponentially weighted mean of one-second log-returns of the mid, with a sixty-second
-            half-life, annualised over 252 trading days of 6.5 hours. The futures are drawn at it.
+            Realised volatility is the square root of an exponentially weighted mean of squared one-second log-returns of the
+            mid, with a sixty-second half-life, annualised over 252 trading days of 6.5 hours. The futures are drawn at it.
           </p>
           <p>
             Stress runs from 0 to 1 and combines four signals a trader watches, each 0 across the calm market&rsquo;s range and
             1 at its extreme: the intensity of market sells against its stationary rate (0 at {STRESS.pressureFrom} times it, 1
-            at {STRESS.pressureTo}); realised volatility against a calm {Math.round(STRESS.sigma0 * 100)}% (0 at{' '}
+            at {STRESS.pressureTo}); realised volatility against a calm {(STRESS.sigma0 * 100).toFixed(1)}% (0 at{' '}
             {STRESS.volFrom} times, 1 at {STRESS.volTo}); the spread (0 at {STRESS.spreadFrom} ticks, 1 at {STRESS.spreadTo});
             and the shares within three ticks of the touch on the book&rsquo;s thinner side (0 at {STRESS.touchFloor}, 1 at
             none). They combine as an &ldquo;or&rdquo;,

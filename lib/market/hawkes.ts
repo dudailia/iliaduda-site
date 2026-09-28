@@ -115,6 +115,11 @@ export class Hawkes {
     return this.s[i * this.k + j]!
   }
 
+  /** Every excitation, as it stands: for a hash of the process's exact state. */
+  state(): Iterable<number> {
+    return this.s
+  }
+
   intensity(i: number): number {
     let l = this.mu[i]!
     for (let j = 0; j < this.k; j++) l += this.s[i * this.k + j]!

@@ -24,6 +24,7 @@ import { useSignature } from '@/components/stage/useSignature'
 import { fade, palette as stagePalette, underlay, useStage, type Create, type Palette } from '@/components/stage/useStage'
 import { syntheticValue } from '@/content/synthetic'
 import type { Mirror } from '@/lib/market/mirror'
+import { PROTOCOL } from '@/lib/market/protocol'
 import type { LiveInfo } from '@/lib/stage/debug'
 import { EASE_OUT } from '@/lib/ease'
 import { MARKET_SEQ, marketSequence, punch, storyOf } from '@/lib/market/sequence'
@@ -106,7 +107,9 @@ function struck(b: { k: number; from: number }, u: number): number {
 
 type Mod = typeof import('../surface/renderer')
 
-type Posters = { surface: ReactNode; book: ReactNode; fan: ReactNode }
+type Posters = { book: ReactNode; fan: ReactNode }
+/** The calm frame has the surface's picture too; a shocked surface is drawn on the page (../surface/still.ts). */
+type CalmPosters = Posters & { surface: ReactNode }
 
 export function MarketLive({
   posters: stills,
@@ -122,7 +125,7 @@ export function MarketLive({
   table,
 }: {
   /** The still frames: calm, where the live figure starts, and `stillAfter` seconds after a shock. */
-  posters: { calm: Posters; shock: Posters }
+  posters: { calm: CalmPosters; shock: Posters }
   initial: { calm: MarketInitial; shock: MarketInitial }
   stillAfter: number
   /** The market's hash where the figure opens, and after the shock ?debug=1 checks (lib/market/host.ts), from Node. */
@@ -162,7 +165,7 @@ export function MarketLive({
   const bookCv = useRef<HTMLCanvasElement>(null)
   const fanCv = useRef<HTMLCanvasElement>(null)
   const views = useRef<{ book: BookView; fan: FanView } | null>(null)
-  const drawMod = useRef<Promise<Draw> | null>(null)
+  const drawMod = useRef<Promise<Draw | null> | null>(null)
   const out = useRef<Record<string, HTMLElement | null>>({})
   const priceEls = useRef<(HTMLElement | null)[]>([])
   const fanEls = useRef<(HTMLElement | null)[]>([])
@@ -174,6 +177,7 @@ export function MarketLive({
   /** A landed shock's blow for the surface, and when it landed: taken if drawn within a quarter second, else let go. */
   const impact = useRef({ k: 0, at: 0 })
   const lastLoad = useRef(0)
+  const wasAbsorbing = useRef(false)
   const [paused, setPaused] = useState<boolean>(() => {
     try {
       return typeof window !== 'undefined' && sessionStorage.getItem(PAUSED) === '1'
@@ -187,7 +191,7 @@ export function MarketLive({
   const drewOnce = useRef({ book: false, fan: false })
   // The book's picture as it was when the market started over, fading out over the new one.
   const ghostCv = useRef<HTMLCanvasElement>(null)
-  const lastQuanta = useRef(0)
+  const lastResets = useRef(0)
   const mirrorRef = useRef<Mirror | null>(null)
   /** The moment the reader points at in the book, in simulated seconds, and what the market was then. */
   const pointed = useRef<{ t: number; stress: number; sigma: number; mid: number } | null>(null)
@@ -387,10 +391,17 @@ export function MarketLive({
       if (!views.current) {
         const bc = bookCv.current, fc = fanCv.current
         if (bc && fc && !drawMod.current)
-          drawMod.current = import('./draw').then((d) => {
-            views.current = { book: new d.BookView(bc), fan: new d.FanView(fc) }
-            return d
-          })
+          drawMod.current = import('./draw').then(
+            (d) => {
+              views.current = { book: new d.BookView(bc), fan: new d.FanView(fc) }
+              return d
+            },
+            // The flat views' drawers did not load: the still frames stay, with the reason.
+            () => {
+              fallbackApi.current?.fail('load')
+              return null
+            },
+          )
         return
       }
       const v = views.current
@@ -438,7 +449,7 @@ export function MarketLive({
       } else tell(stateOf(m))
 
       // The market started over (Reset): the new strip opens under the old, which fades (240ms, the ease-out).
-      if (m.h.quanta < lastQuanta.current) {
+      if (m.h.resets !== lastResets.current) {
         v.book.restart()
         const g = ghostCv.current
         if (g) {
@@ -450,7 +461,7 @@ export function MarketLive({
           })
         }
       }
-      lastQuanta.current = m.h.quanta
+      lastResets.current = m.h.resets
       if (readingAgo.current !== null) readRef.current?.(readingAgo.current, false)
       v.fan.as = pointed.current?.sigma ?? null
       stillTick.current?.(m, now)
@@ -480,10 +491,12 @@ export function MarketLive({
         el.style.opacity = o.toFixed(3)
         el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0) translateY(-50%)`
       })
-      // The fan's: a year's prices at halvings and doublings of $100, where they fall from the price now.
+      // The fan's: a year's prices at halvings and doublings of $100, where they fall from its root, the price now, or
+      // the price then while the reader points at a moment (the fan is drawn from there, at the volatility then).
       const mid$ = m.h.mid * TICK
+      const root$ = (pointed.current?.mid ?? m.h.mid) * TICK
       const fl = v.fan.layout()
-      const marks = logTicks(mid$, FAN_RANGE.lo, FAN_RANGE.hi)
+      const marks = logTicks(root$, FAN_RANGE.lo, FAN_RANGE.hi)
       fanEls.current.forEach((el, i) => {
         if (!el) return
         const d = marks[i]
@@ -493,7 +506,7 @@ export function MarketLive({
         }
         const text = dollars(d)
         if (el.textContent !== text) el.textContent = text
-        const fy = fl.y(d / mid$)
+        const fy = fl.y(d / root$)
         el.style.opacity = Math.min(1, Math.max(0, (Math.min(fy, v.fan.box.h - fy) - 4) / 12)).toFixed(3)
         el.style.transform = `translate3d(0, ${fy.toFixed(1)}px, 0) translateY(-50%)`
       })
@@ -544,7 +557,8 @@ export function MarketLive({
       }
       const at = performance.now()
       const k = Math.min(1, Math.max(0.25, m.h.load - lastLoad.current * 0.9))
-      landedAt.current = { at, topped: k < 0.9 }
+      // Another shock: one pressed while the market was still absorbing the last, as the engine counts it.
+      landedAt.current = { at, topped: wasAbsorbing.current }
       // Only a shock that swept levels strikes: a press that took nothing leaves the camera and the views alone.
       if (hi >= lo) {
         landing.current = { at, t: m.landedT, hi, lo }
@@ -556,6 +570,7 @@ export function MarketLive({
       }
     }
     lastLoad.current = m.h.load
+    wasAbsorbing.current = m.h.absorbing
   }, [])
   // The market runs while Fig. 1 or Fig. 2, which reports on it, is on screen.
   const follow = useRef<HTMLElement | null>(null)
@@ -588,34 +603,36 @@ export function MarketLive({
   const readAt = (ago: number | null, input = true) => {
     const v = views.current, m = mirrorRef.current, el = bookEl.current
     readingAgo.current = ago
-    if (ago === null || !v || !m || !m.history.length) {
+    if (ago === null || !v || !m || !m.rows) {
       pointed.current = null
       if (v) v.book.hover = null
       if (hoverEl.current) {
         hoverEl.current.textContent = 'Order book, the last 20 seconds'
         hoverEl.current.classList.remove('text-ink')
       }
-      el?.setAttribute('aria-valuenow', '0')
-      el?.setAttribute('aria-valuetext', 'now')
+      if (el?.hasAttribute('aria-valuenow')) {
+        el.setAttribute('aria-valuenow', '0')
+        el.setAttribute('aria-valuetext', 'now')
+      }
       return
     }
     const a = Math.min(SPAN, Math.max(0, ago))
     const t = m.h.t - a
-    const hist = m.history
-    let k = hist.length - 1
-    while (k > 0 && hist.t(k) > t) k--
-    pointed.current = { t, stress: hist.stress(k), sigma: hist.sigma(k), mid: hist.mid(k) }
+    // The row written at that moment (twelve a second): the market as the book shows it there.
+    const age = Math.min(m.rows - 1, Math.max(0, Math.round((m.time(m.row(0)) - t) * PROTOCOL.hz)))
+    const i = m.row(age)
+    pointed.current = { t, stress: m.stress(i), sigma: m.sigma(i), mid: m.mid(i) }
     const lay = v.book.layout()
     v.book.hover = lay.x1 - (a / SPAN) * lay.x1
-    const text = `${a.toFixed(1)} s ago · vol ${pct(hist.sigma(k))} · stress ${hist.stress(k).toFixed(2)}`
+    const text = `${a.toFixed(1)} s ago · vol ${pct(m.sigma(i))} · stress ${m.stress(i).toFixed(2)}`
     const h = hoverEl.current
     if (h && h.textContent !== text) {
       h.textContent = text
       h.classList.add('text-ink')
     }
-    if (!input) return
-    el?.setAttribute('aria-valuenow', a.toFixed(1))
-    el?.setAttribute('aria-valuetext', text)
+    if (!input || !el?.hasAttribute('aria-valuenow')) return
+    el.setAttribute('aria-valuenow', (a ? -a : 0).toFixed(1))
+    el.setAttribute('aria-valuetext', text)
   }
   useEffect(() => {
     readRef.current = readAt
@@ -656,13 +673,17 @@ export function MarketLive({
     if (e.pointerType === 'touch' || keyAgo.current !== null) return
     readAt(null)
   }
+  // The slider's value is the moment's time against now (−20 to 0 seconds), so the keys go the way a slider's do:
+  // Right and Up towards now, Left and Down back, Page Up and Page Down by five seconds, Home to the oldest, End to now.
   const onBookKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const step = e.shiftKey ? 2 : 0.5
     let next: number | null | undefined
     if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = (keyAgo.current ?? 0) + step
     else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = (keyAgo.current ?? 0) - step
-    else if (e.key === 'End') next = SPAN
-    else if (e.key === 'Home' || e.key === 'Escape') next = null
+    else if (e.key === 'PageDown') next = (keyAgo.current ?? 0) + 5
+    else if (e.key === 'PageUp') next = (keyAgo.current ?? 0) - 5
+    else if (e.key === 'Home') next = SPAN
+    else if (e.key === 'End' || e.key === 'Escape') next = null
     if (next === undefined) return
     e.preventDefault()
     keyAgo.current = next === null || next <= 0 ? null : Math.min(SPAN, next)
@@ -737,7 +758,7 @@ export function MarketLive({
   const shockStills = useRef<Promise<unknown> | null>(null)
   const fetchShock = () =>
     (shockStills.current ??= Promise.all(
-      ['book', 'ladder', 'fan', matchMedia(WIDE_QUERY).matches ? 'surface' : 'surface-tall'].map((f) => {
+      ['book', 'ladder', 'fan'].map((f) => {
         const img = new Image()
         img.src = `/market/${f}-shock.svg`
         return img.decode().catch(() => {})
@@ -763,9 +784,10 @@ export function MarketLive({
             ? 'Still frames: the market could not start in this browser.'
           : tier === 'software'
             ? 'Still frames: this device draws with its processor, not a graphics chip, so the market is not run here.'
-            : !eligible && !supportsWebGL2()
-              ? 'This browser has no WebGL2: the book and the futures are live, the surface a still frame.'
-              : null
+            : null
+  // Where only the surface cannot run (no WebGL2), the market still does: the book and the futures are live, and so
+  // is Liquidity shock; only the surface is a still frame, drawn at the market's stress.
+  const partial = mounted && !why && !eligible && !supportsWebGL2() ? 'This browser has no WebGL2, so the surface is a still frame at the market’s stress.' : null
   const live = market.live && flat && !market.declined
   // The line says the story and the market's state while it runs; where it does not, which still frame it shows.
   const line: Story | null = live ? said : why ? (still === 'shock' ? 'still-shock' : 'still-calm') : null
@@ -804,7 +826,7 @@ export function MarketLive({
       const m = mirrorRef.current
       return {
         state: live ? 'live' : why ? 'declined' : mounted ? 'starting' : 'server',
-        reason: why,
+        reason: why ?? partial,
         tier,
         quality,
         fps,
@@ -832,10 +854,14 @@ export function MarketLive({
     // Only where the surface will not be live: the still frames stand, or the market runs without WebGL2.
     if (!why && !(market.live && !eligible)) return
     let gone = false
-    void import('../surface/still').then((m) => {
-      stillMod.current = m
-      if (!gone && box.current) m.smoothStill(box.current, stillSurface[still], kindRef.current)
-    })
+    // If the smooth frame does not load, the build's still frame of the surface stands.
+    void import('../surface/still').then(
+      (m) => {
+        stillMod.current = m
+        if (!gone && box.current) m.smoothStill(box.current, stillSurface[still], kindRef.current)
+      },
+      () => {},
+    )
     return () => {
       gone = true
     }
@@ -893,6 +919,8 @@ export function MarketLive({
           <span className="block min-h-[3lh] sm:min-h-[2lh] print:hidden">
             {why
               ? `${why} Liquidity shock shows the same market ${stillAfter === 1 ? 'a second' : `${stillAfter} seconds`} after one.`
+              : partial
+                ? `${partial} Press Liquidity shock to hit the market; ${coarse ? 'drag across' : 'point at a moment in'} the book to see the market as it was then.`
               : coarse
                 ? 'Press Liquidity shock to hit the market; drag across the book to see the market as it was then, or across the surface to turn it.'
                 : 'Press Liquidity shock to hit the market; point at a moment in the book to see the market as it was then, or drag the surface to turn it.'}
@@ -912,16 +940,15 @@ export function MarketLive({
               asks on the first tap); a drag, or the arrow keys, turn it. */}
           <div
             ref={box}
-            role="group"
-            tabIndex={0}
-            aria-label="Vol surface. The arrow keys turn it; Space pauses the market; Home turns it back."
+            {...(surfaceLive
+              ? { role: 'group', tabIndex: 0, 'aria-label': 'Vol surface. The arrow keys turn it; Space pauses the market; Home turns it back.', onKeyDown: onSurfaceKey }
+              : {})}
             className="peer relative aspect-[1.1] w-full cursor-grab overflow-hidden bg-paper select-none focus-visible:outline-none sm:aspect-[1.62]"
             data-market-surface=""
             data-hold=""
             onPointerMove={lean.onPointerMove}
             onPointerLeave={lean.onPointerLeave}
             onClick={() => lean.onTap()}
-            onKeyDown={onSurfaceKey}
             onBlur={() => (aim.current = { yaw: 0, pitch: 0 })}
           >
             <div data-market-still="" style={underlay(surfaceLive)}>{stills.calm.surface}</div>
@@ -971,13 +998,23 @@ export function MarketLive({
             <div className="relative">
               <div
                 ref={bookEl}
-                role="slider"
-                tabIndex={0}
-                aria-label="The order book's last twenty seconds: a moment to read the market at, in seconds before now. The arrow keys move it; Home returns to now."
-                aria-valuemin={0}
-                aria-valuemax={SPAN}
-                aria-valuenow={0}
-                aria-valuetext="now"
+                // A moment to read the market at, while it runs; a still frame has none to read, so it takes no focus.
+                {...(live
+                  ? {
+                      role: 'slider',
+                      tabIndex: 0,
+                      'aria-label': "The order book's last twenty seconds: a moment to read the market at. The arrow keys move it, Page Up and Page Down by five seconds; End returns to now.",
+                      'aria-valuemin': -SPAN,
+                      'aria-valuemax': 0,
+                      'aria-valuenow': 0,
+                      'aria-valuetext': 'now',
+                      onKeyDown: onBookKey,
+                      onBlur: () => {
+                        keyAgo.current = null
+                        readAt(null)
+                      },
+                    }
+                  : {})}
                 className="peer relative h-28 overflow-hidden bg-paper focus-visible:outline-none sm:h-52"
                 style={{ touchAction: 'pan-y' }}
                 onPointerMove={onBookMove}
@@ -985,11 +1022,6 @@ export function MarketLive({
                 onPointerUp={onBookUp}
                 onPointerCancel={onBookUp}
                 onPointerLeave={onBookLeave}
-                onKeyDown={onBookKey}
-                onBlur={() => {
-                  keyAgo.current = null
-                  readAt(null)
-                }}
                 data-market-book=""
                 data-hold=""
               >

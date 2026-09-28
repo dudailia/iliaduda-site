@@ -11,6 +11,7 @@ export interface FrameStats {
   speed: number
   fanSeq: number
   paused: boolean
+  resets: number
 }
 
 export interface FrameSource {
@@ -62,6 +63,7 @@ export function writeFrame(buf: ArrayBuffer, src: FrameSource): void {
   h[H.fanSeq] = stats.fanSeq
   h[H.paused] = stats.paused ? 1 : 0
   h[H.written] = f.written
+  h[H.resets] = stats.resets
 
   // The book at now.
   const c = Math.round(b.mid)
@@ -88,6 +90,8 @@ export function writeFrame(buf: ArrayBuffer, src: FrameSource): void {
     v.rowMeta[o + 5] = f.bidQueue[r]!
     v.rowMeta[o + 6] = f.askQueue[r]!
     v.rowMeta[o + 7] = f.events[r]!
+    v.rowMeta[o + 8] = m.rowSigma[r]!
+    v.rowMeta[o + 9] = m.rowStress[r]!
     v.rows.set(f.queue.subarray(r * LEVELS, (r + 1) * LEVELS), i * PROTOCOL.levels)
   }
 

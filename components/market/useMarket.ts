@@ -73,7 +73,12 @@ export function useMarket(
     let ready = false
     let inFlight = false
     let raf = 0
-    const pool: ArrayBuffer[] = [new ArrayBuffer(FRAME_BYTES), new ArrayBuffer(FRAME_BYTES)]
+    // Frames this run of the worker has sent: the figure goes live on each run's first, and a run's market is its own.
+    let got = 0
+    let stopped = false
+    mirror.restart()
+    // One buffer: one frame is ever in flight, and it comes back with the next.
+    const pool: ArrayBuffer[] = [new ArrayBuffer(FRAME_BYTES)]
     const seen = new Map<Element, number>()
     const visible = () => [...seen.values()].some((r) => r > 0)
 
@@ -81,11 +86,11 @@ export function useMarket(
 
     const tick = (now: number) => {
       raf = 0
-      if (!ready || !visible() || document.hidden) return
+      if (!ready || stopped || !visible() || document.hidden) return
       // Paused, it asks for nothing more once it has the frame it opens on and that frame's fan (a market paused on an
       // earlier page of the visit still goes live, all its views drawn, to be resumed); the held market draws the fan
       // on, and nothing else moves.
-      if (!inFlight && (!paused.current || mirror.frames === 0 || !mirror.fan) && pool.length) {
+      if (!inFlight && (!paused.current || got === 0 || !mirror.fan) && pool.length) {
         const buf = pool.pop()!
         inFlight = true
         post({ kind: 'frame', at: now, buf }, [buf])
@@ -94,7 +99,17 @@ export function useMarket(
       raf = requestAnimationFrame(tick)
     }
     const run = () => {
-      if (!raf && ready && visible() && !document.hidden) raf = requestAnimationFrame(tick)
+      if (!raf && ready && !stopped && visible() && !document.hidden) raf = requestAnimationFrame(tick)
+    }
+    // The market failed: the loop stops and the worker goes, and the figure keeps its still frames with the reason.
+    const stop = (why: string) => {
+      stopped = true
+      cancelAnimationFrame(raf)
+      raf = 0
+      w?.terminate()
+      worker.current = null
+      setLive(false)
+      setDeclined(why)
     }
 
     const start = () => {
@@ -120,21 +135,21 @@ export function useMarket(
             mirror.take(readFrame(msg.buf))
             pool.push(msg.buf)
             onTake.current?.(mirror)
-            if (mirror.frames === 1) setLive(true)
+            if (++got === 1) setLive(true)
             break
           case 'fan':
             mirror.takeFan(msg)
             break
           case 'error':
             console.warn('the market stopped:', msg.message)
-            setDeclined('error')
+            stop('error')
             break
         }
       }
       w.onerror = (e) => {
         e.preventDefault()
         console.warn('the market could not start:', e.message)
-        setDeclined('no worker')
+        stop('no worker')
       }
       post({ kind: 'start', seed, t })
       if (paused.current) post({ kind: 'pause' })

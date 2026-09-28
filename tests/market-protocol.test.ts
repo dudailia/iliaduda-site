@@ -12,7 +12,7 @@ import { FRAME_BYTES, H, MAX_ROWS, MAX_TRADES, PROTOCOL, ROW_META, readFrame } f
  * write a real market and read it back.
  */
 
-const stats = { paths: 12_000, busy: 0.02, held: 1.5, speed: 1, fanSeq: 3, paused: false }
+const stats = { paths: 12_000, busy: 0.02, held: 1.5, speed: 1, fanSeq: 3, paused: false, resets: 0 }
 
 function watched(seed = 7) {
   const m = new Market(seed)
@@ -100,6 +100,9 @@ describe('the worker’s frames', () => {
         m.flow.bidQueue[r],
         m.flow.askQueue[r],
         m.flow.events[r],
+        // The realised volatility and stress the row was written at.
+        m.rowSigma[r],
+        m.rowStress[r],
       ])
       expect(Array.from(f.rows.subarray(i * LEVELS, (i + 1) * LEVELS))).toEqual(Array.from(m.flow.queue.subarray(r * LEVELS, (r + 1) * LEVELS)))
     }

@@ -5,7 +5,7 @@
  */
 
 const pct = (f: number) => `${(f * 100).toFixed(2)}%`
-/** A still frame's file: the calm one, or the one two seconds after a shock. */
+/** A still frame's file: the calm one, or the one a second after a shock (lib/market/poster.ts, SHOCK_FRAME_S). */
 const file = (name: string, moment: 'calm' | 'shock') => `/market/${name}${moment === 'shock' ? '-shock' : ''}.svg`
 
 export function BookPoster({ ticks, usd, moment = 'calm' }: { ticks: readonly { p: number; y: number }[]; usd: (ticks: number) => string; moment?: 'calm' | 'shock' }) {

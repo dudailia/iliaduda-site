@@ -7,6 +7,19 @@ import type { Flow } from './flow'
  * seed gives the same fingerprint on every engine; ?debug=1 on a live figure
  * shows whether the browser's matches the one pinned here from Node.
  */
+const word = new Float64Array(1)
+const words = new Uint32Array(word.buffer)
+/** FNV-1a over the exact bits of each double: two numbers a unit in the last place apart hash apart. */
+export function bitsHash(xs: Iterable<number>): string {
+  let h = 2166136261
+  for (const x of xs) {
+    word[0] = x
+    h = Math.imul(h ^ words[0]!, 16777619) >>> 0
+    h = Math.imul(h ^ words[1]!, 16777619) >>> 0
+  }
+  return h.toString(16)
+}
+
 export function fingerprint(f: Flow): string {
   let h = 2166136261
   const mix = (x: number) => {

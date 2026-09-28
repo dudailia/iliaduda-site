@@ -26,6 +26,8 @@ export const FAN = {
 } as const
 
 const STEPS = MODEL.steps
+/** Steps whose percentiles one slice sorts, once every path is drawn: eight slices for the fan's 64. */
+const SORT_SLICE = 8
 const z = new Float64Array(4)
 
 export class Fan {
@@ -42,6 +44,9 @@ export class Fan {
   private sumS = 0
   private sumS2 = 0
   private ready = false
+  /** Steps whose percentiles are taken. */
+  private sorted = 0
+  private col = new Float64Array(0)
 
   /** Start a fan of `n` paths from price `s0` at volatility `sigma`. */
   begin(s0: number, sigma: number, n: number = FAN.paths): void {
@@ -51,6 +56,7 @@ export class Fan {
     this.drawn = 0
     this.sum = this.sum2 = this.sumS = this.sumS2 = 0
     this.ready = false
+    this.sorted = 0
     if (!this.cols.length || this.cols[0]!.length !== n) this.cols = Array.from({ length: STEPS }, () => new Float64Array(n))
   }
 
@@ -59,9 +65,13 @@ export class Fan {
     return this.drawn
   }
 
-  /** Draw up to `budget` more paths; true once the fan is whole and its bands are ready. */
+  /**
+   * Draw up to `budget` more paths, or once all are drawn, take the next steps' percentiles (a sort of every path at
+   * each, eight steps a call); true once the fan is whole and its bands are ready.
+   */
   work(budget: number): boolean {
     if (this.ready) return true
+    if (this.drawn === this.n) return this.finish()
     const { drift, vol } = stepCoefficients(this.sigma)
     const disc = Math.exp(-MODEL.r * MODEL.T)
     const end = Math.min(this.n, this.drawn + budget)
@@ -88,16 +98,16 @@ export class Fan {
       }
     }
     this.drawn = end
-    if (this.drawn < this.n) return false
-    this.finish()
-    return true
+    return false
   }
 
-  private finish() {
+  private finish(): boolean {
     const Q = FAN.quantiles
-    for (let b = 0; b < Q.length; b++) this.bands[b * (STEPS + 1)] = this.s0
-    const col = new Float64Array(this.n)
-    for (let s = 0; s < STEPS; s++) {
+    if (this.sorted === 0) for (let b = 0; b < Q.length; b++) this.bands[b * (STEPS + 1)] = this.s0
+    if (this.col.length !== this.n) this.col = new Float64Array(this.n)
+    const col = this.col
+    const end = Math.min(STEPS, this.sorted + SORT_SLICE)
+    for (let s = this.sorted; s < end; s++) {
       col.set(this.cols[s]!)
       col.sort()
       // Between two paths, the quantile is taken in log price, where the walk is linear in σ: so a fan at one
@@ -108,7 +118,9 @@ export class Fan {
         this.bands[b * (STEPS + 1) + s + 1] = i + 1 < this.n && f > 0 ? col[i]! * Math.exp(Math.log(col[i + 1]! / col[i]!) * f) : col[i]!
       }
     }
-    this.ready = true
+    this.sorted = end
+    this.ready = end === STEPS
+    return this.ready
   }
 
   /** The `b`-th quantile's price at `step` (0 is today). */

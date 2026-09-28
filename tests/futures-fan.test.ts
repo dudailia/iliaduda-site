@@ -23,6 +23,17 @@ function run(n: number, slice = n) {
 }
 
 describe('the futures fan', () => {
+  it('takes its percentiles over several slices, never all 64 steps in one: no frame of the worker stalls on a sort', () => {
+    const f = new Fan()
+    f.begin(S0, SIG, FAN.paths)
+    let calls = 1
+    while (!f.work(512)) calls++
+    // Eight slices to draw 4,096 paths, and eight more to sort the 64 steps, eight at a time.
+    expect(calls).toBe(16)
+    const whole = run(FAN.paths)
+    for (let b = 0; b < 5; b++) for (const s of [1, 32, 64]) expect(f.band(b, s)).toBe(whole.band(b, s))
+  })
+
   it('draws the home figure’s paths: the same generator, the same ids, the same futures', () => {
     const f = run(64)
     for (const id of [0, 7, 63]) {
