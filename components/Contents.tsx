@@ -39,8 +39,14 @@ export function Contents() {
       {/* Opening a paper names only its own thumbnail for the view
           transition; every other thumbnail stays out of it. */}
       <script dangerouslySetInnerHTML={{ __html: VT_CLICK }} />
-      <ContentsLive />
-      <Row rail={<SectionHeading id="contents">Contents</SectionHeading>}>
+      <Row
+        rail={
+          <>
+            <SectionHeading id="contents">Contents</SectionHeading>
+            <ContentsLive />
+          </>
+        }
+      >
         <ol className="grid list-none border-t border-rule" data-vt-contents>
           {papers.map((p) => (
             <li key={p.slug} className="grid gap-x-6 border-b border-rule py-6 sm:grid-cols-[minmax(0,1fr)_9rem]">

@@ -94,6 +94,32 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     if (playing) delete document.documentElement.dataset.cricketSeq
   }, [playing])
 
+  // Replay from the end lets the drawn match go first (150ms on the ease-out), as every re-run on the site does, then
+  // plays it again from the first ball; a press while it lets go does nothing more. The opacity is set only while it
+  // lets go, so the first visit's pre-paint hide still holds.
+  const letting = useRef(false)
+  const replay = () => {
+    const parts = [...(box.current?.querySelectorAll<SVGElement>('[data-played]') ?? [])]
+    if (reduced || !parts.length) return play(0)
+    if (letting.current) return
+    letting.current = true
+    for (const el of parts) {
+      el.style.transition = 'opacity 150ms var(--ease-out)'
+      el.style.opacity = '0'
+    }
+    window.setTimeout(() => {
+      letting.current = false
+      setAt(0)
+      play(0)
+      requestAnimationFrame(() => {
+        for (const el of parts) {
+          el.style.transition = ''
+          el.style.opacity = ''
+        }
+      })
+    }, 150)
+  }
+
   const stop = () => {
     cancelAnimationFrame(raf.current)
     setPlaying(false)
@@ -267,7 +293,8 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             onClick={() => {
               if (armed.current) release()
               if (playing) stop()
-              else play(at >= n - 1 ? 0 : at)
+              else if (at >= n - 1) replay()
+              else play(at)
             }}
             className="text-meta w-[4.5rem] shrink-0 rounded-sm border border-graphite px-2 py-1.5 font-mono transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]"
           >

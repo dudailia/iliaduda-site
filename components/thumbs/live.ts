@@ -11,8 +11,15 @@ import { MINIS } from './registry'
  * frames a second, only those on screen, none while the page is hidden. Reduced motion or save-data: the thumbnails
  * stay the build's pictures. Returns the stop.
  */
-export function start(): () => void {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches || saveData()) return () => {}
+export interface Minis {
+  stop(): void
+  /** Hold every miniature where it is (Pause, WCAG 2.2.2), or let them go on. */
+  pause(on: boolean): void
+}
+
+/** Starts the miniatures, or returns null where they do not run (reduced motion, save-data). */
+export function start(paused: boolean): Minis | null {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || saveData()) return null
   const clock = new MiniClock()
   const live = new Map<string, { mini: Mini; cv: HTMLCanvasElement; g: CanvasRenderingContext2D; shown: boolean; frames: number }>()
   let pal: MiniPalette = palette()
@@ -94,10 +101,12 @@ export function start(): () => void {
     { threshold: [0, 0.5] },
   )
   document.querySelectorAll<HTMLElement>('[data-vt-contents] [data-vt-thumb]').forEach((a) => io.observe(a))
+  let held = paused
   const onVis = () => {
-    clock.hide(document.hidden)
+    clock.hide(document.hidden || held)
     run()
   }
+  clock.hide(held)
   document.addEventListener('visibilitychange', onVis)
   // Opening a paper from the Contents hands its miniature's market to the paper's figure (lib/minis/handoff.ts).
   const onClick = (e: MouseEvent) => {
@@ -111,7 +120,7 @@ export function start(): () => void {
   const scheme = matchMedia('(prefers-color-scheme: dark)')
   const onScheme = () => (pal = palette())
   scheme.addEventListener('change', onScheme)
-  return () => {
+  const stop = () => {
     gone = true
     cancelAnimationFrame(raf)
     io.disconnect()
@@ -120,5 +129,12 @@ export function start(): () => void {
     document.removeEventListener('click', onClick, true)
     scheme.removeEventListener('change', onScheme)
     for (const l of live.values()) l.cv.remove()
+  }
+  return {
+    stop,
+    pause(on) {
+      held = on
+      onVis()
+    },
   }
 }

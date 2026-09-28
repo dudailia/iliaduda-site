@@ -167,6 +167,13 @@
     a:hover {
       text-decoration-color: var(--color-ink);
     }
+    /* A Contents entry's title and thumbnail are one way in: pointing at either marks both. */
+    [data-vt-contents] li:has(h3 a:hover) [data-vt-thumb] {
+      border-color: var(--color-graphite);
+    }
+    [data-vt-contents] li:has([data-vt-thumb]:hover) h3 a {
+      text-decoration-color: var(--color-ink);
+    }
   }
 
   :focus-visible {

@@ -50,6 +50,7 @@ export function CategorisationLive({
   const [arrived, setArrived] = useState(feed.length)
   const [settled, setSettled] = useState(true)
   const [human, setHuman] = useState<Record<number, Human>>({})
+  const [before, setBefore] = useState<{ auto: number; review: number; blocked: number; out: number } | null>(null)
   /** The batch leaving before it runs again, so a new run does not cut the list to nothing in one frame. */
   const [leaving, setLeaving] = useState(false)
   /** This visit's batch is still to come: the pre-paint mark hides the rows until it starts. */
@@ -58,6 +59,8 @@ export function CategorisationLive({
   // After a reviewer acts, focus lands on the row's new status rather than
   // falling to the page, and the gate's new count is announced.
   const act = (i: number, what: Human) => {
+    // The gate as it stood before this click: only the counts the click moves light up.
+    setBefore(counts)
     setHuman((h) => ({ ...h, [i]: what }))
     requestAnimationFrame(() => statusRefs.current[i]?.focus())
   }
@@ -65,6 +68,7 @@ export function CategorisationLive({
   const results: Result[] = feed.map((l) => categorise(l, chart))
 
   const stream = () => {
+    setBefore(null)
     if (reduced) {
       setHuman({})
       setRun((r) => r + 1)
@@ -144,8 +148,8 @@ export function CategorisationLive({
   // A count a reviewer's click moved lights for a moment (the export gate the hint asks the reader to watch); counts
   // filling as the batch arrives do not.
   const acted = Object.keys(human).length
-  const lit = (value: string, key: string) =>
-    acted ? (
+  const lit = (value: string, key: keyof typeof counts) =>
+    acted && before && before[key] !== counts[key] ? (
       <span key={`${key}-${acted}`} className="-mx-0.5 rounded-sm px-0.5 transition-[background-color] duration-700 ease-out starting:bg-indigo-wash">
         {value}
       </span>
@@ -184,7 +188,8 @@ export function CategorisationLive({
         {/* The gate, where a phone reader can see it change: above the rows,
             pinned while they scroll past. The rail carries it on wide screens. */}
         <p data-batch-gate="" className="text-meta sticky top-0 z-10 -mx-1 mb-2 bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
-          approved {counts.auto} · waiting {counts.review} · blocked {counts.blocked} · exportable {counts.out} of {feed.length}
+          approved {counts.auto} · waiting {lit(String(counts.review), 'review')} · blocked {lit(String(counts.blocked), 'blocked')} · exportable{' '}
+          {lit(`${counts.out} of ${feed.length}`, 'out')}
         </p>
         <ol className="grid list-none border-t border-rule" aria-label="Categorised bank lines">
           {feed.map((l, i) => {
@@ -236,7 +241,12 @@ export function CategorisationLive({
                     {/* The line is reserved before the row settles, so settling
                         never changes the row's height. */}
                     {note || finalNote ? (
-                      <span className={`block text-ink ${note ? '' : 'invisible'}`}>{note || finalNote}</span>
+                      <span
+                        key={note ? 'acted' : 'final'}
+                        className={`block text-ink ${note ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : 'invisible'}`}
+                      >
+                        {note || finalNote}
+                      </span>
                     ) : null}
                   </span>
                   <span className="col-start-2 mt-1.5 flex items-center gap-2 sm:col-start-auto sm:mt-0">
@@ -280,7 +290,10 @@ export function CategorisationLive({
                           statusRefs.current[i] = el
                         }}
                         tabIndex={-1}
-                        className="text-meta font-mono text-graphite"
+                        key={human[i] ? `acted-${human[i]}` : 'status'}
+                        // A reviewer's click: the new status arrives through the site's 3px blur (120ms) where the
+                        // pressed button was, rather than replacing it in the same frame.
+                        className={`text-meta font-mono text-graphite ${human[i] ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}
                       >
                         {!final ? '…' : human[i] ? 'approved · reviewer' : st}
                       </span>

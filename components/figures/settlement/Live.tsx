@@ -9,8 +9,9 @@ import { LADDER, offeredTerms, rub, terms, termForMonthly } from '@/lib/settleme
  * Two things the portal's debtor path has to get right, side by side: what a
  * settlement costs, and what the login that shows it is allowed to cost in
  * statutory contacts. Both are the portal's own mechanics; the discount ladder
- * is illustrative. Nothing here animates: every control is a direct change,
- * and the numbers simply are what they are.
+ * is illustrative. Every control is a direct change, and the numbers simply
+ * are what they are; only a code request's answer arrives through a 3px blur
+ * (120ms), so the same answer twice still reads as an answer.
  */
 
 const DEBTS = [750_000, 6_000_000, 18_500_000] // kopecks
@@ -62,10 +63,13 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
   const [now, setNow] = useState(0)
   const [allowance, setAllowance] = useState<Allowance>({ episodes: [], refused: false })
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  // Requests made, so a repeated outcome still reads as an answer: its sentence arrives again, through a 3px blur.
+  const [asked, setAsked] = useState(0)
   const request = () => {
     const r = requestCode(allowance, now)
     setAllowance(r.next)
     setOutcome(r.outcome)
+    setAsked((n) => n + 1)
   }
   const inEpisode = allowance.episodes.length > 0 && now - allowance.episodes.at(-1)! < EPISODE_MS
 
@@ -295,7 +299,9 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
             })}
           </div>
           <p className="text-note mt-3 min-h-[3em]" aria-live="polite">
-            {message(outcome)}
+            <span key={asked} className="block transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none">
+              {message(outcome)}
+            </span>
           </p>
           <p className="text-meta mt-1 max-w-[36rem] font-mono text-graphite">{callCaps}</p>
         </section>
