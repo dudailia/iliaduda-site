@@ -320,6 +320,33 @@ test('at the largest shock the note’s words stay inside the stage, live and on
   }
 })
 
+test('the Greeks open and close with a short glide, not a jump', async ({ page, isMobile }) => {
+  await page.goto('/iv-surface')
+  const details = page.locator(`${FIG} details:visible`).first()
+  const summary = details.locator('summary')
+  const rows = details.locator('dl')
+  await summary.scrollIntoViewIfNeeded()
+  await summary.click()
+  // Opening: the rows grow into place over 200ms.
+  expect(await rows.evaluate((d) => d.getAnimations().length)).toBeGreaterThan(0)
+  await expect(details).toHaveAttribute('open', '')
+  await expect.poll(() => rows.evaluate((d) => d.getAnimations().length)).toBe(0)
+  // Closing: the rows go first, over 150ms, and only then is it closed.
+  await summary.click()
+  expect(await details.evaluate((d) => (d as HTMLDetailsElement).open)).toBe(true)
+  await expect.poll(() => details.evaluate((d) => (d as HTMLDetailsElement).open)).toBe(false)
+  void isMobile
+})
+
+test('the reading tag glides to the dot’s other side when it runs out of room, instead of jumping', async ({ page }) => {
+  await seen(page)
+  await page.goto('/iv-surface')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const tag = page.locator(`${STAGE} canvas ~ div [data-probe-tag]`)
+  const t = await tag.evaluate((e) => `${getComputedStyle(e).transitionProperty} ${getComputedStyle(e).transitionDuration}`)
+  expect(t).toMatch(/transform.*0\.12s/)
+})
+
 test('the margin reads the point in a few lines, and its Greeks are one step away', async ({ page }) => {
   await page.goto('/iv-surface')
   await expect(value(page, 'Implied · local vol')).toHaveText(/^\d+\.\d% · \d+\.\d%$/)

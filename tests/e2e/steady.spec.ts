@@ -52,3 +52,27 @@ for (const { route, figures, seen } of PAGES)
       expect(Math.abs(now - before), f).toBeLessThan(0.5)
     }
   })
+
+/** Each figure's live buttons arrive as the home figure's do: rising 4px into place, 40ms apart. */
+for (const { route, sel, seen } of [
+  { route: '/order-book', sel: '[data-orderbook-controls] > button', seen: 'orderbook-seq' },
+  { route: '/iv-surface', sel: '[data-surface-controls] [data-live-buttons] > button', seen: 'surface-seq' },
+])
+  test(`${route}: the live buttons arrive in turn, rising into place, while press and hover stay instant`, async ({ page }) => {
+    await page.addInitScript((k) => sessionStorage.setItem(k, '1'), seen)
+    await page.goto(route)
+    // The controls' row is there from the first paint; its buttons, once the figure it is under goes live.
+    await page.locator(sel.replace(/ .*$| > button$/, '')).scrollIntoViewIfNeeded()
+    if (!(await page.locator(sel).first().waitFor({ timeout: 20_000 }).then(() => true, () => false))) return test.skip(true, 'no GPU here')
+    const t = await page.locator(sel).evaluateAll((bs) =>
+      bs.slice(0, 2).map((b) => {
+        const c = getComputedStyle(b)
+        const props = c.transitionProperty.split(', ')
+        const delays = c.transitionDelay.split(', ')
+        return Object.fromEntries(props.map((p, i) => [p, delays[i] ?? delays[0]]))
+      }),
+    )
+    expect(t.map((d) => d.translate)).toEqual(['0s', '0.04s'])
+    expect(t.map((d) => d.opacity)).toEqual(['0s', '0.04s'])
+    expect(t.every((d) => d.scale === '0s' && d['border-color'] === '0s')).toBe(true)
+  })

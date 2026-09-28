@@ -349,8 +349,8 @@
 :root[data-surface-seq] .iv-fig [data-fill] {
   opacity: 0;
 }
-/* Its live controls arrive as the others' do: rising 4px into place, 40ms apart. */
-[data-surface-controls] > button {
+/* Its live controls arrive as the others' do: rising 4px into place, 40ms apart, into the room kept for them. */
+[data-surface-controls] [data-live-buttons] > button {
   transition:
     border-color 150ms var(--ease-out),
     scale 150ms var(--ease-out),
@@ -361,7 +361,7 @@
     translate: 0 4px;
   }
 }
-[data-surface-controls] > button:nth-child(2) {
+[data-surface-controls] [data-live-buttons] > button:nth-child(2) {
   --arrive: 40ms;
 }
 

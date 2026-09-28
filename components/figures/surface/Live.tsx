@@ -39,8 +39,12 @@ const STEP_V = 1 / 20
 const PAUSED = 'surface-paused'
 const noop = () => () => {}
 
-/** The reading point's tag: up and to the right of the dot, in the axis labels' type, on a paper fill. */
-const TAG = 'text-meta absolute bottom-2 left-2.5 rounded-sm bg-paper/90 px-1 py-px font-mono leading-none whitespace-nowrap text-ink'
+/**
+ * The reading point's tag: up and to the right of the dot, in the axis labels' type, on a paper fill. Near the right
+ * edge it moves to the dot's left, gliding there (120ms, the ease-out) rather than jumping across it.
+ */
+const TAG =
+  'text-meta absolute bottom-2 left-2.5 rounded-sm bg-paper/90 px-1 py-px font-mono leading-none whitespace-nowrap text-ink transition-transform duration-[120ms] ease-out motion-reduce:transition-none'
 
 const clampProbe = (p: Probe): Probe => ({
   k: Math.min(DOMAIN.kMax, Math.max(DOMAIN.kMin, p.k)),
@@ -696,17 +700,20 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             {shock.toFixed(2)}×
           </output>
         </label>
-        {/* Pause and Replay have their place from the first paint, so going live moves nothing under the figure (on a
-            phone they take a row of their own); a reader who asked for reduced motion never gets them, and no room is
-            kept for them. */}
-        <div className={`flex gap-2 motion-reduce:hidden ${live ? '' : 'invisible'}`}>
-          <button type="button" onClick={togglePause} disabled={!live} className={`${CONTROL} min-w-[4.5rem]`}>
-            {/* The server cannot know a pause kept for the visit: its word waits for the browser's, as the hints do. */}
-            {mounted && paused ? 'Resume' : 'Pause'}
-          </button>
-          <button type="button" data-replay="" onClick={replay} disabled={!live} className={CONTROL}>
-            Replay
-          </button>
+        {/* Pause and Replay's place, kept from the first paint as wide as they are, so on a phone the row they wrap onto
+            is there before they are and going live moves nothing under the figure; they arrive in it, rising (the
+            stylesheet). A figure that will not go live keeps no room for them, and neither does reduced motion. */}
+        <div data-live-buttons="" className="flex min-h-8 min-w-[9.5rem] gap-2 motion-reduce:hidden" style={why !== null ? { display: 'none' } : undefined}>
+          {live ? (
+            <>
+              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>
+                {paused ? 'Resume' : 'Pause'}
+              </button>
+              <button type="button" data-replay="" onClick={replay} className={CONTROL}>
+                Replay
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
       <p className="sr-only" aria-live="polite">
@@ -790,7 +797,9 @@ function Margin({
       </dl>
       {/* The Greeks, one step away: the margin leads with what the figure shows. */}
       <details className={`text-meta font-mono ${across ? '' : 'mt-2 lg:text-right'}`}>
-        <summary className="cursor-pointer text-graphite marker:text-graphite hover:text-ink">Greeks at the point</summary>
+        <summary onClick={glideDetails} className="cursor-pointer text-graphite marker:text-graphite hover:text-ink">
+          Greeks at the point
+        </summary>
         <dl className={`${dl} mt-2 ${across ? 'border-t-0 pt-0' : ''}`}>
           {GREEKS.map((id) => (
             <div key={id} className="min-w-0">
@@ -804,6 +813,35 @@ function Margin({
       </details>
     </div>
   )
+}
+
+/**
+ * The Greeks open and close with a short glide rather than a jump: their rows grow into place (200ms) and go first
+ * when closed (150ms, exits faster), on the site's ease-out; everything under them moves with the rows, not at once.
+ * A keyboard's Enter or Space opens them at once, as keyboard actions here never animate; under reduced motion the
+ * rows only fade in, and close at once.
+ */
+function glideDetails(e: MouseEvent<HTMLElement>) {
+  const details = e.currentTarget.parentElement as HTMLDetailsElement | null
+  const rows = details?.querySelector<HTMLElement>(':scope > dl')
+  if (!details || !rows || e.detail === 0) return
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
+  if (!details.open) {
+    e.preventDefault()
+    details.open = true
+    const h = rows.offsetHeight
+    rows.animate(
+      reduced ? [{ opacity: 0 }, { opacity: 1 }] : [{ height: '0px', opacity: 0, overflow: 'clip' }, { height: `${h}px`, opacity: 1, overflow: 'clip' }],
+      { duration: reduced ? 150 : 200, easing: ease },
+    )
+  } else if (!reduced) {
+    e.preventDefault()
+    const h = rows.offsetHeight
+    rows.animate([{ height: `${h}px`, opacity: 1, overflow: 'clip' }, { height: '0px', opacity: 0, overflow: 'clip' }], { duration: 150, easing: ease }).onfinish = () => {
+      details.open = false
+    }
+  }
 }
 
 /** The point's rows as the margin shows them: where it is, then (after its volatilities and price) its Greeks. */
