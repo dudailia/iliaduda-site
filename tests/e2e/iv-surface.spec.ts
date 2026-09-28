@@ -222,6 +222,36 @@ test('Replay plays the story even while the figure is paused, and it stays pause
   expect(await draws(page)).toBe(m)
 })
 
+test('the shock slider stays where it is when the figure goes live and its buttons arrive', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/iv-surface')
+  const slider = page.getByRole('slider', { name: /shock/i })
+  const before = (await slider.boundingBox())!
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const after = (await slider.boundingBox())!
+  expect(Math.round(after.x - before.x)).toBe(0)
+})
+
+test('the still frame’s note is whole: nothing of it is cut off at the stage’s edge', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/iv-surface')
+  const stage = (await page.locator(STAGE).boundingBox())!
+  const note = page.locator(`${FIG} [data-iv-poster] [data-note] span.block:visible`).first()
+  await expect(note).toBeVisible()
+  const b = (await note.boundingBox())!
+  expect(b.x).toBeGreaterThanOrEqual(stage.x)
+  expect(b.x + b.width).toBeLessThanOrEqual(stage.x + stage.width)
+})
+
+test('the margin reads the point in a few lines, and its Greeks are one step away', async ({ page }) => {
+  await page.goto('/iv-surface')
+  await expect(value(page, 'Implied · local vol')).toHaveText(/^\d+\.\d% · \d+\.\d%$/)
+  const greeks = page.locator(`${FIG} details:visible`).filter({ hasText: 'Greeks at the point' }).first()
+  await greeks.locator('summary').click()
+  await expect(value(page, 'Delta')).toHaveText(/^\d\.\d{3}$/)
+})
+
 test('reduced motion: the still frame, never the canvas, and the slider still redraws it', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/iv-surface')

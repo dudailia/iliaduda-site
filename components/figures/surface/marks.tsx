@@ -65,6 +65,7 @@ export function NoteMark({
   className = '',
   style,
   ref,
+  note,
 }: {
   lead: string
   text: string
@@ -74,9 +75,11 @@ export function NoteMark({
   className?: string
   style?: CSSProperties
   ref?: Ref<HTMLSpanElement>
+  /** Which note it is, for the still frame's redraw to move it with the surface. */
+  note?: string
 }) {
   return (
-    <span ref={ref} className={`absolute top-0 left-0 will-change-transform ${className}`} style={style}>
+    <span ref={ref} data-note={note} className={`absolute top-0 left-0 will-change-transform ${className}`} style={style}>
       <svg aria-hidden className="absolute top-0 left-0 overflow-visible" width="1" height="1">
         <line x1={0} y1={0} x2={dx} y2={dy} stroke="var(--color-ink)" strokeWidth={1} />
         <circle cx={0} cy={0} r={3.5} fill="var(--color-paper)" stroke="var(--color-ink)" strokeWidth={1.25} />

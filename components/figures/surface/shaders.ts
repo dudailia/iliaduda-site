@@ -98,7 +98,7 @@ uniform vec3 uLo, uMid, uTop, uInk, uPaper; // oklab
 uniform vec2 uRamp; uniform float uFlip;
 uniform vec3 uKey, uFill, uLight; uniform float uUp;
 uniform vec3 uEye; uniform float uSpec; uniform float uAOk;
-uniform vec3 uProbe; // u, v, on
+uniform vec3 uProbe; // u, v, and how strongly it is drawn (it arrives and leaves with the labels)
 uniform float uRise;
 out vec4 o;
 vec3 lin(vec3 c) {
@@ -127,10 +127,10 @@ void main() {
   bool major = mod(n, 2.0) < 0.5;
   float line = hair(f, major ? 0.5 : 0.15) * step(3.5, f);
   lab = mix(lab, mix(lab, to, major ? 0.42 : 0.22), line);
-  if (uProbe.z > 0.5) {
+  if (uProbe.z > 0.0) {
     vec2 d = abs(vUV - uProbe.xy) / max(fwidth(vUV), vec2(1e-5));
     float pl = max(1.0 - clamp(d.y - 0.35, 0.0, 1.0), 1.0 - clamp(d.x - 0.35, 0.0, 1.0));
-    lab = mix(lab, to, pl * 0.7);
+    lab = mix(lab, to, pl * 0.7 * uProbe.z);
   }
   // Rising out of the page: a sheet still on the floor is the paper's colour, and takes its own as it lifts.
   lab = mix(uPaper, lab, uRise);

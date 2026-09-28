@@ -49,8 +49,9 @@ const clampProbe = (p: Probe): Probe => ({
  * and the shock drawn. A skipped story only drains, so while the skip plays it is relaxing, never shocked; and a shock
  * still on screen above the reader's level (Replay drains it into the page) is relaxing too.
  */
-function phaseOf(story: Sequence<SurfacePhase> | null, level: number, drawn = level): Phase {
-  if (!story) return level > 0.04 ? 'shock' : drawn > 0.04 ? 'relax' : 'calm'
+function phaseOf(story: Sequence<SurfacePhase> | null, level: number, drawn = level, draining = false): Phase {
+  if (draining) return drawn > 0.04 ? 'relax' : 'calm'
+  if (!story) return level > 0.04 ? 'shock' : 'calm'
   if (story.skipping()) return shownAmplitude(story) > 0.04 ? 'relax' : 'calm'
   const ph = story.phases()
   if (ph.shock > 0 && ph.relax < 0.12) return 'shock'
@@ -71,10 +72,12 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const noteEls = useRef<(HTMLElement | null)[]>([])
   const dotEl = useRef<HTMLElement | null>(null)
   const seq = useRef(surfaceSequence())
-  const checked = useRef<{ key: string; c: Check | null }>({ key: '', c: null })
+  const checked = useRef<{ key: string; c: Check | null; at: number; pending: Params | null; timer: number }>({ key: '', c: null, at: 0, pending: null, timer: 0 })
   const level = useRef(0)
   /** The live renderer, for Replay: the sheet sinks back into the page before the story plays again. */
   const surface = useRef<SurfaceRenderer | null>(null)
+  /** Replay is draining what was on screen into the page. */
+  const draining = useRef(false)
   const [shock, setShock] = useState(0)
   const [probe, setProbe] = useState<Probe>(PROBE_START)
   const [phase, setPhase] = useState<Phase>('calm')
@@ -109,14 +112,35 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   /** Everything the readouts say, from the parameters of the frame just drawn. */
   const sync = useCallback(
     (p: Params, drawn?: number) => {
-      // The arbitrage check is a few thousand closed-form evaluations: once for each surface that is new.
+      // The arbitrage check is a few thousand closed-form evaluations: for a surface that is new, at most every 150ms
+      // while it moves, and once more for the surface it comes to rest on (every surface on the way passes: the shock
+      // family is tested free of static arbitrage).
       const key = `${p.s0.toFixed(4)},${p.rho.toFixed(4)}`
       const c = checked.current
-      if (!c.c || c.key !== key) {
+      const now = performance.now()
+      if (!c.c || (c.key !== key && now - c.at >= 150)) {
         c.c = check(p)
         c.key = key
+        c.at = now
+      } else if (c.key !== key) {
+        c.pending = p
+        if (!c.timer)
+          c.timer = window.setTimeout(() => {
+            c.timer = 0
+            const q = c.pending
+            if (!q) return
+            c.pending = null
+            const k = `${q.s0.toFixed(4)},${q.rho.toFixed(4)}`
+            if (k === c.key) return
+            c.c = check(q)
+            c.key = k
+            c.at = performance.now()
+            const u = format(numbers(q), c.c)
+            write('arb', u.arb)
+            write('arb-detail', u.arbDetail)
+          }, 160)
       }
-      const t = format(numbers(p), c.c)
+      const t = format(numbers(p), c.c!)
       write('atm', t.atm)
       write('premium', t.premium)
       write('put', t.put)
@@ -125,11 +149,13 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       const s = sim.current
       for (const r of pointRows(p, s.hover ?? s.probe)) write(r.id, r.value)
       const story = sigApi.current?.armed.current && !seq.current.done ? seq.current : null
-      const next = phaseOf(story, level.current, drawn)
+      const next = phaseOf(story, level.current, drawn, draining.current)
       if (next !== phaseRef.current) {
         phaseRef.current = next
         setPhase(next)
-        setPhaseMoved(true)
+        // The story's turns cross-fade, and so does Replay's drain; a change the reader made on the slider is simply
+        // there, as they made it.
+        setPhaseMoved(story !== null || draining.current)
       }
     },
     [write],
@@ -270,6 +296,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   // Where the live figure does not run, the still frame is redrawn for the shock the reader sets.
   const still = useRef<{ poster: typeof import('@/lib/surface/poster'); markup: typeof import('@/lib/surface/posterMarkup') } | null>(null)
+  const stillWant = useRef(0)
+  const stillFrame = useRef(0)
   const redrawStill = useCallback(
     (x: number) => {
       const el = box.current
@@ -302,12 +330,22 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             at.style.top = `${(n.y * 100).toFixed(2)}%`
           }
         }
-        sync(params(x))
+        sync(params(x), x)
       }
-      if (still.current) return run()
-      void Promise.all([import('@/lib/surface/poster'), import('@/lib/surface/posterMarkup')]).then(([poster, markup]) => {
-        still.current = { poster, markup }
-        run()
+      // One redraw a frame, for the latest shock, however fast the slider moves: the mesh is re-serialised whole.
+      stillWant.current = x
+      if (stillFrame.current) return
+      stillFrame.current = requestAnimationFrame(() => {
+        stillFrame.current = 0
+        const go = () => {
+          x = stillWant.current
+          run()
+        }
+        if (still.current) return go()
+        void Promise.all([import('@/lib/surface/poster'), import('@/lib/surface/posterMarkup')]).then(([poster, markup]) => {
+          still.current = { poster, markup }
+          go()
+        })
       })
     },
     [box, sync],
@@ -328,8 +366,13 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     level.current = 0
     setShock(0)
     sim.current.dirty = true
-    if (surface.current) surface.current.sink(() => sig.replay())
-    else sig.replay()
+    if (surface.current) {
+      draining.current = true
+      surface.current.sink(() => {
+        draining.current = false
+        sig.replay()
+      })
+    } else sig.replay()
   }
 
   const togglePause = () => {
@@ -421,7 +464,16 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const initial = format(numbers(params(0)), check(params(0)))
   const initialRows = pointRows(params(0), PROBE_START)
   const peakAtm = (iv(params(shock), 0, 1 / 12) * 100).toFixed(1)
-  const hint = why ?? (live ? 'Drag to turn · hover or tap to read a point · arrow keys move it · Space pauses' : 'Tab to the figure and use the arrow keys to read a point')
+  // Said for the pointer this reader has: a phone's finger taps to read and drags sideways to turn (vertical drags
+  // scroll the page); a mouse points. A still frame keeps its instructions after its reason.
+  const coarse = mounted && matchMedia('(pointer: coarse)').matches
+  const hint = why
+    ? `${why} Tab to the figure and use the arrow keys to read a point; the Shock slider still redraws it.`
+    : live
+      ? coarse
+        ? 'Tap to read a point · drag sideways to turn · the Shock slider applies the shock'
+        : 'Point to read a point · drag to turn · arrow keys move the point · Space pauses'
+      : 'Tab to the figure and use the arrow keys to read a point'
 
   const rail = <Margin initial={initial} rows={initialRows} set={ref} suffix="" />
 
@@ -500,7 +552,30 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         </span>
       </p>
 
+      {/* The slider first: it is there in every mode, so the buttons a live figure adds arrive after it, moving nothing. */}
       <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <label className="text-meta flex items-center gap-3 font-mono text-graphite">
+          <span>Shock</span>
+          <input
+            type="range"
+            min={0}
+            max={SIZE_MAX}
+            step={0.05}
+            list="iv-shock-ticks"
+            value={shock}
+            onChange={(e) => onShock(Number(e.target.value))}
+            aria-valuetext={shock < 0.025 ? 'calm' : `${shock.toFixed(2)} times a full shock; 1-month at-the-money volatility ${peakAtm}%`}
+            className="h-6 w-32 accent-indigo sm:w-40"
+          />
+          {/* The mark at 1: the size of the story's own shock. */}
+          <datalist id="iv-shock-ticks">
+            <option value="0" />
+            <option value="1" label="the story’s shock" />
+          </datalist>
+          <output aria-hidden className="tabular w-[2.75rem] text-ink">
+            {shock.toFixed(2)}×
+          </output>
+        </label>
         {live ? (
           <>
             <button type="button" onClick={togglePause} aria-pressed={paused} className={`${CONTROL} min-w-[4.5rem]`}>
@@ -511,20 +586,6 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             </button>
           </>
         ) : null}
-        <label className="text-meta flex items-center gap-3 font-mono text-graphite">
-          <span>Shock</span>
-          <input
-            type="range"
-            min={0}
-            max={SIZE_MAX}
-            step={0.05}
-            value={shock}
-            onChange={(e) => onShock(Number(e.target.value))}
-            aria-valuetext={shock < 0.025 ? 'calm' : `${shock.toFixed(2)} times a full shock; 1-month at-the-money volatility ${peakAtm}%`}
-            className="h-6 w-32 accent-indigo sm:w-40"
-          />
-          <output className="tabular w-[2.75rem] text-ink">{shock.toFixed(2)}×</output>
-        </label>
       </div>
       <p className="sr-only" aria-live="polite">
         {spoken}
@@ -560,6 +621,7 @@ function Margin({
   across?: boolean
 }) {
   const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
+  const row = (id: string) => rows.find((r) => r.id === id)!
   return (
     <div className={across ? 'grid gap-y-4' : ''}>
       <dl className={dl}>
@@ -582,15 +644,46 @@ function Margin({
         </div>
       </dl>
       <dl id={suffix ? undefined : 'fig-iv-surface-point'} aria-label="At the point" className={`${dl} ${across ? '' : 'mt-4 border-t border-rule pt-3'}`}>
-        {rows.map((r) => (
-          <div key={r.id} className="min-w-0">
-            <dt className="text-graphite">{r.label}</dt>
-            <dd ref={set(r.id + suffix)} className="tabular text-ink">
-              {r.value}
+        {POINT.map((id) => (
+          <div key={id} className="min-w-0">
+            <dt className="text-graphite">{row(id).label}</dt>
+            <dd ref={set(id + suffix)} className="tabular text-ink">
+              {row(id).value}
             </dd>
           </div>
         ))}
+        {/* The two volatilities side by side: the comparison is the point (local runs above implied on the downside). */}
+        <div className="min-w-0">
+          <dt className="text-graphite">Implied · local vol</dt>
+          <dd className="tabular text-ink">
+            <span ref={set(`iv${suffix}`)}>{row('iv').value}</span> · <span ref={set(`lv${suffix}`)}>{row('lv').value}</span>
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-graphite">{row('call').label}</dt>
+          <dd ref={set(`call${suffix}`)} className="tabular text-ink">
+            {row('call').value}
+          </dd>
+        </div>
       </dl>
+      {/* The Greeks, one step away: the margin leads with what the figure shows. */}
+      <details className={`text-meta font-mono ${across ? '' : 'mt-2 lg:text-right'}`}>
+        <summary className="cursor-pointer text-graphite marker:text-graphite hover:text-ink">Greeks at the point</summary>
+        <dl className={`${dl} mt-2 ${across ? 'border-t-0 pt-0' : ''}`}>
+          {GREEKS.map((id) => (
+            <div key={id} className="min-w-0">
+              <dt className="text-graphite">{row(id).label}</dt>
+              <dd ref={set(id + suffix)} className="tabular text-ink">
+                {row(id).value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </details>
     </div>
   )
 }
+
+/** The point's rows as the margin shows them: where it is, then (after its volatilities and price) its Greeks. */
+const POINT = ['strike', 'expiry'] as const
+const GREEKS = ['delta', 'gamma', 'vega', 'theta'] as const

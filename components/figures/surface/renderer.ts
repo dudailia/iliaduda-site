@@ -219,19 +219,35 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     const key = `${p.s0},${p.s1},${p.kappa},${p.rho},${p.eta},${lines}`
     if (key === smileKey) return
     smileKey = key
-    const segs: number[][] = []
+    // Written straight into the vertex buffer, six corners a segment: rebuilt every frame of a shock, so it makes
+    // no arrays of its own.
+    let o = 0, n = 0
     for (const [T] of EXPIRY_TICKS) {
       const shown = lineReveal(lines, fv(T)) * (SMILE_N - 1)
-      let prev: number[] | null = null
+      let px = 0, py = 0, pz = 0
       for (let i = 0; i <= Math.ceil(shown); i++) {
         const u = Math.min(i, shown) / (SMILE_N - 1)
         const k = kOfU(u)
-        const pt = [wx(k), wy(iv(p, k, T)) + 0.008, wz(T)]
-        if (prev) segs.push([...prev, ...pt])
-        prev = pt
+        const x = wx(k), y = wy(iv(p, k, T)) + 0.008, z = wz(T)
+        if (i > 0) {
+          for (const [e, side] of CORNERS) {
+            smileData[o++] = px
+            smileData[o++] = py
+            smileData[o++] = pz
+            smileData[o++] = x
+            smileData[o++] = y
+            smileData[o++] = z
+            smileData[o++] = e
+            smileData[o++] = side
+          }
+          n++
+        }
+        px = x
+        py = y
+        pz = z
       }
     }
-    smileCount = writeSegs(smileData, segs)
+    smileCount = n * 6
     gl.bindBuffer(gl.ARRAY_BUFFER, smileBuf)
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, smileData, 0, smileCount * 8)
   }
@@ -295,9 +311,16 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     return null
   }
 
+  // The soft limits the drag eases into, and their inverses: a surface grabbed again near a limit picks up from where
+  // it is, not from a second pass through the limit.
+  const soft = { yaw: (r: number) => 0.9 * Math.tanh(r / 0.9), pitch: (r: number) => 0.1 + 0.4 * Math.tanh((r - 0.1) / 0.4) }
+  const raw = {
+    yaw: (y: number) => 0.9 * Math.atanh(Math.max(-0.999, Math.min(0.999, y / 0.9))),
+    pitch: (p: number) => 0.1 + 0.4 * Math.atanh(Math.max(-0.999, Math.min(0.999, (p - 0.1) / 0.4))),
+  }
   const onDown = (e: PointerEvent) => {
     if (drag) return
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: spring.yaw, rawPitch: spring.pitch }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: raw.yaw(spring.yaw), rawPitch: raw.pitch(spring.pitch) }
     canvas.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent) => {
@@ -312,13 +335,13 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
         drag.t = e.timeStamp
         drag.rawYaw -= dx * 0.006
-        const yaw = 0.9 * Math.tanh(drag.rawYaw / 0.9)
+        const yaw = soft.yaw(drag.rawYaw)
         spring.vy = spring.vy * 0.6 + ((yaw - spring.yaw) / dtS) * 0.4
         spring.yaw = yaw
         // Touch turns only: a vertical swipe belongs to the page.
         if (e.pointerType !== 'touch') {
           drag.rawPitch += dy * 0.004
-          const pitch = 0.1 + 0.4 * Math.tanh((drag.rawPitch - 0.1) / 0.4)
+          const pitch = soft.pitch(drag.rawPitch)
           spring.vp = spring.vp * 0.6 + ((pitch - spring.pitch) / dtS) * 0.4
           spring.pitch = pitch
         }
@@ -333,6 +356,13 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const onUp = (e: PointerEvent) => {
     if (!drag || e.pointerId !== drag.id) return
     const click = drag.moved <= (e.pointerType === 'touch' ? 8 : 4)
+    // A hand that had stopped before it let go throws nothing: the speed kept from its last move is spent.
+    const still = (e.timeStamp - drag.t) / 1000
+    if (still > 0.05) {
+      const k = Math.exp(-(still - 0.05) / 0.05)
+      spring.vy *= k
+      spring.vp *= k
+    }
     drag = null
     // Hand the orbit back: the spring carries it home from wherever it was let go.
     spring.ty = 0
@@ -375,7 +405,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniform1f(prog.u('uRise'), rise)
     gl.uniformMatrix4fv(prog.u('uMVP'), false, m)
   }
-  const setLook = (prog: typeof surf, e: [number, number, number], probe: Probe | null) => {
+  const setLook = (prog: typeof surf, e: [number, number, number], probe: Probe | null, probeK = 1) => {
     const wash = oklab(palette.wash), ind = oklab(palette.indigo), ink = oklab(palette.ink), paper = oklab(palette.paper)
     const top = palette.dark ? mixv(ind, ink, STOPS.nightTop) : ind
     gl.uniform3fv(prog.u('uLo'), mixv(wash, ind, STOPS.lo))
@@ -392,7 +422,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniform3fv(prog.u('uEye'), e)
     gl.uniform1f(prog.u('uSpec'), q === 0 ? 0 : palette.dark ? 0.16 : 0.1)
     gl.uniform1f(prog.u('uAOk'), q === 0 ? 0 : 1.6)
-    gl.uniform3f(prog.u('uProbe'), probe ? fu(probe.k) : -1, probe ? Math.min(0.995, fv(probe.T)) : -1, probe ? 1 : 0)
+    gl.uniform3f(prog.u('uProbe'), probe ? fu(probe.k) : -1, probe ? Math.min(0.995, fv(probe.T)) : -1, probe ? probeK : 0)
   }
 
   const place = (el: HTMLElement | null, m: M4, x: number, y: number, z: number) => {
@@ -501,7 +531,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       gl.polygonOffset(1, 2)
       surf.use()
       setShared(surf, p, m, rise)
-      setLook(surf, e, rise > 0.98 ? probe : null)
+      // The reading point's crosshair arrives and leaves with the labels and the dot, never in one frame.
+      setLook(surf, e, probe, labelsK)
       gl.uniform1i(surf.u('uMode'), 0)
       gl.uniform1i(surf.u('uN'), n)
       gl.bindVertexArray(surfVao)

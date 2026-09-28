@@ -232,8 +232,8 @@ export const LABELS: readonly Label[] = [
     id: `k${K}`, text: `${Math.round(K * 100)}%`, at: [wx(Math.log(K)), 0, ZW + 0.12], align: 'center', kind: 'tick',
     ...(TALL_STRIKES.has(K) ? {} : { only: 'wide' as const }),
   })),
-  { id: 'kt', text: 'strike, % of today’s price', at: [wx(Math.log(0.76)), 0, ZW + 0.55], align: 'center', kind: 'title', only: 'wide' },
-  { id: 'kts', text: 'strike, % of price', at: [-XW + 0.35, 0, ZW + 0.7], align: 'left', kind: 'title', only: 'tall' },
+  { id: 'kt', text: 'strike, % of forward', at: [wx(Math.log(0.76)), 0, ZW + 0.55], align: 'center', kind: 'title', only: 'wide' },
+  { id: 'kts', text: 'strike, % of forward', at: [-XW + 0.35, 0, ZW + 0.7], align: 'left', kind: 'title', only: 'tall' },
   ...EXPIRY_TICKS.map(([T, s]): Label => ({
     id: `t${s}`, text: s, at: [XW + 0.1, 0, wz(T)], align: 'left', kind: 'tick',
     ...(TALL_EXPIRIES.has(s) ? {} : { only: 'wide' as const }),
@@ -271,7 +271,9 @@ export const NOTES: readonly Note[] = [
     text: 'crash insurance costs more',
     k: -0.34,
     T: 1 / 12,
-    offset: { wide: [-26, -34, 'right'], tall: [-4, -22, 'center'] },
+    // On a wide frame it stands in the open sky above the peak it names, centred on it: clear of the stage's left
+    // edge, and of the volatility axis's title to the right.
+    offset: { wide: [-6, -62, 'center'], tall: [-4, -22, 'center'] },
   },
 
 ]

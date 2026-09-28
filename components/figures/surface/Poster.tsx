@@ -39,6 +39,7 @@ export function Poster({ at }: { at: Params }) {
         {d.notes.map((n) => (
           <NoteMark
             key={n.id}
+            note={n.id}
             lead={n.lead}
             text={n.text}
             dx={n.dx}
