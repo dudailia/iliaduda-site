@@ -33,7 +33,14 @@ export interface LiveMarket {
 
 export function useMarket(
   boxes: readonly RefObject<HTMLElement | null>[],
-  opts: { seed: number; t: number; allowed: boolean; draw?: (m: Mirror, now: number) => void },
+  opts: {
+    seed: number
+    t: number
+    allowed: boolean
+    draw?: (m: Mirror, now: number) => void
+    /** Called as each frame is taken in, before the next animation frame: where a page notices what the frame brought. */
+    onTake?: (m: Mirror) => void
+  },
 ): LiveMarket {
   const reduced = useReducedMotion()
   const [mirror] = useState(() => new Mirror())
@@ -43,8 +50,10 @@ export function useMarket(
   const worker = useRef<Worker | null>(null)
   const paused = useRef(false)
   const draw = useRef(opts.draw)
+  const onTake = useRef(opts.onTake)
   useEffect(() => {
     draw.current = opts.draw
+    onTake.current = opts.onTake
   })
   const refs = useRef(boxes)
   const { seed, t, allowed } = opts
@@ -107,6 +116,7 @@ export function useMarket(
             inFlight = false
             mirror.take(readFrame(msg.buf))
             pool.push(msg.buf)
+            onTake.current?.(mirror)
             if (mirror.frames === 1) setLive(true)
             break
           case 'fan':

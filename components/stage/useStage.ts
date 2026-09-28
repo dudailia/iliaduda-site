@@ -66,7 +66,8 @@ const given = new WeakMap<HTMLCanvasElement, WEBGL_lose_context>()
 const MAX_Q: Record<Tier, number> = { software: 0, low: 1, mid: 2, high: 3 }
 const DPR_CAP = [1, 1.25, 1.5, 2] as const
 
-function palette(dark: boolean): Palette {
+/** The page's colour tokens as a renderer takes them: for a figure's 2D views drawn beside a live stage. */
+export function palette(dark: boolean): Palette {
   return {
     paper: cssColor('--color-paper'),
     ink: cssColor('--color-ink'),

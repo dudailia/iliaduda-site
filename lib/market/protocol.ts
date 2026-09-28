@@ -41,7 +41,7 @@ export const H = {
   expected: 17,
   trades: 18,
   shares: 19,
-  /** The worker's own: fan paths drawn a wall second, its busy share, wall seconds the market was held, simulated seconds a wall second. */
+  /** The worker's own: futures drawn a second of its own time, its busy share, wall seconds the market was held, simulated seconds a wall second. */
   paths: 20,
   busy: 21,
   held: 22,

@@ -100,10 +100,12 @@ export class Fan {
     for (let s = 0; s < STEPS; s++) {
       col.set(this.cols[s]!)
       col.sort()
+      // Between two paths, the quantile is taken in log price, where the walk is linear in σ: so a fan at one
+      // volatility maps exactly onto the fan at another (lib/market/views.ts, fanAt).
       for (let b = 0; b < Q.length; b++) {
         const at = Q[b]! * (this.n - 1)
         const i = Math.floor(at), f = at - i
-        this.bands[b * (STEPS + 1) + s + 1] = col[i]! + (i + 1 < this.n ? (col[i + 1]! - col[i]!) * f : 0)
+        this.bands[b * (STEPS + 1) + s + 1] = i + 1 < this.n && f > 0 ? col[i]! * Math.exp(Math.log(col[i + 1]! / col[i]!) * f) : col[i]!
       }
     }
     this.ready = true

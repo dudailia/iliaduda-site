@@ -103,14 +103,17 @@ describe('the worker’s market', () => {
     expect(HOST.pathsPerFrame * Math.ceil(FAN.paths / HOST.pathsPerFrame)).toBeGreaterThanOrEqual(FAN.paths)
   })
 
-  it('measures itself: paths a second, its busy share and the simulated seconds a wall second', () => {
+  it('measures itself: futures drawn a second of its own time, its busy share and the simulated seconds a wall second', () => {
     const host = new MarketHost(SEED, POSTER_T, ticking())
     const { buf } = run(host, 1000 / 60, 3)
     const h = readFrame(buf).h
-    // A millisecond of work a frame at 60 frames a second.
-    expect(h[H.busy]).toBeCloseTo(0.06, 2)
+    // The clock is read before and after each frame, and around each slice of a fan: a slice of 512 paths costs a
+    // millisecond, so it draws them at 512,000 a second of its own time.
+    expect(h[H.paths]).toBe(HOST.pathsPerFrame * 1000)
+    // A frame costs a millisecond, a frame with a slice three; eight slices a fan, a fan a second, sixty frames.
+    expect(h[H.busy]).toBeGreaterThan((60 + 2 * 8) / 1000 - 0.01)
+    expect(h[H.busy]).toBeLessThan((60 + 2 * 8) / 1000 + 0.02)
     expect(h[H.speed]).toBeCloseTo(1, 2)
-    expect(h[H.paths]).toBeGreaterThan(FAN.paths * 0.9)
   })
 
   it('resets to the market it started as', () => {

@@ -14,7 +14,8 @@ import type { Act, FanMsg } from './protocol'
  * it holds. A fan of futures is begun at the start and at each new simulated second, at the volatility of that
  * second, for a price of 1 (the page scales it by the mid, exact for geometric Brownian motion, so the fan moves
  * with the price in the very frame the price moves), and drawn a slice a frame. The host measures itself over each
- * wall second: fan paths drawn, the share of the second it was busy, and the simulated seconds the market ran.
+ * wall second: futures drawn a second of its own time (the fan's slices timed alone: what this device can draw, not
+ * how many a second the page asks for), the share of the second it was busy, and the simulated seconds the market ran.
  */
 export const HOST = {
   /** Simulated seconds a frame may move the market at most. */
@@ -42,6 +43,7 @@ export class MarketHost {
   private wall = 0
   private work = 0
   private drawn = 0
+  private drawMs = 0
   private ran = 0
   private stats = { paths: 0, busy: 0, speed: 1 }
 
@@ -104,7 +106,9 @@ export class MarketHost {
     }
     if (this.fanBusy) {
       const before = this.fanDrawn()
+      const t0 = this.now()
       const finished = this.fan.work(HOST.pathsPerFrame)
+      this.drawMs += this.now() - t0
       this.drawn += this.fanDrawn() - before
       if (finished) {
         this.fanBusy = false
@@ -134,8 +138,8 @@ export class MarketHost {
     this.work += this.now() - start
     this.wall += dt * 1000
     if (this.wall >= 1000) {
-      this.stats = { paths: (this.drawn * 1000) / this.wall, busy: this.work / this.wall, speed: (this.ran * 1000) / this.wall }
-      this.wall = this.work = this.drawn = this.ran = 0
+      this.stats = { paths: this.drawMs > 0 ? (this.drawn * 1000) / this.drawMs : this.stats.paths, busy: this.work / this.wall, speed: (this.ran * 1000) / this.wall }
+      this.wall = this.work = this.drawn = this.drawMs = this.ran = 0
     }
     return done
   }

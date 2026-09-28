@@ -77,6 +77,15 @@ export interface Hooks {
   pinned(): boolean
   /** The readouts, for the parameters just drawn, and the shock they were drawn at (0 calm, 1 a full shock). */
   sync(p: Params, shown: number): void
+  /**
+   * /market's surface only: a liquidity shock has just landed, this hard (0 to 1), read once. The surface takes it as a
+   * blow: a nod of the camera on the drag's own spring, and the one-month smile lit for a moment, by day in ink.
+   */
+  impact?(): number
+  /** Whether the surface is read at a point (the IV paper's): /market's is not, and draws no crosshair. */
+  reading?(): boolean
+  /** /market's surface only: the camera's distance as a share of its fitted one (a shock's blow draws it in). */
+  zoom?(): number
 }
 
 /** Grid vertices per side and wall segments, by quality level. */
@@ -424,6 +433,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   let tagK = 0
   let tagText = ''
   let tagLeft = false
+  /** A landed shock's light on the one-month smile, 1 at the blow and fading over about a second. */
+  let flash = 0
+  const reads = () => hooks.reading?.() ?? true
+  let lastZoom = 1
 
   return {
     frame(_t, dt) {
@@ -440,6 +453,17 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         step2(spring, 'yaw', 'vy', spring.ty, dt, 7)
         step2(spring, 'pitch', 'vp', spring.tp, dt, 7)
       }
+      // A shock's blow: the camera nods (a kick to the drag spring's speed, ω 7, which carries it home without an
+      // overshoot) and the one-month smile lights.
+      const blow = hooks.impact?.() ?? 0
+      if (blow > 0) {
+        spring.vp += 0.55 * blow
+        spring.vy -= 0.3 * blow
+        flash = Math.max(flash, blow)
+        // For the specs: the animation frame the blow landed in, on the frame's own clock.
+        canvas.dataset.landed = String(document.timeline?.currentTime ?? performance.now())
+      }
+      flash = flash > 0.004 ? flash * Math.exp(-dt / 0.3) : 0
       const leaning = paused ? null : hooks.lean()
       const ly = leaning ? -LEAN.yaw * leaning.x : lean.yaw, lp = leaning ? -LEAN.pitch * leaning.y : lean.pitch
       step2(lean, 'yaw', 'vy', ly, dt, 4)
@@ -492,7 +516,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
         Math.abs(shock.v) > 1e-5 ||
         Math.abs(hooks.level() - shock.x) > 1e-4 ||
-        Math.abs((sim.hover || hooks.pinned() ? 1 : 0) - tagK) > 0.01
+        Math.abs((sim.hover || hooks.pinned() ? 1 : 0) - tagK) > 0.01 ||
+        flash > 0 ||
+        (hooks.zoom?.() ?? 1) !== lastZoom
       // Unpaused, it drifts, so every frame is drawn; paused, only a change is.
       const story = ph ? ph.lines + ph.rise + ph.labels + ph.shock + ph.relax : -1
       const storyMoved = story !== lastStory
@@ -509,10 +535,13 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       swayIn = ph ? 0 : Math.min(1, swayIn + (dt / 1.5) * swayK)
       const kind = hooks.frame()
       const cam = camera(kind, Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
+      lastZoom = hooks.zoom?.() ?? 1
+      cam.dist *= lastZoom
       const m = mvp(kind, cam, cssW / cssH)
       inv = invert(m, invBuf)
       const e = eye(cam)
       const probe = sim.hover ?? sim.probe
+      const shownProbe = reads() ? probe : null
 
       gl.viewport(0, 0, w, h)
       const bg = palette.paper
@@ -527,7 +556,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       surf.use()
       setShared(surf, p, m, rise)
       // The reading point's crosshair arrives and leaves with the labels and the dot, never in one frame.
-      setLook(surf, e, probe, labelsK)
+      setLook(surf, e, shownProbe, labelsK)
       gl.uniform1i(surf.u('uMode'), 0)
       gl.uniform1i(surf.u('uN'), n)
       gl.bindVertexArray(surfVao)
@@ -558,8 +587,16 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         gl.bindVertexArray(smileVao)
         gl.drawArrays(gl.TRIANGLES, 0, smileCount)
         // By night the one-month smile glows while a shock lifts it, as strongly as the shock shown: light from the
-        // moment the story's shock lands, or the reader's, gone again at calm.
-        const lit = palette.dark ? Math.min(1, Math.max(0, x)) * labelsK : 0
+        // moment the story's shock lands, or the reader's, gone again at calm; a landed blow lights it at once.
+        const lit = palette.dark ? Math.max(Math.min(1, Math.max(0, x)) * labelsK, flash) : 0
+        // By day the blow draws it in ink, heavier, fading back to the other smiles' line.
+        if (!palette.dark && flash > 0.01 && frontCount) {
+          for (let i = 0; i < 3; i++) glowColor[i] = palette.graphite[i]! + (palette.ink[i]! - palette.graphite[i]!) * flash
+          gl.uniform3fv(line.u('uColor'), glowColor)
+          gl.uniform1f(line.u('uWidth'), 1 + 1.5 * flash)
+          gl.drawArrays(gl.TRIANGLES, 0, frontCount)
+          gl.uniform1f(line.u('uWidth'), 1)
+        }
         if (lit > 0.01 && frontCount) {
           glow.use()
           gl.uniformMatrix4fv(glow.u('uMVP'), false, m)

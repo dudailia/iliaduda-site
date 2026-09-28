@@ -1,0 +1,92 @@
+import { stepCoefficients } from '../futures/mc'
+import { spring } from '../stage/spring'
+import { dexp, dlog } from './detmath'
+
+/**
+ * The arithmetic of /market's views (components/figures/market/): pure, so Node tests it
+ * (tests/market-views.test.ts), and in the engine's own exponential and logarithm, as all of lib/market is.
+ */
+
+/**
+ * The order book's price window: 36 ticks either side of its centre. The centre holds while the price stays in the
+ * window's middle three fifths, and follows it out on a spring (ω 5, critically damped), so the price's calm wander
+ * (6 ticks in twenty seconds at the median, 18 at most) moves nothing, and a shock's fall (8 to 51 ticks) carries the
+ * view down with it; it is never let within a tenth of the window's edge.
+ */
+export const WINDOW = { half: 36, band: 0.6, clamp: 0.9, omega: 5 } as const
+
+export class PriceWindow {
+  centre: number
+  private readonly s = { x: 0, v: 0 }
+
+  constructor(mid: number) {
+    this.centre = mid
+    this.s.x = mid
+  }
+
+  step(mid: number, dt: number): void {
+    const edge = WINDOW.band * WINDOW.half
+    const off = mid - this.s.x
+    const target = off > edge ? mid - edge : off < -edge ? mid + edge : this.s.x
+    if (target !== this.s.x || this.s.v !== 0) spring(this.s, target, dt, WINDOW.omega)
+    const most = WINDOW.clamp * WINDOW.half
+    if (mid - this.s.x > most) this.s.x = mid - most
+    else if (this.s.x - mid > most) this.s.x = mid + most
+    // Settled within a thousandth of a tick and all but still: there.
+    if (Math.abs(target - this.s.x) < 1e-3 && Math.abs(this.s.v) < 1e-3) {
+      this.s.x = target
+      this.s.v = 0
+    }
+    this.centre = this.s.x
+  }
+}
+
+/** A queue's tone, 0 to 1: 1 − e^(−q/28), so the median queue (10 shares) is drawn a third of the way, one of 90 all but full. */
+export const HEAT = { q: 28, full: 90 } as const
+export const heat = (q: number) => (q > 0 ? 1 - dexp(-q / HEAT.q) : 0)
+/** How much indigo a queue puts over the paper, by day and by night: a trace for any queue at all, then its tone. */
+export const tone = (q: number) => (q > 0 ? 0.05 + 0.9 * heat(q) : 0)
+
+/**
+ * The order book's depth at a price as a tone: every share waiting between that price and the touch on its side,
+ * the quantity /order-book's terrain stands as height. So the book darkens away from the price on both sides, the
+ * spread between them paper, and a side a sweep has drained shows light until it fills again. Its tone is
+ * a trace for any depth at all, 1 − e^(−c/700): a calm book's median depth three ticks out (about 80 shares) is
+ * drawn light, its median at the window's edge (about 430) near half, so the gradient runs the window's height;
+ * never full.
+ */
+export const DEPTH = { shares: 700, floor: 0.04, range: 0.86 } as const
+export const depthTone = (c: number) => (c > 0 ? DEPTH.floor + DEPTH.range * (1 - dexp(-c / DEPTH.shares)) : 0)
+
+/**
+ * A fan drawn at volatility `base.sigma`, as it is at `sigma`: the same paths, the same normal draws, stretched. In
+ * log price a path is its drift plus σ times a sum of normals at each step, so every path, and every quantile taken
+ * in log price (lib/futures/fan.ts), maps exactly: nothing is drawn again, and the fan can move with the volatility
+ * frame by frame. Rows of 65 steps, today first; `outBands` and `outStrands` take the result.
+ */
+export function fanAt(base: { sigma: number; bands: ArrayLike<number>; strands: ArrayLike<number> }, sigma: number, outBands: Float64Array, outStrands: Float64Array): void {
+  const a = stepCoefficients(base.sigma), b = stepCoefficients(sigma)
+  const k = b.vol / a.vol
+  const map = (src: ArrayLike<number>, out: Float64Array) => {
+    for (let i = 0; i < src.length; i++) {
+      const j = i % 65
+      out[i] = j === 0 ? src[i]! : dexp(j * b.drift + k * (dlog(src[i]!) - j * a.drift))
+    }
+  }
+  map(base.bands, outBands)
+  map(base.strands, outStrands)
+}
+
+/** Price ticks (in ticks) across `lo`…`hi` at a round step: three to six of them. */
+export function priceTicks(lo: number, hi: number): number[] {
+  const span = hi - lo
+  const step = [10, 20, 25, 50, 100, 200, 250, 500].find((s) => span / s <= 5) ?? 1000
+  const out: number[] = []
+  for (let p = Math.ceil(lo / step) * step; p <= hi; p += step) out.push(p)
+  return out
+}
+
+/** A year's prices to mark, in dollars: halvings and doublings of $100 within `lo`…`hi` times the price now. */
+export function logTicks(mid: number, lo: number, hi: number): number[] {
+  return [6.25, 12.5, 25, 50, 100, 200, 400, 800, 1600].filter((p) => p >= mid * lo * 0.98 && p <= mid * hi * 1.02)
+}

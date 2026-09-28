@@ -23,24 +23,27 @@ import { AxisLabel, Frame, NoteMark } from './marks'
 /** Each framing's marks show at its own breakpoint, the one the stage and the picture change at (lib/surface/view.ts, WIDE_QUERY). */
 const shown = (kind: FrameKind) => (kind === 'wide' ? 'hidden sm:block' : 'sm:hidden')
 
-export function Poster({ at }: { at: Params }) {
+/** The mesh's two files: the IV paper's, unless a page draws its own surface (/market's, at the market's stress). */
+const IV_MESH = { wide: '/iv-surface/poster.svg', tall: '/iv-surface/poster-tall.svg' } as const
+
+export function Poster({ at, mesh = IV_MESH, notes = true }: { at: Params; mesh?: { wide: string; tall: string }; notes?: boolean }) {
   const wide = poster(at, 'wide')
   const tall = poster(at, 'tall')
   return (
     <div data-iv-poster="" className="absolute inset-0">
       <Frame>
         <picture>
-          <source media="(width < 40rem)" srcSet="/iv-surface/poster-tall.svg" width={tall.width} height={FRAME_H} />
-          <img data-fill="" data-mesh="" src="/iv-surface/poster.svg" width={wide.width} height={FRAME_H} alt="" decoding="async" className="absolute inset-0 h-full w-full" />
+          <source media="(width < 40rem)" srcSet={mesh.tall} width={tall.width} height={FRAME_H} />
+          <img data-fill="" data-mesh="" src={mesh.wide} width={wide.width} height={FRAME_H} alt="" decoding="async" className="absolute inset-0 h-full w-full" />
         </picture>
-        <Marks d={wide} kind="wide" />
-        <Marks d={tall} kind="tall" />
+        <Marks d={wide} kind="wide" notes={notes} />
+        <Marks d={tall} kind="tall" notes={notes} />
       </Frame>
     </div>
   )
 }
 
-function Marks({ d, kind }: { d: PosterData; kind: FrameKind }) {
+function Marks({ d, kind, notes }: { d: PosterData; kind: FrameKind; notes: boolean }) {
   return (
     <>
       {d.labels.map((l) => (
@@ -53,7 +56,7 @@ function Marks({ d, kind }: { d: PosterData; kind: FrameKind }) {
           style={{ left: `${(l.x * 100).toFixed(2)}%`, top: `${(l.y * 100).toFixed(2)}%` }}
         />
       ))}
-      {d.notes.map((n) => (
+      {(notes ? d.notes : []).map((n) => (
         <NoteMark
           key={n.id}
           note={n.id}

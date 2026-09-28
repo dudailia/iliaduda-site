@@ -70,6 +70,24 @@ describe('the futures fan', () => {
     expect(b.call().mean).toBe(a.call().mean)
   })
 
+  it('is one fan at every volatility: a fan drawn at one maps exactly onto the fan drawn at another', async () => {
+    const { fanAt } = await import('../lib/market/views')
+    const a = new Fan(), b = new Fan()
+    a.begin(1, 0.25, 2048)
+    b.begin(1, 0.7, 2048)
+    while (!a.work(4096));
+    while (!b.work(4096));
+    const bands = new Float64Array(a.bandsData().length), strands = new Float64Array(a.strands().length)
+    fanAt({ sigma: 0.25, bands: a.bandsData(), strands: a.strands() }, 0.7, bands, strands)
+    const close = (x: ArrayLike<number>, y: ArrayLike<number>) => {
+      let worst = 0
+      for (let i = 0; i < x.length; i++) worst = Math.max(worst, Math.abs(x[i]! / y[i]! - 1))
+      return worst
+    }
+    expect(close(strands, b.strands())).toBeLessThan(1e-12)
+    expect(close(bands, b.bandsData())).toBeLessThan(1e-12)
+  })
+
   it('keeps a sample of paths to draw, today first, one year last', () => {
     const f = run(1024)
     const strands = f.strands()
