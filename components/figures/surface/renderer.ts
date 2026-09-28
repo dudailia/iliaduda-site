@@ -1,7 +1,7 @@
-import { program, toLinear } from '@/lib/gl'
+import { program } from '@/lib/gl'
 import { invert } from '@/lib/m4'
 import { EASE_IN_OUT_QUAD, EASE_OUT } from '@/lib/ease'
-import { FILL, KEY, LIGHT, LINE_FLIP, RAMP, STOPS, UP_LIGHT } from '@/lib/surface/look'
+import { FILL, KEY, LIGHT, LINE_FLIP, oklab, RAMP, rampStops, UP_LIGHT } from '@/lib/surface/look'
 import { lineReveal } from '@/lib/surface/sequence'
 import { spring as spring2 } from '@/lib/stage/spring'
 import { params } from '@/lib/surface/shock'
@@ -10,7 +10,7 @@ import {
   apply, camera, EXPIRY_TICKS, eye, H, kOfU, LABELS, mvp, NOTES, pickSurface, POST, STRIKE_TICKS, SWAY_PERIOD, V0, V1,
   VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type FrameKind, type M4,
 } from '@/lib/surface/view'
-import type { Palette, Renderer, RGB, StageEnv } from '@/components/stage/useStage'
+import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 import { LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
 import { noteRise, setNoteRise } from './marks'
 
@@ -85,25 +85,6 @@ const GRID = [40, 96, 168, 256] as const
 const SMILE_N = 96
 /** How far the reader's lean turns the surface, radians: in yaw, and in pitch. */
 const LEAN = { yaw: 0.06, pitch: 0.03 } as const
-
-// ── colour ───────────────────────────────────────────────────────────────────
-
-function oklab(c: RGB): [number, number, number] {
-  const r = toLinear(c[0]), g = toLinear(c[1]), b = toLinear(c[2])
-  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
-  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
-  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
-  return [
-    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
-    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
-    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
-  ]
-}
-const mixv = (a: readonly number[], b: readonly number[], t: number): [number, number, number] => [
-  a[0]! + (b[0]! - a[0]!) * t,
-  a[1]! + (b[1]! - a[1]!) * t,
-  a[2]! + (b[2]! - a[2]!) * t,
-]
 
 // ── the renderer ─────────────────────────────────────────────────────────────
 
@@ -376,13 +357,12 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniformMatrix4fv(prog.u('uMVP'), false, m)
   }
   const setLook = (prog: typeof surf, e: [number, number, number], probe: Probe | null, probeK = 1) => {
-    const wash = oklab(palette.wash), ind = oklab(palette.indigo), ink = oklab(palette.ink), paper = oklab(palette.paper)
-    const top = palette.dark ? mixv(ind, ink, STOPS.nightTop) : ind
-    gl.uniform3fv(prog.u('uLo'), mixv(wash, ind, STOPS.lo))
-    gl.uniform3fv(prog.u('uMid'), mixv(wash, ind, STOPS.mid))
-    gl.uniform3fv(prog.u('uTop'), top)
-    gl.uniform3fv(prog.u('uInk'), ink)
-    gl.uniform3fv(prog.u('uPaper'), paper)
+    const stops = rampStops(palette)
+    gl.uniform3fv(prog.u('uLo'), stops.lo)
+    gl.uniform3fv(prog.u('uMid'), stops.mid)
+    gl.uniform3fv(prog.u('uTop'), stops.top)
+    gl.uniform3fv(prog.u('uInk'), oklab(palette.ink))
+    gl.uniform3fv(prog.u('uPaper'), oklab(palette.paper))
     gl.uniform2f(prog.u('uRamp'), RAMP.lo, RAMP.hi)
     gl.uniform1f(prog.u('uFlip'), LINE_FLIP)
     gl.uniform3fv(prog.u('uKey'), KEY)

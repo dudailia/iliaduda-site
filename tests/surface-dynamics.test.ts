@@ -8,7 +8,7 @@ import { FRAME_ASPECT, noteRise } from '../components/figures/surface/marks'
 import { poster, describe as describePoster } from '../lib/surface/poster'
 import { invert } from '../lib/m4'
 import { camera, fitDistance, FRAMES, H, kOfU, labelBox, LABELS, mvp, apply, pickSurface, tOfV, fu, fv, wx, wy, wz, XW, ZW, type FrameKind } from '../lib/surface/view'
-import { diffuse, UP_LIGHT } from '../lib/surface/look'
+import { diffuse, linOf, oklab, rampLab, srgbOf, UP_LIGHT } from '../lib/surface/look'
 
 /**
  * The IV paper's Fig. 1 moves a synthetic SSVI surface through a volatility
@@ -246,6 +246,17 @@ describe('the view', () => {
         }
       }
     }
+  })
+
+  it('the ramp’s colour arithmetic on the CPU is the shader’s: oklab there and back is the colour itself', () => {
+    for (const c of [[0.184, 0.227, 0.549], [0.894, 0.902, 0.949], [0.09, 0.094, 0.11], [1, 1, 1]] as const) {
+      const back = srgbOf(linOf(oklab(c)))
+      for (let i = 0; i < 3; i++) expect(back[i]).toBeCloseTo(c[i]!, 6)
+    }
+    const stops = { lo: oklab([0.2, 0.3, 0.6]), mid: oklab([0.5, 0.5, 0.7]), top: oklab([0.1, 0.1, 0.4]) }
+    expect(rampLab(0, stops)).toEqual(stops.lo)
+    expect(rampLab(0.5, stops)).toEqual(stops.mid)
+    expect(rampLab(1, stops)).toEqual(stops.top)
   })
 
   it('an upward-facing patch is lit at exactly its ramp colour', () => {

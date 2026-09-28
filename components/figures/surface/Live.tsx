@@ -6,7 +6,7 @@ import { CONTROL } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
-import { saveData, supportsWebGL2 } from '@/components/stage/env'
+import { cssColor, saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create } from '@/components/stage/useStage'
@@ -319,7 +319,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   }, [probe, write])
 
   // Where the live figure does not run, the still frame is redrawn for the shock the reader sets.
-  const still = useRef<{ poster: typeof import('@/lib/surface/poster'); markup: typeof import('@/lib/surface/posterMarkup') } | null>(null)
+  const still = useRef<{ poster: typeof import('@/lib/surface/poster'); markup: typeof import('@/lib/surface/posterMarkup'); sheet: typeof import('./still') } | null>(null)
   const stillWant = useRef(0)
   const stillFrame = useRef(0)
   const redrawStill = useCallback(
@@ -328,25 +328,40 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       const run = () => {
         const s = still.current
         if (!s || !el) return
-        const d = s.poster.poster(params(x), kindRef.current)
-        // The first redraw puts the mesh inline in place of the poster's picture, with its style beside it.
+        const kind = kindRef.current
+        const d = s.poster.poster(params(x), kind)
+        // The first redraw puts the still frame in place of the poster's picture: the sheet painted smooth on a canvas,
+        // and over it, inline, the walls, contours and ticks, with their style beside them.
         let mesh = el.querySelector('[data-iv-poster] [data-mesh]')
         if (mesh && mesh.tagName.toLowerCase() === 'img') {
+          const sheet = document.createElement('canvas')
+          sheet.setAttribute('class', 'absolute inset-0 h-full w-full')
+          sheet.setAttribute('aria-hidden', 'true')
+          sheet.setAttribute('data-fill', '')
+          sheet.setAttribute('data-still-sheet', '')
           const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
           svg.setAttribute('class', 'absolute inset-0 h-full w-full overflow-visible')
           svg.setAttribute('aria-hidden', 'true')
           svg.setAttribute('data-fill', '')
           svg.setAttribute('data-mesh', '')
-          ;(mesh.closest('picture') ?? mesh).replaceWith(svg)
+          ;(mesh.closest('picture') ?? mesh).replaceWith(sheet, svg)
           mesh = svg
           const style = document.createElement('style')
           style.setAttribute('data-mesh-css', '')
           el.querySelector('[data-iv-poster]')?.prepend(style)
         }
+        const sheet = el.querySelector<HTMLCanvasElement>('[data-iv-poster] [data-still-sheet]')
+        if (sheet)
+          s.sheet.drawSheet(sheet, params(x), kind, {
+            wash: cssColor('--color-indigo-wash'),
+            indigo: cssColor('--color-indigo'),
+            ink: cssColor('--color-ink'),
+            dark: matchMedia('(prefers-color-scheme: dark)').matches,
+          })
         if (mesh) {
           // Each framing's picture is its own width: a phone turned to landscape changes it.
           mesh.setAttribute('viewBox', `0 0 ${d.width} ${s.poster.FRAME_H}`)
-          mesh.innerHTML = s.markup.meshMarkup(d)
+          mesh.innerHTML = s.markup.meshMarkup(d, !sheet)
         }
         const style = el.querySelector('[data-iv-poster] style[data-mesh-css]')
         if (style) style.textContent = s.markup.MESH_CSS + s.poster.RAMP_CSS + d.css
@@ -372,8 +387,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           run()
         }
         if (still.current) return go()
-        void Promise.all([import('@/lib/surface/poster'), import('@/lib/surface/posterMarkup')]).then(([poster, markup]) => {
-          still.current = { poster, markup }
+        void Promise.all([import('@/lib/surface/poster'), import('@/lib/surface/posterMarkup'), import('./still')]).then(([poster, markup, sheet]) => {
+          still.current = { poster, markup, sheet }
           go()
         })
       })
@@ -477,10 +492,6 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   }, [])
   const onStage = sig.state === 'playing' && !lineSeen
 
-  // A phone turned to landscape, or back, changes the framing: a still frame drawn inline is redrawn in the new one.
-  useEffect(() => {
-    if (still.current && !live) redrawStill(level.current)
-  }, [kind, live, redrawStill])
 
   // Said only once the browser has answered; the server cannot know.
   const why = !mounted
@@ -498,6 +509,14 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
               ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
               : 'Still frame: this browser has no WebGL2.'
           : null
+
+  // A figure that will not go live keeps a still frame worth keeping: its sheet painted smooth (./still.ts), drawn again
+  // for a new framing (a phone turned to landscape, or back) and for the other colour scheme.
+  const scheme = useColorScheme()
+  const stillFor = mounted && !live && why !== null
+  useEffect(() => {
+    if (stillFor) redrawStill(level.current)
+  }, [stillFor, kind, scheme, redrawStill])
 
   const debugInfo = useRef<() => LiveInfo>(null)
   useEffect(() => {
@@ -589,7 +608,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
               ))}
             </Frame>
           </div>
-          <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y' }} />
+          <canvas ref={canvas} data-live-canvas="" aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y' }} />
           {/* The story's narration, on the stage while the line under it is out of view (the line is the one read aloud). */}
           <p
             aria-hidden

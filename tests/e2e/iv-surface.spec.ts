@@ -17,8 +17,8 @@ test.use({ launchOptions: { args: GPU } })
 const FIG = '#fig-iv-surface'
 const STAGE = `${FIG} [data-seq]`
 const seq = (page: Page) => page.locator(STAGE).getAttribute('data-seq')
-const canvasShown = (page: Page) => page.locator(`${STAGE} canvas`).evaluate((c) => getComputedStyle(c).visibility !== 'hidden' && Number(getComputedStyle(c).opacity) > 0.5)
-const draws = (page: Page) => page.locator(`${STAGE} canvas`).evaluate((c) => Number((c as HTMLCanvasElement).dataset.draws ?? 0))
+const canvasShown = (page: Page) => page.locator(`${STAGE} canvas[data-live-canvas]`).evaluate((c) => getComputedStyle(c).visibility !== 'hidden' && Number(getComputedStyle(c).opacity) > 0.5)
+const draws = (page: Page) => page.locator(`${STAGE} canvas[data-live-canvas]`).evaluate((c) => Number((c as HTMLCanvasElement).dataset.draws ?? 0))
 const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('surface-seq', '1'))
 /** The margin's value for a label, from whichever copy this screen shows. */
 const value = (page: Page, label: string) =>
@@ -203,7 +203,7 @@ test('Replay sinks the surface into the page rather than cutting it, forms it ag
   // A frame after the press the sheet is on its way down, not gone: it sinks over a third of a second.
   const after = await page.evaluate(async () => {
     const fig = document.querySelector('#fig-iv-surface')!
-    const c = fig.querySelector('canvas') as HTMLCanvasElement
+    const c = fig.querySelector('canvas[data-live-canvas]') as HTMLCanvasElement
     const b = [...fig.querySelectorAll('button')].find((x) => x.textContent === 'Replay') as HTMLButtonElement
     b.click()
     const frame = () => new Promise((r) => requestAnimationFrame(r))
@@ -213,7 +213,7 @@ test('Replay sinks the surface into the page rather than cutting it, forms it ag
   })
   expect(after).toBeGreaterThan(0.5)
   expect(after).toBeLessThan(1)
-  const rise = () => page.locator(`${STAGE} canvas`).evaluate((c) => Number((c as HTMLCanvasElement).dataset.rise))
+  const rise = () => page.locator(`${STAGE} canvas[data-live-canvas]`).evaluate((c) => Number((c as HTMLCanvasElement).dataset.rise))
   await expect.poll(rise, { timeout: 2_000 }).toBeLessThan(0.05)
   await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('done')
   expect(await rise()).toBe(1)
@@ -270,7 +270,7 @@ test('a phone has its own framing: a taller stage, and only the poster drawn for
   page.on('request', (r) => {
     if (/\/iv-surface\/poster[^/]*\.svg$/.test(r.url())) svgs.push(new URL(r.url()).pathname)
   })
-  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await seen(page)
   await page.goto('/iv-surface')
   const b = (await page.locator(STAGE).boundingBox())!
   expect(b.width / b.height).toBeCloseTo(1.1, 1)
@@ -375,21 +375,56 @@ test('the point being read is named beside its dot: while a mouse points, and fo
   expect(await shown()).toBeGreaterThan(0.9)
 })
 
+test('reduced motion: the still frame’s sheet is smooth, with no steps along its grid, and the slider redraws it', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/iv-surface')
+  const sheet = page.locator(`${STAGE} [data-still-sheet]`)
+  await expect(sheet).toBeAttached()
+  // The largest jump in brightness between neighbouring pixels across rows of the sheet (off it, the canvas is clear).
+  const worst = () =>
+    sheet.evaluate((c: HTMLCanvasElement) => {
+      const g = c.getContext('2d')!
+      let worst = 0
+      for (const f of [0.4, 0.5, 0.6]) {
+        const row = g.getImageData(0, Math.round(c.height * f), c.width, 1).data
+        let prev = -1
+        for (let x = 0; x < c.width; x++) {
+          if (row[x * 4 + 3]! < 250) {
+            prev = -1
+            continue
+          }
+          const l = 0.2126 * row[x * 4]! + 0.7152 * row[x * 4 + 1]! + 0.0722 * row[x * 4 + 2]!
+          if (prev >= 0) worst = Math.max(worst, Math.abs(l - prev))
+          prev = l
+        }
+      }
+      return worst
+    })
+  expect(await worst()).toBeLessThan(4)
+  const slider = page.locator(`${FIG} input[type="range"]`)
+  await slider.focus()
+  await page.keyboard.press('End')
+  await page.waitForTimeout(300)
+  expect(await worst()).toBeLessThan(4)
+})
+
 test('reduced motion: the still frame, never the canvas, and the slider still redraws it', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/iv-surface')
   await page.waitForTimeout(1_500)
-  const canvas = page.locator(`${STAGE} canvas`)
+  const canvas = page.locator(`${STAGE} canvas[data-live-canvas]`)
   await expect(canvas).toHaveCSS('opacity', '0')
   // Never initialised: a canvas nobody drew into keeps its default width.
   expect(await canvas.getAttribute('width')).toBe(null)
   await expect(page.locator(FIG)).toContainText('Still frame: your system asks for reduced motion.')
-  // The still frame is the poster's image until the slider moves; then it is redrawn inline for the shock set.
-  await expect(page.locator(`${FIG} [data-iv-poster] img[data-mesh]`)).toBeVisible()
+  // The still frame is the sheet painted smooth, with its walls, contours and ticks inline over it; the slider redraws both.
+  await expect(page.locator(`${FIG} [data-iv-poster] [data-still-sheet]`)).toBeVisible()
+  const mesh = page.locator(`${FIG} [data-iv-poster] svg[data-mesh]`)
+  await expect.poll(() => mesh.evaluate((m) => m.querySelectorAll('path').length), { timeout: 5_000 }).toBeGreaterThan(10)
+  const lines = await mesh.innerHTML()
   const atm = await value(page, '1-month vol, at the money').textContent()
   await page.getByRole('slider', { name: /shock/i }).fill('1')
-  const mesh = page.locator(`${FIG} [data-iv-poster] svg[data-mesh]`)
-  await expect.poll(() => mesh.evaluate((m) => m.querySelectorAll('path').length), { timeout: 5_000 }).toBeGreaterThan(50)
+  await expect.poll(() => mesh.innerHTML(), { timeout: 5_000 }).not.toBe(lines)
   await expect(value(page, '1-month vol, at the money')).not.toHaveText(atm ?? '')
   await expect(page.locator(FIG).getByRole('button', { name: 'Pause' })).toHaveCount(0)
 })
@@ -419,7 +454,7 @@ test('a lost context shows the poster again, and a restored one brings the figur
   await page.goto('/iv-surface')
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   await page.evaluate(() => {
-    const c = document.querySelector('#fig-iv-surface canvas') as HTMLCanvasElement
+    const c = document.querySelector('#fig-iv-surface canvas[data-live-canvas]') as HTMLCanvasElement
     const ext = c.getContext('webgl2')!.getExtension('WEBGL_lose_context')!
     ;(window as unknown as { __lose: WEBGL_lose_context }).__lose = ext
     ext.loseContext()
@@ -437,7 +472,7 @@ test('on a first visit a lost context shows the finished poster, not an empty st
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('playing')
   await page.evaluate(() => {
-    const c = document.querySelector('#fig-iv-surface canvas') as HTMLCanvasElement
+    const c = document.querySelector('#fig-iv-surface canvas[data-live-canvas]') as HTMLCanvasElement
     const ext = c.getContext('webgl2')!.getExtension('WEBGL_lose_context')!
     ;(window as unknown as { __lose: WEBGL_lose_context }).__lose = ext
     ext.loseContext()
