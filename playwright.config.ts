@@ -34,8 +34,9 @@ export default defineConfig({
       use: { ...devices['iPhone 15'], ...(WEBKIT ? { launchOptions: { executablePath: WEBKIT } } : {}) },
       testMatch: /(webkit|engines)\.spec\.ts/,
     },
-    // SpiderMonkey, where Firefox is installed (`playwright install firefox`): the third engine for one market.
-    ...(existsSync(firefox.executablePath()) ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /engines\.spec\.ts/ }] : []),
+    // SpiderMonkey, the third engine for one market (`playwright install firefox`). Locally it runs where Firefox is
+    // installed; on CI, which installs it, always, so a missing browser fails rather than skipping the paper's claim.
+    ...(process.env.CI || existsSync(firefox.executablePath()) ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /engines\.spec\.ts/ }] : []),
   ],
   /**
    * Runs against `next start`, not `next dev`. The development server injects a

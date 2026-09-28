@@ -187,9 +187,10 @@
 }
 
 /* ---------------------------------------------------------------------------
-   One orchestrated moment on the whole site — the hero figure's entrance — and
-   it is written to be skippable. Everything else is link colour. This guard
-   keeps that true if motion is ever added carelessly.
+   Reduced motion: everything is static (DESIGN.md, Figures › Motion). The live
+   figures are still frames, and every transition and animation here is
+   instant, including the fades and arrivals below; this guard keeps that true
+   for any motion added later.
    --------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -327,7 +328,7 @@
 :root[data-surface-seq] .iv-fig [data-fill] {
   opacity: 0;
 }
-/* Its live controls arrive as the others' do: rising 4px into place, 40ms apart; under reduced motion they only fade. */
+/* Its live controls arrive as the others' do: rising 4px into place, 40ms apart. */
 [data-surface-controls] > button {
   transition:
     border-color 150ms ease-out,
@@ -342,14 +343,6 @@
 [data-surface-controls] > button:nth-child(2) {
   --arrive: 40ms;
 }
-@media (prefers-reduced-motion: reduce) {
-  [data-surface-controls] > button {
-    @starting-style {
-      opacity: 0;
-      translate: none;
-    }
-  }
-}
 
 /* The order book's poster: on a first visit (the pre-paint mark, lib/stage/prepaint.ts) the page is empty, and the
    terrain rises out of it; if the live figure declines, the finished picture fades in on the site's ease-out. */
@@ -359,8 +352,7 @@
 :root[data-orderbook-seq] [data-orderbook-poster] [data-fill] {
   opacity: 0;
 }
-/* Its live controls, and Fig. 2's, arrive as the hero's do: rising 4px into place, 40ms apart; under reduced motion
-   they only fade. */
+/* Its live controls, and Fig. 2's, arrive as the hero's do: rising 4px into place, 40ms apart. */
 [data-orderbook-controls] > button,
 [data-orderflow-controls] > button {
   transition:
@@ -376,20 +368,11 @@
 [data-orderbook-controls] > button:nth-child(2) {
   --arrive: 40ms;
 }
-@media (prefers-reduced-motion: reduce) {
-  [data-orderbook-controls] > button,
-  [data-orderflow-controls] > button {
-    @starting-style {
-      opacity: 0;
-      translate: none;
-    }
-  }
-}
 
 /* The home figure's live controls arrive with the canvas they drive: 240ms on the crossfade's curve, rising 4px into
    place one after another, 40ms apart. The rise is `translate`, so a press's `scale` keeps its own quick 150ms, and
    only the arrival waits its turn: a hover or a press never does. Reset, which appears as the reader first moves an
-   input, enters from 0.97 over 160ms. Under reduced motion they only fade. */
+   input, enters from 0.97 over 160ms. */
 [data-futures-controls] > button {
   transition:
     border-color 150ms ease-out,
@@ -407,14 +390,6 @@
 [data-futures-controls] > button:nth-child(3) {
   --arrive: 80ms;
 }
-@media (prefers-reduced-motion: reduce) {
-  [data-futures-controls] > button {
-    @starting-style {
-      opacity: 0;
-      translate: none;
-    }
-  }
-}
 [data-futures-controls] > button[data-reset] {
   transition:
     border-color 150ms ease-out,
@@ -423,14 +398,6 @@
   @starting-style {
     opacity: 0;
     scale: 0.97;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-futures-controls] > button[data-reset] {
-    @starting-style {
-      opacity: 0;
-      scale: 1;
-    }
   }
 }
 :root[data-futures-still] [data-futures-controls] {

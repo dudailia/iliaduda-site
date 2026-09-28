@@ -433,7 +433,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           ? saveData()
             ? 'Still frame: your browser asks to save data.'
             : supportsWebGL2()
-              ? 'Still frame: the live figure could not start here.'
+              ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
               : 'Still frame: this browser has no WebGL2.'
           : null
 

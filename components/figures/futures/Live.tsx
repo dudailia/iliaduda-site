@@ -609,7 +609,7 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
           : declined === 'lost'
             ? 'Still frame: the graphics context was lost.'
             : declined === 'load' || declined === 'error'
-              ? 'Still frame: the live figure could not start here.'
+              ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
               : !eligible
                 ? saveData()
                   ? 'Still frame: your browser asks to save data.'

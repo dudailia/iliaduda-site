@@ -51,66 +51,8 @@ export function params(a: number, size = 1): Params {
   }
 }
 
-// ── the clock ────────────────────────────────────────────────────────────────
-
-/** Seconds. The loop begins with the shock. */
-export const RISE = 1.0
-export const RELAX = 6.0
-export const HOLD = 3.0
-export const LOOP = RISE + RELAX + HOLD
-/** Relaxation time constant: most of the fear is gone in three of these. */
-export const TAU = 1.5
-/** Where the poster is drawn and where the live loop starts: the peak. */
-export const PEAK = RISE
-
-/** A CSS cubic-bezier, solved for y at x = t by bisection. */
-export function bezier(x1: number, y1: number, x2: number, y2: number) {
-  const b = (u: number, p1: number, p2: number) => 3 * u * (1 - u) * (1 - u) * p1 + 3 * u * u * (1 - u) * p2 + u * u * u
-  return (t: number) => {
-    if (t <= 0) return 0
-    if (t >= 1) return 1
-    let lo = 0, hi = 1
-    for (let i = 0; i < 22; i++) {
-      const mid = (lo + hi) / 2
-      if (b(mid, x1, x2) < t) lo = mid
-      else hi = mid
-    }
-    return b((lo + hi) / 2, y1, y2)
-  }
-}
-/** Strong ease-out: the shock lands at once and settles into its peak. */
-export const easeOut = bezier(0.23, 1, 0.32, 1)
-
+/** What the surface is doing, in words (components/figures/surface/Live.tsx says which, from the story or the slider). */
 export type Phase = 'shock' | 'relax' | 'calm'
-
-/** Shock amplitude at loop time `t` seconds: a fast rise, an exponential relaxation that reaches zero exactly, a calm hold. */
-/** Time constant of the critically damped relaxation, seconds. */
-const RELAX_T = 0.9
-
-export function amplitude(t: number): number {
-  const u = ((t % LOOP) + LOOP) % LOOP
-  if (u < RISE) return easeOut(u / RISE)
-  if (u < RISE + RELAX) {
-    // Critically damped, so the fall starts at zero speed exactly where the
-    // rise ends: a plain exponential left the peak at full speed, and the
-    // surface visibly hit the ceiling and dropped. Half-life ≈ 1.5s; it is
-    // under 0.04 by about 4.5s and reaches zero exactly at the end.
-    const x = u - RISE
-    const d = (y: number) => (1 + y / RELAX_T) * Math.exp(-y / RELAX_T)
-    const end = d(RELAX)
-    return (d(x) - end) / (1 - end)
-  }
-  return 0
-}
-
-export function phase(t: number): Phase {
-  const u = ((t % LOOP) + LOOP) % LOOP
-  // "Shock" covers the rise and the first moments at the top, so the word is
-  // on screen long enough to be read.
-  if (u < RISE + 0.9) return 'shock'
-  if (amplitude(u) > 0.04) return 'relax'
-  return 'calm'
-}
 
 export const PHASE_TEXT: Record<Phase, { name: string; line: string }> = {
   calm: {

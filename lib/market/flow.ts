@@ -90,6 +90,8 @@ export class Flow {
   readonly trades: Trade[] = []
   /** Called for every fill as it happens, for sparks. */
   onTrade: ((tr: Trade) => void) | null = null
+  /** For the tests: called around every event after the burn-in, with the book as it was and as it is. */
+  watch: { before(type: number): void; after(type: number): void } | null = null
   /**
    * The most recent events, as parallel arrays in a ring (`event(age)` finds one): when, what, at which level and
    * how many shares, how far from the touch on its side (ticks; negative inside the spread), the queue at that side's
@@ -144,7 +146,9 @@ export class Flow {
       const bidSide = type === LIMIT_BUY || type === CANCEL_BID || type === MARKET_SELL
       const touch = bidSide ? b.bestBid : b.bestAsk
       const q0 = bidSide ? b.bidAt(touch) : b.askAt(touch)
+      if (keep) this.watch?.before(type)
       b.apply(type, t, keep ? this.trade : undefined)
+      if (keep) this.watch?.after(type)
       if (keep) this.pendingEvents++
       const e = (this.eventHead = (this.eventHead + 1) % EVENTS)
       if (this.eventCount < EVENTS) this.eventCount++

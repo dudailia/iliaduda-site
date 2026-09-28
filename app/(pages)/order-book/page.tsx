@@ -44,7 +44,7 @@ export default function OrderBook() {
   return (
     <Shell>
       <article>
-        <CaseStudyTitle byline={paper.byline} level="h1" title={paper.title} standfirst={<p>{paper.abstract}</p>} />
+        <CaseStudyTitle byline={paper.byline} level="h1" title={paper.title} standfirst={<p>{paper.standfirst ?? paper.abstract}</p>} />
 
         <OrderBookFigure />
 
@@ -57,13 +57,13 @@ export default function OrderBook() {
           <p>
             In Fig. 1 that list is a landscape. Across the valley runs price, bids to the left and asks to the right; the
             height of a wall at a price is every share waiting between the touch and that price, so the walls rise away from
-            the spread. Twelve times a simulated second the book is photographed into one ridge, and twenty seconds of them
-            recede into the page, the newest at the front. The line along the valley floor is the mid-price; each spark is a
+            the spread. Twelve times a simulated second the book is photographed into one ridge, and the ridges recede into
+            the page, the newest at the front, as far back as twenty-one seconds where the device draws them all. The line along the valley floor is the mid-price; each spark is a
             trade, a market order taking a queue at the touch.
           </p>
         </Section>
 
-        <Section heading="Order flow that remembers">
+        <Section heading="The model">
           <Annotated
             note={
               <>
@@ -75,17 +75,21 @@ export default function OrderBook() {
             <p>
               Six kinds of order arrive: limit buys and sells, market buys and sells, and a cancellation on each side.
               Each arrives as one component of a multivariate Hawkes process, whose intensity is its baseline plus a
-              decaying lift from every earlier event: λ<sub>i</sub>(t) = μ<sub>i</sub> + Σ<sub>j</sub> Σ<sub>t
-                <sub>k</sub> &lt; t
-              </sub>{' '}
-              a<sub>ij</sub> e<sup>−β<sub>j</sub>(t − t<sub>k</sub>)</sup>. That is how real order flow behaves: a market
+              decaying lift from every earlier event:
+              <span className="my-3 block text-center whitespace-nowrap">
+                λ<sub>i</sub>(t) = μ<sub>i</sub> + Σ<sub>j</sub> Σ<sub>t
+                  <sub>k</sub> &lt; t
+                </sub>{' '}
+                a<sub>ij</sub> e<sup>−β<sub>j</sub>(t − t<sub>k</sub>)</sup>.
+              </span>
+              That is how real order flow behaves: a market
               buy makes another likelier, liquidity that was taken refills, and a new limit order is often soon cancelled.
             </p>
           </Annotated>
           <p>
             The branching matrix B<sub>ij</sub> = a<sub>ij</sub>/β<sub>j</sub> counts the events of kind i one event of
             kind j sets off directly. Its spectral radius, the branching ratio, is {m.rho.toFixed(2)}: below one, so the
-            process is stationary, and its long-run rates are (I − B)<sup>−1</sup>μ, {m.expected.toFixed(1)} events a
+            process is stationary, and its long-run rates are <span className="whitespace-nowrap">(I − B)<sup>−1</sup>μ</span>, {m.expected.toFixed(1)} events a
             second in all. Events are drawn exactly, by Ogata’s thinning: between events every intensity only decays, so
             the intensity now bounds it until the next event, and a candidate drawn at that bound is kept with probability
             λ(t)/λ*.
@@ -159,8 +163,8 @@ export default function OrderBook() {
             [
               'tests',
               <span key="t">
-                <a href={`${SRC}/tests/market-flow.test.ts`}>tests/market-flow.test.ts</a> ·{' '}
-                <a href={`${SRC}/tests/orderbook-flowview.test.ts`}>tests/orderbook-flowview.test.ts</a>
+                <a className="inline-block py-0.5" href={`${SRC}/tests/market-flow.test.ts`}>tests/market-flow.test.ts</a> ·{' '}
+                <a className="inline-block py-0.5" href={`${SRC}/tests/orderbook-flowview.test.ts`}>tests/orderbook-flowview.test.ts</a>
               </span>,
             ],
             ['renderer', <a key="r" href={`${SRC}/components/figures/orderbook/renderer.ts`}>components/figures/orderbook/renderer.ts</a>],

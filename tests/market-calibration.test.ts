@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Flow } from '@/lib/market/flow'
+import { Flow, MARKET_BUY, MARKET_SELL } from '@/lib/market/flow'
+import type { Trade } from '@/lib/market/book'
 import { MARKET } from '@/lib/market/params'
 import { Realised, TRADING_SECONDS } from '@/lib/market/realised'
 import { mulberry32 } from '@/lib/market/rng'
@@ -65,6 +66,62 @@ describe('the calibrated market, in its calm regime', () => {
       expect(b.totalBid).toBeGreaterThan(0)
       expect(b.totalAsk).toBeGreaterThan(0)
     }
+  })
+
+  it('holds every invariant the paper claims, event by event, over a million events of the market it draws', { timeout: 180_000 }, () => {
+    // The paper: "The book never crosses, no queue goes negative, and every market order fills at the touch of its
+    // moment, over a million events." Checked here on the figures' own market, after every one of its events.
+    const f = new Flow(11)
+    const bad: string[] = []
+    const fail = (why: string) => bad.length < 5 && bad.push(why)
+    let n = 0, market = 0, bb = 0, ba = 0, base = 0
+    let fills: Trade[] = []
+    let q: Int32Array | null = null
+    f.onTrade = (tr) => fills.push(tr)
+    f.watch = {
+      before(type) {
+        const b = f.book
+        bb = b.bestBid
+        ba = b.bestAsk
+        base = b.base
+        fills = []
+        q = type === MARKET_BUY ? b.ask.slice() : type === MARKET_SELL ? b.bid.slice() : null
+      },
+      after(type) {
+        n++
+        const b = f.book
+        if (!(b.bestBid < b.bestAsk)) fail(`crossed at event ${n}`)
+        if (b.totalBid <= 0 || b.totalAsk <= 0) fail(`a side emptied at event ${n}`)
+        // A queue changes only where an event acts: its own level, and the levels a market order walks. Each of
+        // those is checked after every event (and the whole book every ten thousand), so none can go negative unseen.
+        const neg = (price: number) => {
+          const i = price - b.base
+          return i >= 0 && i < b.bid.length && (b.bid[i]! < 0 || b.ask[i]! < 0)
+        }
+        if (neg(b.last.price) || fills.some((tr) => neg(tr.price))) fail(`a negative queue at event ${n}`)
+        if (n % 10_000 === 0)
+          for (let i = 0; i < b.bid.length; i++)
+            if (b.bid[i]! < 0 || b.ask[i]! < 0) {
+              fail(`a negative queue at event ${n}`)
+              break
+            }
+        if (!q || b.base !== base) return
+        market++
+        const buy = type === MARKET_BUY
+        let price = buy ? ba : bb
+        for (const tr of fills) {
+          while (q[price - base] === 0) price += buy ? 1 : -1
+          if (tr.price !== price) fail(`a market order filled away from the touch at event ${n}`)
+          price += buy ? 1 : -1
+        }
+      },
+    }
+    const t0 = f.t
+    // About 300 events a simulated second: a million in under an hour of the market.
+    for (let s = 1; n < 1_000_000 && s < 6000; s++) f.advance(t0 + s)
+    expect(n).toBeGreaterThanOrEqual(1_000_000)
+    expect(bad).toEqual([])
+    expect(market).toBeGreaterThan(50_000)
   })
 
   it('keeps its parameters in one place', () => {

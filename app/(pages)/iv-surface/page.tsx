@@ -36,7 +36,7 @@ export default function IvSurface() {
           byline={paper.byline}
           level="h1"
           title={paper.title}
-          standfirst={<p>{paper.abstract}</p>}
+          standfirst={<p>{paper.standfirst ?? paper.abstract}</p>}
         />
 
         <SurfaceFigure />
@@ -144,9 +144,11 @@ export default function IvSurface() {
 
         <Section heading="How it is drawn">
           <p>
-            The first paint is the surface itself, projected and lit on the server from the same
-            functions and the same camera, so the figure is readable, and probe-able by keyboard,
-            before any script runs. Where the browser has WebGL2 on a graphics processor, the reader
+            The surface is drawn on the server too, projected and lit from the same functions and the
+            same camera, with its numbers in the margin: without any script the figure is still the
+            finished picture, and the keyboard reads it as soon as the page is interactive. On a first
+            visit that picture waits for the surface to form out of the page. Where the browser has
+            WebGL2 on a graphics processor, the reader
             has not asked for reduced motion or reduced data, and the figure is on screen, a renderer
             written directly against WebGL2 takes over, with no library: the vertex shader evaluates
             SSVI from the parameters of the moment, so the shock is the formula on every frame, not a
@@ -166,9 +168,9 @@ export default function IvSurface() {
             [
               'tests',
               <span key="t">
-                <a href={`${SRC}/tests/svi.test.ts`}>tests/svi.test.ts</a> ·{' '}
-                <a href={`${SRC}/tests/surface-dynamics.test.ts`}>tests/surface-dynamics.test.ts</a> ·{' '}
-                <a href={`${SRC}/tests/surface-greeks.test.ts`}>tests/surface-greeks.test.ts</a>
+                <a className="inline-block py-0.5" href={`${SRC}/tests/svi.test.ts`}>tests/svi.test.ts</a> ·{' '}
+                <a className="inline-block py-0.5" href={`${SRC}/tests/surface-dynamics.test.ts`}>tests/surface-dynamics.test.ts</a> ·{' '}
+                <a className="inline-block py-0.5" href={`${SRC}/tests/surface-greeks.test.ts`}>tests/surface-greeks.test.ts</a>
               </span>,
             ],
             ['renderer', <a key="r" href={`${SRC}/components/figures/surface/renderer.ts`}>components/figures/surface/renderer.ts</a>],

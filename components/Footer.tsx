@@ -1,4 +1,6 @@
 import { otherWork, visiblePapers } from '@/content/papers'
+
+const CURRENT = `document.currentScript.parentElement.querySelectorAll('nav a[href]').forEach(function(a){if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page')})`
 import { AVAILABILITY, SITE } from '@/lib/site'
 import { Row, Shell } from './Layout'
 import { ContactLinks } from './Masthead'
@@ -27,20 +29,23 @@ export function Footer() {
             <ul className="text-note grid gap-y-1.5 sm:grid-cols-2 sm:gap-x-8">
               {papers.map((p) => (
                 <li key={p.href}>
-                  <a href={p.href} className="inline-block py-1">
+                  <a href={p.href} className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
                     {p.title}
                   </a>
                 </li>
               ))}
               {otherWork.map((o) => (
                 <li key={o.href}>
-                  <a href={o.href} className="inline-block py-1">
+                  <a href={o.href} className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
                     {o.name}
                   </a>
                 </li>
               ))}
             </ul>
           </nav>
+          {/* The page the reader is on is marked in the list: the footer is the same on every page, so the browser
+              marks it, as soon as the list is parsed. */}
+          <script dangerouslySetInnerHTML={{ __html: CURRENT }} />
         </Row>
         <div className="h-6" />
         <Row rail="Pages">

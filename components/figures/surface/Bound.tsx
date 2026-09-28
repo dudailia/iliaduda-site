@@ -4,6 +4,9 @@ import { useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { DOMAIN, ETA_BOUND, gWithEta, P } from '@/lib/svi'
 
+/** A typeset minus sign, as the margins everywhere else print one. */
+const minus = (x: string) => x.replace('-', '−')
+
 /**
  * Break the surface. Durrleman's g(k) at the shortest expiry, for a curvature
  * η the reader controls. Where g < 0 the smile implies a negative probability
@@ -44,7 +47,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
       id="fig-bound"
       number="Fig. 2"
       title="Push the curvature until the surface breaks"
-      subtitle={`Durrleman’s g(k) at the shortest expiry drawn · the implied density is negative where g < 0 · ρ held at ${P.rho}`}
+      subtitle={`Durrleman’s g(k) at the shortest expiry drawn · the implied density is negative where g < 0 · ρ held at ${minus(String(P.rho))}`}
       caption={caption}
       table={table}
       rail={
@@ -53,7 +56,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
             { label: 'Curvature η', value: eta.toFixed(2) },
             { label: 'η(1 + |ρ|)', value: `${(eta * (1 + Math.abs(P.rho))).toFixed(2)} ${sufficient ? '≤' : '>'} 2` },
             { label: 'Sufficient condition', value: sufficient ? 'holds' : 'no longer guarantees' },
-            { label: 'Lowest g', value: `${minG.toFixed(3)} at k = ${at.toFixed(2)}` },
+            { label: 'Lowest g', value: `${minus(minG.toFixed(3))} at k = ${minus(at.toFixed(2))}` },
             { label: 'Butterfly arbitrage', value: arbitrage ? 'present' : 'none' },
           ]}
         />

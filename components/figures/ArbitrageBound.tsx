@@ -45,7 +45,7 @@ export function ArbitrageBound() {
             {[fact('ivEta').value, ETA_BOUND, breaks, 3.5].map((e) => (
               <tr key={e}>
                 <td>{e.toFixed(2)}</td>
-                <td>{Math.min(...Array.from({ length: 401 }, (_, i) => gWithEta(-0.6 + i / 400, DOMAIN.tMin, e))).toFixed(3)}</td>
+                <td>{Math.min(...Array.from({ length: 401 }, (_, i) => gWithEta(-0.6 + i / 400, DOMAIN.tMin, e))).toFixed(3).replace('-', '−')}</td>
               </tr>
             ))}
           </tbody>

@@ -20,6 +20,9 @@ export interface Paper {
   readonly title: string
   /** Two sentences, plain English, what it shows before what it lacks. */
   readonly abstract: string
+  /** The paper page's own opening, when the abstract (kept whole for the contents and the metadata) is longer than a
+   *  first screen should carry: at most 45 words. */
+  readonly standfirst?: string
   /** Role · dates, as on the résumé. */
   readonly byline: string
   /**
@@ -60,6 +63,7 @@ export const papers: readonly Paper[] = [
     slug: 'order-book',
     href: '/order-book',
     title: 'Order flow that remembers: a limit order book driven by a Hawkes process',
+    standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig. 2 shows what set off any one.`,
     abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
@@ -68,6 +72,7 @@ export const papers: readonly Paper[] = [
     slug: 'iv-surface',
     href: '/iv-surface',
     title: 'An implied-volatility surface free of static arbitrage',
+    standfirst: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and the Greeks at any point. It takes a simulated volatility shock and stays free of static arbitrage through every frame; Fig. 2 lets you break the condition.`,
     abstract: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and Black–Scholes Greeks at any point. It takes a simulated volatility shock, the short end lifting and the skew steepening, and stays free of static arbitrage through every frame of it; the tests check Gatheral and Jacquier’s conditions on a dense grid, and Fig. 2 lets you break them.`,
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',

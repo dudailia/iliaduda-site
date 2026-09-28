@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as svi from '../lib/svi'
-import { amplitude, ETA_CAP, LOOP, params, PEAK, phase, RELAX, RISE, SIZE_MAX, SIZE_MIN } from '../lib/surface/shock'
+import { ETA_CAP, params, SIZE_MAX, SIZE_MIN } from '../lib/surface/shock'
+import { FORM_MS, amplitudeOf, surfaceSequence } from '../lib/surface/sequence'
 import { CALM, check, DOMAIN, g, gjRatio, iv, phi, theta, w, wk, wT, type Params } from '../lib/surface/ssvi'
 import { numbers, probeText, text } from '../lib/surface/readouts'
 import { poster, describe as describePoster } from '../lib/surface/poster'
@@ -8,13 +9,25 @@ import { camera, fitDistance, FRAME, kOfU, mvp, apply, tOfV, fu, fv } from '../l
 import { diffuse, UP_LIGHT } from '../lib/surface/look'
 
 /**
- * Prototype C animates a synthetic SSVI surface through a volatility shock.
- * A moving surface is a claim at every frame, so the claim is checked at
- * hundreds of them: both static no-arbitrage conditions, at every shock size
- * the slider allows, across the whole loop.
+ * The IV paper's Fig. 1 moves a synthetic SSVI surface through a volatility
+ * shock. A moving surface is a claim at every frame, so the claim is checked
+ * at hundreds of them: both static no-arbitrage conditions, at every shock
+ * size the slider allows, along the whole of the story's path (its amplitude
+ * at 240 moments of lib/surface/sequence.ts), and at the peak.
  */
 
-const PHASES = Array.from({ length: 240 }, (_, i) => (i / 240) * LOOP)
+/** The story's shock amplitude at 240 moments, peak included. */
+const AMPS = [
+  ...Array.from({ length: 240 }, (_, i) => {
+    const s = surfaceSequence()
+    s.start()
+    s.advance((i / 239) * FORM_MS)
+    return amplitudeOf(s.phases())
+  }),
+  1,
+]
+/** The peak: a full-size shock. */
+const PEAK = 1
 const SIZES = [SIZE_MIN, 0.5, 1, 1.25, SIZE_MAX]
 const Ts = Array.from({ length: 48 }, (_, j) => DOMAIN.tMin + ((DOMAIN.tMax - DOMAIN.tMin) * j) / 47)
 const ksWide = Array.from({ length: 160 }, (_, i) => -1.5 + (2.5 * i) / 159)
@@ -41,22 +54,10 @@ describe('the parametrised SSVI is lib/svi.ts at the calm parameters', () => {
 })
 
 describe('the shock path', () => {
-  it('rises fast, relaxes to exactly zero, holds calm', () => {
-    expect(amplitude(0)).toBe(0)
-    expect(amplitude(RISE)).toBeCloseTo(1, 12)
-    // Strong ease-out: most of the rise lands in the first third.
-    expect(amplitude(RISE / 3)).toBeGreaterThan(0.75)
-    expect(amplitude(RISE + RELAX)).toBeCloseTo(0, 12)
-    expect(amplitude(RISE + RELAX + 0.5)).toBe(0)
-    // Monotone on the way up and on the way down.
-    for (let t = 0.01; t < RISE; t += 0.01) expect(amplitude(t)).toBeGreaterThanOrEqual(amplitude(t - 0.01))
-    for (let t = RISE + 0.01; t < RISE + RELAX; t += 0.01) expect(amplitude(t)).toBeLessThanOrEqual(amplitude(t - 0.01))
-  })
-
-  it('the poster is drawn at the peak, and the loop is continuous across its seam', () => {
-    expect(PEAK).toBe(RISE)
-    expect(phase(PEAK)).toBe('shock')
-    expect(Math.abs(amplitude(LOOP - 1e-6) - amplitude(0))).toBeLessThan(1e-9)
+  it('reaches a full shock and comes back to calm along the story', () => {
+    expect(Math.max(...AMPS)).toBeCloseTo(1, 6)
+    expect(AMPS[0]).toBe(0)
+    expect(AMPS[239]).toBe(0)
   })
 
   it('a shock steepens the skew and inverts the term structure', () => {
@@ -71,7 +72,7 @@ describe('the shock path', () => {
 
 describe('no static arbitrage at any phase of the loop, at any shock size', { timeout: 30_000 }, () => {
   const each = (fn: (p: Params) => void) => {
-    for (const s of SIZES) for (const t of PHASES) fn(params(amplitude(t), s))
+    for (const s of SIZES) for (const a of AMPS) fn(params(a, s))
   }
 
   it('Gatheral and Jacquier: η(1 + |ρ|) ≤ 2 with γ = ½, and both butterfly inequalities directly, for every θ', () => {
@@ -81,8 +82,8 @@ describe('no static arbitrage at any phase of the loop, at any shock size', { ti
       expect(p.eta * (1 + Math.abs(p.rho))).toBeLessThanOrEqual(ETA_CAP + 1e-12)
     })
     for (const s of SIZES)
-      for (const t of PHASES.filter((_, i) => i % 6 === 0)) {
-        const p = params(amplitude(t), s)
+      for (const a of AMPS.filter((_, i) => i % 6 === 0)) {
+        const p = params(a, s)
         for (let i = 1; i <= 400; i++) expect(gjRatio(p, (i / 400) * 6)).toBeLessThan(1)
       }
   })
@@ -90,8 +91,8 @@ describe('no static arbitrage at any phase of the loop, at any shock size', { ti
   it('butterfly: Durrleman g(k) ≥ 0 on a dense grid far wider than the drawn strikes', () => {
     let worst = Infinity
     for (const s of SIZES)
-      for (const t of PHASES.filter((_, i) => i % 3 === 0)) {
-        const p = params(amplitude(t), s)
+      for (const a of AMPS.filter((_, i) => i % 3 === 0)) {
+        const p = params(a, s)
         for (const T of Ts) for (const k of ksWide) worst = Math.min(worst, g(p, k, T))
       }
     expect(worst).toBeGreaterThan(0)
@@ -99,8 +100,8 @@ describe('no static arbitrage at any phase of the loop, at any shock size', { ti
 
   it('calendar: total variance rises with expiry at every strike', () => {
     for (const s of SIZES)
-      for (const t of PHASES.filter((_, i) => i % 3 === 0)) {
-        const p = params(amplitude(t), s)
+      for (const a of AMPS.filter((_, i) => i % 3 === 0)) {
+        const p = params(a, s)
         for (const k of ksWide.filter((_, i) => i % 4 === 0)) for (const T of Ts) expect(wT(p, k, T)).toBeGreaterThan(0)
       }
   })
@@ -181,7 +182,7 @@ describe('the view', () => {
 describe('the poster', () => {
   it('is a modest amount of markup: one picture serves every screen', () => {
     {
-      const d = poster(params(amplitude(PEAK)))
+      const d = poster(params(PEAK))
       const bytes = d.css.length + d.runs.reduce((a, r) => a + r.d.length + r.cls.length + 24, 0) + d.lines.reduce((a, l) => a + l.d.length + l.c.length + 60, 0)
       expect(bytes).toBeLessThan(40_000)
       expect(d.runs.length).toBeGreaterThan(50)
@@ -190,7 +191,7 @@ describe('the poster', () => {
   })
 
   it('describes its own numbers', () => {
-    const p = params(amplitude(PEAK))
+    const p = params(PEAK)
     expect(describePoster(p)).toContain(`${Math.round(iv(p, 0, 1 / 12) * 100)}% at the money`)
   })
 })

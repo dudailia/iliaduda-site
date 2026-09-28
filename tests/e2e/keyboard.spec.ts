@@ -22,11 +22,12 @@ for (const route of ROUTES) {
       await el.focus()
       const ring = await el.evaluate((node) => {
         const s = getComputedStyle(node)
-        return {
-          outlineStyle: s.outlineStyle,
-          outlineWidth: s.outlineWidth,
-          outlineColor: s.outlineColor,
-        }
+        // A live figure's stage draws its ring over its canvas, on the ring beside it (components/stage/FocusRing.tsx).
+        const peer = s.outlineStyle === 'none' ? node.nextElementSibling : null
+        const p = peer ? getComputedStyle(peer) : null
+        return p && Number(p.opacity) === 1
+          ? { outlineStyle: p.outlineStyle, outlineWidth: p.outlineWidth, outlineColor: p.outlineColor }
+          : { outlineStyle: s.outlineStyle, outlineWidth: s.outlineWidth, outlineColor: s.outlineColor }
       })
       const visible =
         ring.outlineStyle !== 'none' && Number.parseFloat(ring.outlineWidth) >= 1

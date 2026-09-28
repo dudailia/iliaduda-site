@@ -10,8 +10,8 @@ export const FIRST_FRAME_MS = 6000
 
 export const DECLINED_TEXT: Record<Declined, string> = {
   lost: 'Still frame: the graphics context was lost.',
-  load: 'Still frame: the live figure could not start here.',
-  error: 'Still frame: the live figure could not start here.',
+  load: 'Still frame: the live figure could not start here. Reloading the page may bring it.',
+  error: 'Still frame: the live figure could not start here. Reloading the page may bring it.',
 }
 
 /**
