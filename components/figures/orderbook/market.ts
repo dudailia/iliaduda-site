@@ -1,4 +1,5 @@
 import { Flow, POSTER_T, posterFlow } from '@/lib/market/flow'
+import { handedTo, spend } from '@/lib/minis/handoff'
 import { advanceInSlices } from '@/lib/market/slices'
 
 /**
@@ -74,7 +75,10 @@ export class PageMarket {
   /** Build the market in slices, handing the page back between them; resolves with it, at once if it is built. */
   prepare(): Promise<Flow> {
     if (this.f) return Promise.resolve(this.f)
-    this.building ??= advanceInSlices(new Flow(undefined, undefined, false), POSTER_T, SLICE_MS, () => performance.now(), (next) => setTimeout(next, 0)).then((f) => {
+    // From the moment its Contents miniature was at, if the reader came from it (lib/minis/handoff.ts): the same market.
+    const from = handedTo('order-book', POSTER_T) ?? POSTER_T
+    spend()
+    this.building ??= advanceInSlices(new Flow(undefined, undefined, false), from, SLICE_MS, () => performance.now(), (next) => setTimeout(next, 0)).then((f) => {
       if (!this.f) this.settle(f)
       return this.f!
     })

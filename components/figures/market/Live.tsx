@@ -25,6 +25,7 @@ import { fade, palette as stagePalette, underlay, useStage, type Create, type Pa
 import { syntheticValue } from '@/content/synthetic'
 import type { Mirror } from '@/lib/market/mirror'
 import { PROTOCOL } from '@/lib/market/protocol'
+import { handedTo, spend } from '@/lib/minis/handoff'
 import type { LiveInfo } from '@/lib/stage/debug'
 import { EASE_OUT } from '@/lib/ease'
 import { MARKET_SEQ, marketSequence, punch, storyOf } from '@/lib/market/sequence'
@@ -579,7 +580,11 @@ export function MarketLive({
   useLayoutEffect(() => {
     follow.current = document.querySelector<HTMLElement>('[data-market-follow]')
   }, [])
-  const market = useMarket([stage, follow], { seed, t: t0, allowed, draw, onTake })
+  // The market opens at the figure's own moment, or where its Contents miniature was if the reader came from it
+  // (lib/minis/handoff.ts): the same seeded market, carried on.
+  const [from] = useState(() => (typeof window === 'undefined' ? t0 : (handedTo('market', t0) ?? t0)))
+  useEffect(() => spend(), [])
+  const market = useMarket([stage, follow], { seed, t: from, allowed, draw, onTake })
   useEffect(() => {
     marketRef.current = market
     allLive.current = market.live && flat && (surfaceLive || !eligible)

@@ -1,5 +1,6 @@
 import { saveData, whenIdle } from '@/components/stage/env'
 import { MiniClock } from '@/lib/minis/clock'
+import { handOff } from '@/lib/minis/handoff'
 import { palette, type Mini, type MiniPalette } from './paint'
 import { MINIS } from './registry'
 
@@ -34,8 +35,10 @@ export function start(): () => void {
       }
       l.g.setTransform(dpr, 0, 0, dpr, 0, 0)
       l.mini.draw(l.g, r.width, r.height, f.t, f.dt, pal)
-      // For the specs: frames drawn.
+      // For the specs: frames drawn, and an engine mini's simulated time.
       l.cv.dataset.frames = String(++l.frames)
+      const at = l.mini.time?.()
+      if (at !== undefined) l.cv.dataset.t = at.toFixed(3)
       if (!l.shown && l.mini.ready()) {
         // Drawn its first frame, the thumbnail's own: now it shows.
         l.shown = true
@@ -96,6 +99,15 @@ export function start(): () => void {
     run()
   }
   document.addEventListener('visibilitychange', onVis)
+  // Opening a paper from the Contents hands its miniature's market to the paper's figure (lib/minis/handoff.ts).
+  const onClick = (e: MouseEvent) => {
+    const a = (e.target as Element | null)?.closest?.('[data-vt-contents] a[href]')
+    const slug = a?.closest('li')?.querySelector<HTMLElement>('[data-vt-thumb]')?.dataset.vtThumb?.replace(/^fig-/, '')
+    const l = slug ? live.get(slug) : undefined
+    const at = l?.shown ? l.mini.time?.() : undefined
+    if (slug && at !== undefined) handOff(slug, at)
+  }
+  document.addEventListener('click', onClick, true)
   const scheme = matchMedia('(prefers-color-scheme: dark)')
   const onScheme = () => (pal = palette())
   scheme.addEventListener('change', onScheme)
@@ -105,6 +117,7 @@ export function start(): () => void {
     io.disconnect()
     cancels.forEach((c) => c())
     document.removeEventListener('visibilitychange', onVis)
+    document.removeEventListener('click', onClick, true)
     scheme.removeEventListener('change', onScheme)
     for (const l of live.values()) l.cv.remove()
   }

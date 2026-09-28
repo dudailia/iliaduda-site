@@ -1,11 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
-import { errorsOf } from './hero-kit'
+import { GPU, errorsOf } from './hero-kit'
 
 /**
  * The Contents' live miniatures (components/thumbs/): each thumbnail is the build's picture first, comes alive once half
  * of it is on screen, draws its first frame as that picture, draws at most thirty frames a second, stops when it leaves
  * the screen, and under reduced motion never starts.
  */
+
+test.use({ launchOptions: { args: GPU } })
 
 /** The home figure's story, seen: the Contents is what these tests look at. */
 const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('futures-seq', '1'))
@@ -104,4 +106,27 @@ test('on a phone the thumbnails show under each abstract, and come alive too', a
   const t = thumb(page, 'market')
   await expect(t).toBeVisible()
   await expect(t.locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
+})
+
+test.describe('through the morph', () => {
+  test('opening /market from its miniature carries its market on: the paper opens where the miniature was', async ({ page }) => {
+    test.setTimeout(60_000)
+    await seen(page)
+    await page.addInitScript(() => sessionStorage.setItem('market-seq', '1'))
+    await toContents(page)
+    const cv = thumb(page, 'market').locator('canvas[data-shown]')
+    await expect(cv).toHaveCount(1, { timeout: 10_000 })
+    await page.waitForTimeout(3_000)
+    const mini = Number(await cv.getAttribute('data-t'))
+    expect(mini).toBeGreaterThan(145)
+    await page.locator('[data-vt-contents] h3 a[href="/market"]').click()
+    await page.waitForURL('**/market')
+    await page.evaluate(() => document.querySelector('[data-market-stage]')?.scrollIntoView({ block: 'start' }))
+    const live = await expect(page.locator('[data-market-stage]'))
+      .toHaveAttribute('data-market-live', '1', { timeout: 20_000 })
+      .then(() => true)
+      .catch(() => false)
+    if (!live) return test.skip(true, 'no GPU here')
+    expect(Number(await page.locator('[data-market-stage]').getAttribute('data-market-t'))).toBeGreaterThanOrEqual(mini)
+  })
 })
