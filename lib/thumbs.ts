@@ -7,6 +7,7 @@ import ofz from '@/content/data/ofz-curve.json'
 import { categorise } from './closebooks'
 import { zcy } from './gcurve'
 import { posterFlow } from './market/flow'
+import { marketFrame } from './market/poster'
 import { offeredTerms } from './settlement'
 
 /**
@@ -128,7 +129,34 @@ function orderBook(): Thumb {
   }
 }
 
+function market(): Thumb {
+  // The market's price over the book's last twenty seconds, running at now into a year of its futures: the fan's
+  // 5th–95th percentile as context, a dozen of its paths the claim. The price's own moves are shown on a scale of their
+  // own (the left 38%), the year's on a log scale around the price now (the right 62%), as the figure's two views are.
+  const { m, fan } = marketFrame()
+  const f = m.flow
+  const now = 380
+  const mids: number[] = []
+  for (let a = 239; a >= 0; a--) {
+    const r = f.row(a)
+    if (r >= 0) mids.push(f.mids[r]!)
+  }
+  const lo = Math.min(...mids) - 6, hi = Math.max(...mids) + 6
+  const midY = (v: number) => TH / 2 + ((v - f.book.mid) / (hi - lo)) * -TH * 0.7
+  const past = line(mids.map((v, i) => [(i / (mids.length - 1)) * now, midY(v)] as const))
+  const yr = (v: number) => TH / 2 - (Math.log(v) / Math.log(3)) * (TH / 2 - 30)
+  const x = (j: number) => now + (j / 64) * (TW - now)
+  const band = (b: number) => line(Array.from({ length: 65 }, (_, j) => [x(j), yr(fan.band(b, j))] as const))
+  const s = fan.strands()
+  const strand = (i: number) => line(Array.from({ length: 33 }, (_, k) => [x(k * 2), yr(s[i * 65 + k * 2]!)] as const))
+  return {
+    context: [past.replace(/\.0/g, ''), band(0), band(4)],
+    claim: Array.from({ length: 12 }, (_, i) => strand(i * 4)),
+  }
+}
+
 const BUILDERS: Record<string, () => Thumb> = {
+  market,
   'iv-surface': ivSurface,
   cricstate: cricket,
   'startup-investments': startup,

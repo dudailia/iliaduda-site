@@ -51,6 +51,7 @@ const PROJECT_OF: Readonly<Record<string, string>> = {
   'OrderBook.tsx': 'mk',
   'OrderFlow.tsx': 'mk',
   'Market.tsx': 'mk',
+  'MarketPipeline.tsx': 'mk',
 }
 
 function ownValues(file: string): Set<string> {

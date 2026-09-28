@@ -21,20 +21,34 @@ const ROWS = 2 * WINDOW.half + 1
 /** Columns shown: twenty seconds at twelve rows a second. */
 const COLS = 20 * HZ
 
-let cached: ReturnType<typeof build> | null = null
+/**
+ * The two moments there are still frames of: calm, where the live figure starts, and the same market one simulated
+ * second after a liquidity shock pressed at that moment, at the height of its stress (0.86, the price 14 ticks down,
+ * realised volatility nearly doubled), for a reader who asked for reduced motion (or whose device does not run the
+ * market), whose Liquidity shock swaps one for the other. Both are the worker's own market: the same seed, the same
+ * shock log (tests/market-shock.test.ts), run here.
+ */
+export type Moment = 'calm' | 'shock'
+export const SHOCK_FRAME_S = 1
 
-function build() {
+const cached: Partial<Record<Moment, ReturnType<typeof build>>> = {}
+
+function build(moment: Moment) {
   const m = new Market(SEED)
   m.advance(POSTER_T)
+  if (moment === 'shock') {
+    m.apply('shock')
+    m.advance(POSTER_T + SHOCK_FRAME_S)
+  }
   const fan = new Fan()
   fan.begin(1, m.sigma)
   while (!fan.work(4096));
   return { m, fan, surface: surfaceOf(m.stress) }
 }
 
-/** The market at the still frame's moment, and its fan: built once a build. */
-export function marketFrame() {
-  return (cached ??= build())
+/** The market at a still frame's moment, and its fan: built once a build. */
+export function marketFrame(moment: Moment = 'calm') {
+  return (cached[moment] ??= build(moment))
 }
 
 const tokens = (c: Palette) =>
@@ -46,19 +60,23 @@ function root() {
 const r3 = (x: number) => Math.round(x * 1000) / 1000
 
 /** The book's still frame: its window, centred on the price, with its price ticks as fractions of its height from the top. */
-export function bookFrame() {
-  const { m } = marketFrame()
+export function bookFrame(moment: Moment = 'calm') {
+  const { m } = marketFrame(moment)
   const centre = m.flow.book.mid
   const base = Math.round(centre)
   const y = (p: number) => (centre + WINDOW.half + 0.5 - p) / ROWS
-  return { centre, base, ticks: priceTicks(centre - WINDOW.half, centre + WINDOW.half).map((p) => ({ p, y: y(p) })) }
+  // None too near the strip's edges to be read whole, as the live strip leaves them out.
+  const ticks = priceTicks(centre - WINDOW.half, centre + WINDOW.half)
+    .map((p) => ({ p, y: y(p) }))
+    .filter((t) => t.y >= 0.08 && t.y <= 0.92)
+  return { centre, base, ticks }
 }
 
 /** The heat strip: twenty seconds of the book's queues as a mask of the indigo, with the price and the trades over it. */
-export function bookSvg(): string {
-  const { m } = marketFrame()
+export function bookSvg(moment: Moment = 'calm'): string {
+  const { m } = marketFrame(moment)
   const f = m.flow
-  const { centre, base } = bookFrame()
+  const { centre, base } = bookFrame(moment)
   const top = base + WINDOW.half
   // A column a row, the newest last, as the live strip lays them (its newest ends at now).
   const opacity = new Uint8Array(256 * ROWS)
@@ -106,10 +124,10 @@ export function bookSvg(): string {
 }
 
 /** The book at now: its depth at each price, every share between it and the touch, a bar; 800 or more the whole width. */
-export function ladderSvg(): string {
-  const { m } = marketFrame()
+export function ladderSvg(moment: Moment = 'calm'): string {
+  const { m } = marketFrame(moment)
   const b = m.flow.book
-  const { centre, base } = bookFrame()
+  const { centre, base } = bookFrame(moment)
   const depth = (p: number) => {
     let d = 0
     if (p <= b.bestBid) for (let x = b.bestBid; x >= p; x--) d += b.bidAt(x)
@@ -136,8 +154,8 @@ export function ladderSvg(): string {
 const LN3 = dlog(3)
 
 /** The futures' still frame: the price ticks for a year out, as fractions of the plot's height from its top. */
-export function fanFrame() {
-  const { m, fan } = marketFrame()
+export function fanFrame(moment: Moment = 'calm') {
+  const { m, fan } = marketFrame(moment)
   const mid$ = m.flow.book.mid * TICK
   return {
     ticks: logTicks(mid$, 1 / 3, 3).map((d) => ({ d, y: (LN3 - dlog(d / mid$)) / (2 * LN3) })),
@@ -150,8 +168,8 @@ export function fanFrame() {
  * A year of futures from the price at the still frame: the 5th–95th and 25th–75th percentiles as washes, the median
  * a line, 48 paths thin lines; in log price, a doubling the same step as a halving, the root the price now.
  */
-export function fanSvg(): string {
-  const { fan } = marketFrame()
+export function fanSvg(moment: Moment = 'calm'): string {
+  const { fan } = marketFrame(moment)
   const y = (v: number) => r3(-dlog(v))
   const line = (row: (j: number) => number, step = 1) => {
     const p: string[] = []

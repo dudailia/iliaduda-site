@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
+import { marketRates } from '@/components/market/stats'
 import { useMarket } from '@/components/market/useMarket'
 import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
@@ -70,9 +71,12 @@ const noop = () => () => {}
 
 type Mod = typeof import('../surface/renderer')
 
+type Posters = { surface: ReactNode; book: ReactNode; fan: ReactNode }
+
 export function MarketLive({
-  posters,
-  initial,
+  posters: stills,
+  initial: initials,
+  stillAfter,
   seed,
   t0,
   title,
@@ -80,8 +84,10 @@ export function MarketLive({
   caption,
   table,
 }: {
-  posters: { surface: ReactNode; book: ReactNode; fan: ReactNode }
-  initial: MarketInitial
+  /** The still frames: calm, where the live figure starts, and `stillAfter` seconds after a shock. */
+  posters: { calm: Posters; shock: Posters }
+  initial: { calm: MarketInitial; shock: MarketInitial }
+  stillAfter: number
   seed: number
   t0: number
   title: string
@@ -90,6 +96,10 @@ export function MarketLive({
   table: ReactNode
 }) {
   const stage = useRef<HTMLDivElement>(null)
+  // Where the market does not run live, Liquidity shock swaps the calm still frames for the shocked ones, and back.
+  const [still, setStill] = useState<'calm' | 'shock'>('calm')
+  const posters = stills[still]
+  const initial = initials[still]
   const bookCv = useRef<HTMLCanvasElement>(null)
   const fanCv = useRef<HTMLCanvasElement>(null)
   const views = useRef<{ book: BookView; fan: FanView } | null>(null)
@@ -267,6 +277,7 @@ export function MarketLive({
   // ── the flat views, drawn in the market's own frame ────────────────────────────────────────────────────────────
   const lastDraw = useRef(0)
   const lastText = useRef(0)
+  const framesAt = useRef({ at: 0, n: 0, rate: 0 })
   const draw = useCallback(
     (m: Mirror, now: number) => {
       mirrorRef.current = m
@@ -365,6 +376,14 @@ export function MarketLive({
         write('paths', h.paths > 0 ? `${Math.round(h.paths / 1000).toLocaleString('en-US')},000 a second` : '—')
         write('headroom', h.busy > 0 ? `×${Math.round(1 / h.busy).toLocaleString('en-US')} real time` : '—')
         write('state', h.absorbing ? 'absorbing a shock' : h.paused ? 'paused' : 'running')
+        // Frames taken from the worker in the last wall second, for Fig. 2.
+        const fa = framesAt.current
+        if (now - fa.at >= 1000) {
+          fa.rate = fa.at ? ((m.frames - fa.n) * 1000) / (now - fa.at) : 0
+          fa.at = now
+          fa.n = m.frames
+        }
+        marketRates.set({ rate: h.rate, expected: h.expected, frames: fa.rate, paths: h.paths, busy: h.busy, held: h.held })
       }
     },
     [flat, write],
@@ -394,7 +413,12 @@ export function MarketLive({
     }
     lastLoad.current = m.h.load
   }, [])
-  const market = useMarket([stage], { seed, t: t0, allowed, draw, onTake })
+  // The market runs while Fig. 1 or Fig. 2, which reports on it, is on screen.
+  const follow = useRef<HTMLElement | null>(null)
+  useLayoutEffect(() => {
+    follow.current = document.querySelector<HTMLElement>('[data-market-follow]')
+  }, [])
+  const market = useMarket([stage, follow], { seed, t: t0, allowed, draw, onTake })
   useEffect(() => {
     marketRef.current = market
     allLive.current = market.live && flat && (surfaceLive || !eligible)
@@ -512,7 +536,9 @@ export function MarketLive({
       rail={<Readouts rows={rows} />}
       hint={
         <>
-          {why ?? 'Press Liquidity shock to hit the market; point at a moment in the book to see the market as it was then.'}{' '}
+          {why
+            ? `${why} Liquidity shock shows the same market ${stillAfter === 1 ? 'a second' : `${stillAfter} seconds`} after one.`
+            : 'Press Liquidity shock to hit the market; point at a moment in the book to see the market as it was then.'}{' '}
           <span className="sr-only" aria-live="polite" ref={(el) => void (out.current.state = el)} />
         </>
       }
@@ -600,6 +626,11 @@ export function MarketLive({
         </div>
 
         <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2">
+          {mounted && why && !live ? (
+            <button type="button" className={CONTROL} onClick={() => setStill(still === 'calm' ? 'shock' : 'calm')} aria-pressed={still === 'shock'} data-market-still-shock="">
+              {still === 'calm' ? 'Liquidity shock' : 'Back to calm'}
+            </button>
+          ) : null}
           {live ? (
             <>
               <button type="button" className={CONTROL} onClick={shockNow} data-market-shock="">
