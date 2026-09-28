@@ -1,11 +1,15 @@
-import { MODEL, bsCall, normals4, stepCoefficients } from '../futures/mc'
+import { MODEL, bsCall, normals4, stepCoefficients } from './mc'
 
 /**
  * /market's futures: one-year paths of geometric Brownian motion from the
  * market's own price, at its own realised volatility, drawn from the home
  * figure's counter-based generator with the home figure's model (one year,
  * 64 steps, its rate and seed) — so for the same price and volatility they are
- * the home page's futures, path for path (tests/market-fan.test.ts).
+ * the home page's futures, path for path (tests/futures-fan.test.ts). It lives
+ * with the futures, not the market: it is drawn from the market and never
+ * feeds back into it, and it keeps the home figure's own arithmetic (the
+ * platform's exponential), where lib/market computes with its own, the same
+ * to the bit in every engine.
  *
  * `begin` sets a fan going; `work` draws paths in slices, so the worker can
  * spread a fan over its frames; once every path is drawn the bands are

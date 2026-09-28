@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FAN, Fan } from '../lib/market/fan'
+import { FAN, Fan } from '../lib/futures/fan'
 import { MODEL, bsCall, path } from '../lib/futures/mc'
 import { inv } from '../lib/bs'
 

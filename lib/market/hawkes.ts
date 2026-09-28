@@ -139,6 +139,15 @@ export class Hawkes {
   }
 
   /**
+   * An exogenous lift of kind `i`'s intensity by `amount` events a second, decaying from now as excitation by kind `j`
+   * does (e^{−β_j t}); no event is counted or reported. Taken at a quantum boundary, where the thinning restarts, it
+   * keeps the simulation exact.
+   */
+  excite(i: number, j: number, amount: number): void {
+    this.s[i * this.k + j]! += amount
+  }
+
+  /**
    * Advance to `tEnd`, calling `onEvent` for every event in order, with the
    * intensity of its type just before it. A candidate past `tEnd` is discarded
    * and the clock stops at `tEnd`: the exponential is memoryless, so

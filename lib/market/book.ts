@@ -146,6 +146,33 @@ export class Book {
     this.base += shift
   }
 
+  /**
+   * A liquidity shock's sweep: a market sell that takes every bid within `ticks` of the best bid at once, level by
+   * level from the top (fills reported through `onTrade`), never the side's last share; the best bid falls at least
+   * `ticks`. Returns the shares taken.
+   */
+  sweepBids(ticks: number, t: number, onTrade?: (tr: Trade) => void): number {
+    const floor = this.bestBid - ticks
+    let taken = 0
+    while (this.bestBid > floor) {
+      const i = this.bestBid - this.base
+      const fill = Math.min(this.bid[i]!, this.totalBid - 1)
+      if (fill <= 0) break
+      onTrade?.({ t, price: this.bestBid, size: fill, side: -1 })
+      this.bid[i]! -= fill
+      this.totalBid -= fill
+      taken += fill
+      if (this.bid[i] !== 0) break
+      let j = i - 1
+      while (j > 0 && this.bid[j] === 0) j--
+      this.bestBid = j + this.base
+    }
+    this.last.price = this.bestBid
+    this.last.size = taken
+    this.recentre()
+    return taken
+  }
+
   /** Apply one event of the given type. Fills are reported through `onTrade`. */
   apply(type: number, t: number, onTrade?: (tr: Trade) => void): void {
     const { p, rng } = this

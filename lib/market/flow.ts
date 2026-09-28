@@ -195,6 +195,11 @@ export class Flow {
     if (keep && (this.q - BURN_Q) % PER_ROW === 0) this.snapshot(this.q / QUANTA)
   }
 
+  /** A liquidity shock's sweep of every bid within `ticks` of the best, on the tape as trades like any other (lib/market/book.ts). */
+  sweepBids(ticks: number): number {
+    return this.book.sweepBids(ticks, this.t, this.trade)
+  }
+
   /** One quantum of simulated time; every PER_ROW-th writes a row. */
   step(): void {
     this.quantum()
