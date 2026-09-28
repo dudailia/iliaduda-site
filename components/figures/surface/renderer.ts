@@ -7,7 +7,7 @@ import { params } from '@/lib/surface/shock'
 import { DOMAIN, iv, type Params } from '@/lib/surface/ssvi'
 import {
   apply, camera, EXPIRY_TICKS, eye, H, kOfU, LABELS, mvp, NOTES, POST, STRIKE_TICKS, SWAY_PERIOD, tOfV, uOfX, V0, V1,
-  vOfZ, VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type M4,
+  vOfZ, VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type FrameKind, type M4,
 } from '@/lib/surface/view'
 import type { Palette, Renderer, RGB, StageEnv } from '@/components/stage/useStage'
 import { LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
@@ -43,6 +43,8 @@ export interface Sim {
 
 export interface Hooks {
   sim: Sim
+  /** Which framing the stage shows (a phone's, or the wide one): its camera, and its labels. */
+  frame(): FrameKind
   /** The signature's phases while it waits or plays; null once it is over, or on a visit without one. */
   sequence(): { lines: number; rise: number; labels: number; shock: number; relax: number } | null
   /** The story has started and is not over: every frame of it is drawn, paused or not. */
@@ -533,8 +535,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // The sway comes in after the story, and from a still start on a visit without one (so the first frame is the
       // poster's exactly), over 1.5s on the in-out; Pause lets it coast to rest (240ms) and pick up again (400ms).
       swayIn = ph ? 0 : Math.min(1, swayIn + (dt / 1.5) * swayK)
-      const cam = camera(Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
-      const m = mvp(cam, cssW / cssH)
+      const kind = hooks.frame()
+      const cam = camera(kind, Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
+      const m = mvp(kind, cam, cssW / cssH)
       inv = invert(m)
       const e = eye(cam)
       const probe = sim.hover ?? sim.probe

@@ -34,7 +34,7 @@ const line = (pts: readonly (readonly [number, number])[]) =>
 function ivSurface(): Thumb {
   // Fig. 1's calm surface through Fig. 1's own camera, as a wireframe: the smiles at the ticked expiries, with the
   // one-month smile (the steep one a shock lifts) as the claim, and the strike lines across them as context.
-  const m = mvp(camera(0))
+  const m = mvp('wide', camera('wide'))
   const at = (k: number, T: number) => {
     const q = apply(m, wx(k), wy(iv(CALM, k, T)), wz(T))
     return [Math.round(((q[0] / q[3]) * 0.5 + 0.5) * TW), Math.round((1 - ((q[1] / q[3]) * 0.5 + 0.5)) * TH)] as const

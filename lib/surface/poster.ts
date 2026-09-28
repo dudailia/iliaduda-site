@@ -2,7 +2,7 @@ import { contour } from '@/lib/contours'
 import { CONTOUR_STEP, diffuse, LINE_FLIP, rampT, STOPS } from './look'
 import { DOMAIN, iv, type Params } from './ssvi'
 import {
-  apply, camera, EXPIRY_TICKS, FRAME, H, kOfU, LABELS, mvp, NOTES, POST, STRIKE_TICKS, tOfV, VOL_TICKS,
+  apply, camera, EXPIRY_TICKS, FRAMES, H, kOfU, LABELS, mvp, NOTES, POST, STRIKE_TICKS, tOfV, VOL_TICKS,
   wx, wy, wz, XW, ZW, type FrameKind,
 } from './view'
 
@@ -105,10 +105,11 @@ function pathOf(pts: readonly (readonly [number, number])[], close: boolean, min
   return close ? `${d}z` : d
 }
 
-export function poster(p: Params): PosterData {
-  const f = FRAME
+/** The poster through one framing's camera, with that framing's labels and notes. */
+export function poster(p: Params, kind: FrameKind = 'wide'): PosterData {
+  const f = FRAMES[kind]
   const width = Math.round(f.aspect * FRAME_H)
-  const m = mvp(camera(0))
+  const m = mvp(kind, camera(kind))
   const proj = (x: number, y: number, z: number): [number, number] => {
     const q = apply(m, x, y, z)
     return [((q[0] / q[3]) * 0.5 + 0.5) * width, (1 - ((q[1] / q[3]) * 0.5 + 0.5)) * FRAME_H]
@@ -231,14 +232,12 @@ export function poster(p: Params): PosterData {
   tickPaths.push(pathOf([proj(POST[0], 0, POST[1]), proj(POST[0], wy(1), POST[1])], false))
   for (const v of VOL_TICKS) tickPaths.push(pathOf([proj(POST[0], wy(v), POST[1]), proj(POST[0] + 0.04, wy(v), POST[1])], false))
 
-  const labels = LABELS.map((l) => ({ id: l.id, text: l.text, ...frac(l.at[0], l.at[1], l.at[2]), align: l.align, kind: l.kind, only: l.only }))
+  const labels = LABELS.filter((l) => !l.only || l.only === kind).map((l) => ({ id: l.id, text: l.text, ...frac(l.at[0], l.at[1], l.at[2]), align: l.align, kind: l.kind, only: l.only }))
   const notes = NOTES.flatMap((n) => {
-    const y = wy(iv(p, n.k, n.T))
-    const at = frac(wx(n.k), y, wz(n.T))
-    return (['wide', 'tall'] as const).flatMap((kind) => {
-      const o = n.offset[kind]
-      return o ? [{ id: `${n.id}-${kind}`, lead: n.lead, text: n.text, ...at, dx: o[0], dy: o[1], align: o[2], kind }] : []
-    })
+    const o = n.offset[kind]
+    if (!o) return []
+    const at = frac(wx(n.k), wy(iv(p, n.k, n.T)), wz(n.T))
+    return [{ id: `${n.id}-${kind}`, lead: n.lead, text: n.text, ...at, dx: o[0], dy: o[1], align: o[2], kind }]
   })
   const css = [...classes].map(([c, k]) => `.${k}{color:${c}}`).join('')
   return { aspect: f.aspect, width, css, runs, walls, lines, ticks: tickPaths.join(''), labels, notes }

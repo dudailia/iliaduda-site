@@ -16,7 +16,7 @@ import { params, PHASE_TEXT, SIZE_MAX, type Phase } from '@/lib/surface/shock'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
 import type { Sequence } from '@/lib/stage/sequence'
 import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
-import { AxisLabel, Frame, NoteMark } from './marks'
+import { AxisLabel, Frame, FRAME_ASPECT, NoteMark } from './marks'
 import type { Probe, Sim, SurfaceRenderer } from './renderer'
 
 /**
@@ -85,6 +85,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const [phaseMoved, setPhaseMoved] = useState(false)
   const [spoken, setSpoken] = useState('')
   const [kind, setKind] = useState<FrameKind>('wide')
+  const kindRef = useRef<FrameKind>('wide')
   const [software, setSoftware] = useState(false)
   const [paused, setPaused] = useState<boolean>(() => {
     try {
@@ -188,6 +189,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         try {
           inner = make(env, {
             sim: sim.current,
+            frame: () => kindRef.current,
             sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
             shown: () => shownAmplitude(seq.current),
             playing: () => !!sigApi.current?.armed.current && seq.current.started && !seq.current.done,
@@ -270,7 +272,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   useEffect(() => {
     const mq = matchMedia(WIDE_QUERY)
     const on = () => {
-      setKind(mq.matches ? 'wide' : 'tall')
+      kindRef.current = mq.matches ? 'wide' : 'tall'
+      setKind(kindRef.current)
       sim.current.dirty = true
     }
     on()
@@ -305,23 +308,26 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       const run = () => {
         const s = still.current
         if (!s || !el) return
-        const d = s.poster.poster(params(x))
-        // The first redraw puts the mesh inline in place of the poster's image, with its style beside it.
+        const d = s.poster.poster(params(x), kindRef.current)
+        // The first redraw puts the mesh inline in place of the poster's picture, with its style beside it.
         let mesh = el.querySelector('[data-iv-poster] [data-mesh]')
         if (mesh && mesh.tagName.toLowerCase() === 'img') {
           const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-          svg.setAttribute('viewBox', `0 0 ${d.width} ${s.poster.FRAME_H}`)
           svg.setAttribute('class', 'absolute inset-0 h-full w-full overflow-visible')
           svg.setAttribute('aria-hidden', 'true')
           svg.setAttribute('data-fill', '')
           svg.setAttribute('data-mesh', '')
-          mesh.replaceWith(svg)
+          ;(mesh.closest('picture') ?? mesh).replaceWith(svg)
           mesh = svg
           const style = document.createElement('style')
           style.setAttribute('data-mesh-css', '')
           el.querySelector('[data-iv-poster]')?.prepend(style)
         }
-        if (mesh) mesh.innerHTML = s.markup.meshMarkup(d)
+        if (mesh) {
+          // Each framing's picture is its own width: a phone turned to landscape changes it.
+          mesh.setAttribute('viewBox', `0 0 ${d.width} ${s.poster.FRAME_H}`)
+          mesh.innerHTML = s.markup.meshMarkup(d)
+        }
         const style = el.querySelector('[data-iv-poster] style[data-mesh-css]')
         if (style) style.textContent = s.markup.MESH_CSS + s.poster.RAMP_CSS + d.css
         for (const n of d.notes) {
@@ -414,12 +420,18 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     }
   }
 
-  // The still frame's reading point: projected with the poster's camera, drawn until the canvas takes over.
-  const posterDot = (() => {
-    const m = mvp(camera(0))
+  // The still frame's reading point, one for each framing: projected with that framing's poster camera, drawn until
+  // the canvas takes over. Both are drawn, each shown at its own breakpoint, so the server's first paint has it right.
+  const posterDot = (k: FrameKind) => {
+    const m = mvp(k, camera(k))
     const c = apply(m, wx(probe.k), wy(iv(params(shock), probe.k, probe.T)), wz(probe.T))
     return { left: `${((c[0] / c[3]) * 0.5 + 0.5) * 100}%`, top: `${(1 - ((c[1] / c[3]) * 0.5 + 0.5)) * 100}%` }
-  })()
+  }
+
+  // A phone turned to landscape, or back, changes the framing: a still frame drawn inline is redrawn in the new one.
+  useEffect(() => {
+    if (still.current && !live) redrawStill(level.current)
+  }, [kind, live, redrawStill])
 
   // Said only once the browser has answered; the server cannot know.
   const why = !mounted
@@ -507,12 +519,20 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           onPointerMove={lean.onPointerMove}
           onPointerLeave={lean.onPointerLeave}
           onClick={lean.onTap}
-          className="iv-fig peer relative aspect-[1.35] cursor-crosshair touch-pan-y overflow-x-clip select-none focus-visible:outline-none sm:aspect-[1.62]"
+          className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair touch-pan-y overflow-x-clip select-none focus-visible:outline-none`}
         >
           <div className="absolute inset-0" style={underlay(live)}>
             {poster}
             <Frame>
-              <span aria-hidden data-fill="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" style={posterDot} />
+              {(['wide', 'tall'] as const).map((k) => (
+                <span
+                  key={k}
+                  aria-hidden
+                  data-fill=""
+                  className={`absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink ${k === 'wide' ? 'hidden sm:block' : 'sm:hidden'}`}
+                  style={posterDot(k)}
+                />
+              ))}
             </Frame>
           </div>
           <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y' }} />

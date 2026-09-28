@@ -1,5 +1,4 @@
 import type { CSSProperties, ReactNode, Ref } from 'react'
-import { FRAME } from '@/lib/surface/view'
 
 /**
  * Markup shared by the server poster and the live layer: the frame the
@@ -8,21 +7,20 @@ import { FRAME } from '@/lib/surface/view'
  */
 
 /**
+ * The two framings' aspects (lib/surface/view.ts, FRAMES), as classes: a phone's below `sm`, the wide one from it.
+ * The stage has the same aspect, so the frame fills it. Written out whole for Tailwind to find; tests/surface-dynamics
+ * checks them against FRAMES.
+ */
+export const FRAME_ASPECT = 'aspect-[1.1] sm:aspect-[1.62]'
+
+/**
  * A box of the frame's aspect, as large as fits and centred — SVG's
  * xMidYMid meet, in CSS: an inset-0 box with auto margins, an aspect ratio,
  * and both maxima at 100%, whose constraints transfer through the ratio. The
  * live renderer letterboxes its projection the same way.
  */
 export function Frame({ className = '', children }: { className?: string; children: ReactNode }) {
-  const a = FRAME.aspect
-  return (
-    <div
-      className={`pointer-events-none absolute inset-0 m-auto max-h-full max-w-full ${className}`}
-      style={{ aspectRatio: String(a) }}
-    >
-      {children}
-    </div>
-  )
+  return <div className={`pointer-events-none absolute inset-0 m-auto max-h-full max-w-full ${FRAME_ASPECT} ${className}`}>{children}</div>
 }
 
 const ALIGN: Record<string, string> = {

@@ -4,8 +4,9 @@ import { ETA_CAP, params, SIZE_MAX, SIZE_MIN } from '../lib/surface/shock'
 import { FORM_MS, amplitudeOf, surfaceSequence } from '../lib/surface/sequence'
 import { CALM, check, DOMAIN, g, gjRatio, iv, phi, theta, w, wk, wT, type Params } from '../lib/surface/ssvi'
 import { numbers, probeText, text } from '../lib/surface/readouts'
+import { FRAME_ASPECT } from '../components/figures/surface/marks'
 import { poster, describe as describePoster } from '../lib/surface/poster'
-import { camera, fitDistance, FRAME, kOfU, mvp, apply, tOfV, fu, fv } from '../lib/surface/view'
+import { camera, fitDistance, FRAMES, H, kOfU, labelBox, LABELS, mvp, apply, tOfV, fu, fv, XW, ZW, type FrameKind } from '../lib/surface/view'
 import { diffuse, UP_LIGHT } from '../lib/surface/look'
 
 /**
@@ -160,16 +161,61 @@ describe('the view', () => {
 
   it('the camera fits the whole solid in frame at every sway angle', () => {
     {
-      expect(fitDistance()).toBeGreaterThan(1)
+      expect(fitDistance('wide')).toBeGreaterThan(1)
       for (const s of [-1, 0, 1]) {
-        const m = mvp(camera(s))
+        const m = mvp('wide', camera('wide', s))
         for (const [x, y, z] of [[-1.35, 1.05, -0.85], [1.35, 0, 0.85], [-1.35, 0, 0.85]] as const) {
           const q = apply(m, x, y, z)
           expect(Math.abs(q[0] / q[3])).toBeLessThanOrEqual(1)
           expect(Math.abs(q[1] / q[3])).toBeLessThanOrEqual(1)
         }
       }
-      expect(FRAME.aspect).toBeGreaterThan(0)
+      expect(FRAMES.wide.aspect).toBeGreaterThan(0)
+    }
+  })
+
+  it('a phone has a frame of its own, and on a 390px phone the surface fills most of its width', () => {
+    // The solid at calm and at its tallest: the box its corners make, projected into a 390px-wide stage of the
+    // frame's own aspect, in CSS pixels.
+    const solid = [-1, 1].flatMap((sx) => [[sx * XW, 0, -ZW], [sx * XW, H * 0.6, -ZW], [sx * XW, 0, ZW], [sx * XW, H * 0.3, ZW]] as const)
+    const size = (kind: FrameKind) => {
+      const a = FRAMES[kind].aspect
+      const m = mvp(kind, camera(kind), a)
+      const xs = solid.map(([x, y, z]) => apply(m, x, y, z)).map((q) => [q[0] / q[3], q[1] / q[3]] as const)
+      const w = ((Math.max(...xs.map((q) => q[0])) - Math.min(...xs.map((q) => q[0]))) / 2) * 390
+      const h = ((Math.max(...xs.map((q) => q[1])) - Math.min(...xs.map((q) => q[1]))) / 2) * (390 / a)
+      return [w, h]
+    }
+    expect(FRAMES.tall.aspect).toBeLessThan(FRAMES.wide.aspect)
+    const [w, h] = size('tall')
+    // Letterboxed into a phone, the wide frame gave it 250 × 146px.
+    expect(w).toBeGreaterThan(300)
+    expect(h).toBeGreaterThan(200)
+  })
+
+  it('the stage’s and the frame box’s classes are the two framings’ aspects', () => {
+    expect(FRAME_ASPECT).toBe(`aspect-[${FRAMES.tall.aspect}] sm:aspect-[${FRAMES.wide.aspect}]`)
+  })
+
+  it('each frame holds the solid, and every one of its labels whole, at every angle its sway reaches', () => {
+    for (const kind of ['wide', 'tall'] as const) {
+      const box = [-1, 1].flatMap((sx) => [[sx * XW, 0, -ZW], [sx * XW, H, -ZW], [sx * XW, 0, ZW]] as const)
+      for (const s of [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]) {
+        const m = mvp(kind, camera(kind, s))
+        for (const [x, y, z] of box) {
+          const q = apply(m, x, y, z)
+          expect(q[3], kind).toBeGreaterThan(0)
+          expect(Math.abs(q[0] / q[3]), `${kind} ${s}`).toBeLessThanOrEqual(0.93)
+          expect(Math.abs(q[1] / q[3]), `${kind} ${s}`).toBeLessThanOrEqual(0.95)
+        }
+        // The text, not only the anchor, at the narrowest stage the framing is shown on.
+        for (const l of LABELS.filter((l) => !l.only || l.only === kind)) {
+          const q = apply(m, l.at[0], l.at[1], l.at[2])
+          const [x0, x1, y0, y1] = labelBox(kind, l, q[0] / q[3], q[1] / q[3])
+          expect(Math.min(x0, y0), `${kind} ${l.id} ${s}`).toBeGreaterThanOrEqual(-0.99)
+          expect(Math.max(x1, y1), `${kind} ${l.id} ${s}`).toBeLessThanOrEqual(0.99)
+        }
+      }
     }
   })
 
@@ -187,6 +233,18 @@ describe('the poster', () => {
       expect(bytes).toBeLessThan(40_000)
       expect(d.runs.length).toBeGreaterThan(50)
       expect(d.labels.every((l) => l.x > -0.05 && l.x < 1.05 && l.y > -0.05 && l.y < 1.05)).toBe(true)
+    }
+  })
+
+  it('draws each frame from its own camera, with that frame’s labels and notes only', () => {
+    for (const kind of ['wide', 'tall'] as const) {
+      const d = poster(params(0), kind)
+      expect(d.aspect).toBe(FRAMES[kind].aspect)
+      expect(d.width).toBe(Math.round(FRAMES[kind].aspect * 1000))
+      expect(d.labels.length).toBeGreaterThan(4)
+      expect(d.labels.every((l) => !l.only || l.only === kind)).toBe(true)
+      expect(d.notes.every((n) => n.kind === kind)).toBe(true)
+      expect(d.labels.every((l) => l.x > -0.02 && l.x < 1.02 && l.y > -0.02 && l.y < 1.02)).toBe(true)
     }
   })
 

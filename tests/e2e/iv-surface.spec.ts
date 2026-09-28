@@ -244,6 +244,44 @@ test('the still frame’s note is whole: nothing of it is cut off at the stage�
   expect(b.x + b.width).toBeLessThanOrEqual(stage.x + stage.width)
 })
 
+test('a phone has its own framing: a taller stage, and only the poster drawn for it is fetched', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'a phone')
+  const svgs: string[] = []
+  page.on('request', (r) => {
+    if (/\/iv-surface\/poster[^/]*\.svg$/.test(r.url())) svgs.push(new URL(r.url()).pathname)
+  })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/iv-surface')
+  const b = (await page.locator(STAGE).boundingBox())!
+  expect(b.width / b.height).toBeCloseTo(1.1, 1)
+  await expect.poll(() => page.locator(`${STAGE} img[data-mesh]`).evaluate((i: HTMLImageElement) => i.currentSrc)).toMatch(/poster-tall\.svg$/)
+  expect(svgs).toEqual(['/iv-surface/poster-tall.svg'])
+})
+
+test('every axis label is whole inside the stage while the surface drifts, at the narrowest screens each framing has', async ({ page, isMobile }) => {
+  test.setTimeout(60_000)
+  const errors = errorsOf(page)
+  await seen(page)
+  for (const width of isMobile ? [360, 390] : [640, 1440]) {
+    await page.setViewportSize({ width, height: isMobile ? 800 : 900 })
+    await page.goto('/iv-surface')
+    if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+    for (let i = 0; i < 6; i++) {
+      await page.waitForTimeout(300)
+      const out = await page.evaluate((sel) => {
+        const stage = document.querySelector(sel)!.getBoundingClientRect()
+        return [...document.querySelectorAll<HTMLElement>(`${sel} canvas + div span.block`)]
+          .filter((s) => s.offsetParent !== null && getComputedStyle(s).display !== 'none' && s.textContent)
+          .map((s) => ({ text: s.textContent!, r: s.getBoundingClientRect() }))
+          .filter(({ r }) => r.width > 0 && (r.left < stage.left - 0.5 || r.right > stage.right + 0.5 || r.top < stage.top - 0.5 || r.bottom > stage.bottom + 0.5))
+          .map(({ text }) => text)
+      }, STAGE)
+      expect(out, `${width}px`).toEqual([])
+    }
+  }
+  expect(errors).toEqual([])
+})
+
 test('the margin reads the point in a few lines, and its Greeks are one step away', async ({ page }) => {
   await page.goto('/iv-surface')
   await expect(value(page, 'Implied · local vol')).toHaveText(/^\d+\.\d% · \d+\.\d%$/)

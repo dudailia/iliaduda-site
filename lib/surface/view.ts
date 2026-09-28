@@ -40,18 +40,21 @@ export const vOfZ = (z: number) => (z / ZW + 1) / 2
 // ── camera ───────────────────────────────────────────────────────────────────
 
 /**
- * Where labels differ by screen: `wide` from 40rem up, `tall` below it (the
- * phone keeps fewer, shorter labels). The camera and the picture are the same
- * for both, so a single poster serves every screen.
+ * Two framings: `wide` from 40rem up, and `tall` below it, a phone's, with
+ * fewer and shorter labels. Each has its own camera and its own poster.
  */
 export type FrameKind = 'wide' | 'tall'
 
 /**
- * The frame the surface is fitted to, and the camera's resting pose. The stage
- * letterboxes the frame (like SVG's xMidYMid meet), so poster and canvas agree
- * at any size.
+ * The frame the surface is fitted to, and the camera's resting pose, for each framing. The stage has the frame's own
+ * aspect and letterboxes it (like SVG's xMidYMid meet) at any other, so poster and canvas agree at any size. A phone's
+ * frame is taller, looks down a little more and sways less: on a 390px phone the calm surface spans 315 × 217px, where
+ * the wide frame letterboxed into it gave 245 × 145px. Each frame is fitted to its own labels only.
  */
-export const FRAME = { aspect: 1.62, yaw: 0.5, pitch: 0.44, sway: 0.2 } as const
+export const FRAMES = {
+  wide: { aspect: 1.62, yaw: 0.5, pitch: 0.44, sway: 0.2 },
+  tall: { aspect: 1.1, yaw: 0.5, pitch: 0.6, sway: 0.12 },
+} as const satisfies Record<FrameKind, { aspect: number; yaw: number; pitch: number; sway: number }>
 
 /** The media query that picks the wide frame: Tailwind's `sm`. */
 export const WIDE_QUERY = '(min-width: 40rem)'
@@ -128,73 +131,97 @@ export function letterbox(frame: number, viewport: number): M4 {
 }
 
 /**
- * Points that must stay in the frame: the solid's envelope (the back can rise
- * to the top of the scale at the largest shock; the two-year front never
- * passes 60%), and the anchors of the axis labels drawn in that frame.
+ * The solid's envelope, which must stay in the frame: the back can rise to the
+ * top of the scale at the largest shock; the two-year front never passes 60%.
  */
-function fitPoints(): (readonly [number, number, number])[] {
-  const box = [-1, 1].flatMap((sx) => [
-    [sx * XW, 0, -ZW] as const,
-    [sx * XW, H, -ZW] as const,
-    [sx * XW, 0, ZW] as const,
-    [sx * XW, wy(0.6), ZW] as const,
-  ])
-  const labels = LABELS.map((l) => l.at)
-  return [...box, ...labels]
+const ENVELOPE = [-1, 1].flatMap((sx) => [
+  [sx * XW, 0, -ZW] as const,
+  [sx * XW, H, -ZW] as const,
+  [sx * XW, 0, ZW] as const,
+  [sx * XW, wy(0.6), ZW] as const,
+])
+
+/** An axis label's type (text-meta, in Source Code Pro): 13px, every character 0.6em wide. */
+export const LABEL_PX = 13
+const CHAR_PX = LABEL_PX * 0.6
+/**
+ * The narrowest stage each framing is shown on, in CSS pixels: a 360px phone, whose stage runs edge to edge, and at
+ * `sm` the text column (640px less its two 24px gutters). A label that is whole there is whole on every wider stage.
+ */
+export const NARROWEST: Record<FrameKind, number> = { tall: 360, wide: 592 }
+
+/**
+ * A label's box in normalised device coordinates, from where its anchor projects, at the framing's narrowest stage:
+ * [left, right, bottom, top].
+ */
+export function labelBox(kind: FrameKind, l: Label, x: number, y: number): [number, number, number, number] {
+  const W = NARROWEST[kind], Hpx = W / FRAMES[kind].aspect
+  const w = (l.text.length * CHAR_PX) / (W / 2), h = LABEL_PX / (Hpx / 2)
+  const [x0, x1] = l.align === 'left' ? [x, x + w] : l.align === 'right' ? [x - w, x] : [x - w / 2, x + w / 2]
+  const [y0, y1] = l.align === 'above' ? [y, y + h] : [y - h / 2, y + h / 2]
+  return [x0, x1, y0, y1]
 }
 
 /** The height the camera looks at. */
 const TY = H * 0.28
 
-let fitted = 0
+const fitted: Partial<Record<FrameKind, number>> = {}
 /**
- * The camera distance for a frame: the smallest at which every FIT point is
+ * The camera distance for a frame: the smallest at which every fit point is
  * inside the frame at every angle the sway reaches, so the solid never has to
  * zoom as it turns and the rising surface is seen rising, not refitted.
  */
-export function fitDistance(): number {
-  if (fitted) return fitted
-  const f = FRAME
+export function fitDistance(kind: FrameKind): number {
+  const done = fitted[kind]
+  if (done) return done
+  const f = FRAMES[kind]
   const P = perspective(f.aspect)
-  const FIT = fitPoints()
+  const labels = LABELS.filter((l) => !l.only || l.only === kind)
   let lo = 1, hi = 40
   for (let i = 0; i < 26; i++) {
     const d = (lo + hi) / 2
     const ok = [-1, -0.5, 0, 0.5, 1].every((s) => {
       const m = mul(P, view({ yaw: f.yaw + s * f.sway, pitch: f.pitch, dist: d, ty: TY }))
-      return FIT.every(([x, y, z]) => {
+      const solid = ENVELOPE.every(([x, y, z]) => {
         const q = apply(m, x, y, z)
         return q[3] > 0 && Math.abs(q[0] / q[3]) <= 0.92 && Math.abs(q[1] / q[3]) <= 0.94
+      })
+      // Every label whole, its text and not only its anchor, with a sliver of room at the edge.
+      return solid && labels.every((l) => {
+        const q = apply(m, l.at[0], l.at[1], l.at[2])
+        if (q[3] <= 0) return false
+        const [x0, x1, y0, y1] = labelBox(kind, l, q[0] / q[3], q[1] / q[3])
+        return x0 >= -0.98 && x1 <= 0.98 && y0 >= -0.98 && y1 <= 0.98
       })
     })
     if (ok) hi = d
     else lo = d
   }
-  fitted = hi
+  fitted[kind] = hi
   return hi
 }
 
 
-/** The camera at sway angle `s` ∈ [−1, 1] of the frame's range, plus any offset the reader's drag adds. */
 /**
  * The pitch a drag or its release may reach, eased into rather than stopped at: the identity inside [0.2, 1.1], and
  * beyond it an exponential approach to 0.12 below and 1.2 above, matched in slope, so a flick lands softly.
  */
 const softPitch = (p: number) => (p < 0.2 ? 0.12 + 0.08 * Math.exp((p - 0.2) / 0.08) : p > 1.1 ? 1.2 - 0.1 * Math.exp(-(p - 1.1) / 0.1) : p)
 
-export function camera(s = 0, dYaw = 0, dPitch = 0): Camera {
-  const f = FRAME
+/** A frame's camera at sway angle `s` ∈ [−1, 1] of its range, plus any offset the reader's drag adds. */
+export function camera(kind: FrameKind, s = 0, dYaw = 0, dPitch = 0): Camera {
+  const f = FRAMES[kind]
   return {
     yaw: f.yaw + s * f.sway + dYaw,
     pitch: softPitch(f.pitch + dPitch),
-    dist: fitDistance(),
+    dist: fitDistance(kind),
     ty: TY,
   }
 }
 
-/** Model-view-projection for a viewport of aspect `viewport` (the frame's own aspect when omitted). */
-export function mvp(cam: Camera, viewport?: number): M4 {
-  const a = FRAME.aspect
+/** Model-view-projection through a frame, for a viewport of aspect `viewport` (the frame's own aspect when omitted). */
+export function mvp(kind: FrameKind, cam: Camera, viewport?: number): M4 {
+  const a = FRAMES[kind].aspect
   return mul(letterbox(a, viewport ?? a), mul(perspective(a), view(cam)))
 }
 
@@ -244,7 +271,7 @@ export const LABELS: readonly Label[] = [
     id: `t${s}`, text: s, at: [XW + 0.1, 0, wz(T)], align: 'left', kind: 'tick',
     ...(TALL_EXPIRIES.has(s) ? {} : { only: 'wide' as const }),
   })),
-  { id: 'tt', text: 'time to expiry', at: [XW + 0.3, 0, ZW * 0.1], align: 'left', kind: 'title', only: 'wide' },
+  { id: 'tt', text: 'expiry', at: [XW + 0.3, 0, ZW * 0.1], align: 'left', kind: 'title', only: 'wide' },
   { id: 'tts', text: 'expiry', at: [XW + 0.12, 0, ZW + 0.3], align: 'left', kind: 'title', only: 'tall' },
   ...VOL_TICKS.map((v): Label => ({
     id: `v${v}`, text: `${Math.round(v * 100)}%`, at: [POST[0] + 0.06, wy(v), POST[1]], align: 'left', kind: 'tick', only: 'wide',
