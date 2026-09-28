@@ -54,17 +54,21 @@ export function params(a: number, size = 1): Params {
 /** What the surface is doing, in words (components/figures/surface/Live.tsx says which, from the story or the slider). */
 export type Phase = 'shock' | 'relax' | 'calm'
 
-export const PHASE_TEXT: Record<Phase, { name: string; line: string }> = {
+/** Each phase in words: its name, the line under the figure, and the line's first sentence, for the stage itself. */
+export const PHASE_TEXT: Record<Phase, { name: string; line: string; short: string }> = {
   calm: {
     name: 'Calm',
     line: 'Options price in modest swings. Insurance against a crash already costs a little more than the rest.',
+    short: 'Options price in modest swings.',
   },
   shock: {
     name: 'Shock',
     line: 'Prices drop fast. Everyone wants crash insurance at once, and near-term protection jumps in price.',
+    short: 'Prices drop fast.',
   },
   relax: {
     name: 'Fear fades',
     line: 'The panic drains out. Near-term prices sink back; the long end barely moved.',
+    short: 'The panic drains out.',
   },
 }

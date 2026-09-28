@@ -50,6 +50,28 @@ const NOTE_ALIGN: Record<string, string> = {
 }
 
 /**
+ * Where a note's words hang from its point, in CSS pixels (negative is up): at its own offset `dy` above it, unless that
+ * would put them past the top of the stage, as the surface's peak rises in a shock; then as low as keeps them whole,
+ * the leader shortening to no less than 10px; and where even that leaves no room, 10px below the point instead.
+ * `y` is the point's height in the stage, `h` the words'.
+ */
+export function noteRise(y: number, dy: number, h: number, top = 4): number {
+  const up = Math.max(dy, top + h - y)
+  return up <= -10 ? up : 10
+}
+
+/** Hangs a note's words `dy` from its point, above it or (for a positive `dy`) below: the leader's end moves with them. */
+export function setNoteRise(el: HTMLElement, dy: number, align: string) {
+  const words = el.querySelector<HTMLElement>('[data-note-words]')
+  const lead = el.querySelector('line')
+  if (words) {
+    words.style.top = `${dy}px`
+    words.style.transform = dy > 0 ? NOTE_ALIGN[align]!.replace('-100%)', '0)') : NOTE_ALIGN[align]!
+  }
+  lead?.setAttribute('y2', String(dy))
+}
+
+/**
  * A note pinned to the surface: a ring on the point, a leader, and the words.
  * Positioned by its anchor; the leader and text hang off it in CSS pixels, so
  * the live layer moves one transform per note.
@@ -83,6 +105,7 @@ export function NoteMark({
         <circle cx={0} cy={0} r={3.5} fill="var(--color-paper)" stroke="var(--color-ink)" strokeWidth={1.25} />
       </svg>
       <span
+        data-note-words=""
         className="absolute block w-max max-w-[12rem] rounded-sm bg-paper/90 px-1.5 py-0.5 text-note leading-snug text-ink sm:max-w-[16rem]"
         style={{ left: dx, top: dy, transform: NOTE_ALIGN[align] }}
       >

@@ -4,7 +4,7 @@ import { ETA_CAP, params, SIZE_MAX, SIZE_MIN } from '../lib/surface/shock'
 import { FORM_MS, amplitudeOf, surfaceSequence } from '../lib/surface/sequence'
 import { CALM, check, DOMAIN, g, gjRatio, iv, phi, theta, w, wk, wT, type Params } from '../lib/surface/ssvi'
 import { numbers, probeText, text } from '../lib/surface/readouts'
-import { FRAME_ASPECT } from '../components/figures/surface/marks'
+import { FRAME_ASPECT, noteRise } from '../components/figures/surface/marks'
 import { poster, describe as describePoster } from '../lib/surface/poster'
 import { invert } from '../lib/m4'
 import { camera, fitDistance, FRAMES, H, kOfU, labelBox, LABELS, mvp, apply, pickSurface, tOfV, fu, fv, wx, wy, wz, XW, ZW, type FrameKind } from '../lib/surface/view'
@@ -211,6 +211,15 @@ describe('the view', () => {
         // Above the surface, in the sky, there is nothing to read.
         expect(pickSurface(inv, 0, 0.99, p)).toBeNull()
       }
+  })
+
+  it('a note’s words stand at their own height above the point, unless that would cross the stage’s top', () => {
+    // Room above: the note's own offset.
+    expect(noteRise(200, -62, 24)).toBe(-62)
+    // The peak risen near the top: the words stop 4px under it, the leader shorter.
+    expect(noteRise(50, -62, 24)).toBe(-22)
+    // No room above for the words and a 10px leader: they hang 10px below the point instead.
+    expect(noteRise(20, -62, 24)).toBe(10)
   })
 
   it('the stage’s and the frame box’s classes are the two framings’ aspects', () => {

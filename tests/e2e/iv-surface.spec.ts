@@ -65,6 +65,23 @@ test('goes live, forms and takes its shock once per visit: a reload does not rep
   expect(errors).toEqual([])
 })
 
+test('while the story plays and its narration is below the fold, the stage says what is happening', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a laptop’s first screen')
+  test.setTimeout(40_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/iv-surface')
+  const caption = page.locator(`${STAGE} [data-phase-caption]`)
+  const shown = () => caption.evaluate((c) => Number(getComputedStyle(c).opacity))
+  // The narration under the stage is off the first screen here.
+  const line = (await page.locator(`${FIG} [data-phase-line]`).boundingBox())!
+  expect(line.y + line.height).toBeGreaterThan(900)
+  if (!(await expect.poll(() => seq(page), { timeout: 15_000 }).toBe('playing').then(() => true, () => false))) return test.skip(true, 'no GPU here')
+  await expect.poll(shown).toBeGreaterThan(0.9)
+  await expect(caption).toContainText('Shock.', { timeout: 6_000 })
+  await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('done')
+  await expect.poll(shown).toBeLessThan(0.05)
+})
+
 test('a story the page starts while the figure is paused still plays through, and the figure stays paused', async ({ page }) => {
   test.setTimeout(60_000)
   // Paused in an earlier look at the page, before its story was ever seen.
@@ -280,6 +297,24 @@ test('every axis label is whole inside the stage while the surface drifts, at th
     }
   }
   expect(errors).toEqual([])
+})
+
+test('at the largest shock the note’s words stay inside the stage, live and on the still frame', async ({ page }) => {
+  for (const reduced of [false, true]) {
+    await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' })
+    await seen(page)
+    await page.goto('/iv-surface')
+    if (!reduced && !(await goLive(page))) continue
+    await page.locator(STAGE).scrollIntoViewIfNeeded()
+    const slider = page.locator(`${FIG} input[type="range"]`)
+    await slider.focus()
+    await page.keyboard.press('End')
+    await page.waitForTimeout(900)
+    const stage = (await page.locator(STAGE).boundingBox())!
+    const words = page.locator(`${STAGE} [data-note-words]:visible`).first()
+    const w = (await words.boundingBox())!
+    expect(w.y, reduced ? 'still' : 'live').toBeGreaterThanOrEqual(stage.y)
+  }
 })
 
 test('the margin reads the point in a few lines, and its Greeks are one step away', async ({ page }) => {

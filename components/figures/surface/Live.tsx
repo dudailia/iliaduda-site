@@ -17,7 +17,7 @@ import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
 import type { Sequence } from '@/lib/stage/sequence'
 import { invert } from '@/lib/m4'
 import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
-import { AxisLabel, Frame, FRAME_ASPECT, NoteMark } from './marks'
+import { AxisLabel, Frame, FRAME_ASPECT, NoteMark, noteRise, setNoteRise } from './marks'
 import type { Probe, Sim, SurfaceRenderer } from './renderer'
 
 /**
@@ -96,6 +96,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const [phase, setPhase] = useState<Phase>('calm')
   const phaseRef = useRef<Phase>('calm')
   const [phaseMoved, setPhaseMoved] = useState(false)
+  /** The narration under the stage, and whether all of it is on screen. */
+  const phaseLine = useRef<HTMLParagraphElement>(null)
+  const [lineSeen, setLineSeen] = useState(true)
   const [spoken, setSpoken] = useState('')
   const [kind, setKind] = useState<FrameKind>('wide')
   const kindRef = useRef<FrameKind>('wide')
@@ -353,6 +356,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           if (at) {
             at.style.left = `${(n.x * 100).toFixed(2)}%`
             at.style.top = `${(n.y * 100).toFixed(2)}%`
+            // At a large shock the peak rises: the words stay inside the stage, as the live figure's do.
+            const frame = at.parentElement, words = at.querySelector<HTMLElement>('[data-note-words]')
+            if (frame && words) setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight), n.align)
           }
         }
         sync(params(x), x)
@@ -460,6 +466,17 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     setProbe(clampProbe(hit))
     readHere()
   }
+
+  // While the story plays, its narration has to be where the reader is looking: on a laptop's first screen the line
+  // under the stage is below the fold, so the stage carries its first sentence until the story is over.
+  useEffect(() => {
+    const el = phaseLine.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setLineSeen(e!.intersectionRatio > 0.9), { threshold: [0, 0.9, 1] })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  const onStage = sig.state === 'playing' && !lineSeen
 
   // A phone turned to landscape, or back, changes the framing: a still frame drawn inline is redrawn in the new one.
   useEffect(() => {
@@ -574,6 +591,17 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             </Frame>
           </div>
           <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y' }} />
+          {/* The story's narration, on the stage while the line under it is out of view (the line is the one read aloud). */}
+          <p
+            aria-hidden
+            data-phase-caption=""
+            className="text-note pointer-events-none absolute top-3 right-3 max-w-[60%] text-right leading-snug text-ink transition-opacity duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
+            style={{ opacity: onStage ? 1 : 0 }}
+          >
+            <span key={phase} className="block rounded-sm bg-paper/90 px-1.5 py-0.5 transition-[opacity,filter] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 starting:blur-[2px]">
+              <span className="font-semibold">{PHASE_TEXT[phase].name}.</span> {PHASE_TEXT[phase].short}
+            </span>
+          </p>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
             <div ref={labelLayer}>
               {LABELS.map((l, i) => (
@@ -620,7 +648,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       </div>
 
       {/* What the shock is doing, in words; the room is kept, so a change never moves the page. */}
-      <p className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em]" aria-live="off">
+      <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em]" aria-live="off">
         <span key={phase} className={`block ${phaseMoved ? 'transition-[opacity,filter] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 starting:blur-[2px]' : ''}`}>
           <span className="font-semibold">{PHASE_TEXT[phase].name}.</span> {PHASE_TEXT[phase].line}
         </span>

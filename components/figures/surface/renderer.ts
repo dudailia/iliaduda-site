@@ -12,6 +12,7 @@ import {
 } from '@/lib/surface/view'
 import type { Palette, Renderer, RGB, StageEnv } from '@/components/stage/useStage'
 import { LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
+import { noteRise, setNoteRise } from './marks'
 
 /**
  * Fig. 1 of the IV paper, live. Raw WebGL2: one grid drawn from gl_VertexID
@@ -395,14 +396,23 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniform3f(prog.u('uProbe'), probe ? fu(probe.k) : -1, probe ? Math.min(0.995, fv(probe.T)) : -1, probe ? probeK : 0)
   }
 
-  /** Moves `el` to where (x, y, z) is drawn; returns how far across the stage that is, in CSS pixels. */
-  const place = (el: HTMLElement | null, m: M4, x: number, y: number, z: number): number => {
+  /** Moves `el` to where (x, y, z) is drawn; returns where that is on the stage, in CSS pixels. */
+  const place = (el: HTMLElement | null, m: M4, x: number, y: number, z: number): [number, number] => {
     const c = apply(m, x, y, z)
     const sx = ((c[0] / c[3]) * 0.5 + 0.5) * cssW
     const sy = (1 - ((c[1] / c[3]) * 0.5 + 0.5)) * cssH
     if (el) el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`
-    return sx
+    return [sx, sy]
   }
+  /** Each note's words: their height (measured once a size), and how far above the point they last stood. */
+  const noteH: number[] = []
+  const noteDy: number[] = []
+  // The page's own face may arrive after the first frame and set the words a little taller: measured again then.
+  void document.fonts?.ready.then(() => {
+    noteH.length = 0
+    noteDy.length = 0
+    sim.dirty = true
+  })
   /** The tag: how much it is shown (it comes and goes over about 150ms), what it last said, and which side it is on. */
   let tagK = 0
   let tagText = ''
@@ -549,10 +559,19 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const layer = hooks.labelLayer()
       if (layer) layer.style.opacity = labelsK.toFixed(3)
       const notes = hooks.notes()
-      NOTES.forEach((nt, i) => place(notes[i] ?? null, m, wx(nt.k), wy(iv(p, nt.k, nt.T)) * rise, wz(nt.T)))
+      NOTES.forEach((nt, i) => {
+        const el = notes[i] ?? null
+        const [, sy] = place(el, m, wx(nt.k), wy(iv(p, nt.k, nt.T)) * rise, wz(nt.T))
+        const o = nt.offset[kind]
+        if (!el || !o) return
+        // At a shock's peak the words would rise past the stage's top: they stop there, and the leader shortens.
+        noteH[i] ||= el.querySelector<HTMLElement>('[data-note-words]')?.offsetHeight ?? 0
+        const dy = noteRise(sy, o[1], noteH[i]!)
+        if (dy !== noteDy[i]) setNoteRise(el, (noteDy[i] = dy), o[2])
+      })
       const dot = hooks.dot()
       const at = iv(p, probe.k, probe.T)
-      const dotX = place(dot, m, wx(probe.k), wy(at) * rise, wz(probe.T))
+      const [dotX] = place(dot, m, wx(probe.k), wy(at) * rise, wz(probe.T))
       // The reading point arrives with the labels, once the sheet is up to be read.
       if (dot) dot.style.opacity = labelsK.toFixed(3)
       // While the reader reads a point, its tag names the volatility there, beside the dot, on whichever side has room.
@@ -588,6 +607,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       cssW = cw
       cssH = ch
       resized = true
+      // A new size may wrap a note's words differently: measured again.
+      noteH.length = 0
+      noteDy.length = 0
     },
     setQuality(level) {
       q = level
