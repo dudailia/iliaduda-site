@@ -70,6 +70,10 @@ export interface Hooks {
   labelLayer(): HTMLElement | null
   notes(): readonly (HTMLElement | null)[]
   dot(): HTMLElement | null
+  /** The tag beside the dot, which names the volatility at the point while the reader is reading one. */
+  tag(): HTMLElement | null
+  /** The reader has set the reading point (a click or tap, or the keys): its tag stays up once it is theirs. */
+  pinned(): boolean
   /** The readouts, for the parameters just drawn, and the shock they were drawn at (0 calm, 1 a full shock). */
   sync(p: Params, shown: number): void
 }
@@ -391,13 +395,18 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniform3f(prog.u('uProbe'), probe ? fu(probe.k) : -1, probe ? Math.min(0.995, fv(probe.T)) : -1, probe ? probeK : 0)
   }
 
-  const place = (el: HTMLElement | null, m: M4, x: number, y: number, z: number) => {
-    if (!el) return
+  /** Moves `el` to where (x, y, z) is drawn; returns how far across the stage that is, in CSS pixels. */
+  const place = (el: HTMLElement | null, m: M4, x: number, y: number, z: number): number => {
     const c = apply(m, x, y, z)
     const sx = ((c[0] / c[3]) * 0.5 + 0.5) * cssW
     const sy = (1 - ((c[1] / c[3]) * 0.5 + 0.5)) * cssH
-    el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`
+    if (el) el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`
+    return sx
   }
+  /** The tag: how much it is shown (it comes and goes over about 150ms), what it last said, and which side it is on. */
+  let tagK = 0
+  let tagText = ''
+  let tagLeft = false
 
   return {
     frame(_t, dt) {
@@ -465,7 +474,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         Math.abs(spring.yaw) + Math.abs(spring.pitch) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
         Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
         Math.abs(shock.v) > 1e-5 ||
-        Math.abs(hooks.level() - shock.x) > 1e-4
+        Math.abs(hooks.level() - shock.x) > 1e-4 ||
+        Math.abs((sim.hover || hooks.pinned() ? 1 : 0) - tagK) > 0.01
       // Unpaused, it drifts, so every frame is drawn; paused, only a change is.
       const story = ph ? ph.lines + ph.rise + ph.labels + ph.shock + ph.relax : -1
       const storyMoved = story !== lastStory
@@ -541,9 +551,24 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const notes = hooks.notes()
       NOTES.forEach((nt, i) => place(notes[i] ?? null, m, wx(nt.k), wy(iv(p, nt.k, nt.T)) * rise, wz(nt.T)))
       const dot = hooks.dot()
-      place(dot, m, wx(probe.k), wy(iv(p, probe.k, probe.T)) * rise, wz(probe.T))
+      const at = iv(p, probe.k, probe.T)
+      const dotX = place(dot, m, wx(probe.k), wy(at) * rise, wz(probe.T))
       // The reading point arrives with the labels, once the sheet is up to be read.
       if (dot) dot.style.opacity = labelsK.toFixed(3)
+      // While the reader reads a point, its tag names the volatility there, beside the dot, on whichever side has room.
+      const tag = hooks.tag()
+      if (tag) {
+        tagK += ((sim.hover || hooks.pinned() ? 1 : 0) - tagK) * (1 - Math.exp(-dt / 0.05))
+        if (tagK < 0.005) tagK = 0
+        const text = `vol ${(at * 100).toFixed(1)}%`
+        if (text !== tagText) tag.textContent = tagText = text
+        const left = dotX > cssW - 96
+        if (left !== tagLeft) {
+          tagLeft = left
+          tag.style.transform = left ? 'translateX(calc(-100% - 1.25rem))' : ''
+        }
+        tag.style.opacity = (tagK * labelsK).toFixed(3)
+      }
 
       hooks.sync(p, x)
       drawnOnce = true

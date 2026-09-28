@@ -296,7 +296,7 @@ test('reduced motion: a click or tap on the still frame reads the point under it
   const stage = page.locator(STAGE)
   await stage.scrollIntoViewIfNeeded()
   const before = await value(page, 'Strike').textContent()
-  const dot = page.locator(`${STAGE} span[data-fill].rounded-full:visible`).first()
+  const dot = page.locator(`${STAGE} [data-still-dot]:visible`).first()
   const was = (await dot.boundingBox())!
   const b = (await stage.boundingBox())!
   // Toward the low strikes, near the front: well away from where the reading starts.
@@ -304,9 +304,37 @@ test('reduced motion: a click or tap on the still frame reads the point under it
   if (isMobile) await page.touchscreen.tap(at.x, at.y)
   else await page.mouse.click(at.x, at.y)
   await expect(value(page, 'Strike')).not.toHaveText(before!)
+  // Its tag names the volatility there, as the margin does.
+  const iv = (await value(page, 'Implied · local vol').textContent())!.split(' · ')[0]
+  await expect(page.locator(`${STAGE} [data-probe-tag]:visible`)).toHaveText(`vol ${iv}`)
   const now = (await dot.boundingBox())!
   expect(Math.hypot(now.x + now.width / 2 - at.x, now.y + now.height / 2 - at.y)).toBeLessThan(12)
   expect(Math.hypot(now.x - was.x, now.y - was.y)).toBeGreaterThan(20)
+})
+
+test('the point being read is named beside its dot: while a mouse points, and for good once the reader sets it', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse')
+  await seen(page)
+  await page.goto('/iv-surface')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const tag = page.locator(`${STAGE} canvas ~ div [data-probe-tag]`)
+  const shown = () => tag.evaluate((t) => Number(getComputedStyle(t).opacity))
+  // At rest the dot is the page's own starting point, and nothing is named.
+  expect(await shown()).toBe(0)
+  const b = (await page.locator(STAGE).boundingBox())!
+  await page.mouse.move(b.x + b.width * 0.4, b.y + b.height * 0.6)
+  await expect.poll(shown).toBeGreaterThan(0.9)
+  await expect(tag).toHaveText(/^vol \d+\.\d%$/)
+  // The tag says what the margin says: the implied volatility at the point.
+  const iv = (await value(page, 'Implied · local vol').textContent())!.split(' · ')[0]
+  await expect(tag).toHaveText(`vol ${iv}`)
+  // Pointing away, it goes; a click pins the point, and the tag stays.
+  await page.mouse.move(b.x + b.width * 0.5, b.y - 40)
+  await expect.poll(shown).toBeLessThan(0.05)
+  await page.mouse.click(b.x + b.width * 0.4, b.y + b.height * 0.6)
+  await page.mouse.move(b.x + b.width * 0.5, b.y - 40)
+  await page.waitForTimeout(400)
+  expect(await shown()).toBeGreaterThan(0.9)
 })
 
 test('reduced motion: the still frame, never the canvas, and the slider still redraws it', async ({ page }) => {

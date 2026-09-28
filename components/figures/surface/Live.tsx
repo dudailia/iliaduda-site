@@ -40,6 +40,9 @@ const CONTROL =
   'text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
 const noop = () => () => {}
 
+/** The reading point's tag: up and to the right of the dot, in the axis labels' type, on a paper fill. */
+const TAG = 'text-meta absolute bottom-2 left-2.5 rounded-sm bg-paper/90 px-1 py-px font-mono leading-none whitespace-nowrap text-ink'
+
 const clampProbe = (p: Probe): Probe => ({
   k: Math.min(DOMAIN.kMax, Math.max(DOMAIN.kMin, p.k)),
   T: Math.min(DOMAIN.tMax, Math.max(DOMAIN.tMin, p.T)),
@@ -72,6 +75,15 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const labelLayer = useRef<HTMLDivElement>(null)
   const noteEls = useRef<(HTMLElement | null)[]>([])
   const dotEl = useRef<HTMLElement | null>(null)
+  const tagEl = useRef<HTMLSpanElement>(null)
+  /** The reader has set the reading point: its tag, beside the dot, stays up from then on. */
+  const [read, setRead] = useState(false)
+  const readRef = useRef(false)
+  const readHere = () => {
+    if (readRef.current) return
+    readRef.current = true
+    setRead(true)
+  }
   const seq = useRef(surfaceSequence())
   const checked = useRef<{ key: string; c: Check | null; at: number; pending: Params | null; timer: number }>({ key: '', c: null, at: 0, pending: null, timer: 0 })
   const level = useRef(0)
@@ -201,11 +213,16 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             level: () => level.current,
             paused: () => pausedRef.current,
             lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
-            onPin: (p) => setProbe(p),
+            onPin: (p) => {
+              setProbe(p)
+              readHere()
+            },
             labels: () => labelEls.current,
             labelLayer: () => labelLayer.current,
             notes: () => noteEls.current,
             dot: () => dotEl.current,
+            tag: () => tagEl.current,
+            pinned: () => readRef.current,
             sync,
           })
         } catch {
@@ -397,6 +414,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     const big = e.shiftKey ? 4 : 1
     const move = (du: number, dv: number) => {
       e.preventDefault()
+      readHere()
       sim.current.hover = null
       setProbe((p) => clampProbe({ k: kOfU(fu(p.k) + du * STEP_U * big), T: tOfV(Math.max(0, Math.min(1, fv(p.T) + dv * STEP_V * big))) }))
     }
@@ -411,6 +429,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         return move(0, 1)
       case 'Home':
         e.preventDefault()
+        readHere()
         return setProbe(PROBE_START)
       case ' ':
         if (!live) return
@@ -437,7 +456,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     const k = kindRef.current
     const inv = invert(mvp(k, camera(k), r.width / r.height))
     const hit = inv && pickSurface(inv, ((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2, params(level.current))
-    if (hit) setProbe(clampProbe(hit))
+    if (!hit) return
+    setProbe(clampProbe(hit))
+    readHere()
   }
 
   // A phone turned to landscape, or back, changes the framing: a still frame drawn inline is redrawn in the new one.
@@ -540,13 +561,15 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             {poster}
             <Frame>
               {(['wide', 'tall'] as const).map((k) => (
-                <span
-                  key={k}
-                  aria-hidden
-                  data-fill=""
-                  className={`absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink ${k === 'wide' ? 'hidden sm:block' : 'sm:hidden'}`}
-                  style={posterDot(k)}
-                />
+                <span key={k} aria-hidden data-fill="" className={`absolute ${k === 'wide' ? 'hidden sm:block' : 'sm:hidden'}`} style={posterDot(k)}>
+                  <span data-still-dot="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" />
+                  {read && (
+                    // Near the right edge it stands on the dot's left, as the live tag does.
+                    <span data-probe-tag="" className={TAG} style={parseFloat(posterDot(k).left) > 80 ? { transform: 'translateX(calc(-100% - 1.25rem))' } : undefined}>
+                      vol {(iv(params(shock), probe.k, probe.T) * 100).toFixed(1)}%
+                    </span>
+                  )}
+                </span>
               ))}
             </Frame>
           </div>
@@ -589,6 +612,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
               className="absolute top-0 left-0"
             >
               <span className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" />
+              <span ref={tagEl} data-probe-tag="" className={TAG} style={{ opacity: 0 }} />
             </span>
           </div>
         </div>
