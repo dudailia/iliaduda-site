@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
@@ -15,7 +15,8 @@ import { amplitudeOf, shownAmplitude, surfaceSequence, type SurfacePhase } from 
 import { params, PHASE_TEXT, SIZE_MAX, type Phase } from '@/lib/surface/shock'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
 import type { Sequence } from '@/lib/stage/sequence'
-import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
+import { invert } from '@/lib/m4'
+import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel, Frame, FRAME_ASPECT, NoteMark } from './marks'
 import type { Probe, Sim, SurfaceRenderer } from './renderer'
 
@@ -428,6 +429,17 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     return { left: `${((c[0] / c[3]) * 0.5 + 0.5) * 100}%`, top: `${(1 - ((c[1] / c[3]) * 0.5 + 0.5)) * 100}%` }
   }
 
+  // On the still frame a click or tap reads the point under it, as on the live figure: through the poster's camera for
+  // this framing (lib/surface/view.ts, pickSurface).
+  const onStillPick = (e: MouseEvent<HTMLDivElement>) => {
+    if (live) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const k = kindRef.current
+    const inv = invert(mvp(k, camera(k), r.width / r.height))
+    const hit = inv && pickSurface(inv, ((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2, params(level.current))
+    if (hit) setProbe(clampProbe(hit))
+  }
+
   // A phone turned to landscape, or back, changes the framing: a still frame drawn inline is redrawn in the new one.
   useEffect(() => {
     if (still.current && !live) redrawStill(level.current)
@@ -483,7 +495,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   // scroll the page); a mouse points. A still frame keeps its instructions after its reason.
   const coarse = mounted && matchMedia('(pointer: coarse)').matches
   const hint = why
-    ? `${why} Tab to the figure and use the arrow keys to read a point; the Shock slider still redraws it.`
+    ? `${why} ${coarse ? 'Tap' : 'Click'} the surface, or tab to it and use the arrow keys, to read a point; the Shock slider still redraws it.`
     : live
       ? coarse
         ? 'Tap to read a point · drag sideways to turn · the Shock slider applies the shock'
@@ -518,7 +530,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           onKeyDown={onKey}
           onPointerMove={lean.onPointerMove}
           onPointerLeave={lean.onPointerLeave}
-          onClick={lean.onTap}
+          onClick={(e) => {
+            lean.onTap()
+            onStillPick(e)
+          }}
           className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair touch-pan-y overflow-x-clip select-none focus-visible:outline-none`}
         >
           <div className="absolute inset-0" style={underlay(live)}>

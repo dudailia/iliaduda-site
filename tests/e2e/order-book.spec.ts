@@ -232,6 +232,24 @@ test('reduced motion: the still frame, no canvas, and the arrow keys still read 
   await expect(page.locator('#fig-order-book-probe dd').first()).toContainText('—')
 })
 
+test('reduced motion: a click or tap on the still frame reads the level under it, and marks it there', async ({ page, isMobile }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/order-book')
+  const stage = page.locator(STAGE)
+  await stage.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  const b = (await stage.boundingBox())!
+  // On the sellers' wall, right of the valley.
+  const at = { x: b.x + b.width * 0.66, y: b.y + b.height * 0.52 }
+  if (isMobile) await page.touchscreen.tap(at.x, at.y)
+  else await page.mouse.click(at.x, at.y)
+  await expect(page.locator('#fig-order-book-probe dd').first()).toContainText('$')
+  const mark = page.locator(`${STAGE} [data-still-mark] circle`)
+  await expect(mark).toBeVisible()
+  const m = (await mark.boundingBox())!
+  expect(Math.hypot(m.x + m.width / 2 - at.x, m.y + m.height / 2 - at.y)).toBeLessThan(16)
+})
+
 test('with iPhone Safari’s float extensions missing, it still goes live, without an error', async ({ page }) => {
   test.setTimeout(60_000)
   const errors = errorsOf(page)

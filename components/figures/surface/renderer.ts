@@ -1,4 +1,5 @@
 import { program, toLinear } from '@/lib/gl'
+import { invert } from '@/lib/m4'
 import { EASE_IN_OUT_QUAD, EASE_OUT } from '@/lib/ease'
 import { FILL, KEY, LIGHT, LINE_FLIP, RAMP, STOPS, UP_LIGHT } from '@/lib/surface/look'
 import { lineReveal } from '@/lib/surface/sequence'
@@ -6,8 +7,8 @@ import { spring as spring2 } from '@/lib/stage/spring'
 import { params } from '@/lib/surface/shock'
 import { DOMAIN, iv, type Params } from '@/lib/surface/ssvi'
 import {
-  apply, camera, EXPIRY_TICKS, eye, H, kOfU, LABELS, mvp, NOTES, POST, STRIKE_TICKS, SWAY_PERIOD, tOfV, uOfX, V0, V1,
-  vOfZ, VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type FrameKind, type M4,
+  apply, camera, EXPIRY_TICKS, eye, H, kOfU, LABELS, mvp, NOTES, pickSurface, POST, STRIKE_TICKS, SWAY_PERIOD, V0, V1,
+  VOL_TICKS, wx, wy, wz, XW, ZW, fu, fv, type FrameKind, type M4,
 } from '@/lib/surface/view'
 import type { Palette, Renderer, RGB, StageEnv } from '@/components/stage/useStage'
 import { LINE_FS, LINE_VS, surfaceFS, surfaceVS } from './shaders'
@@ -98,32 +99,6 @@ const mixv = (a: readonly number[], b: readonly number[], t: number): [number, n
   a[1]! + (b[1]! - a[1]!) * t,
   a[2]! + (b[2]! - a[2]!) * t,
 ]
-
-// ── matrices ─────────────────────────────────────────────────────────────────
-
-function invert(a: M4): M4 | null {
-  const inv = new Float32Array(16)
-  inv[0] = a[5]! * a[10]! * a[15]! - a[5]! * a[11]! * a[14]! - a[9]! * a[6]! * a[15]! + a[9]! * a[7]! * a[14]! + a[13]! * a[6]! * a[11]! - a[13]! * a[7]! * a[10]!
-  inv[4] = -a[4]! * a[10]! * a[15]! + a[4]! * a[11]! * a[14]! + a[8]! * a[6]! * a[15]! - a[8]! * a[7]! * a[14]! - a[12]! * a[6]! * a[11]! + a[12]! * a[7]! * a[10]!
-  inv[8] = a[4]! * a[9]! * a[15]! - a[4]! * a[11]! * a[13]! - a[8]! * a[5]! * a[15]! + a[8]! * a[7]! * a[13]! + a[12]! * a[5]! * a[11]! - a[12]! * a[7]! * a[9]!
-  inv[12] = -a[4]! * a[9]! * a[14]! + a[4]! * a[10]! * a[13]! + a[8]! * a[5]! * a[14]! - a[8]! * a[6]! * a[13]! - a[12]! * a[5]! * a[10]! + a[12]! * a[6]! * a[9]!
-  inv[1] = -a[1]! * a[10]! * a[15]! + a[1]! * a[11]! * a[14]! + a[9]! * a[2]! * a[15]! - a[9]! * a[3]! * a[14]! - a[13]! * a[2]! * a[11]! + a[13]! * a[3]! * a[10]!
-  inv[5] = a[0]! * a[10]! * a[15]! - a[0]! * a[11]! * a[14]! - a[8]! * a[2]! * a[15]! + a[8]! * a[3]! * a[14]! + a[12]! * a[2]! * a[11]! - a[12]! * a[3]! * a[10]!
-  inv[9] = -a[0]! * a[9]! * a[15]! + a[0]! * a[11]! * a[13]! + a[8]! * a[1]! * a[15]! - a[8]! * a[3]! * a[13]! - a[12]! * a[1]! * a[11]! + a[12]! * a[3]! * a[9]!
-  inv[13] = a[0]! * a[9]! * a[14]! - a[0]! * a[10]! * a[13]! - a[8]! * a[1]! * a[14]! + a[8]! * a[2]! * a[13]! + a[12]! * a[1]! * a[10]! - a[12]! * a[2]! * a[9]!
-  inv[2] = a[1]! * a[6]! * a[15]! - a[1]! * a[7]! * a[14]! - a[5]! * a[2]! * a[15]! + a[5]! * a[3]! * a[14]! + a[13]! * a[2]! * a[7]! - a[13]! * a[3]! * a[6]!
-  inv[6] = -a[0]! * a[6]! * a[15]! + a[0]! * a[7]! * a[14]! + a[4]! * a[2]! * a[15]! - a[4]! * a[3]! * a[14]! - a[12]! * a[2]! * a[7]! + a[12]! * a[3]! * a[6]!
-  inv[10] = a[0]! * a[5]! * a[15]! - a[0]! * a[7]! * a[13]! - a[4]! * a[1]! * a[15]! + a[4]! * a[3]! * a[13]! + a[12]! * a[1]! * a[7]! - a[12]! * a[3]! * a[5]!
-  inv[14] = -a[0]! * a[5]! * a[14]! + a[0]! * a[6]! * a[13]! + a[4]! * a[1]! * a[14]! - a[4]! * a[2]! * a[13]! - a[12]! * a[1]! * a[6]! + a[12]! * a[2]! * a[5]!
-  inv[3] = -a[1]! * a[6]! * a[11]! + a[1]! * a[7]! * a[10]! + a[5]! * a[2]! * a[11]! - a[5]! * a[3]! * a[10]! - a[9]! * a[2]! * a[7]! + a[9]! * a[3]! * a[6]!
-  inv[7] = a[0]! * a[6]! * a[11]! - a[0]! * a[7]! * a[10]! - a[4]! * a[2]! * a[11]! + a[4]! * a[3]! * a[10]! + a[8]! * a[2]! * a[7]! - a[8]! * a[3]! * a[6]!
-  inv[11] = -a[0]! * a[5]! * a[11]! + a[0]! * a[7]! * a[9]! + a[4]! * a[1]! * a[11]! - a[4]! * a[3]! * a[9]! - a[8]! * a[1]! * a[7]! + a[8]! * a[3]! * a[5]!
-  inv[15] = a[0]! * a[5]! * a[10]! - a[0]! * a[6]! * a[9]! - a[4]! * a[1]! * a[10]! + a[4]! * a[2]! * a[9]! + a[8]! * a[1]! * a[6]! - a[8]! * a[2]! * a[5]!
-  const det = a[0]! * inv[0]! + a[1]! * inv[4]! + a[2]! * inv[8]! + a[3]! * inv[12]!
-  if (Math.abs(det) < 1e-12) return null
-  for (let i = 0; i < 16; i++) inv[i] = inv[i]! / det
-  return inv
-}
 
 // ── the renderer ─────────────────────────────────────────────────────────────
 
@@ -297,39 +272,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const pick = (clientX: number, clientY: number): Probe | null => {
     if (!inv) return null
     const r = canvas.getBoundingClientRect()
-    const nx = ((clientX - r.left) / r.width) * 2 - 1
-    const ny = 1 - ((clientY - r.top) / r.height) * 2
-    const a = apply(inv, nx, ny, -1), b = apply(inv, nx, ny, 1)
-    const P0 = [a[0] / a[3], a[1] / a[3], a[2] / a[3]] as const
-    const P1 = [b[0] / b[3], b[1] / b[3], b[2] / b[3]] as const
-    const at = (t: number) => [P0[0] + (P1[0] - P0[0]) * t, P0[1] + (P1[1] - P0[1]) * t, P0[2] + (P1[2] - P0[2]) * t] as const
-    const above = (x: number, y: number, z: number) => {
-      if (Math.abs(x) > XW || Math.abs(z) > ZW) return null
-      return y - wy(iv(lastParams, kOfU(uOfX(x)), tOfV(vOfZ(z))))
-    }
-    let prevT = 0, prevAbove: number | null = null
-    const steps = 300
-    for (let s = 0; s <= steps; s++) {
-      const t = s / steps
-      const p = at(t)
-      const d = above(p[0], p[1], p[2])
-      if (d !== null && prevAbove !== null && prevAbove > 0 && d <= 0) {
-        let lo = prevT, hi = t
-        for (let i = 0; i < 20; i++) {
-          const mid = (lo + hi) / 2
-          const m = at(mid)
-          const dm = above(m[0], m[1], m[2])
-          if (dm !== null && dm > 0) lo = mid
-          else hi = mid
-        }
-        const m = at((lo + hi) / 2)
-        return { k: kOfU(uOfX(m[0])), T: tOfV(vOfZ(m[2])) }
-      }
-      prevAbove = d
-      prevT = t
-    }
-    return null
+    return pickSurface(inv, ((clientX - r.left) / r.width) * 2 - 1, 1 - ((clientY - r.top) / r.height) * 2, lastParams)
   }
+
 
   // The soft limits the drag eases into, and their inverses: a surface grabbed again near a limit picks up from where
   // it is, not from a second pass through the limit.

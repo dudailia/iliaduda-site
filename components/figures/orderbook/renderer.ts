@@ -1,12 +1,13 @@
 import { program, type GL } from '@/lib/gl'
 import { HALF, HZ, LEVELS, ROWS, START, type Flow, type Stats } from '@/lib/market/flow'
 import { fmt, readAt, rowAfter, type Reading } from '@/lib/orderbook/read'
-import { DX, DZ, H, POW, REF, REST, ROWS_BY_Q, SWAY, VIS, XW, Z_NOW, apply, eye, fit, height, lens, invert, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
+import { DX, DZ, H, POW, REF, REST, ROWS_BY_Q, SWAY, VIS, XW, Z_NOW, eye, fit, height, lens, invert, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from '@/lib/orderbook/view'
 import type { Palette, Renderer, StageEnv } from '@/components/stage/useStage'
 import { EASE_IN_OUT_QUAD, EASE_OUT } from '@/lib/ease'
 import { spring } from '@/lib/stage/spring'
 import { rowRise } from '@/lib/orderbook/sequence'
 import { PAD, boxAt, fits, labelSpecs, type Anchor, type Box, type LabelKind } from '@/lib/orderbook/labels'
+import { pickTerrain, type KeyProbe, type Terrain } from '@/lib/orderbook/pick'
 
 /**
  * The order book as terrain, in raw WebGL2.
@@ -28,12 +29,7 @@ import { PAD, boxAt, fits, labelSpecs, type Anchor, type Box, type LabelKind } f
  * colour read back from the GPU.
  */
 
-export interface KeyProbe {
-  /** Ticks from the window's centre. */
-  dp: number
-  /** Rows before the newest. */
-  age: number
-}
+export type { KeyProbe }
 
 export interface Shared {
   sim: Flow
@@ -529,60 +525,19 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
 
   // ── picking ────────────────────────────────────────────────────────────────
   const base = () => Math.floor(centre) - VIS / 2
-  const heightAt = (x: number, z: number): number | null => {
-    const jf = x / DX + VIS / 2 + (centre - Math.floor(centre))
-    const af = (Z_NOW - z) / DZ - fracZ
-    if (jf < 0 || jf > VIS || af < 0 || af > rows - 1 || af > sim.written - 1) return null
-    const j0 = Math.floor(jf), a0 = Math.floor(af)
-    const fj = jf - j0, fa = af - a0
-    const b = base()
-    const hAt = (j: number, a: number) => height(sim.depthAt(sim.row(Math.min(a, rows - 1)), b + j))
-    const top = hAt(j0, a0) * (1 - fj) + hAt(j0 + 1, a0) * fj
-    const bot = hAt(j0, a0 + 1) * (1 - fj) + hAt(j0 + 1, a0 + 1) * fj
-    return top * (1 - fa) + bot * fa
+  // The terrain as this frame draws it: its centre, its newest row's fraction, and the rows it keeps (lib/orderbook/pick.ts).
+  const terrainNow: Terrain = {
+    centre: 0,
+    frac: 0,
+    rows: 0,
+    depth: (age, price) => sim.depthAt(sim.row(Math.min(age, rows - 1)), price),
   }
   const pick = (cx: number, cy: number): KeyProbe | null => {
     if (!inv) return null
-    const nx = (cx / cssW) * 2 - 1, ny = 1 - (cy / cssH) * 2
-    const a = apply(inv, nx, ny, -1), b = apply(inv, nx, ny, 1)
-    const P0 = [a[0] / a[3], a[1] / a[3], a[2] / a[3]], P1 = [b[0] / b[3], b[1] / b[3], b[2] / b[3]]
-    // Clip the ray to the slab the terrain can occupy, then march it.
-    const top = H * 1.6
-    let t0 = 0, t1 = 1
-    const dy = P1[1]! - P0[1]!
-    if (Math.abs(dy) > 1e-9) {
-      const ta = (top - P0[1]!) / dy, tb = (0 - P0[1]!) / dy
-      t0 = Math.max(0, Math.min(ta, tb))
-      t1 = Math.min(1, Math.max(ta, tb))
-    }
-    const at = (t: number) => [P0[0]! + (P1[0]! - P0[0]!) * t, P0[1]! + dy * t, P0[2]! + (P1[2]! - P0[2]!) * t] as const
-    const above = (t: number) => {
-      const p = at(t)
-      const hh = heightAt(p[0], p[2])
-      return hh === null ? null : p[1] - hh
-    }
-    let prevT = t0, prev: number | null = null
-    const steps = 240
-    for (let s = 0; s <= steps; s++) {
-      const t = t0 + ((t1 - t0) * s) / steps
-      const d = above(t)
-      if (d !== null && prev !== null && prev > 0 && d <= 0) {
-        let lo = prevT, hi = t
-        for (let i = 0; i < 20; i++) {
-          const mid = (lo + hi) / 2
-          const dm = above(mid)
-          if (dm !== null && dm > 0) lo = mid
-          else hi = mid
-        }
-        const p = at((lo + hi) / 2)
-        const price = Math.round(p[0] / DX + centre)
-        const age = Math.max(0, Math.round((Z_NOW - p[2]) / DZ - fracZ))
-        return { dp: price - Math.round(centre), age }
-      }
-      prev = d
-      prevT = t
-    }
-    return null
+    terrainNow.centre = centre
+    terrainNow.frac = fracZ
+    terrainNow.rows = Math.min(rows, sim.written)
+    return pickTerrain(inv, (cx / cssW) * 2 - 1, 1 - (cy / cssH) * 2, terrainNow)
   }
 
   // ── input ──────────────────────────────────────────────────────────────────

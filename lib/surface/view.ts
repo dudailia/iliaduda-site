@@ -1,4 +1,5 @@
-import { DOMAIN } from './ssvi'
+import { clipSegment } from '../m4'
+import { DOMAIN, iv, type Params } from './ssvi'
 
 /**
  * Where the surface sits and where it is seen from — shared by the server
@@ -223,6 +224,50 @@ export function camera(kind: FrameKind, s = 0, dYaw = 0, dPitch = 0): Camera {
 export function mvp(kind: FrameKind, cam: Camera, viewport?: number): M4 {
   const a = FRAMES[kind].aspect
   return mul(letterbox(a, viewport ?? a), mul(perspective(a), view(cam)))
+}
+
+/**
+ * The point of surface `p` under a spot of the stage, given in normalised device coordinates of the projection whose
+ * inverse is `inv`: where the eye's ray through it first meets the surface, or null where it meets none (the sky, the
+ * floor beside it). The live figure reads the pointer with it, and the still frame, through its poster's camera.
+ */
+export function pickSurface(inv: M4, nx: number, ny: number, p: Params): { k: number; T: number } | null {
+  const a = apply(inv, nx, ny, -1), b = apply(inv, nx, ny, 1)
+  const P0 = [a[0] / a[3], a[1] / a[3], a[2] / a[3]] as const
+  const P1 = [b[0] / b[3], b[1] / b[3], b[2] / b[3]] as const
+  // Only the stretch of the ray inside the box the surface stands in is marched, finely.
+  const span = clipSegment(P0, P1, [-XW, 0, -ZW], [XW, H, ZW])
+  if (!span) return null
+  const at = (t: number) => [P0[0] + (P1[0] - P0[0]) * t, P0[1] + (P1[1] - P0[1]) * t, P0[2] + (P1[2] - P0[2]) * t] as const
+  const above = (t: number) => {
+    const q = at(t)
+    return q[1] - wy(iv(p, kOfU(uOfX(Math.max(-XW, Math.min(XW, q[0])))), tOfV(vOfZ(Math.max(-ZW, Math.min(ZW, q[2]))))))
+  }
+  const [t0, t1] = span
+  const steps = 200
+  let prevT = t0, prev = above(t0)
+  // Entering the box already under the sheet is entering through a wall: the point read is where it came in.
+  if (prev <= 0) {
+    const q = at(t0)
+    return { k: kOfU(uOfX(Math.max(-XW, Math.min(XW, q[0])))), T: tOfV(vOfZ(Math.max(-ZW, Math.min(ZW, q[2])))) }
+  }
+  for (let s = 1; s <= steps; s++) {
+    const t = t0 + ((t1 - t0) * s) / steps
+    const d = above(t)
+    if (d <= 0) {
+      let lo = prevT, hi = t
+      for (let i = 0; i < 24; i++) {
+        const mid = (lo + hi) / 2
+        if (above(mid) > 0) lo = mid
+        else hi = mid
+      }
+      const m = at((lo + hi) / 2)
+      return { k: kOfU(uOfX(m[0])), T: tOfV(vOfZ(m[2])) }
+    }
+    prev = d
+    prevT = t
+  }
+  return null
 }
 
 // ── ticks and labels ─────────────────────────────────────────────────────────

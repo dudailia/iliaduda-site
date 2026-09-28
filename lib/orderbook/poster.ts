@@ -1,6 +1,8 @@
 import { HZ, type Flow } from '@/lib/market/flow'
 import { PAD, arrange, labelSpecs, type Box, type LabelKind } from './labels'
-import { DX, DZ, HISTORY, REST, VIS, XW, Z_NOW, fit, height, lens, mul, perspective, restPitch, toScreen, view, type Camera } from './view'
+import { invert } from '../m4'
+import { pickTerrain, type KeyProbe, type Terrain } from './pick'
+import { DX, DZ, HISTORY, REST, VIS, XW, Z_NOW, fit, height, lens, mul, perspective, restPitch, toScreen, view, type Camera, type M4 } from './view'
 
 /**
  * The poster: the same frame the live renderer will draw first, projected
@@ -109,10 +111,47 @@ export function posterOf(sim: Flow, variant: Variant): PosterGeometry {
   return posterGeometry(sim, p.w, p.h, p.opts)
 }
 
+/** The projection a poster of w × h is drawn through: the live figure's resting camera, fitted to that frame. */
+export function posterMatrix(w: number, h: number): M4 {
+  const aspect = w / h
+  return mul(perspective(aspect, lens(aspect)), view(fit(REST.yaw, restPitch(aspect), aspect)))
+}
+
+/** The rows a poster draws: the full history on a laptop's frame, fewer on a phone's. */
+const posterRows = (sim: Flow, narrow: boolean) => Math.min(sim.written, narrow ? 150 : 220)
+
+/** The terrain a poster shows, at the market's newest row, as the pick reads it (lib/orderbook/pick.ts). */
+function posterTerrain(sim: Flow, narrow: boolean): Terrain {
+  const head = sim.row(0)
+  return {
+    centre: sim.mids[head]!,
+    frac: (sim.t - sim.times[head]!) * HZ,
+    rows: posterRows(sim, narrow),
+    depth: (age, price) => sim.depthAt(sim.row(age), price),
+  }
+}
+
+/** The level and row under a point of a poster, in its own pixels: a tap reads the still frame as it reads the live one. */
+export function posterPick(sim: Flow, variant: Variant, x: number, y: number): KeyProbe | null {
+  const p = POSTERS.find((q) => q.variant === variant)!
+  const inv = invert(posterMatrix(p.w, p.h))
+  return inv ? pickTerrain(inv, (x / p.w) * 2 - 1, 1 - (y / p.h) * 2, posterTerrain(sim, p.w < p.h)) : null
+}
+
+/** Where a reading point is drawn on a poster, in its own pixels; null off it. */
+export function posterPoint(sim: Flow, variant: Variant, k: KeyProbe): [number, number] | null {
+  const p = POSTERS.find((q) => q.variant === variant)!
+  const t = posterTerrain(sim, p.w < p.h)
+  if (k.age > t.rows - 1) return null
+  const price = Math.round(t.centre) + k.dp
+  const x = (price - t.centre) * DX
+  if (Math.abs(x) > XW) return null
+  return toScreen(posterMatrix(p.w, p.h), p.w, p.h, x, height(t.depth(k.age, price)), Z_NOW - (k.age + t.frac) * DZ)
+}
+
 export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: number; step: number }, camera?: Camera): PosterGeometry {
   const aspect = w / h
-  const cam = camera ?? fit(REST.yaw, restPitch(aspect), aspect)
-  const m = mul(perspective(aspect, lens(aspect)), view(cam))
+  const m = camera ? mul(perspective(aspect, lens(aspect)), view(camera)) : posterMatrix(w, h)
   const P = (x: number, y: number, z: number): [number, number] | null => {
     const s = toScreen(m, w, h, x, y, z)
     return s ? [Math.round(s[0]), Math.round(s[1])] : null
@@ -125,7 +164,7 @@ export function posterGeometry(sim: Flow, w: number, h: number, opts: { every: n
   const rows: PosterRow[] = []
   const narrow = aspect < 1
   const reach = Math.round(narrow ? VIS * 0.36 : VIS / 2)
-  const maxAge = Math.min(sim.written, narrow ? 150 : 220)
+  const maxAge = posterRows(sim, narrow)
   for (let age = maxAge - 1 - ((maxAge - 1) % opts.every); age >= 0; age -= opts.every) {
     const r = sim.row(age)
     const z = Z_NOW - (age + frac) * DZ

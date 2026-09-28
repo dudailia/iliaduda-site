@@ -290,6 +290,25 @@ test('the margin reads the point in a few lines, and its Greeks are one step awa
   await expect(value(page, 'Delta')).toHaveText(/^\d\.\d{3}$/)
 })
 
+test('reduced motion: a click or tap on the still frame reads the point under it, and its dot moves there', async ({ page, isMobile }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/iv-surface')
+  const stage = page.locator(STAGE)
+  await stage.scrollIntoViewIfNeeded()
+  const before = await value(page, 'Strike').textContent()
+  const dot = page.locator(`${STAGE} span[data-fill].rounded-full:visible`).first()
+  const was = (await dot.boundingBox())!
+  const b = (await stage.boundingBox())!
+  // Toward the low strikes, near the front: well away from where the reading starts.
+  const at = { x: b.x + b.width * 0.36, y: b.y + b.height * 0.62 }
+  if (isMobile) await page.touchscreen.tap(at.x, at.y)
+  else await page.mouse.click(at.x, at.y)
+  await expect(value(page, 'Strike')).not.toHaveText(before!)
+  const now = (await dot.boundingBox())!
+  expect(Math.hypot(now.x + now.width / 2 - at.x, now.y + now.height / 2 - at.y)).toBeLessThan(12)
+  expect(Math.hypot(now.x - was.x, now.y - was.y)).toBeGreaterThan(20)
+})
+
 test('reduced motion: the still frame, never the canvas, and the slider still redraws it', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/iv-surface')

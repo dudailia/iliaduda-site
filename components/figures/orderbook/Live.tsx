@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
@@ -51,6 +51,8 @@ const CONTROL =
 
 type Mod = typeof import('./renderer')
 const noop = () => () => {}
+/** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright. */
+const posterVariant = (): 'wide' | 'narrow' => (matchMedia('(width < 40rem) and (orientation: portrait)').matches ? 'narrow' : 'wide')
 
 export function OrderBookLive({
   poster,
@@ -325,16 +327,45 @@ export function OrderBookLive({
     [],
   )
 
+  // The still frame's reading point, marked on the poster where it is drawn, in the poster's own pixels.
+  const [stillMark, setStillMark] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const setKey = (k: KeyProbe | null) => {
     key.current = k
     if (shared.current) shared.current.key = k
     if (!live) {
-      // The still frame: read the market where it stands (at the poster's moment, unless it ran before), once built.
-      if (!k) return writeProbe(null)
-      void market.prepare().then((s) => {
-        if (key.current === k) writeProbe(readAt(s, Math.round(s.mids[s.row(0)]!) + k.dp, k.age))
+      // The still frame: read the market where it stands (at the poster's moment, unless it ran before), once built,
+      // and mark the point on the poster.
+      if (!k) {
+        setStillMark(null)
+        return writeProbe(null)
+      }
+      void Promise.all([market.prepare(), import('@/lib/orderbook/poster')]).then(([s, P]) => {
+        if (key.current !== k) return
+        writeProbe(readAt(s, Math.round(s.mids[s.row(0)]!) + k.dp, k.age))
+        const variant = posterVariant()
+        const at = P.posterPoint(s, variant, k)
+        const p = P.POSTERS.find((q) => q.variant === variant)!
+        setStillMark(at ? { x: at[0], y: at[1], w: p.w, h: p.h } : null)
       })
     }
+  }
+
+  // On the still frame a click or tap reads the level under it, as it does on the live terrain: through the poster's
+  // own camera (lib/orderbook/poster.ts, posterPick), from where the picture is drawn in the stage.
+  const onStillPick = (e: MouseEvent<HTMLDivElement>) => {
+    if (live) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const cx = e.clientX - r.left, cy = e.clientY - r.top
+    void Promise.all([market.prepare(), import('@/lib/orderbook/poster')]).then(([s, P]) => {
+      const variant = posterVariant()
+      const p = P.POSTERS.find((q) => q.variant === variant)!
+      const scale = Math.min(r.width / p.w, r.height / p.h)
+      const hit = P.posterPick(s, variant, (cx - (r.width - p.w * scale) / 2) / scale, (cy - (r.height - p.h * scale) / 2) / scale)
+      if (!hit) return
+      setKey(hit)
+      setProbing(true)
+      settle()
+    })
   }
 
   const togglePause = () => market.setPaused(!market.paused)
@@ -407,7 +438,7 @@ export function OrderBookLive({
         <span className="block min-h-[3lh] sm:min-h-[2lh]">
           {live
             ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.'
-            : `${why ? `${why} ` : ''}Tab to the figure and use the arrow keys to read a price level.`}
+            : `${why ? `${why} ` : ''}${mounted && matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click'} the terrain, or tab to it and use the arrow keys, to read a price level.`}
         </span>
       }
       caption={caption}
@@ -431,11 +462,25 @@ export function OrderBookLive({
           }}
           onPointerMove={lean.onPointerMove}
           onPointerLeave={lean.onPointerLeave}
-          onClick={lean.onTap}
+          onClick={(e) => {
+            lean.onTap()
+            onStillPick(e)
+          }}
           className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(28rem,62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)]"
         >
           <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
+            {stillMark && !live && (
+              <svg
+                aria-hidden
+                data-still-mark=""
+                viewBox={`0 0 ${stillMark.w} ${stillMark.h}`}
+                preserveAspectRatio="xMidYMid meet"
+                className="pointer-events-none absolute inset-0 size-full"
+              >
+                <circle cx={stillMark.x} cy={stillMark.y} r={6} fill="var(--color-ink)" stroke="var(--color-paper)" strokeWidth={2} />
+              </svg>
+            )}
           </div>
           <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
           <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />

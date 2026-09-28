@@ -6,7 +6,8 @@ import { CALM, check, DOMAIN, g, gjRatio, iv, phi, theta, w, wk, wT, type Params
 import { numbers, probeText, text } from '../lib/surface/readouts'
 import { FRAME_ASPECT } from '../components/figures/surface/marks'
 import { poster, describe as describePoster } from '../lib/surface/poster'
-import { camera, fitDistance, FRAMES, H, kOfU, labelBox, LABELS, mvp, apply, tOfV, fu, fv, XW, ZW, type FrameKind } from '../lib/surface/view'
+import { invert } from '../lib/m4'
+import { camera, fitDistance, FRAMES, H, kOfU, labelBox, LABELS, mvp, apply, pickSurface, tOfV, fu, fv, wx, wy, wz, XW, ZW, type FrameKind } from '../lib/surface/view'
 import { diffuse, UP_LIGHT } from '../lib/surface/look'
 
 /**
@@ -191,6 +192,25 @@ describe('the view', () => {
     // Letterboxed into a phone, the wide frame gave it 250 × 146px.
     expect(w).toBeGreaterThan(300)
     expect(h).toBeGreaterThan(200)
+  })
+
+  it('a point of the surface is found again under where it is drawn, in either framing, calm or shocked', () => {
+    for (const kind of ['wide', 'tall'] as const)
+      for (const a of [0, 1]) {
+        const p = params(a)
+        const m = mvp(kind, camera(kind))
+        const inv = invert(m)!
+        for (const k of [-0.3, -0.1, 0, 0.12, 0.2])
+          for (const T of [0.1, 0.4, 1, 1.8]) {
+            const q = apply(m, wx(k), wy(iv(p, k, T)), wz(T))
+            const got = pickSurface(inv, q[0] / q[3], q[1] / q[3], p)!
+            expect(got, `${kind} ${a} ${k} ${T}`).not.toBeNull()
+            expect(Math.abs(fu(got.k) - fu(k)), `${kind} ${a} ${k} ${T}`).toBeLessThan(0.01)
+            expect(Math.abs(fv(got.T) - fv(T)), `${kind} ${a} ${k} ${T}`).toBeLessThan(0.01)
+          }
+        // Above the surface, in the sky, there is nothing to read.
+        expect(pickSurface(inv, 0, 0.99, p)).toBeNull()
+      }
   })
 
   it('the stage’s and the frame box’s classes are the two framings’ aspects', () => {
