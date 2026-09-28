@@ -437,9 +437,11 @@ export function OrderBookLive({
         <span className="block min-h-[3lh] sm:min-h-[2lh]">
           {/* Said for the pointer this reader has: a finger taps, and has no keys to name. */}
           {mounted && matchMedia('(pointer: coarse)').matches
-            ? `${why ? `${why} ` : ''}Tap the terrain to read a price level.`
+            ? live
+              ? 'Tap the terrain to read a price level; drag sideways to turn it.'
+              : `${why ? `${why} ` : ''}Tap the terrain to read a price level.`
             : live
-              ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.'
+              ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Drag to turn it; Space pauses.'
               : `${why ? `${why} ` : ''}Click the terrain, or tab to it and use the arrow keys, to read a price level.`}
         </span>
       }

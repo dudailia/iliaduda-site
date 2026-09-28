@@ -493,6 +493,13 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   let draws = 0
   let centre = sim.mids[sim.row(0)]!
   const lean = { yaw: { x: 0, v: 0 }, pitch: { x: 0, v: 0 } }
+  /**
+   * The reader's turn: a drag's offset from the resting view, as the IV surface takes one. The terrain follows the hand,
+   * easing into soft limits rather than stopping dead, and when let go the IV surface's spring (ω 7) carries it home
+   * with the hand's speed.
+   */
+  const turn = { yaw: { x: 0, v: 0 }, pitch: { x: 0, v: 0 } }
+  let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; touch: boolean } | null = null
   const follow = { x: centre, v: 0 }
   /** The drift's speed: 1 running, coasting to 0 over 240ms on Pause and back over 400ms on Resume, as the home figure's. */
   let driftK = 1
@@ -514,8 +521,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
 
   /** The camera: from the page to rest as the signature settles (`k` 0 → 1), then drifting and leaning with the reader. */
   const cam = (t: number, k: number): Camera => ({
-    yaw: REST.yaw + (SWAY.drift * Math.sin((2 * Math.PI * t) / SWAY.period) + lean.yaw.x) * k,
-    pitch: page.pitch + (rest.pitch - page.pitch) * k + lean.pitch.x * k,
+    yaw: REST.yaw + (SWAY.drift * Math.sin((2 * Math.PI * t) / SWAY.period) + lean.yaw.x + turn.yaw.x) * k,
+    pitch: page.pitch + (rest.pitch - page.pitch) * k + (lean.pitch.x + turn.pitch.x) * k,
     dist: page.dist + (rest.dist - page.dist) * k,
     tx: page.tx + (rest.tx - page.tx) * k,
     ty: rest.ty,
@@ -545,27 +552,81 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     const r = canvas.getBoundingClientRect()
     return [e.clientX - r.left, e.clientY - r.top]
   }
+  // The soft limits a drag eases into (tanh), and their inverses, so a terrain grabbed again near a limit picks up from
+  // where it is.
+  const soft = { yaw: (r: number) => 0.6 * Math.tanh(r / 0.6), pitch: (r: number) => 0.3 * Math.tanh(r / 0.3) }
+  const unsoft = (y: number, a: number) => a * Math.atanh(Math.max(-0.999, Math.min(0.999, y / a)))
+  const onDown = (e: PointerEvent) => {
+    if (drag) return
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, 0.3), touch: e.pointerType === 'touch' }
+    canvas.setPointerCapture(e.pointerId)
+  }
   const onMove = (e: PointerEvent) => {
+    if (drag && e.pointerId === drag.id) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y
+      drag.moved += Math.abs(dx) + Math.abs(dy)
+      drag.x = e.clientX
+      drag.y = e.clientY
+      if (drag.moved > (drag.touch ? 8 : 4)) {
+        const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
+        drag.t = e.timeStamp
+        drag.rawYaw -= dx * 0.006
+        const yaw = soft.yaw(drag.rawYaw)
+        turn.yaw.v = turn.yaw.v * 0.6 + ((yaw - turn.yaw.x) / dtS) * 0.4
+        turn.yaw.x = yaw
+        // A finger turns it only sideways: a vertical swipe belongs to the page.
+        if (!drag.touch) {
+          drag.rawPitch += dy * 0.004
+          const pitch = soft.pitch(drag.rawPitch)
+          turn.pitch.v = turn.pitch.v * 0.6 + ((pitch - turn.pitch.x) / dtS) * 0.4
+          turn.pitch.x = pitch
+        }
+        hover = null
+        dirty = true
+      }
+      return
+    }
     if (e.pointerType !== 'mouse') return
     hover = local(e)
     dirty = true
   }
   const onLeave = () => {
+    if (drag) return
     hover = null
     dirty = true
   }
   const onUp = (e: PointerEvent) => {
-    const p = local(e)
-    const hit = pick(p[0], p[1])
-    if (hit) {
-      sh.key = hit
-      sh.onPin(hit)
+    if (drag && e.pointerId !== drag.id) return
+    const click = !drag || drag.moved <= (drag.touch ? 8 : 4)
+    // A hand that had stopped before it let go throws nothing: the speed kept from its last move is spent.
+    if (drag) {
+      const still = (e.timeStamp - drag.t) / 1000
+      if (still > 0.05) {
+        const k = Math.exp(-(still - 0.05) / 0.05)
+        turn.yaw.v *= k
+        turn.pitch.v *= k
+      }
+    }
+    drag = null
+    if (click) {
+      const p = local(e)
+      const hit = pick(p[0], p[1])
+      if (hit) {
+        sh.key = hit
+        sh.onPin(hit)
+      }
     }
     dirty = true
   }
+  const onCancel = () => {
+    drag = null
+    dirty = true
+  }
+  canvas.addEventListener('pointerdown', onDown)
   canvas.addEventListener('pointermove', onMove)
   canvas.addEventListener('pointerleave', onLeave)
   canvas.addEventListener('pointerup', onUp)
+  canvas.addEventListener('pointercancel', onCancel)
 
   // ── frame ──────────────────────────────────────────────────────────────────
   const setVec = (p: Prog, name: string, c: readonly number[]) => gl.uniform3f(p.u(name), c[0]!, c[1]!, c[2]!)
@@ -622,9 +683,14 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
 
     // The reader's lean (pointer or tilt), on the spring. Paused, or while the pointer reads the terrain, it comes to
     // rest where it is.
-    const leaning = sh.paused || reading0 ? null : sh.lean()
+    const leaning = sh.paused || reading0 || drag ? null : sh.lean()
     spring(lean.yaw, leaning ? -SWAY.yaw * leaning.x : lean.yaw.x, dt, LEAN_W)
     spring(lean.pitch, leaning ? -SWAY.pitch * leaning.y : lean.pitch.x, dt, LEAN_W)
+    // Let go, the turn goes home on the IV surface's spring, carrying the hand's speed.
+    if (!drag) {
+      spring(turn.yaw, 0, dt, 7)
+      spring(turn.pitch, 0, dt, 7)
+    }
 
     const aspect = cssW / cssH
     driftK = sh.paused ? Math.max(0, driftK - dt / 0.24) : Math.min(1, driftK + dt / 0.4)
@@ -836,6 +902,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     settling =
       fading ||
       Math.abs(lean.yaw.v) + Math.abs(lean.pitch.v) > 1e-5 ||
+      drag !== null ||
+      Math.abs(turn.yaw.x) + Math.abs(turn.pitch.x) + Math.abs(turn.yaw.v) + Math.abs(turn.pitch.v) > 1e-4 ||
       (sh.paused && driftK > 0) ||
       Math.abs(follow.v) > 1e-4 ||
       Math.abs(rowsTarget - rowsF) > 0.01 ||
@@ -845,6 +913,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // For the specs and ?debug=1: frames drawn, and the market's simulated clock.
     sh.labels.dataset.draws = String(++draws)
     sh.labels.dataset.simT = sim.t.toFixed(3)
+    sh.labels.dataset.turn = turn.yaw.x.toFixed(3)
     sh.onFrame(sim.stats(), reading, !!hovered)
     first = true
     return true
@@ -914,6 +983,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       canvas.removeEventListener('pointermove', onMove)
       canvas.removeEventListener('pointerleave', onLeave)
       canvas.removeEventListener('pointerup', onUp)
+      canvas.removeEventListener('pointerdown', onDown)
+      canvas.removeEventListener('pointercancel', onCancel)
       sh.labels.replaceChildren()
       for (const p of progs) gl.deleteProgram(p.program)
       gl.deleteTexture(depthTex)

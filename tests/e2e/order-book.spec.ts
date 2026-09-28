@@ -195,6 +195,25 @@ test('the keyboard’s focus shows on the live stage, over the canvas', async ({
   expect(await ring.evaluate((r) => getComputedStyle(r).outlineStyle)).toBe('solid')
 })
 
+test('a drag turns the terrain, as the IV surface turns, and it springs home when let go', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse')
+  await seen(page)
+  await page.goto('/order-book')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const b = (await page.locator(`${STAGE} canvas`).boundingBox())!
+  const cx = b.x + b.width * 0.5, cy = b.y + b.height * 0.5
+  await page.mouse.move(cx, cy)
+  await page.mouse.down()
+  await page.mouse.move(cx - 160, cy + 30, { steps: 12 })
+  await expect.poll(() => attr(page, 'turn')).toBeGreaterThan(0.2)
+  // A drag is not a click: it pins nothing.
+  const reading = await page.locator('#fig-order-book-probe dd').first().textContent()
+  await page.mouse.up()
+  await page.mouse.move(b.x - 40, b.y - 40)
+  await expect.poll(() => attr(page, 'turn'), { timeout: 3_000 }).toBeLessThan(0.005)
+  expect(await page.locator('#fig-order-book-probe dd').first().textContent()).toBe(reading)
+})
+
 test('a point pinned by a click is where the arrow keys step from', async ({ page, isMobile }) => {
   test.skip(isMobile, 'a mouse')
   test.setTimeout(60_000)
