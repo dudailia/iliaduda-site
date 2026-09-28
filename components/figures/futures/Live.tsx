@@ -162,7 +162,9 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
 
   const onStats = useCallback((s: Stats) => {
     if (!liveRef.current) return
-    setShown({ n: s.n, mean: s.mean, se: s.se, rate: s.rate, mode: 'gpu', done: s.done })
+    // Ten reports a second; a figure that is paused or finished pricing sends the same one each time, and re-rendering
+    // the figure for it would be work for nothing.
+    setShown((was) => (was.mode === 'gpu' && was.n === s.n && was.mean === s.mean && was.se === s.se && was.rate === s.rate && was.done === s.done ? was : { n: s.n, mean: s.mean, se: s.se, rate: s.rate, mode: 'gpu', done: s.done }))
     if (s.hist) {
       const { sigma: sg, strike: k } = params.current
       setTable({ sigma: sg, strike: k, n: s.n, mean: s.mean, se: s.se, counts: s.hist.counts, payoff: s.hist.payoff })
@@ -257,12 +259,13 @@ export function FuturesLive({ initial }: { initial: PosterFrame }) {
         .catch(() => fail('load'))
       const wrap: Renderer = {
         frame: (t, dt) => {
-          if (!real || broken) return false
+          if (broken) return null
+          if (!real) return false
           try {
             return real.frame(t, dt)
           } catch {
             fail('error')
-            return false
+            return null
           }
         },
         resize: (...a) => {

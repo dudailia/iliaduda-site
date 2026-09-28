@@ -482,6 +482,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
    */
   let timeK = -1
   let fadeMul = 1
+  /** The bloom's weight, 0…1: off at the lowest quality, eased across a step. */
+  let bloomK = 1
   /** How far the fade back in has come after a Replay (0…1, eased). */
   let fadeUp = 0
   let firstFrame = true
@@ -739,7 +741,10 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.drawArrays(gl.POINTS, 0, pathN)
     gl.disable(gl.BLEND)
 
-    const bloom = q > 0
+    // The bloom eases in and out across a quality step (about a quarter of a second) rather than switching: its passes
+    // run while any of it is left.
+    bloomK += ((q > 0 ? 1 : 0) - bloomK) * (1 - Math.exp(-clock.dtEma / 0.08))
+    const bloom = bloomK > 0.01
     if (bloom) {
       const pass = (p: Program, src: Target, dst: Target, setU: () => void) => {
         bind(dst)
@@ -766,7 +771,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   }
 
   function composite() {
-    const bloom = q > 0
+    const bloom = bloomK > 0.01
     bind(null)
     P.composite.use()
     tex(0, den!)
@@ -781,7 +786,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform3fv(P.composite.u('uIndigo'), palette.indigo)
     gl.uniform3fv(P.composite.u('uWash'), palette.wash)
     gl.uniform1f(P.composite.u('uDark'), palette.dark ? 1 : 0)
-    gl.uniform1f(P.composite.u('uBloom'), bloom ? 1 : 0)
+    gl.uniform1f(P.composite.u('uBloom'), bloom ? bloomK : 0)
     gl.uniform1f(P.composite.u('uTone'), palette.dark ? 0.9 : DAY.tone)
     gl.uniform1f(P.composite.u('uCap'), DAY.cap)
     gl.uniform1f(P.composite.u('uHalo'), DAY.halo)

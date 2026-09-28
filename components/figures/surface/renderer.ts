@@ -266,6 +266,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   // ── state ──────────────────────────────────────────────────────────────────
   let w = 1, h = 1, cssW = 1, cssH = 1
   let swayT = 0
+  /** The programs have linked: asked once, not every frame. */
+  let linked = false
+  /** The surface's finish (highlight, occlusion), 0…1: off at the lowest quality, eased across a step. */
+  let finishK = 1
   /** The sway's speed (coasting on Pause) and how far it has come in (0 during the story). */
   let swayK = 1
   let swayIn = 0
@@ -274,7 +278,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   let draws = 0
   let inv: M4 | null = null
   /** The shock shown: the signature's, or the reader's level followed on a quick spring (ω = 30/s, the home figure's). */
-  const shock = { x: 0, v: 0 }
+  const shock = { x: hooks.level(), v: 0 }
   /** Replay's way back into the page: from what was shown when it was pressed, on the site's ease-out. */
   let sinking: { t: number; rise: number; lines: number; labels: number; shock: number; done: () => void } | null = null
   /** What the last frame showed, for a sink to start from. */
@@ -434,8 +438,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniform3f(prog.u('uLight'), LIGHT.ambient, LIGHT.key, LIGHT.fill)
     gl.uniform1f(prog.u('uUp'), UP_LIGHT)
     gl.uniform3fv(prog.u('uEye'), e)
-    gl.uniform1f(prog.u('uSpec'), q === 0 ? 0 : palette.dark ? 0.16 : 0.1)
-    gl.uniform1f(prog.u('uAOk'), q === 0 ? 0 : 1.6)
+    // The highlight and the occlusion shading are eased across a quality step, not switched in a frame.
+    gl.uniform1f(prog.u('uSpec'), finishK * (palette.dark ? 0.16 : 0.1))
+    gl.uniform1f(prog.u('uAOk'), finishK * 1.6)
     gl.uniform3f(prog.u('uProbe'), probe ? fu(probe.k) : -1, probe ? Math.min(0.995, fv(probe.T)) : -1, probe ? probeK : 0)
   }
 
@@ -449,7 +454,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
 
   return {
     frame(_t, dt) {
-      if (!progs.every((p) => p.ready())) return false
+      if (!linked) {
+        if (!progs.every((p) => p.ready())) return false
+        linked = true
+      }
       const paused = hooks.paused()
       const ph = hooks.sequence()
 
@@ -506,6 +514,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         !!drag ||
         sinking !== null ||
         (paused && swayK > 0) ||
+        Math.abs((q === 0 ? 0 : 1) - finishK) > 0.01 ||
         Math.abs(spring.yaw) + Math.abs(spring.pitch) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
         Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
         Math.abs(shock.v) > 1e-5 ||
@@ -514,12 +523,13 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const story = ph ? ph.lines + ph.rise + ph.labels + ph.shock + ph.relax : -1
       const storyMoved = story !== lastStory
       lastStory = story
-      if (drawnOnce && paused && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return true
+      if (drawnOnce && paused && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return 'idle'
       sim.dirty = false
       resized = false
 
       const p = params(Math.max(0, x))
       lastParams = p
+      finishK += ((q === 0 ? 0 : 1) - finishK) * (1 - Math.exp(-dt / 0.08))
       // The sway comes in after the story, and from a still start on a visit without one (so the first frame is the
       // poster's exactly), over 1.5s on the in-out; Pause lets it coast to rest (240ms) and pick up again (400ms).
       swayIn = ph ? 0 : Math.min(1, swayIn + (dt / 1.5) * swayK)

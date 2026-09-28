@@ -178,7 +178,8 @@ export function OrderBookLive({
       })
       return {
         frame(t, dt) {
-          if (dead || broken) return false
+          if (broken) return null
+          if (dead) return false
           try {
             if (!inner) {
               if (!mod || !shared.current) return false
@@ -190,7 +191,7 @@ export function OrderBookLive({
             return inner.frame(t, dt)
           } catch {
             fail('error')
-            return false
+            return null
           }
         },
         resize(...a) {
@@ -402,9 +403,12 @@ export function OrderBookLive({
       railBelow={false}
       vt="order-book"
       hint={
-        live
-          ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.'
-          : `${why ? `${why} ` : ''}Tab to the figure and use the arrow keys to read a price level.`
+        // Room kept for the longest hint (the live figure's), so going live never moves the page below.
+        <span className="block min-h-[3lh] sm:min-h-[2lh]">
+          {live
+            ? 'Point at the terrain, or tab to it and use the arrow keys, to read a price level. Space pauses.'
+            : `${why ? `${why} ` : ''}Tab to the figure and use the arrow keys to read a price level.`}
+        </span>
       }
       caption={caption}
       table={table}
@@ -467,7 +471,7 @@ export function OrderBookLive({
         <div data-orderbook-controls="" className="flex min-h-8 shrink-0 gap-2">
           {live ? (
             <>
-              <button type="button" onClick={togglePause} aria-pressed={paused} className={`${CONTROL} min-w-[4.5rem]`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" data-replay="" onClick={() => (book.current ? book.current.sink(() => sig.replay()) : sig.replay())} className={CONTROL}>

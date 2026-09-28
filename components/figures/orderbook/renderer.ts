@@ -452,7 +452,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       if (fits(b, placed, cssW, cssH, l.want > 0)) {
         placed.push(b)
         l.want = 1
-        l.el.style.transform = `translate(${b.x0.toFixed(1)}px, ${b.y0.toFixed(1)}px)`
+        l.el.style.transform = `translate3d(${b.x0.toFixed(1)}px, ${b.y0.toFixed(1)}px, 0)`
         return
       }
     }
@@ -819,9 +819,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // The river: a soft halo, then the core.
     ribbon.use()
     gl.bindVertexArray(ribVao)
-    if (q > 0) {
+    // The halo fades out and in with a quality step (over about a quarter of a second) rather than switching.
+    haloK += ((q > 0 ? 1 : 0) - haloK) * (1 - Math.exp(-dt / 0.08))
+    if (haloK > 0.01) {
       glow()
-      strip(riverR, dark ? 14 : 12, pal.indigo, dark ? 0.38 : 0.3, true)
+      strip(riverR, dark ? 14 : 12, pal.indigo, (dark ? 0.38 : 0.3) * haloK, true)
     }
     over()
     strip(riverR, 2.1, dark ? mixc(pal.indigo, pal.ink, 0.35) : pal.indigo, 1, false)
@@ -877,16 +879,23 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const halve = env.tier === 'software'
   let pending = 0
   let tick = 0
-  const frame = (_t: number, dt: number): boolean => {
+  /** The programs have linked: asked once, not every frame (a GPU round trip in some browsers). */
+  let linked = false
+  /** The river's halo, 0…1: off at the lowest quality, eased across a step. */
+  let haloK = 1
+  const frame = (_t: number, dt: number): boolean | 'idle' => {
     if (disposed) return false
-    if (!progs.every((p) => p.ready())) return false
+    if (!linked) {
+      if (!progs.every((p) => p.ready())) return false
+      linked = true
+    }
     pending += dt
     // Paused, with nothing settling, no new rows, no story and the reader's probe where it was, the frame on screen
     // is already right: draw nothing (the page's still-frame budget; WCAG 2.2.2 holds either way).
     const key = sh.key, chosen = sh.highlight()
     if (first && sh.paused && !dirty && !settling && key === lastKey && chosen === lastChosen && !sh.sequence() && sim.written === uploaded) {
       pending = 0
-      return true
+      return 'idle'
     }
     lastKey = key
     lastChosen = chosen

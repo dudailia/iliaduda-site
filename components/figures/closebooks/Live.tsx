@@ -26,7 +26,8 @@ type Human = 'approved-by-reviewer' | 'remapped'
 
 const STAGGER = 45
 const SETTLE = 240
-const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)'
+/** The site's ease-out (app/globals.css, --ease-out). */
+const EASE_OUT = 'var(--ease-out)'
 
 export function CategorisationLive({
   chart,

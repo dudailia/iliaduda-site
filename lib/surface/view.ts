@@ -176,11 +176,17 @@ export function fitDistance(): number {
 
 
 /** The camera at sway angle `s` ∈ [−1, 1] of the frame's range, plus any offset the reader's drag adds. */
+/**
+ * The pitch a drag or its release may reach, eased into rather than stopped at: the identity inside [0.2, 1.1], and
+ * beyond it an exponential approach to 0.12 below and 1.2 above, matched in slope, so a flick lands softly.
+ */
+const softPitch = (p: number) => (p < 0.2 ? 0.12 + 0.08 * Math.exp((p - 0.2) / 0.08) : p > 1.1 ? 1.2 - 0.1 * Math.exp(-(p - 1.1) / 0.1) : p)
+
 export function camera(s = 0, dYaw = 0, dPitch = 0): Camera {
   const f = FRAME
   return {
     yaw: f.yaw + s * f.sway + dYaw,
-    pitch: Math.min(1.2, Math.max(0.12, f.pitch + dPitch)),
+    pitch: softPitch(f.pitch + dPitch),
     dist: fitDistance(),
     ty: TY,
   }

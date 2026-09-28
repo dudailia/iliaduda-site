@@ -402,7 +402,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         </dl>
         <div data-orderflow-controls="" className="flex min-h-8 shrink-0 gap-2">
           {live && !reduced && !still ? (
-            <button type="button" onClick={() => market.setPaused(!market.paused)} aria-pressed={paused} className={`${CONTROL} min-w-[4.5rem]`}>
+            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} min-w-[4.5rem]`}>
               {paused ? 'Resume' : 'Pause'}
             </button>
           ) : null}

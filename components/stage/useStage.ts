@@ -41,8 +41,12 @@ export interface StageEnv {
 }
 
 export interface Renderer {
-  /** Draw one frame. `t` in seconds since start, `dt` since the last frame. Return false until the first real frame is on screen. */
-  frame(t: number, dt: number): boolean | void
+  /**
+   * Draw one frame. `t` in seconds since start, `dt` since the last frame. Return false until the first real frame is
+   * on screen; 'idle' for a frame that drew nothing because nothing moved (the governor leaves it out); null if it will
+   * never draw again (it broke), which stops the loop.
+   */
+  frame(t: number, dt: number): boolean | void | 'idle' | null
   /** Backing-store size in device pixels, and the CSS size. */
   resize(w: number, h: number, cssW: number, cssH: number): void
   /** 0 (lightest) … 3 (full). Called by the governor. */
@@ -166,9 +170,17 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60
       last = now
       const drawn = renderer.frame((now - t0) / 1000, dt)
+      // A renderer that has broken will not draw again: the loop stops, and the figure's still frame stands.
+      if (drawn === null) return
       if (drawn !== false && !first) {
         first = true
         setLive(true)
+      }
+      // A frame that drew nothing says nothing about what this device can hold: paused, every frame would read as
+      // spare time, and the quality would climb to a level Resume then could not hold.
+      if (drawn === 'idle') {
+        raf = requestAnimationFrame(tick)
+        return
       }
       // The governor, against this display's own refresh: `vsync` tracks the
       // shortest smoothed frame interval seen (8.3ms at 120Hz, 16.7ms at
@@ -256,11 +268,13 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
 
     const io = new IntersectionObserver(
       ([e]) => {
-        visible = !!e && e.isIntersecting && e.intersectionRatio >= threshold
+        // A fifth of the stage to start it; once it has started, it runs while any of it shows, so the strip still
+        // on screen as the reader scrolls past does not freeze mid-motion.
+        visible = !!e && e.isIntersecting && (started ? e.intersectionRatio > 0 : e.intersectionRatio >= threshold)
         if (visible && !started && !cancelIdle) cancelIdle = whenIdle(start)
         run()
       },
-      { threshold: [0, threshold] },
+      { threshold: [0, 0.01, threshold] },
     )
     io.observe(el)
     const ro = new ResizeObserver(size)
@@ -331,7 +345,8 @@ export function useStage(create: Create, opts: { threshold?: number; maxQ?: Part
  * because two matching images each at half opacity do not add up to one.
  */
 export const FADE_MS = 240
-export const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)'
+/** The site's ease-out, as the theme defines it (app/globals.css, --ease-out). */
+export const EASE_OUT = 'var(--ease-out)'
 export function underlay(covered: boolean) {
   return {
     visibility: covered ? ('hidden' as const) : ('visible' as const),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
@@ -216,12 +216,13 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       }, () => fail('load'))
       return {
         frame(t, dt) {
-          if (dead || broken || !inner) return false
+          if (broken) return null
+          if (dead || !inner) return false
           try {
             return inner.frame(t, dt)
           } catch {
             fail('error')
-            return false
+            return null
           }
         },
         resize(w, h, cw, ch) {
@@ -461,8 +462,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   })
   const readDebug = useCallback((): LiveInfo => debugInfo.current!(), [])
 
-  const initial = format(numbers(params(0)), check(params(0)))
-  const initialRows = pointRows(params(0), PROBE_START)
+  // The calm surface's readouts are the same every render: worked out once (a re-render comes twice a second, for the
+  // stage's frame rate).
+  const initial = useMemo(() => format(numbers(params(0)), check(params(0))), [])
+  const initialRows = useMemo(() => pointRows(params(0), PROBE_START), [])
   const peakAtm = (iv(params(shock), 0, 1 / 12) * 100).toFixed(1)
   // Said for the pointer this reader has: a phone's finger taps to read and drags sideways to turn (vertical drags
   // scroll the page); a mouse points. A still frame keeps its instructions after its reason.
@@ -478,7 +481,19 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const rail = <Margin initial={initial} rows={initialRows} set={ref} suffix="" />
 
   return (
-    <FigureFrame id="fig-iv-surface" number="Fig. 1" title={title} subtitle={subtitle} rail={rail} railBelow={false} vt="iv-surface" hint={hint} caption={caption} table={table}>
+    <FigureFrame
+      id="fig-iv-surface"
+      number="Fig. 1"
+      title={title}
+      subtitle={subtitle}
+      rail={rail}
+      railBelow={false}
+      vt="iv-surface"
+      // Room kept for the longest hint, so going live never moves the page below.
+      hint={<span className="block min-h-[3lh] sm:min-h-[2lh]">{hint}</span>}
+      caption={caption}
+      table={table}
+    >
       <div className="relative -mx-6 sm:mx-0">
         <div
           ref={box}
@@ -578,7 +593,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         </label>
         {live ? (
           <>
-            <button type="button" onClick={togglePause} aria-pressed={paused} className={`${CONTROL} min-w-[4.5rem]`}>
+            <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>
               {paused ? 'Resume' : 'Pause'}
             </button>
             <button type="button" data-replay="" onClick={replay} className={CONTROL}>
