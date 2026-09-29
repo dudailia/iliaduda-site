@@ -101,3 +101,13 @@ test('a morph mark left by a click that never became a transition does not make 
   await page.waitForURL('**/market')
   expect(await mark(page, 'vtArrival')).toBe(null)
 })
+
+test('the morph lands on the figure in view: the paper opens scrolled just far enough for 70% of a screen of it', async ({ page }) => {
+  await openFromContents(page, 'order-book')
+  expect(await mark(page, 'vtArrival')).toBe('1')
+  const seen = await page.evaluate(() => {
+    const el = document.querySelector('[style*="view-transition-name"]')!.getBoundingClientRect()
+    return { shown: Math.min(el.bottom, innerHeight) - Math.max(el.top, 0), want: Math.min(el.height, innerHeight * 0.7) }
+  })
+  expect(seen.shown).toBeGreaterThanOrEqual(seen.want - 2)
+})
