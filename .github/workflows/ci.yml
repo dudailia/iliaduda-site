@@ -65,12 +65,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The build prints /cv to the résumé PDF in Chromium (scripts/cv-pdf.mjs), so it needs one here too.
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
 
       # Every minScore:1 assertion aggregates pessimistically, not by median.
       # See the note in lighthouserc.json: a boolean gate aggregated by median
       # reports green while failing two runs in five.
-      - name: Lighthouse CI (a11y = 100, CLS <= 0.005, 0 third-party requests)
+      - name: Lighthouse CI (a11y = 100, CLS <= 0.01, fonts per page, 0 third-party requests)
         run: pnpm exec lhci autorun
 
   # The deployed site is the only place the font actually swaps, so it is the
