@@ -1,4 +1,4 @@
-import { Fan } from '../futures/fan'
+import { FAN, Fan } from '../futures/fan'
 import { palette, type Palette } from '../palette'
 import { whitePng } from '../png'
 import { dlog } from './detmath'
@@ -116,9 +116,11 @@ export function bookSvg(moment: Moment = 'calm'): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${COLS} ${ROWS}" preserveAspectRatio="none">` +
     `<style>${root()}</style>` +
-    `<defs><mask id="q"><image href="data:image/png;base64,${png}" x="-15" y="${dy}" width="256" height="${ROWS}" preserveAspectRatio="none"/></mask></defs>` +
+    // Indigo flooded through the image's opacity: the same picture as a mask of it, which Quartz (macOS's PDF viewer and
+    // print path) draws as a solid block where a page printed from Chrome carries it.
+    `<defs><filter id="q" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feFlood style="flood-color:var(--color-indigo)"/><feComposite in2="SourceAlpha" operator="in"/></filter></defs>` +
     `<rect width="${COLS}" height="${ROWS}" fill="var(--color-paper)"/>` +
-    `<rect x="-15" y="${dy}" width="256" height="${ROWS}" fill="var(--color-indigo)" mask="url(#q)"/>` +
+    `<image href="data:image/png;base64,${png}" x="-15" y="${dy}" width="256" height="${ROWS}" preserveAspectRatio="none" filter="url(#q)"/>` +
     `<polyline points="${pts.join(' ')}" fill="none" stroke="var(--color-ink)" stroke-width="1.25" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
     `<path d="${dots}" stroke="var(--color-ink)" stroke-opacity="0.85" stroke-width="2.6" stroke-linecap="round" vector-effect="non-scaling-stroke"/>` +
     `</svg>`
@@ -188,7 +190,7 @@ export function fanSvg(moment: Moment = 'calm'): string {
     return up.concat(down).join(' ')
   }
   const s = fan.strands()
-  const strands = Array.from({ length: 48 }, (_, i) => `<polyline points="${line((j) => s[i * 65 + j]!, 2)}"/>`).join('')
+  const strands = Array.from({ length: FAN.strands }, (_, i) => `<polyline points="${line((j) => s[i * 65 + j]!, 2)}"/>`).join('')
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 ${r3(-LN3)} 64 ${r3(2 * LN3)}" preserveAspectRatio="none">` +
     `<style>${root()}.w{fill:var(--color-indigo)}.s{fill:none;stroke:var(--color-indigo);stroke-width:0.8;stroke-opacity:0.34}@media (prefers-color-scheme:dark){.s{stroke-opacity:0.38}}</style>` +

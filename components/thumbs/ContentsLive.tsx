@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CONTROL } from '@/components/stage/controls'
 import type { Minis } from './live'
+import { saveData } from '@/components/stage/env'
 
 const PAUSED = 'contents-paused'
 
@@ -22,7 +23,8 @@ export function ContentsLive() {
 
   useEffect(() => {
     const list = document.querySelector('[data-vt-contents]')
-    if (!list) return
+    // Where the miniatures would not run (reduced motion, save-data), their code is not fetched either.
+    if (!list || matchMedia('(prefers-reduced-motion: reduce)').matches || saveData()) return
     let gone = false
     const io = new IntersectionObserver(
       ([e]) => {
@@ -65,7 +67,9 @@ export function ContentsLive() {
   }
 
   return (
-    <div className="mt-3 h-8 motion-reduce:hidden print:hidden">
+    // Beside the rail at lg it sits below the first paper's number, not level with it, so it reads as the Contents'
+    // control rather than a label of that entry.
+    <div className="mt-3 h-8 motion-reduce:hidden lg:mt-16 print:hidden">
       <button
         type="button"
         onClick={toggle}

@@ -62,6 +62,13 @@ describe('the still frames of /market', () => {
     expect(dark).toBeGreaterThan(20)
   })
 
+  it('tint the heat strip through a filter, not a mask: Quartz prints a masked image as a solid block', () => {
+    for (const svg of [bookSvg(), bookSvg('shock')]) {
+      expect(svg).not.toMatch(/<mask|mask="/)
+      expect(svg).toMatch(/<image [^>]*filter="url\(#q\)"/)
+    }
+  })
+
   it('draw the book at now and the fan as the market has them, with their words where they fall', () => {
     const { m, fan } = marketFrame()
     expect(ladderSvg()).toContain('<rect x="6"')

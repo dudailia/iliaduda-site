@@ -16,7 +16,7 @@ export function BookPoster({ ticks, usd, moment = 'calm' }: { ticks: readonly { 
       {/* eslint-disable-next-line @next/next/no-img-element -- as above */}
       <img src={file('ladder', moment)} alt="" decoding="async" loading={moment === 'shock' ? 'lazy' : undefined} className="absolute inset-y-0 right-6 h-full w-14 sm:right-0" />
       {ticks.map((t) => (
-        <span key={t.p} className="text-meta absolute left-6 -translate-y-1/2 rounded-sm bg-paper/85 px-0.5 font-mono leading-none text-graphite sm:left-1" style={{ top: pct(t.y) }}>
+        <span key={t.p} className="text-meta absolute left-6 -translate-y-1/2 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite sm:left-1" style={{ top: pct(t.y) }}>
           {usd(t.p)}
         </span>
       ))}

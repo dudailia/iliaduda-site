@@ -1,6 +1,6 @@
 import { otherWork, visiblePapers } from '@/content/papers'
 
-const CURRENT = `document.currentScript.parentElement.querySelectorAll('nav a[href]').forEach(function(a){if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page')})`
+const CURRENT = `document.currentScript.closest('footer').querySelectorAll('nav a[href]').forEach(function(a){if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page')})`
 import { AVAILABILITY, SITE } from '@/lib/site'
 import { Row, Shell } from './Layout'
 import { ContactLinks } from './Masthead'
@@ -43,9 +43,6 @@ export function Footer() {
               ))}
             </ul>
           </nav>
-          {/* The page the reader is on is marked in the list: the footer is the same on every page, so the browser
-              marks it, as soon as the list is parsed. */}
-          <script dangerouslySetInnerHTML={{ __html: CURRENT }} />
         </Row>
         <div className="h-6" />
         <Row rail="Pages">
@@ -72,6 +69,9 @@ export function Footer() {
             <a href="https://github.com/dudailia/iliaduda-site">Source on GitHub</a>.
           </p>
         </Row>
+        {/* The page the reader is on is marked in the footer's lists: the footer is the same on every page, so the
+            browser marks it, as soon as the lists are parsed. */}
+        <script dangerouslySetInnerHTML={{ __html: CURRENT }} />
       </Shell>
     </footer>
   )

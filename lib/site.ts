@@ -40,6 +40,12 @@ export const RESUME = {
 export const resumeLink = { href: RESUME.pdf, label: 'CV (PDF)' } as const
 
 /**
+ * The site's own source, as the papers link it file by file. It names the branch the code is on: `redesign` until the
+ * pull request is merged, then `main` (one change here moves every paper's links).
+ */
+export const SOURCE = 'https://github.com/dudailia/iliaduda-site/blob/redesign'
+
+/**
  * The canonical origin. Vercel exposes VERCEL_PROJECT_PRODUCTION_URL on every
  * deployment: the project's production domain. That is already iliaduda.com —
  * the domain is attached to the project — but on 2026-09-24 the name did not

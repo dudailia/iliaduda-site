@@ -475,15 +475,17 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     let rank = 0
     for (const [id, l] of pool) {
       const ki = k >= 1 ? 1 : EASE_OUT(Math.min(1, Math.max(0, (k * 640 - rank++ * 40) / 200)))
-      if (!l.seen) l.want = 0
+      const asked = l.seen
+      if (!asked) l.want = 0
       l.seen = false
       l.o += (l.want - l.o) * (dt > 0 ? f : 1)
       if (Math.abs(l.want - l.o) > 0.002) fading = true
       const a = l.o * ki
       l.el.style.opacity = a.toFixed(3)
       l.el.style.visibility = a > 0.01 ? 'visible' : 'hidden'
-      // A price the window has left for good leaves the page once it has faded.
-      if (l.kind === 'tick' && !l.want && l.o < 0.001) {
+      // A price the window has left for good leaves the page once it has faded. One still in the window but crowded
+      // out stays, hidden and measured: removing it would make it again, and measure it again, the very next frame.
+      if (l.kind === 'tick' && !asked && l.o < 0.001) {
         l.el.remove()
         pool.delete(id)
       }
@@ -734,7 +736,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     if (Math.abs(target - follow.x) > 40 || fresh > 5 * HZ) {
       follow.x = target
       follow.v = 0
-    } else spring(follow, target, dt, FOLLOW)
+    } else spring(follow, target, dt * driftK, FOLLOW)
+    // On the drift's clock: paused, the price window coasts to rest with the camera (240ms) and holds where it is.
     centre = follow.x
 
     // The reader's lean (pointer or tilt), on the spring. Paused, or while the pointer reads the terrain, it comes to
@@ -938,9 +941,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       drag !== null ||
       Math.abs(turn.yaw.x) + Math.abs(turn.pitch.x) + Math.abs(turn.yaw.v) + Math.abs(turn.pitch.v) > 1e-4 ||
       (sh.paused && driftK > 0) ||
-      Math.abs(follow.v) > 1e-4 ||
+      (driftK > 0 && (Math.abs(follow.v) > 1e-4 || Math.abs(target - centre) > 1e-3)) ||
       Math.abs(rowsTarget - rowsF) > 0.01 ||
-      Math.abs(target - centre) > 1e-3 ||
       ph !== null ||
       sinking !== null
     // For the specs and ?debug=1: frames drawn, and the market's simulated clock.

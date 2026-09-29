@@ -334,7 +334,8 @@ export class FanView {
   readonly box = { w: 1, h: 1 }
   private readonly g: CanvasRenderingContext2D | null
   private readonly bands = new Float64Array(5 * 65)
-  private readonly strands = new Float64Array(48 * 65)
+  /** The fan's paths at the volatility shown, 65 steps each: as many as the fan keeps (FAN.strands). */
+  private strands = new Float64Array(0)
   private readonly sig = { x: 0, v: 0 }
   private last = -1
   private lastSig = NaN
@@ -390,7 +391,9 @@ export class FanView {
     this.last = m.frames
     this.lastSig = this.sig.x
     this.lastPal = pal
+    if (this.strands.length !== fan.strands.length) this.strands = new Float64Array(fan.strands.length)
     fanAt(fan, this.sig.x, this.bands, this.strands)
+    const paths = this.strands.length / 65
     const lay = this.layout()
     const dpr = this.cv.width / this.box.w
     g.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -431,12 +434,12 @@ export class FanView {
       g.globalCompositeOperation = 'lighter'
       g.strokeStyle = css(pal.indigo, 0.035 + 0.07 * lit)
       g.lineWidth = 4
-      for (let s = 0; s < 48; s++) path(s)
+      for (let s = 0; s < paths; s++) path(s)
       g.globalCompositeOperation = 'source-over'
     }
     g.strokeStyle = css(pal.dark ? mixRGB(pal.indigo, pal.ink, 0.25) : pal.indigo, Math.min(1, (pal.dark ? 0.38 : 0.34) + 0.4 * lit))
     g.lineWidth = 0.8 + 0.5 * lit
-    for (let s = 0; s < 48; s++) path(s)
+    for (let s = 0; s < paths; s++) path(s)
 
     g.strokeStyle = css(pal.indigo)
     g.lineWidth = 1.5

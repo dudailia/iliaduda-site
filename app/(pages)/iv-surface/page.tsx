@@ -7,12 +7,13 @@ import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 import { ETA_CAP, params } from '@/lib/surface/shock'
 import { iv, localVol } from '@/lib/surface/ssvi'
+import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'iv-surface')!
 
 export const metadata = pageMeta('/iv-surface', 'An implied-volatility surface free of static arbitrage', paper.abstract)
 
-const SRC = 'https://github.com/dudailia/iliaduda-site/blob/redesign'
+const SRC = SOURCE
 
 const PARAMS: readonly (readonly [string, FactKey, (v: number) => string])[] = [
   ['σ short', 'ivSigmaShort', (v) => `${(v * 100).toFixed(0)}%`],
@@ -168,9 +169,9 @@ export default function IvSurface() {
             [
               'tests',
               <span key="t">
-                <a className="inline-block py-0.5" href={`${SRC}/tests/svi.test.ts`}>tests/svi.test.ts</a> ·{' '}
-                <a className="inline-block py-0.5" href={`${SRC}/tests/surface-dynamics.test.ts`}>tests/surface-dynamics.test.ts</a> ·{' '}
-                <a className="inline-block py-0.5" href={`${SRC}/tests/surface-greeks.test.ts`}>tests/surface-greeks.test.ts</a>
+                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/svi.test.ts`}>tests/svi.test.ts</a> ·{' '}
+                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/surface-dynamics.test.ts`}>tests/surface-dynamics.test.ts</a> ·{' '}
+                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/surface-greeks.test.ts`}>tests/surface-greeks.test.ts</a>
               </span>,
             ],
             ['renderer', <a key="r" href={`${SRC}/components/figures/surface/renderer.ts`}>components/figures/surface/renderer.ts</a>],

@@ -30,7 +30,7 @@ export function RunningHead() {
             </span>
           </p>
           <nav aria-label="Site">
-            <ul className="flex gap-x-4">
+            <ul className="flex flex-wrap justify-end gap-x-4">
               <li>
                 <a href="/#contents" className="inline-block py-2.5">
                   Contents

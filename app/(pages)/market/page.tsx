@@ -8,14 +8,15 @@ import { HOST } from '@/lib/market/host'
 import { SHOCK } from '@/lib/market/shock'
 import { STRESS } from '@/lib/market/stress'
 import { pageMeta } from '@/lib/meta'
+import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'market')!
 
 export const metadata = pageMeta('/market', paper.title, paper.abstract)
 
-const SRC = 'https://github.com/dudailia/iliaduda-site/blob/redesign'
+const SRC = SOURCE
 const link = (path: string) => (
-  <a key={path} className="inline-block py-0.5" href={`${SRC}/${path}`}>
+  <a key={path} className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/${path}`}>
     {path}
   </a>
 )

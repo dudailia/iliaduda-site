@@ -51,11 +51,12 @@ export function rampCss(t: number): string {
   if (t < 0.999) return `color-mix(in oklab,var(--c-top) ${p1((t - 0.5) / 0.5)},var(--c-mid))`
   return 'var(--c-top)'
 }
-/** The ramp stops as custom properties over the site's tokens; the top leans toward ink at night. */
+/** The ramp stops as custom properties over the site's tokens; the top leans toward ink at night (on a screen: a page
+ * printed from a dark system is printed in the day's tokens, and its ramp with them). */
 export const STAGE_CSS =
   `.iv-fig{--c-lo:color-mix(in oklab,var(--color-indigo) ${STOPS.lo * 100}%,var(--color-indigo-wash));` +
   `--c-mid:color-mix(in oklab,var(--color-indigo) ${STOPS.mid * 100}%,var(--color-indigo-wash));--c-top:var(--color-indigo)}` +
-  `@media (prefers-color-scheme:dark){.iv-fig{--c-top:color-mix(in oklab,var(--color-ink) ${STOPS.nightTop * 100}%,var(--color-indigo))}}`
+  `@media screen and (prefers-color-scheme:dark){.iv-fig{--c-top:color-mix(in oklab,var(--color-ink) ${STOPS.nightTop * 100}%,var(--color-indigo))}}`
 
 /** The quantised ramp levels as custom properties, shared by both framings: `--r0` … `--r14`. */
 export const RAMP_CSS = `.iv-fig{${Array.from({ length: RAMP_STEPS + 1 }, (_, i) => `--r${i}:${rampCss(i / RAMP_STEPS)}`).join(';')}}`

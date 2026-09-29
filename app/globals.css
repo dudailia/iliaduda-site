@@ -380,8 +380,6 @@
   --arrive: 40ms;
 }
 
-/* A Contents entry's title and thumbnail are one way in: pointing at either marks both. Outside any layer, so it
-   wins over the elements' own utilities (border-rule, decoration-transparent), which a base-layer rule cannot. */
 /* The issue's numbering: beside the rail, each paper's number hangs in the gutter at its title's first baseline, as
    a journal's contents numbers its papers (an inline box pulled left by as much as it takes, so the title does not
    move). Its alternative text is empty: the list already says which entry is which. */
@@ -405,6 +403,8 @@
     color: var(--color-graphite);
   }
 }
+/* A Contents entry's title and thumbnail are one way in: pointing at either marks both. Outside any layer, so it
+   wins over the elements' own utilities (border-rule, decoration-transparent), which a base-layer rule cannot. */
 @media (hover: hover) and (pointer: fine) {
   [data-vt-contents] li:has(h3 a:hover) [data-vt-thumb] {
     border-color: var(--color-graphite);
@@ -696,12 +696,41 @@
     text-align: right;
   }
 
-  /* /market prints its still frames: its canvases are drawn in the screen's palette, and their live words with them. */
+  /* Every live figure prints its poster or still frames: a canvas is drawn in the screen's palette (a night one, from a
+     dark system), and the words laid over it with it, while the posters' pictures take the print tokens. The poster is
+     shown whole, whatever a first visit's pre-paint mark or a morph had hidden of it. */
   [data-market-stage] canvas,
-  [data-market-stage] [data-market-words] {
-    display: none;
+  [data-market-stage] [data-market-words],
+  [data-futures-poster] ~ *,
+  [data-orderbook-poster] ~ *,
+  [data-orderflow-still] ~ canvas,
+  [data-surface-poster] ~ * {
+    display: none !important;
   }
-  [data-market-stage] [data-market-still] {
+  [data-market-stage] [data-market-still],
+  [data-futures-poster],
+  [data-orderbook-poster],
+  [data-orderflow-still],
+  [data-surface-poster],
+  :is([data-futures-poster], [data-orderbook-poster], [data-surface-poster]) :is([data-fill], [data-iv-poster]) {
     visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Controls and the hints that say how to use them do nothing on paper. */
+  :is([data-futures-controls], [data-orderbook-controls], [data-orderflow-controls], [data-surface-controls]) {
+    display: none !important;
+  }
+  /* A figure's views are not cut across two sheets: each prints whole on one (/market's surface, then its book and futures
+     together, may each move to the next). */
+  [data-market-stage] > div,
+  div:has(> :is([data-futures-poster], [data-orderbook-poster], [data-orderflow-still], [data-surface-poster])) {
+    break-inside: avoid;
+  }
+  /* A still surface's smooth sheet is a canvas too (components/figures/surface/still.ts): from a dark system it prints
+     its contours and walls on paper instead of a night sheet. */
+  @media (prefers-color-scheme: dark) {
+    [data-still-sheet] {
+      display: none !important;
+    }
   }
 }

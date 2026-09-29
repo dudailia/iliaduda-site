@@ -108,8 +108,9 @@ pnpm check:all        # all of the above, in order
 
 - **`facts.test.ts`**: every number cites a source specific enough to re-check,
   and chosen (synthetic) values say so.
-- **`figures.test.ts`**: a figure may not hardcode a value `facts.ts` already
-  holds, or render a bare number as text.
+- **`figures.test.ts`**: a figure's server wrapper (`components/figures/*.tsx`,
+  which reads the facts and hands them to its live island) may not hardcode a
+  value `facts.ts` already holds, or render a bare number as text.
 - **`copy.test.ts`** and **`e2e/copy.spec.ts`**: the banned phrases in
   `tests/forbidden.ts` are checked in source and in rendered output. They cover
   retracted claims, superlatives, defensive lines, any performance metric for

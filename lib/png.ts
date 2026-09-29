@@ -2,8 +2,8 @@ import { deflateSync } from 'node:zlib'
 
 /**
  * A PNG of white at varying opacity (colour type 4, grey and opacity, eight bits each), for images the server draws
- * once at build and the page colours itself: used as an SVG mask, the colour shows through each pixel as much as its
- * opacity says (white's luminance is 1), so one file serves both colour schemes. Node's own zlib compresses it; nothing else is needed. Server
+ * once at build and the page colours itself: a colour flooded through it by an SVG filter shows at each pixel as much as
+ * its opacity says, so one file serves both colour schemes. Node's own zlib compresses it; nothing else is needed. Server
  * only.
  */
 

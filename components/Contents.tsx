@@ -47,13 +47,13 @@ export function Contents() {
           </>
         }
       >
-        <ol className="grid list-none border-t border-rule" data-vt-contents>
+        <ol role="list" className="grid list-none border-t border-rule" data-vt-contents>
           {papers.map((p) => (
             <li
               key={p.slug}
               // A phone reads the title, the byline, the figure (the column's width) and then its line; from sm the
               // figure sits beside the text, as a paper's does.
-              className="grid grid-cols-1 gap-x-6 border-b border-rule py-6 [grid-template-areas:'title'_'byline'_'thumb'_'dek'] sm:grid-cols-[minmax(0,1fr)_9rem] sm:grid-rows-[auto_auto_1fr] sm:[grid-template-areas:'title_thumb'_'byline_thumb'_'dek_thumb']"
+              className="grid grid-cols-1 gap-x-6 border-b border-rule py-6 print:break-inside-avoid [grid-template-areas:'title'_'byline'_'thumb'_'dek'] sm:grid-cols-[minmax(0,1fr)_9rem] sm:grid-rows-[auto_auto_1fr] sm:[grid-template-areas:'title_thumb'_'byline_thumb'_'dek_thumb']"
             >
               <h3 className="text-h3 min-w-0 [grid-area:title]">
                 <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
@@ -79,7 +79,7 @@ export function OtherWork() {
   return (
     <section aria-labelledby="other-work" className="mt-14 lg:mt-20">
       <Row rail={<SectionHeading id="other-work">Other work</SectionHeading>}>
-        <ul className="grid list-none border-t border-rule">
+        <ul role="list" className="grid list-none border-t border-rule">
           {otherWork.map((o) => (
             <li key={o.slug} className="border-b border-rule py-4">
               <a href={o.href} className="text-body underline decoration-transparent hover:decoration-ink">
@@ -101,7 +101,7 @@ export function ExperienceBrief() {
   return (
     <section aria-labelledby="experience" className="mt-14 lg:mt-20">
       <Row rail={<SectionHeading id="experience">Experience</SectionHeading>}>
-        <ul className="grid list-none gap-y-5 border-t border-rule pt-5">
+        <ul role="list" className="grid list-none gap-y-5 border-t border-rule pt-5">
           {roles.map((r) => (
             <li key={r.id}>
               <p>

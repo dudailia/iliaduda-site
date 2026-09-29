@@ -272,6 +272,9 @@ export function MarketLive({
   const leanApi = useRef<{ lean: { current: { x: number; y: number } } } | null>(null)
   const fallbackApi = useRef<{ fail(why: 'load' | 'error'): void; watch(): () => void } | null>(null)
   const create: Create = useCallback((env) => {
+    // In software the market is not run (below), so the surface would wait for it forever, a frame at a time: it
+    // is not made, nor its renderer fetched.
+    if (env.tier === 'software') return null
     let mod: Mod | null = null
     let inner: SurfaceRenderer | null = null
     let size: [number, number, number, number] | null = null
@@ -496,8 +499,10 @@ export function MarketLive({
           return
         }
         const y = lay.y(p0)
-        // A label fades as it nears the strip's edge (over 12px), so the window carrying down never pops one.
-        const o = Math.min(1, Math.max(0, (Math.min(y, lay.h - y) - 8) / 12))
+        // A label fades as it nears the strip's edge (over 12px), so the window carrying down never pops one. Paused,
+        // the window holds, and a label held half faded would be half legible: it is shown or not.
+        const edge = Math.min(1, Math.max(0, (Math.min(y, lay.h - y) - 8) / 12))
+        const o = pausedRef.current ? (edge >= 0.5 ? 1 : 0) : edge
         if (o === 0) {
           el.style.opacity = '0'
           return
@@ -697,8 +702,10 @@ export function MarketLive({
     const t = touching.current
     if (!t || t.id !== e.pointerId) return
     touching.current = null
-    // A tap without a drag lets a reading go.
-    if (!t.moved) readAt(null)
+    if (t.moved) return
+    // A tap reads the moment under it, as the other figures' taps do (no drag needed: WCAG 2.5.7); a tap while a
+    // reading is up lets it go.
+    readAt(readingAgo.current !== null ? null : agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
   }
   const onBookLeave = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'touch' || keyAgo.current !== null) return
@@ -976,7 +983,8 @@ export function MarketLive({
             {...(surfaceLive
               ? { role: 'group', tabIndex: 0, 'aria-label': 'Vol surface. The arrow keys turn it; Space pauses the market; Home turns it back.', onKeyDown: onSurfaceKey }
               : {})}
-            className="peer relative aspect-[1.1] w-full cursor-grab overflow-hidden bg-paper select-none focus-visible:outline-none sm:aspect-[1.62]"
+            // iv-fig: the IV figure's colour ramp (STAGE_CSS, RAMP_CSS) is scoped to it, and the still surface draws with it.
+            className="iv-fig peer relative aspect-[1.1] w-full cursor-grab overflow-hidden bg-paper select-none focus-visible:outline-none sm:aspect-[1.62] sm:max-w-[calc(88svh*1.62)]"
             data-market-surface=""
             data-hold=""
             onPointerMove={lean.onPointerMove}
@@ -985,7 +993,7 @@ export function MarketLive({
             onBlur={() => (aim.current = { yaw: 0, pitch: 0 })}
           >
             <div data-market-still="" style={underlay(surfaceLive)}>{stills.calm.surface}</div>
-            <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={{ ...fade(surfaceLive), touchAction: 'pan-y' }} aria-hidden="true" />
+            <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={{ ...fade(surfaceLive), touchAction: 'pan-y pinch-zoom' }} aria-hidden="true" />
             {/* The axes' words, placed by the renderer each frame with its own projection (the IV figure's). */}
             <div aria-hidden data-market-words="" className="pointer-events-none absolute inset-0" style={fade(surfaceLive)}>
               <div ref={labelLayer}>
@@ -995,6 +1003,7 @@ export function MarketLive({
                     ref={(el) => {
                       labelEls.current[i] = el
                     }}
+                    moving
                     text={l.text}
                     align={l.align}
                     kind={l.kind}
@@ -1028,6 +1037,9 @@ export function MarketLive({
           <div className="-mx-6 sm:mx-0">
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite sm:px-0" data-market-book-title="">
               <span ref={hoverEl}>Order book, the last 20 seconds</span>
+              <span id="market-book-keys" className="sr-only">
+                A moment to read the market at. The arrow keys move it, Page Up and Page Down by five seconds; End returns to now.
+              </span>
             </p>
             <div className="relative">
               <div
@@ -1037,7 +1049,9 @@ export function MarketLive({
                   ? {
                       role: 'slider',
                       tabIndex: 0,
-                      'aria-label': "The order book's last twenty seconds: a moment to read the market at. The arrow keys move it, Page Up and Page Down by five seconds; End returns to now.",
+                      // Named by its visible title (WCAG 2.5.3); how to move it is its description.
+                      'aria-label': 'Order book, the last 20 seconds',
+                      'aria-describedby': 'market-book-keys',
                       'aria-valuemin': -SPAN,
                       'aria-valuemax': 0,
                       'aria-valuenow': 0,
@@ -1050,7 +1064,7 @@ export function MarketLive({
                     }
                   : {})}
                 className="peer relative h-28 overflow-hidden bg-paper focus-visible:outline-none sm:h-52"
-                style={{ touchAction: 'pan-y' }}
+                style={{ touchAction: 'pan-y pinch-zoom' }}
                 onPointerMove={onBookMove}
                 onPointerDown={onBookDown}
                 onPointerUp={onBookUp}
@@ -1063,7 +1077,7 @@ export function MarketLive({
                 <canvas ref={bookCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
                 <div data-market-words="" className="pointer-events-none absolute inset-0" style={fade(live)} aria-hidden="true">
                   {Array.from({ length: 6 }, (_, i) => (
-                    <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-6 rounded-sm bg-paper/85 px-0.5 font-mono leading-none text-graphite sm:left-1" />
+                    <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-6 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite sm:left-1" />
                   ))}
                 </div>
                 {/* Over the words too, so the old market's prices fade with its picture and the new ones are revealed under it. */}

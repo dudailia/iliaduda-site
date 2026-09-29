@@ -53,11 +53,15 @@ export function FigureFrame({
 }) {
   const wide = !inline
   return (
-    <figure id={id} className={className ?? (inline ? 'relative my-8 scroll-mt-28' : 'my-12 lg:my-16')} aria-labelledby={`${id}-title`}>
+    // Named by its title and described by its caption, by id: both sit inside the grid, not as the figure's own first
+    // or last child, so they are not its caption by position.
+    <figure id={id} className={className ?? (inline ? 'relative my-8 scroll-mt-28' : 'my-12 lg:my-16')} aria-labelledby={`${id}-title`} aria-describedby={`${id}-caption`}>
       <div
-        className={`grid grid-cols-1 gap-y-2 ${wide ? 'lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0' : ''}`}
+        // On paper, one column of plain blocks (the printed width is under lg, so its grid is one column anyway): its
+        // number, title and stage then go to a new sheet together, never leaving the number or title at the foot of one.
+        className={`grid grid-cols-1 gap-y-2 print:block ${wide ? 'lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:grid-rows-[auto_1fr] lg:gap-x-(--gutter) lg:gap-y-0' : ''}`}
       >
-        <div className={`text-meta font-mono text-graphite ${wide ? 'lg:pt-1 lg:text-right' : ''}`}>
+        <div className={`text-meta font-mono text-graphite print:mb-2 print:break-after-avoid ${wide ? 'lg:col-start-1 lg:row-start-1 lg:pt-1 lg:text-right' : ''}`}>
           {/* Inline on a wide screen, the number still goes where every
               figure's number goes: in the rail, level with the title. */}
           <span
@@ -67,11 +71,10 @@ export function FigureFrame({
           >
             {number}
           </span>
-          {rail && wide ? <div className="sticky top-6 mt-[4.75rem] hidden lg:block">{rail}</div> : null}
         </div>
-        <div className="min-w-0">
-          <div className="text-note border-b border-rule pb-2">
-            <span id={`${id}-title`} className="block text-ink">
+        <div className={`min-w-0 ${wide ? 'lg:col-start-2 lg:row-span-2 lg:row-start-1' : ''}`}>
+          <div className="text-note border-b border-rule pb-2 print:break-inside-avoid print:break-after-avoid">
+            <span id={`${id}-title`} className="block text-pretty text-ink">
               {title}
             </span>
             {/* A subtitle wraps between its items, never inside one (DESIGN.md, the Whole Item Rule). */}
@@ -83,10 +86,17 @@ export function FigureFrame({
             {children}
           </div>
           {rail && (railBelow || inline) ? <div className={`mt-5 ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
-          {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite">{hint}</p> : null}
-          <figcaption className="text-note mt-4 max-w-[39.2rem] text-graphite">{caption}</figcaption>
+          {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite print:hidden">{hint}</p> : null}
+          <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{caption}</figcaption>
           {table ? <div className="sr-only">{table}</div> : null}
         </div>
+        {/* The margin's readouts, under the number and sticking as the figure scrolls. After the figure in the page's
+            order, so the keyboard and a screen reader meet the figure before what reads it. */}
+        {rail && wide ? (
+          <div className="text-meta hidden text-right font-mono text-graphite lg:col-start-1 lg:row-start-2 lg:block">
+            <div className="sticky top-6 mt-[4.75rem]">{rail}</div>
+          </div>
+        ) : null}
       </div>
     </figure>
   )

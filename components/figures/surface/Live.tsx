@@ -596,9 +596,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             lean.onTap()
             onStillPick(e)
           }}
-          className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair touch-pan-y overflow-x-clip select-none focus-visible:outline-none`}
+          className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
         >
-          <div className="absolute inset-0" style={underlay(live)}>
+          <div data-surface-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
             <Frame>
               {(['wide', 'tall'] as const).map((k) => (
@@ -614,7 +614,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
               ))}
             </Frame>
           </div>
-          <canvas ref={canvas} data-live-canvas="" aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y' }} />
+          <canvas ref={canvas} data-live-canvas="" aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y pinch-zoom' }} />
           {/* The story's narration, on the stage while the line under it is out of view (the line is the one read aloud). */}
           <p
             aria-hidden
@@ -641,6 +641,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
                   ref={(el) => {
                     labelEls.current[i] = el
                   }}
+                  moving
                   text={l.text}
                   align={l.align}
                   kind={l.kind}
@@ -652,6 +653,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
                   n.offset[kind] && (
                     <NoteMark
                       key={n.id}
+                      moving
                       ref={(el) => {
                         noteEls.current[i] = el
                       }}

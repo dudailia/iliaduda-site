@@ -16,6 +16,8 @@ const css = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
  *  inside the prefers-color-scheme block. Each theme is checked on its own. */
 const themeBlock = /@theme\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
 const darkBlock = /@media \(prefers-color-scheme: dark\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
+// Print's own set (a white page, darker graphite and hairline for toner), declared on :root inside @media print.
+const printBlock = /@media print\s*\{\s*:root\s*\{([\s\S]*?)\n  \}/.exec(css)?.[1] ?? ''
 
 function reader(block: string, theme: string) {
   return (name: string): string => {
@@ -46,6 +48,7 @@ function ratio(a: string, b: string): number {
 for (const [theme, block] of [
   ['light', themeBlock],
   ['dark', darkBlock],
+  ['print', printBlock],
 ] as const) {
   const token = reader(block, theme)
   const paper = token('paper')
@@ -89,6 +92,26 @@ for (const [theme, block] of [
     })
   })
 }
+
+describe('the colours drawn outside the stylesheet are its tokens', () => {
+  const hex = (f: string) => readFileSync(f, 'utf8')
+  const light = reader(themeBlock, 'light')
+  const dark = reader(darkBlock, 'dark')
+
+  it('the browser’s own chrome (app/layout.tsx themeColor) is the paper, by day and by night', () => {
+    const src = hex('app/layout.tsx')
+    const color = (scheme: string) => new RegExp(`prefers-color-scheme: ${scheme}\\)', color: '(#[0-9a-fA-F]{6})'`).exec(src)?.[1]?.toLowerCase()
+    expect(color('light')).toBe(light('paper').toLowerCase())
+    expect(color('dark')).toBe(dark('paper').toLowerCase())
+  })
+
+  it('the Open Graph cards (lib/og.tsx) are drawn in the day palette', () => {
+    const src = hex('lib/og.tsx')
+    const og = (k: string) => new RegExp(`\\b${k}: '(#[0-9a-fA-F]{6})'`).exec(src)?.[1]?.toLowerCase()
+    for (const [k, t] of [['paper', 'paper'], ['ink', 'ink'], ['graphite', 'graphite'], ['rule', 'rule'], ['indigo', 'indigo'], ['wash', 'indigo-wash']] as const)
+      expect(og(k), k).toBe(light(t).toLowerCase())
+  })
+})
 
 describe('the palette is exactly the six documented values, in both themes', () => {
   const SIX = new Set(['ink', 'paper', 'graphite', 'rule', 'indigo', 'indigo-wash'])

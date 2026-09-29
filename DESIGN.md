@@ -123,7 +123,7 @@ Each page has one moment, and is calm around it. Four figures open with a signat
 
 ## Colors
 
-The palette is near-monochrome and warm: an off-white page, near-black ink, one grey for secondary text and one for hairlines, plus a deep indigo that belongs to the figures. The night set uses the same six role names, redeclared under `prefers-color-scheme: dark`. Print forces the day set with a pure white page.
+The palette is near-monochrome and warm: an off-white page, near-black ink, one grey for secondary text and one for hairlines, plus a deep indigo that belongs to the figures. The night set uses the same six role names, redeclared under `prefers-color-scheme: dark`. Print has its own set of the six, the day's with a pure white page and a darker graphite (#4a4e55) and hairline (#cfcdc7), since toner is lighter than a screen; every live figure prints its poster or still frames, never a canvas drawn in the screen's palette, and each view prints whole on one sheet. All three sets are held to their ratios by `tests/contrast.test.ts`.
 
 ### Primary
 - **Measurement Indigo** (`indigo`; `indigo-night` at night): the value a figure is claiming, such as the chosen day's yield curve, the calibrated probability, the bar being measured or a slider's filled track. It never appears on a heading, a link, a button or body text.

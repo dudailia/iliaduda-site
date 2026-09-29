@@ -13,11 +13,15 @@ const subscribeMedia = (query: string) => (cb: () => void) => {
   return () => m.removeEventListener('change', cb)
 }
 
+// Made once, not each render: a new subscribe function is a new subscription to useSyncExternalStore.
+const onReducedMotion = subscribeMedia('(prefers-reduced-motion: reduce)')
+const onColorScheme = subscribeMedia('(prefers-color-scheme: dark)')
+
 /** The reader's reduced-motion setting, live. Server render assumes reduced,
  *  so nothing that moves is ever in the HTML. */
 export function useReducedMotion(): boolean {
   return useSyncExternalStore(
-    subscribeMedia('(prefers-reduced-motion: reduce)'),
+    onReducedMotion,
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     () => true,
   )
@@ -26,7 +30,7 @@ export function useReducedMotion(): boolean {
 /** Changes whenever the reader's colour scheme does, for canvas colours. */
 export function useColorScheme(): 'light' | 'dark' {
   return useSyncExternalStore(
-    subscribeMedia('(prefers-color-scheme: dark)'),
+    onColorScheme,
     () => (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
     () => 'light',
   )

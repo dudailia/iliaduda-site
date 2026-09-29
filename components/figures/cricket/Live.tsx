@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
+import { CONTROL } from '@/components/stage/controls'
 
 /**
  * A held-out match, replayed ball by ball: the model's calibrated probability
@@ -133,6 +134,13 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const play = (fromIndex: number) => {
     cancelAnimationFrame(raf.current)
     parked.current = null
+    // Reduced motion (the browser's own answer): the replay's end at once, the whole match, said as it would be.
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setAt(n - 1)
+      setPlaying(false)
+      setSaid(`Replayed to the end: ${result}.`)
+      return
+    }
     from.current = fromIndex
     elapsed.current = 0
     setPlaying(true)
@@ -296,15 +304,13 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
           </div>
         </div>
 
-        {/* Innings, named under the axis rather than over the curve. */}
-        <div aria-hidden className="text-meta relative mt-1.5 ml-11 h-5 font-mono text-graphite">
-          <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${(x(breakAt) / W) * 50}%` }}>
+        {/* Innings, named under the axis rather than over the curve: each name centred under its own innings and kept
+            to its width, so on a narrow screen it wraps rather than running into the other. */}
+        <div aria-hidden className="text-meta mt-1.5 ml-11 flex font-mono text-graphite">
+          <span className="px-1 text-center text-balance" style={{ width: `${(x(breakAt) / W) * 100}%` }}>
             {first} batting
           </span>
-          <span
-            className="absolute -translate-x-1/2 whitespace-nowrap"
-            style={{ left: `${(x(breakAt) / W) * 100 + (100 - (x(breakAt) / W) * 100) / 2}%` }}
-          >
+          <span className="px-1 text-center text-balance" style={{ width: `${100 - (x(breakAt) / W) * 100}%` }}>
             {second} chasing
           </span>
         </div>
@@ -322,7 +328,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               else if (at >= n - 1) replay()
               else play(at)
             }}
-            className="text-meta w-[4.5rem] shrink-0 rounded-sm border border-graphite px-2 py-1.5 font-mono transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]"
+            className={`${CONTROL} w-[4.5rem] shrink-0`}
           >
             {playing ? 'Pause' : at >= n - 1 ? 'Replay' : 'Play'}
           </button>

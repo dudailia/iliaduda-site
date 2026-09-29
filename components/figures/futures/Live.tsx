@@ -184,7 +184,13 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     )
     if (s.hist) {
       const { sigma: sg, strike: k } = params.current
-      setTable({ sigma: sg, strike: k, n: s.n, mean: s.mean, se: s.se, counts: s.hist.counts, payoff: s.hist.payoff })
+      const hist = s.hist
+      // Once a second; paused or finished, the same table each time, which need not render the figure again.
+      setTable((was) =>
+        was.n === s.n && was.mean === s.mean && was.sigma === sg && was.strike === k
+          ? was
+          : { sigma: sg, strike: k, n: s.n, mean: s.mean, se: s.se, counts: hist.counts, payoff: hist.payoff },
+      )
     }
     if (s.n > 0) {
       setHistory((h) => {
@@ -318,9 +324,11 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
   // determinism the two are one number (tests/futures.test.ts, tests/e2e/hero.spec.ts).
   const browserSigma = useRef<number | null>(null)
   const sigmaChecked = useRef(false)
+  // It waits out the opening sequence: its script is fetched and started only once the story is over (or was never to
+  // play), so none of it lands on the one moment of the visit.
+  const storyQuiet = seq !== 'pending' && seq !== 'playing'
   useEffect(() => {
-    if (!live || sigmaChecked.current) return
-    sigmaChecked.current = true
+    if (!live || !storyQuiet || sigmaChecked.current) return
     let w: Worker | null = null
     try {
       w = new Worker(new URL('../../../lib/market/market.worker.ts', import.meta.url), { type: 'module' })
@@ -330,6 +338,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     w.onmessage = (e: MessageEvent<{ kind: string; sigma?: number }>) => {
       if (e.data?.kind !== 'ready' || typeof e.data.sigma !== 'number') return
       const got = e.data.sigma
+      // Checked once it has answered: one stopped before then (the story replayed) starts again when it is quiet.
+      sigmaChecked.current = true
       browserSigma.current = got
       const el = box.current
       if (el) {
@@ -344,7 +354,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     }
     w.postMessage({ kind: 'start', seed: market.seed, t: market.t })
     return () => w?.terminate()
-  }, [live, market.seed, market.t, box])
+  }, [live, storyQuiet, market.seed, market.t, box])
   // The kit reports live once the renderer draws; from then the GPU owns the counter.
   useEffect(() => {
     liveRef.current = live
@@ -534,7 +544,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
 
   // Pointer: drag sideways for volatility, point to preview a strike, click or
   // tap to set it. While the sequence plays the stage only skips it.
-  const drag = useRef<{ id: number; x: number; s: number; moved: boolean } | null>(null)
+  const drag = useRef<{ id: number; x: number; y: number; s: number; moved: boolean; touch: boolean } | null>(null)
   const kAt = (x: number, y: number) => {
     const p = renderer.current?.priceAt(x, y)
     return p == null ? null : Math.round(Math.min(MODEL.strikeMax, Math.max(MODEL.strikeMin, p)))
@@ -543,7 +553,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     if (!live || drag.current || playing()) return
     // Touching the figure mid-flight brings the camera home instead.
     if (flight.current.flying) return stopFlight()
-    drag.current = { id: e.pointerId, x: e.clientX, s: sigma, moved: false }
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, s: sigma, moved: false, touch: e.pointerType === 'touch' }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -558,7 +568,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const d = drag.current
     if (d && d.id === e.pointerId) {
       const dx = e.clientX - d.x
-      if (Math.abs(dx) > 4) d.moved = true
+      // A finger's drag is a drag only when it is plainly sideways: a thumb scrolling past the figure, a little off
+      // vertical, is a scroll, and moves nothing.
+      if (d.touch ? Math.abs(dx) > 10 && Math.abs(dx) > 1.5 * Math.abs(e.clientY - d.y) : Math.abs(dx) > 4) d.moved = true
       if (!d.moved) return
       const w = e.currentTarget.getBoundingClientRect().width
       const s = Math.round(Math.min(MODEL.sigmaMax, Math.max(MODEL.sigmaMin, d.s + (dx / w) * 0.9)) * 100) / 100
@@ -574,9 +586,13 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     renderer.current?.preview(null)
     if (k != null && k !== strike) commit(sigma, k, true)
   }
-  // A cancelled pointer (the page took the gesture: a scroll) sets nothing.
+  // A cancelled pointer (the page took the gesture: a scroll, a pinch) sets nothing: what its first moves changed goes
+  // back to where the gesture found it.
   const onCancel = (e: PointerEvent<HTMLDivElement>) => {
-    if (drag.current?.id === e.pointerId) drag.current = null
+    const d = drag.current
+    if (d?.id !== e.pointerId) return
+    drag.current = null
+    if (d.moved && d.s !== sigma) commit(d.s, strike)
   }
   const onLeave = () => {
     renderer.current?.preview(null)
@@ -807,7 +823,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           data-fps={fps}
           data-quality={quality}
           data-tier={tier ?? ''}
-          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden sm:mx-0 sm:h-[clamp(28rem,62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] ${live ? 'cursor-crosshair touch-pan-y select-none' : ''}`}
+          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -826,7 +842,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             className="absolute inset-0 size-full"
             style={{
               ...fade(stillShown),
-              filter: stillShown ? 'blur(0)' : 'blur(2px)',
+              filter: stillShown ? 'none' : 'blur(2px)',
               transition: `${fade(stillShown).transition}, filter 240ms ${EASE_OUT_CSS}`,
             }}
           />

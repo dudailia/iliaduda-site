@@ -24,12 +24,12 @@ export function contactLinks() {
 
 export function ContactLinks({ className = '' }: { className?: string }) {
   return (
-    <ul className={`flex flex-wrap gap-x-5 gap-y-0 ${className}`}>
+    <ul role="list" className={`flex flex-wrap gap-x-5 gap-y-0 ${className}`}>
       {contactLinks().map((l) => (
         <li key={l.href}>
           {/* The padding is the tap target, not the look: 36px tall at the
               meta size without moving a single glyph. */}
-          <a href={l.href} className="inline-block min-w-6 py-2 text-center leading-5">
+          <a href={l.href} className="inline-block max-w-full min-w-6 py-2 text-center leading-5 [overflow-wrap:anywhere]">
             {l.label}
           </a>
         </li>
@@ -49,11 +49,12 @@ export function Masthead() {
   ] as const
 
   return (
-    <header className="pt-10 sm:pt-14 lg:pt-12">
+    <header className="pt-10 sm:pt-14 lg:pt-12 [@media(max-height:30rem)]:pt-6">
       <Row>
         <h1 className="text-h1 lg:text-display">{PERSON.name}</h1>
-        {/* The full measure at lg: three lines instead of four, so the front matter and Fig. 1 share a laptop's first screen. */}
-        <p className="mt-4 max-w-[36rem] lg:max-w-none">{POSITIONING}</p>
+        {/* The full measure at lg: three lines instead of four, so the front matter and Fig. 1 share a laptop's first screen;
+            on a short screen (a phone turned sideways) too, so the contact links are on its first. */}
+        <p className="mt-4 max-w-[36rem] lg:max-w-none [@media(max-height:30rem)]:max-w-none">{POSITIONING}</p>
       </Row>
 
       <dl className="mt-7 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 lg:mt-6 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">

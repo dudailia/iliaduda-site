@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-25T14:40:23.123867+00:00",
+  "generatedAt": "2026-09-29T05:30:23.244418+00:00",
   "title": "Design System: Ilia Duda — working papers",
   "extensions": {
     "colorMeta": {
@@ -54,12 +54,12 @@
       {
         "name": "ease-orchestrated",
         "value": "cubic-bezier(0.77, 0, 0.175, 1)",
-        "purpose": "Hero tilt (900ms), contents-to-figure morph (380ms), FLIP reorder (280ms)."
+        "purpose": "On-screen movement: the contents-to-figure morph (380ms), the ranking reorder and its bars (280ms), the view transitions' figure groups; the site token --ease-in-out."
       },
       {
         "name": "ease-out",
         "value": "cubic-bezier(0.23, 1, 0.32, 1)",
-        "purpose": "Root crossfade (180ms), confidence settle (240ms)."
+        "purpose": "Entrances and state changes: the root crossfade (180ms), a miniature's crossfade in (180ms), the confidence settle (240ms), label fades and blur swaps (120–200ms); the site token --ease-out."
       },
       {
         "name": "state",
@@ -126,7 +126,7 @@
   ],
   "narrative": {
     "northStar": "A working paper whose figures are alive",
-    "overview": "The site is set as a short journal issue. A masthead carries the front matter, Contents lists seven papers, and each paper is a few hundred words of argument around one figure. You can turn, scrub, drag or re-run the figure, and every number in it traces back to a file. The reader is a recruiter at a quantitative, trading or investment firm who gives the first screen thirty seconds, then forwards the link to someone who checks the claims. So the register is the one both of them already trust: the academic paper. It uses serif text, a margin, numbered figures and captions that state what the figure shows.\n\nDensity is literary rather than dashboard-like. There is one text column at a fixed measure, a margin to its left that holds headings, figure numbers and readouts, and generous vertical space between sections. Everything is typographic: no cards, no icons, no photographs except one small portrait in the margin of /about. Colour is almost absent, which is what lets the one accent mean something.\n\nIt is calm everywhere except once. The home page's implied-volatility surface gets a single orchestrated entrance. Two figures replay once when first seen (the cricket match and the CloseBooks batch). Everything else changes state only in direct response to the reader.",
+    "overview": "The site is set as a short journal issue. A masthead carries the front matter, Contents lists seven papers, and each paper is a few hundred words of argument around one figure. You can turn, scrub, drag or re-run the figure, and every number in it traces back to a file. The reader is a recruiter at a quantitative, trading or investment firm who gives the first screen thirty seconds, then forwards the link to someone who checks the claims. So the register is the one both of them already trust: the academic paper. It uses serif text, a margin, numbered figures and captions that state what the figure shows.\n\nDensity is literary rather than dashboard-like. There is one text column at a fixed measure, a margin to its left that holds headings, figure numbers and readouts, and generous vertical space between sections. Everything is typographic: no cards, no icons, no photographs except one small portrait in the margin of /about. Colour is almost absent, which is what lets the one accent mean something.\n\nEach page has one moment, and is calm around it. Four figures open with a signature, once per visit: the home page's Fig. 1, a million simulated futures for one stock, bursts out of today and swings into depth; the order book's terrain rises out of the page as its order flow starts; the IV surface forms, its smiles first, and takes one volatility shock; and /market's one market, drawn three ways, takes a liquidity shock that lands in all three views in the same frame, the most dramatic moment on the site. After it each stays alive, the one continuous motion on its page: the futures keep streaming, the markets keep trading, the views drift slowly and lean toward the reader's pointer or with a phone's tilt, until the reader presses Pause. Two figures replay once when first seen (the cricket match and the CloseBooks batch). The Contents' thumbnails are small live copies of their figures, quiet data motion with no story of their own. Everything else changes state only in direct response to the reader.",
     "keyCharacteristics": [
       "One serif family for all prose and headings, one mono for labels, data and measurement. No third face, no display weight.",
       "An asymmetric grid: a 15rem rail to the left of a 710px text column; below 64rem the rail folds inline.",
@@ -178,7 +178,7 @@
       "**Don't** use indigo outside a figure, or for anything in a figure except the claimed value.",
       "**Don't** add cards, shadows, icons, emoji, gradients, badges or a hero-metric block. This is a paper.",
       "**Don't** put a label above a heading. The byline goes under the title.",
-      "**Don't** add motion that plays by itself beyond the three existing moments, and never without a reduced-motion path.",
+      "**Don't** add motion that plays by itself beyond the moments listed under Figures › Motion, and never without a reduced-motion path.",
       "**Don't** position anything absolutely inside the CV sheet. Chromium writes the PDF text layer in paint order, and positioned boxes paint last.",
       "**Don't** load anything from another origin: no CDN, fonts, analytics or scripts."
     ]

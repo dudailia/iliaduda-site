@@ -8,12 +8,13 @@ import { Flow } from '@/lib/market/flow'
 import { TRADING_SECONDS } from '@/lib/market/realised'
 import { pageMeta } from '@/lib/meta'
 import { fmt } from '@/lib/orderbook/read'
+import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'order-book')!
 
 export const metadata = pageMeta('/order-book', paper.title, paper.abstract)
 
-const SRC = 'https://github.com/dudailia/iliaduda-site/blob/redesign'
+const SRC = SOURCE
 
 /** The calm market's own numbers, measured at build time on the seed the figure draws: ten simulated minutes. */
 function measured() {
@@ -163,8 +164,8 @@ export default function OrderBook() {
             [
               'tests',
               <span key="t">
-                <a className="inline-block py-0.5" href={`${SRC}/tests/market-flow.test.ts`}>tests/market-flow.test.ts</a> ·{' '}
-                <a className="inline-block py-0.5" href={`${SRC}/tests/orderbook-flowview.test.ts`}>tests/orderbook-flowview.test.ts</a>
+                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/market-flow.test.ts`}>tests/market-flow.test.ts</a> ·{' '}
+                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/orderbook-flowview.test.ts`}>tests/orderbook-flowview.test.ts</a>
               </span>,
             ],
             ['renderer', <a key="r" href={`${SRC}/components/figures/orderbook/renderer.ts`}>components/figures/orderbook/renderer.ts</a>],

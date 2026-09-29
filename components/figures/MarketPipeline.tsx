@@ -1,4 +1,5 @@
 import { syntheticValue as value } from '@/content/synthetic'
+import { FAN } from '@/lib/futures/fan'
 import { PipelineLive } from './market/Pipeline'
 
 /**
@@ -10,6 +11,7 @@ export function MarketPipelineFigure() {
   const tick = value('mkTick')
   return (
     <PipelineLive
+      paths={FAN.paths}
       title="Where it runs: the market in a worker, the three views on the page, and one buffer between them."
       subtitle={`Simulated market · measured in your browser · tick $${tick.toFixed(2)}`}
       caption={

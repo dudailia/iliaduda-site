@@ -133,9 +133,16 @@ export function OrderBookLive({
   const pinApi = useRef<(k: KeyProbe) => void>(() => {})
   /** The live renderer, for Replay: the terrain sinks back into the page before the story plays again. */
   const book = useRef<BookRenderer | null>(null)
+  const [software, setSoftware] = useState(false)
 
   const create: Create = useCallback(
     (env) => {
+      // A software rasteriser would draw the terrain on the CPU at a fraction of the display's rate and hold Fig. 2
+      // back with it: there the still frame stays the figure, and says why, as the home figure and the IV surface do.
+      if (env.tier === 'software') {
+        queueMicrotask(() => setSoftware(true))
+        return null
+      }
       let mod: Mod | null = null
       let inner: BookRenderer | null = null
       let size: [number, number, number, number] | null = null
@@ -253,13 +260,15 @@ export function OrderBookLive({
       ? 'Still frame: your system asks for reduced motion.'
       : declined
         ? DECLINED_TEXT[declined]
-        : !eligible
-        ? saveData()
-          ? 'Still frame: your browser asks to save data.'
-          : supportsWebGL2()
-            ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
-            : 'Still frame: this browser has no WebGL2.'
-        : null
+        : software
+          ? 'Still frame: this browser draws WebGL in software.'
+          : !eligible
+            ? saveData()
+              ? 'Still frame: your browser asks to save data.'
+              : supportsWebGL2()
+                ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
+                : 'Still frame: this browser has no WebGL2.'
+            : null
 
   // Where Fig. 1 keeps its still frame, Fig. 2 draws that same moment, still (./market.ts).
   useEffect(() => {
@@ -483,7 +492,7 @@ export function OrderBookLive({
             lean.onTap()
             onStillPick(e)
           }}
-          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(28rem,62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)]"
+          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)]"
         >
           <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
@@ -507,10 +516,11 @@ export function OrderBookLive({
 
       {/* The reading takes the row's width and the controls keep their own place, so a reading never moves them. */}
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
-        {/* On a phone the reading wraps rather than lose its end, in room kept for its longest (four lines). */}
-        <dl id="fig-order-book-probe" className="text-meta grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono max-sm:min-h-[4lh] max-sm:[&_dd]:whitespace-normal" aria-label="Probe reading">
+        {/* The reading wraps rather than lose its end (enlarged text included), in room kept for its longest: four lines,
+            in the reading's own line height, so the room grows with the text. */}
+        <dl id="fig-order-book-probe" className="text-meta grid min-h-[4lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono" aria-label="Probe reading">
           <dt className="text-graphite">Probe</dt>
-          <dd className="text-ink sm:truncate">
+          <dd className="text-ink">
             <span ref={ref('p-price')} className="tabular">
               —
             </span>{' '}
@@ -519,14 +529,14 @@ export function OrderBookLive({
             </span>
           </dd>
           <dt className="text-graphite">Queue</dt>
-          <dd className="text-ink sm:truncate">
+          <dd className="text-ink">
             <span ref={ref('p-queue')} className="tabular">
               —
             </span>{' '}
             <span ref={ref('p-cum')} className="text-graphite" />
           </dd>
           <dt className="text-graphite">When</dt>
-          <dd ref={ref('p-ago')} className="tabular text-ink sm:truncate">
+          <dd ref={ref('p-ago')} className="tabular text-ink">
             —
           </dd>
         </dl>

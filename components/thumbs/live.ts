@@ -101,6 +101,10 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
           ({ make }) => {
             if (gone) return
             const cv = document.createElement('canvas')
+            // No size until its first frame lays it on the box: a canvas's own default (300 × 150) would stand past a
+            // thumbnail that never became the one moving, and widen the page.
+            cv.width = 0
+            cv.height = 0
             cv.setAttribute('aria-hidden', 'true')
             cv.className = 'pointer-events-none absolute top-0 left-0 print:hidden opacity-0 transition-opacity duration-[180ms] ease-out'
             const g = cv.getContext('2d')

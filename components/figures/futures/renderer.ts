@@ -1289,6 +1289,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       buildScreen()
       dirty = true
     },
+    // The display's refresh as the stage's governor learned it (a 30 Hz clock in Low Power Mode, say): the pricing
+    // judges its frames by it, so a slow clock is not read as a backlog and the batches do not shrink to one.
+    refresh(interval) {
+      clock.vsync = Math.max(1 / 240, interval)
+    },
     setQuality(level) {
       // Mid-sequence, a new pricing grid would restart the estimate and a
       // bloom switch would change the picture under the reader: it waits.

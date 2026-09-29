@@ -228,7 +228,7 @@ export function OfzLive({
                   }}
                   aria-pressed={at === m.index}
                   className={`absolute ${align} rounded-sm px-1 py-1 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out ${
-                    at === m.index ? 'text-ink' : 'text-graphite hover:text-ink'
+                    at === m.index ? 'text-ink forced-colors:[outline:2px_solid_Highlight]' : 'text-graphite hover:text-ink'
                   }`}
                   style={{ left: end ? `${f * 100}%` : `calc(8px + (100% - 16px) * ${f})` }}
                 >

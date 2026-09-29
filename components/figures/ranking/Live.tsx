@@ -4,6 +4,7 @@ import { EASE_IN_OUT_CSS, EASE_OUT_CSS } from '@/lib/ease'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { useReducedMotion } from '@/components/stage/env'
+import { option } from '@/components/stage/controls'
 
 /**
  * The ranking, live: three treatments of one dataset, and the top of the
@@ -166,9 +167,7 @@ export function RankingLive({
               }
             }}
             tabIndex={v === x.key ? 0 : -1}
-            className={`rounded-sm border px-2.5 py-2 transition-colors duration-150 ease-out ${
-              v === x.key ? 'border-ink bg-ink text-paper' : 'border-graphite text-ink hover:border-ink'
-            }`}
+            className={option(v === x.key)}
           >
             {x.label}
           </button>
@@ -178,7 +177,7 @@ export function RankingLive({
         {current.note}
       </p>
 
-      <ol ref={list} aria-label={`Top ${SHOWN} segments, ${current.label.toLowerCase()}`} className="relative mt-3 grid list-none border-t border-rule">
+      <ol ref={list} role="list" aria-label={`Top ${SHOWN} segments, ${current.label.toLowerCase()}`} className="relative mt-3 grid list-none border-t border-rule">
         {shown.map((r) => {
           const was = r.a.rank
           const now = r[v].rank
@@ -190,7 +189,9 @@ export function RankingLive({
               className="grid min-w-0 grid-cols-[1.5rem_minmax(0,8.5rem)_1fr_2.5rem_2.25rem] items-center gap-x-2.5 border-b border-rule py-1.5 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
             >
               <span className="text-meta tabular text-graphite">{now}</span>
-              <span className="text-note truncate">
+              {/* The whole name, wrapping if it must (at a phone's width, or enlarged): a row's height is its name's,
+                  the same under every treatment, so a switch still moves rows without resizing them. */}
+              <span className="text-note min-w-0 leading-snug [overflow-wrap:anywhere]">
                 {r.name}
                 {v === 'a' && r.zeroed ? (
                   <span className="text-meta ml-1.5 font-mono text-graphite" title="Absent from the growth table: growth and CAGR scored zero">
@@ -222,7 +223,7 @@ export function RankingLive({
             style={{ top: g.top, height: g.height }}
           >
             <span className="text-meta tabular text-graphite">{g.rank}</span>
-            <span className="text-note truncate">{g.row.name}</span>
+            <span className="text-note min-w-0 leading-snug [overflow-wrap:anywhere]">{g.row.name}</span>
             <span className="relative h-2.5">
               <span className="absolute inset-y-0 left-0 w-full origin-left bg-indigo" style={{ transform: `scaleX(${g.frac})` }} />
             </span>

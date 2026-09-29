@@ -45,7 +45,7 @@ test.describe('before any script runs', () => {
     await expect(img).toHaveCount(1)
     await expect(img).toHaveAttribute('alt', /synthetic order book.*\$\d+\.\d{2}/)
     await expect(page.locator('#fig-order-book svg:visible text').filter({ hasText: /^Price \$/ })).toHaveCount(1)
-    await expect(page.locator('#fig-order-book dd').first()).toHaveText(/^\$\d+\.\d{2,3}$/)
+    await expect(page.locator('#fig-order-book dt:text-is("Mid") + dd').first()).toHaveText(/^\$\d+\.\d{2,3}$/)
   })
 
   test('fetches one poster, the one its screen shows, and it follows the colour scheme', async ({ page, isMobile }) => {
@@ -150,8 +150,9 @@ test('paused, it draws nothing new until the reader points at it, and the probe 
   await page.goto('/order-book')
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   await page.locator('#fig-order-book').getByRole('button', { name: 'Pause' }).click()
-  // Whatever was still settling (the lean, a label's fade) comes to rest; then nothing is drawn.
-  await page.waitForTimeout(1_000)
+  // Whatever was still settling (the lean, a label's fade, the price window coasting with the camera over 240ms) comes
+  // to rest; then nothing is drawn.
+  await page.waitForTimeout(500)
   const n = await attr(page, 'draws')
   await page.waitForTimeout(1_000)
   expect(await attr(page, 'draws')).toBe(n)

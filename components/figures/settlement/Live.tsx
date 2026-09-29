@@ -1,9 +1,10 @@
 'use client'
 
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { EPISODE_MS, requestCode, used, WINDOWS, type Allowance, type Outcome } from '@/lib/contact'
 import { LADDER, offeredTerms, rub, terms, termForMonthly } from '@/lib/settlement'
+import { CONTROL, option } from '@/components/stage/controls'
 
 /**
  * Two things the portal's debtor path has to get right, side by side: what a
@@ -50,12 +51,24 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
     setIndex(Math.max(0, o.findIndex((t) => t.months >= 12)))
     setTyped('')
   }
+  // What typing an amount chose, said once the reader stops typing (the slider and readouts it moves say nothing).
+  const [heard, setHeard] = useState('')
+  const heardTimer = useRef(0)
+  useEffect(() => () => clearTimeout(heardTimer.current), [])
   const onTyped = (v: string) => {
     setTyped(v)
+    clearTimeout(heardTimer.current)
     const roubles = Number.parseInt(v.replace(/[^\d]/g, ''), 10)
     if (Number.isFinite(roubles) && roubles > 0) {
       const months = termForMonthly(debt, roubles * 100)
-      setIndex(offered.findIndex((t) => t.months === months))
+      const at = offered.findIndex((t) => t.months === months)
+      setIndex(at)
+      const t = offered[at]
+      if (t)
+        heardTimer.current = window.setTimeout(
+          () => setHeard(`Closest offered term: ${t.months === 1 ? 'one payment' : `${t.months} months`}, ${rub(t.s.monthly)} a month.`),
+          700,
+        )
     }
   }
 
@@ -74,8 +87,6 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
   const inEpisode = allowance.episodes.length > 0 && now - allowance.episodes.at(-1)! < EPISODE_MS
 
   // Controls that act press to 0.97; a radio group's selection changes fill instead (DESIGN.md, Buttons).
-  const btn = 'text-meta rounded-sm border px-2.5 py-1.5 font-mono transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]'
-  const radio = 'text-meta rounded-sm border px-2.5 py-1.5 font-mono transition-[border-color,background-color,color] duration-150 ease-out hover:border-ink'
 
   const rail = (
     <Readouts
@@ -140,7 +151,7 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                   chooseDebt(DEBTS[next]!)
                   debtButtons.current[next]?.focus()
                 }}
-                className={`${radio} ${debt === d ? 'border-ink bg-ink text-paper' : 'border-graphite text-ink'}`}
+                className={option(debt === d)}
               >
                 {rub(d)}
               </button>
@@ -174,9 +185,12 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                 value={typed}
                 onChange={(e) => onTyped(e.currentTarget.value)}
                 placeholder="e.g. 4000"
-                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite"
+                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite max-sm:text-[1rem]"
               />
             </label>
+            <p className="sr-only" aria-live="polite">
+              {heard}
+            </p>
           </div>
 
           {/* Not a live region: these follow the reader's own inputs, which speak for themselves. */}
@@ -248,13 +262,13 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
             The login’s statutory cost · 230-FZ art. 7, messages
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={request} className={`${btn} border-ink text-ink`}>
+            <button type="button" onClick={request} className={CONTROL}>
               {inEpisode ? 'Send the code again' : 'Request a login code'}
             </button>
-            <button type="button" onClick={() => setNow((t) => t + 10 * MIN)} className={`${btn} border-graphite text-ink`}>
+            <button type="button" onClick={() => setNow((t) => t + 10 * MIN)} className={CONTROL}>
               +10 minutes
             </button>
-            <button type="button" onClick={() => setNow((t) => t + DAY)} className={`${btn} border-graphite text-ink`}>
+            <button type="button" onClick={() => setNow((t) => t + DAY)} className={CONTROL}>
               +1 day
             </button>
             <button
@@ -264,7 +278,7 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                 setAllowance({ episodes: [], refused: false })
                 setOutcome(null)
               }}
-              className={`${btn} border-graphite text-graphite`}
+              className={CONTROL}
             >
               Reset
             </button>

@@ -34,7 +34,8 @@ export function Poster({ at, mesh = IV_MESH, notes = true, lazy = false }: { at:
       <Frame>
         <picture>
           <source media="(width < 40rem)" srcSet={mesh.tall} width={tall.width} height={FRAME_H} />
-          <img data-fill="" data-mesh="" src={mesh.wide} width={wide.width} height={FRAME_H} alt="" decoding="async" loading={lazy ? 'lazy' : undefined} className="absolute inset-0 h-full w-full" />
+          {/* The figure's picture, and on a laptop the page's largest: asked for first, unless the page defers it. */}
+          <img data-fill="" data-mesh="" src={mesh.wide} width={wide.width} height={FRAME_H} alt="" decoding="async" loading={lazy ? 'lazy' : undefined} fetchPriority={lazy ? undefined : 'high'} className="absolute inset-0 h-full w-full" />
         </picture>
         <Marks d={wide} kind="wide" notes={notes} />
         <Marks d={tall} kind="tall" notes={notes} />

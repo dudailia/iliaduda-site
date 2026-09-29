@@ -44,7 +44,7 @@ function Crossing({ to, words }: { to: 'worker' | 'page'; words: ReactNode }) {
   )
 }
 
-export function PipelineLive({ title, subtitle, caption, table }: { title: string; subtitle: string; caption: ReactNode; table: ReactNode }) {
+export function PipelineLive({ title, subtitle, caption, table, paths }: { title: string; subtitle: string; caption: ReactNode; table: ReactNode; paths: number }) {
   const out = useRef<Record<string, HTMLElement | null>>({})
   useEffect(() => {
     const write = (id: string, text: string) => {
@@ -97,7 +97,7 @@ export function PipelineLive({ title, subtitle, caption, table }: { title: strin
         <Box label="A worker" title="The market, and its futures">
           <li>Hawkes order flow into a limit order book, in quanta of 1/60 of a second</li>
           <li>its realised volatility, its stress, and the liquidity shock</li>
-          <li>a fan of 4,096 futures each simulated second, a slice a frame</li>
+          <li>a fan of {paths.toLocaleString('en-US')} futures each simulated second, a slice a frame</li>
         </Box>
         <div className="flex flex-row items-center justify-center gap-6 sm:flex-col sm:justify-center sm:gap-5">
           <Crossing to="worker" words="a frame, asked for at the page’s clock" />

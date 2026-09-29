@@ -5,6 +5,7 @@ import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { categorise, exportable, type Account, type Line, type Result, type Status } from '@/lib/closebooks'
 import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
+import { CONTROL } from '@/components/stage/controls'
 
 /**
  * One batch through the pipeline. Rows arrive in batch order — indexed from 0,
@@ -191,7 +192,7 @@ export function CategorisationLive({
           approved {counts.auto} · waiting {lit(String(counts.review), 'review')} · blocked {lit(String(counts.blocked), 'blocked')} · exportable{' '}
           {lit(`${counts.out} of ${feed.length}`, 'out')}
         </p>
-        <ol className="grid list-none border-t border-rule" aria-label="Categorised bank lines">
+        <ol role="list" className="grid list-none border-t border-rule" aria-label="Categorised bank lines">
           {feed.map((l, i) => {
             const r = results[i]!
             const st = status(i)
@@ -228,7 +229,7 @@ export function CategorisationLive({
               >
                 <div className="flex items-baseline gap-x-3">
                   <span className="text-meta tabular w-5 shrink-0 text-graphite">{i}</span>
-                  <span className="text-note min-w-0 flex-1 truncate">{l.description}</span>
+                  <span className="text-note min-w-0 flex-1">{l.description}</span>
                   <span className="text-meta tabular shrink-0 text-ink">
                     {l.type === 'credit' ? '+' : '−'}
                     {money(l.amount)}
@@ -267,13 +268,14 @@ export function CategorisationLive({
                       {conf.toFixed(2)}
                     </span>
                   </span>
-                  <span className="col-start-2 mt-1.5 flex items-center gap-2 sm:col-start-auto sm:mt-0 sm:justify-end">
+                  {/* A button's height kept from the start, so a row's "…" becoming Approve or Map does not grow it. */}
+                  <span className="col-start-2 mt-1.5 flex min-h-8 items-center gap-2 sm:col-start-auto sm:mt-0 sm:justify-end">
                     {st === 'pending' && final ? (
                       <button
                         type="button"
                         onClick={() => act(i, 'approved-by-reviewer')}
                         aria-label={`Approve line ${i}, ${l.description}`}
-                        className="text-meta rounded-sm border border-ink px-2 py-1 font-mono transition-transform duration-150 ease-out active:scale-[0.97]"
+                        className={CONTROL}
                       >
                         Approve
                       </button>
@@ -281,8 +283,8 @@ export function CategorisationLive({
                       <button
                         type="button"
                         onClick={() => act(i, 'remapped')}
-                        aria-label={`Map line ${i}, ${l.description}, to account ${remap[l.suggested.code]}`}
-                        className="text-meta rounded-sm border border-ink px-2 py-1 font-mono transition-transform duration-150 ease-out active:scale-[0.97]"
+                        aria-label={`Map to ${remap[l.suggested.code]}: line ${i}, ${l.description}`}
+                        className={CONTROL}
                       >
                         Map to {remap[l.suggested.code]}
                       </button>
@@ -316,7 +318,7 @@ export function CategorisationLive({
               if (armed.current) release()
               stream()
             }}
-            className="text-meta rounded-sm border border-graphite px-2 py-1 font-mono transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]"
+            className={CONTROL}
           >
             Run the batch again
           </button>

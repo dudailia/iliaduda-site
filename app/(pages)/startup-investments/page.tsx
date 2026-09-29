@@ -7,6 +7,7 @@ import ranking from '@/content/data/startup-ranking.json'
 import { fact } from '@/content/facts'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
+import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'startup-investments')!
 
@@ -23,7 +24,7 @@ function robust(top: number): string[] {
 }
 
 const REPO = 'https://github.com/dudailia/startup-investment-analysis'
-const SRC = 'https://github.com/dudailia/iliaduda-site/blob/redesign'
+const SRC = SOURCE
 
 export default function StartupInvestments() {
   const top10 = robust(10)

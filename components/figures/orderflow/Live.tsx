@@ -233,7 +233,9 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     const lane = laneAt(e.clientY - box.top)
     const { x0, pw } = plot(box.width)
     if (lane < 0 || x < x0 - 4 || x > x0 + pw + 4) return null
-    const age = pickEvent(f, { t0: f.t - SECONDS, t1: f.t, cols: 1 }, (x - x0) / pw, lane, (6 / pw) * SECONDS)
+    // Six pixels either side for a mouse; a fingertip is wider, and the strips move under it, so fourteen.
+    const reach = e.pointerType === 'touch' ? 14 : 6
+    const age = pickEvent(f, { t0: f.t - SECONDS, t1: f.t, cols: 1 }, (x - x0) / pw, lane, (reach / pw) * SECONDS)
     if (age === null) return null
     const i = f.event(age)
     return { e: i, t: f.ev.t[i]! }
@@ -377,7 +379,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           onBlur={() => market.hold('focus', false)}
           // A click pins the order being read, the one under the pointer a moment ago, not whatever slid under it.
           onPointerUp={(e) => pin(e.pointerType === 'mouse' && hovered.current && alive(market.flow, hovered.current) ? hovered.current : under(e))}
-          className="peer relative cursor-crosshair touch-pan-y select-none [--g:0px] focus-visible:outline-none @min-[520px]:[--g:124px]"
+          className="peer relative cursor-crosshair touch-pan-y touch-pinch-zoom select-none [--g:0px] focus-visible:outline-none @min-[520px]:[--g:124px]"
           style={{ height: HEIGHT }}
         >
           <div className="absolute inset-y-0 right-2 left-(--g)" style={underlay(live)} data-orderflow-still="">
@@ -393,22 +395,22 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         {/* Room kept for the longest reading, so choosing an order never moves the page below it. */}
         <dl
           id="fig-order-flow-reading"
-          className="text-meta grid min-h-[6.6rem] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[3.9rem]"
+          className="text-meta grid min-h-[6.6rem] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh]"
           aria-label="Reading"
         >
           <dt className="text-graphite">Order</dt>
-          <dd className="text-ink sm:truncate">
+          <dd className="text-ink">
             <span ref={ref('ev')}>—</span>{' '}
             <span ref={ref('ev-more')} className="text-graphite">
               point at an order
             </span>
           </dd>
           <dt className="text-graphite">Set off by</dt>
-          <dd ref={ref('par')} className="text-ink sm:truncate">
+          <dd ref={ref('par')} className="text-ink">
             —
           </dd>
           <dt className="text-graphite">On its own</dt>
-          <dd ref={ref('own-one')} className="text-ink sm:truncate">
+          <dd ref={ref('own-one')} className="text-ink">
             —
           </dd>
         </dl>
@@ -462,7 +464,8 @@ function Labels() {
   const inside = `${text} left-1.5 rounded-sm bg-paper px-1 text-graphite @min-[520px]:hidden`
   const top = (y: number) => ({ top: Math.round(y) })
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0">
+    // Clipped to the stage: enlarged text (the strips' geometry is the canvas's, in pixels) never widens the page.
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-x-clip">
       {LANE_NAMES.map((name, i) => (
         <span key={name} className={gutter} style={top(laneTop(i) + LANE_H / 2 - 6.5)}>
           {name}

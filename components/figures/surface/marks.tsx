@@ -30,11 +30,16 @@ const ALIGN: Record<string, string> = {
   above: 'translate(-50%, -100%)',
 }
 
-export function AxisLabel({ text, align, kind, className = '', style, ref }: { text: string; align: string; kind: string; className?: string; style?: CSSProperties; ref?: Ref<HTMLSpanElement> }) {
+/**
+ * An axis's word, placed by the renderer (or the poster) at its projected point. `moving` promotes it to its own layer,
+ * for a live figure that moves it every frame; a poster's stand still. A title sits on a paper chip, as the notes do,
+ * so an edge of the sheet or a line of the mesh behind it never takes its contrast.
+ */
+export function AxisLabel({ text, align, kind, className = '', style, ref, moving = false }: { text: string; align: string; kind: string; className?: string; style?: CSSProperties; ref?: Ref<HTMLSpanElement>; moving?: boolean }) {
   return (
-    <span ref={ref} className={`absolute top-0 left-0 will-change-transform ${className}`} style={style}>
+    <span ref={ref} className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
       <span
-        className={`block font-mono text-meta leading-none whitespace-nowrap ${kind === 'title' ? 'text-ink' : 'text-graphite'}`}
+        className={`block font-mono text-meta leading-none whitespace-nowrap ${kind === 'title' ? 'rounded-sm bg-paper/90 px-1 py-0.5 text-ink' : 'text-graphite'}`}
         style={{ transform: ALIGN[align] }}
       >
         {text}
@@ -89,6 +94,7 @@ export function NoteMark({
   style,
   ref,
   note,
+  moving = false,
 }: {
   lead: string
   text: string
@@ -100,9 +106,11 @@ export function NoteMark({
   ref?: Ref<HTMLSpanElement>
   /** Which note it is, for the still frame's redraw to move it with the surface. */
   note?: string
+  /** On its own layer: the live figure moves it every frame (a poster's notes stand still). */
+  moving?: boolean
 }) {
   return (
-    <span ref={ref} data-note={note} className={`absolute top-0 left-0 will-change-transform ${className}`} style={style}>
+    <span ref={ref} data-note={note} className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
       <svg aria-hidden className="absolute top-0 left-0 overflow-visible" width="1" height="1">
         <line x1={0} y1={0} x2={dx} y2={dy} stroke="var(--color-ink)" strokeWidth={1} />
         <circle cx={0} cy={0} r={3.5} fill="var(--color-paper)" stroke="var(--color-ink)" strokeWidth={1.25} />

@@ -30,7 +30,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 ## Capabilities and Constraints
 
 - Next.js 16 App Router, React 19, Tailwind 4, TypeScript strict. Hand-authored SVG figures; no chart library.
-- Hard budgets: mobile Lighthouse performance ≥ 90; accessibility 100; zero third-party requests; production total transfer ≤ 260 KB; CLS ≤ 0.01. WebGL must be lazy-loaded, paused off-screen, with a static fallback; `prefers-reduced-motion` means static figures.
+- Hard budgets: mobile Lighthouse performance ≥ 90; accessibility 100; zero third-party requests; total transfer per page within its budget (home 275,000 B; /market 335,000 B; /order-book and /iv-surface 300,000 B; every other page 261,000 B; fonts 76,000 B a page, 87,000 B where the Greek-and-maths supplement is fetched; set by the owner, 2026-09-28, and held by `lighthouserc*.json`); CLS ≤ 0.01. WebGL must be lazy-loaded, paused off-screen, with a static fallback; `prefers-reduced-motion` means static figures.
 - Strict CSP (`script-src 'self' 'unsafe-inline'`, no `blob:`, no eval, `connect-src 'self'`).
 - Glacier Capital Systems (proprietary trading firm; Quantitative Analyst and Engineer, remote, Jan 2026 – present) is described at résumé level only: what he builds and the stack. Never strategies, parameters, data, code, internal names/paths, env vars, test counts, performance numbers, returns, Sharpe, tickers or strategy-vs-benchmark charts.
 - Never invent metrics, clients, users or results. Missing facts ship as visible TODO placeholders and are listed for the owner.
@@ -58,7 +58,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 
 1. Hiring essentials first: name, positioning, availability, résumé and contact are above the fold on every screen size.
 2. Every number has provenance; synthetic data is labelled synthetic where it is shown.
-3. Figures are real and interactive, and respond to the reader rather than performing at them. The exceptions are each page's live Fig. 1 (the home figure, the order book, the IV surface): each opens with one signature moment per visit and then stays alive at rest (its data moving, the view drifting and leaning with the reader), with a Pause.
+3. Figures are real and interactive, and respond to the reader rather than performing at them. The exceptions are each page's live Fig. 1 (the home figure, /market's one market, the order book, the IV surface): each opens with one signature moment per visit and then stays alive at rest (its data moving, the view drifting and leaning with the reader), with a Pause.
 4. Confidentiality outranks impressiveness.
 5. Fast and accessible is part of the argument, and it is measured, not asserted.
 

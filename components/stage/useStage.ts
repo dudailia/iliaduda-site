@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { GL } from '@/lib/gl'
+import { Governor } from '@/lib/stage/governor'
 import { deviceTier, type Tier } from '@/lib/tier'
 import { cssColor, saveData, supportsWebGL2, useColorScheme, useReducedMotion, whenIdle } from './env'
 
@@ -52,6 +53,8 @@ export interface Renderer {
   /** 0 (lightest) … 3 (full). Called by the governor. */
   setQuality?(q: number): void
   setPalette?(p: Palette): void
+  /** The display's refresh interval as the governor has learned it, in seconds (1/60, 1/120, 1/30 in Low Power Mode). */
+  refresh?(interval: number): void
   dispose(): void
 }
 
@@ -140,17 +143,12 @@ export function useStage(
     let gl: GL | null = null
     let q = 0
     let maxQ = 0
+    let gov = new Governor(0, 0)
     let t0 = 0
     let last = 0
-    let ema = 16.7
-    let vsync = 16.7
-    let slow = 0
-    let fast = 0
     let frames = 0
     let fpsAt = 0
     let first = false
-    const failures: number[] = []
-    const blockedUntil: number[] = []
 
     // Setting a canvas's size clears its drawing buffer, and with alpha off a
     // cleared buffer is black. So a resize — a window change, or the governor
@@ -192,35 +190,17 @@ export function useStage(
         raf = requestAnimationFrame(tick)
         return
       }
-      // The governor, against this display's own refresh: `vsync` tracks the
-      // shortest smoothed frame interval seen (8.3ms at 120Hz, 16.7ms at
-      // 60Hz). A second below ~50fps steps down; three seconds at the refresh
-      // rate step back up, never past the device tier. A fixed "under 13ms"
-      // could never be met at 60Hz, so quality once lowered stayed low.
-      ema = ema * 0.9 + dt * 1000 * 0.1
-      vsync = Math.min(vsync * 1.0005, ema)
-      if (ema > Math.max(vsync * 1.35, 20)) slow += dt
-      else slow = 0
-      if (ema < vsync * 1.15) fast += dt
-      else fast = 0
-      // Hysteresis: a level the device has just failed to hold is off limits
-      // for 30s, doubling each time it fails again, so a marginal phone does
-      // not climb and fall every four seconds.
-      if (slow > 1 && q > 0) {
-        failures[q] = (failures[q] ?? 0) + 1
-        blockedUntil[q] = now + 30000 * 2 ** (failures[q]! - 1)
-        q--
-        slow = 0
-        renderer.setQuality?.(q)
-        size()
-        setQuality(q)
-      } else if (fast > 3 && q < maxQ && now >= (blockedUntil[q + 1] ?? 0) && !hold.current?.()) {
-        q++
-        fast = 0
+      // The governor (lib/stage/governor.ts), against this display's own refresh, which it learns: 120 Hz, 60 Hz, or a
+      // 30 Hz clock (Low Power Mode) that no lighter quality would speed up. The renderer is told the refresh too, so
+      // its own pacing (the home figure's pricing) judges its frames by the same clock.
+      const was = gov.refresh
+      if (gov.frame(dt, now, !!hold.current?.())) {
+        q = gov.q
         renderer.setQuality?.(q)
         size()
         setQuality(q)
       }
+      if (gov.refresh !== was) renderer.refresh?.(gov.refresh / 1000)
       frames++
       if (now - fpsAt > 500) {
         setFps(Math.round((frames * 1000) / (now - fpsAt)))
@@ -257,6 +237,7 @@ export function useStage(
       const t = deviceTier(gl)
       maxQ = tierMax.current?.[t] ?? MAX_Q[t]
       q = Math.min(maxQ, 2)
+      gov = new Governor(q, maxQ)
       setTier(t)
       setQuality(q)
       try {

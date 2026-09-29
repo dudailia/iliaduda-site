@@ -117,6 +117,7 @@ export const papers: readonly Paper[] = [
     title: 'A debt-settlement portal built to Russian federal law',
     abstract: `A self-service portal where people settle a debt without a phone call, built end to end as sole developer for a licensed Russian collection organisation. Federal law set the architecture: personal data stays in the country, and the login code itself spends a legal contact allowance, so both are enforced in code and at build time.`,
     dek: 'A self-service portal for settling a debt without a phone call, built end to end as sole developer for a licensed Russian collection organisation, with federal law enforced in code.',
+    figureNote: 'illustrative terms',
     byline: 'Sole developer and project lead · July 2026 – present',
     status: 'published',
   },

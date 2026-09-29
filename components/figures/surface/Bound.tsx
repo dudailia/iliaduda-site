@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { DOMAIN, ETA_BOUND, gWithEta, P } from '@/lib/svi'
+import { CONTROL } from '@/components/stage/controls'
 
 /** A typeset minus sign, as the margins everywhere else print one. */
 const minus = (x: string) => x.replace('-', '−')
@@ -57,7 +58,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
       id="fig-bound"
       number="Fig. 2"
       title="Push the curvature until the surface breaks"
-      subtitle={`Durrleman’s g(k) at the shortest expiry drawn · the implied density is negative where g < 0 · ρ held at ${minus(String(P.rho))}`}
+      subtitle={`Synthetic SSVI · Durrleman’s g(k) at the shortest expiry drawn · the implied density is negative where g < 0 · ρ held at ${minus(String(P.rho))}`}
       caption={caption}
       table={table}
       rail={
@@ -127,7 +128,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
         <button
           type="button"
           onClick={() => setEta(P.eta)}
-          className="text-meta min-h-8 rounded-sm border border-graphite px-2.5 py-1.5 font-mono text-ink transition-[border-color,scale] duration-150 ease-out hover:border-ink active:scale-[0.97]"
+          className={CONTROL}
         >
           Back to the surface’s η
         </button>

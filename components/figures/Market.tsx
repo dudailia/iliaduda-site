@@ -1,4 +1,5 @@
 import { syntheticValue as value } from '@/content/synthetic'
+import { FAN } from '@/lib/futures/fan'
 import { POSTER_T, SEED } from '@/lib/market/flow'
 import { shockedHash } from '@/lib/market/host'
 import { bookFrame, fanFrame, marketFrame, SHOCK_FRAME_S, type Moment } from '@/lib/market/poster'
@@ -65,7 +66,7 @@ export function MarketFigure() {
             First the vol surface, its shock set by the market&rsquo;s stress. Then the order book: price up the side and time
             across, each price in the tone of the shares waiting there, the price through the middle in ink and each trade a
             dot, and at its right edge the book&rsquo;s depth now, every share between a price and the best one. Then a year of its futures, simulated paths of its
-            price from now at its own realised volatility: the 5th to 95th and 25th to 75th percentiles as washes, and 48 of the
+            price from now at its own realised volatility: the 5th to 95th and 25th to 75th percentiles as washes, and {FAN.strands} of the
             paths.
           </>
         }
