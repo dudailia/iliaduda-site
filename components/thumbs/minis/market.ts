@@ -1,7 +1,7 @@
 import { Fan } from '@/lib/futures/fan'
 import { MODEL } from '@/lib/futures/mc'
 import { Market } from '@/lib/market/engine'
-import { MARKET, POSTER_T, SEED } from '@/lib/market/flow'
+import { HZ, MARKET, POSTER_T, SEED } from '@/lib/market/flow'
 import { surfaceOf } from '@/lib/market/surface'
 import { fanAt } from '@/lib/market/views'
 import { marketShape } from '@/lib/minis/market'
@@ -52,6 +52,8 @@ export const make: MakeMini = () => {
             return r >= 0 ? f.mids[r]! : undefined
           },
           now: f.book.mid,
+          written: f.written,
+          u: Math.min(1, Math.max(0, (f.t - f.times[f.row(0)]!) * HZ)),
           band: (b, j) => bands[b * 65 + j]!,
           strand: (i, j) => strands[i * 65 + j]!,
           surface: surfaceOf(m.stress),

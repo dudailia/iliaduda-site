@@ -293,7 +293,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     [sync],
   )
 
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create)
+  // The quality waits to climb until the story is told: the forming and the shock never sharpen mid-moment.
+  const [stageOpts] = useState(() => ({ hold: () => seq.current.started && !seq.current.done }))
+  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
   const sig = useSignature('surface', box, seq)
   const lean = useLean(live, reduced, pausedRef)
   const fallback = useFallback(canvas, live, sig.release)

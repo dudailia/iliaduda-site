@@ -167,7 +167,8 @@ export function OrderBookLive({
           sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
           lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
           tick: (dtMs) => {
-            seq.current.advance(dtMs)
+            // Paused, the rise holds where it is, as everything does (WCAG 2.2.2).
+            if (!market.paused) seq.current.advance(dtMs)
             sigApi.current?.onFrame()
           },
           onFrame: (stats, reading) => {
@@ -527,10 +528,20 @@ export function OrderBookLive({
         <div data-orderbook-controls="" className="flex min-h-8 shrink-0 gap-2">
           {live ? (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">
                 {paused ? 'Resume' : 'Pause'}
               </button>
-              <button type="button" data-replay="" onClick={() => (book.current ? book.current.sink(() => sig.replay()) : sig.replay())} className={CONTROL}>
+              <button
+                type="button"
+                data-replay=""
+                // Replay tells the story again, so the market goes on: a paused figure's story would hold where it is.
+                onClick={() => {
+                  if (market.paused) market.setPaused(false)
+                  if (book.current) book.current.sink(() => sig.replay())
+                  else sig.replay()
+                }}
+                className={CONTROL}
+              >
                 Replay
               </button>
             </>

@@ -213,4 +213,21 @@ describe('the camera director', () => {
     const f = framePose(ASPECT)
     expect(d.pose!.eye.map((v, i) => Math.abs(v - f.eye[i]!)).every((x) => x < 1e-6)).toBe(true)
   })
+
+  it('a rewind begun while the camera moves keeps its speed at first, and still ends on the composed frame', () => {
+    const d = new Director()
+    // The sequence over: the camera swings from the frame into depth. Mid-swing, Replay.
+    d.step(moment({ sequence: true }))
+    const eyes: Pose['eye'][] = []
+    for (let i = 0; i < 50; i++) eyes.push(d.step(moment()).eye)
+    const speed = (a: Pose['eye'], b: Pose['eye']) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])
+    const before = speed(eyes[48]!, eyes[49]!)
+    expect(before).toBeGreaterThan(0)
+    d.rewind(() => {})
+    const first = d.step(moment()).eye
+    expect(speed(eyes[49]!, first)).toBeGreaterThan(before * 0.8)
+    run(d, 80, () => ({ sequence: true }))
+    const f = framePose(ASPECT)
+    expect(d.pose!.eye.map((v, i) => Math.abs(v - f.eye[i]!)).every((x) => x < 1e-6)).toBe(true)
+  })
 })

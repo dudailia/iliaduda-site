@@ -96,6 +96,7 @@ export function start(paused: boolean): Minis | null {
               ro.observe(cv, { box: 'device-pixel-content-box' })
               cancels.push(() => ro.disconnect())
             } catch {}
+            choose()
             run()
           },
           () => {},
@@ -110,10 +111,12 @@ export function start(paused: boolean): Minis | null {
   let pointed: string | null = null
   let active: string | null = null
   const choose = () => {
-    let next = pointed && onScreen.has(pointed) ? pointed : null
+    // Only a miniature whose code is here runs its clock: its first frame is then its time zero, the thumbnail's.
+    let next = pointed && onScreen.has(pointed) && live.has(pointed) ? pointed : null
     if (!next) {
       let best = Infinity
       for (const [slug, a] of onScreen) {
+        if (!live.has(slug)) continue
         const r = a.getBoundingClientRect()
         const d = Math.abs(r.top + r.height / 2 - innerHeight / 2)
         if (d < best) {

@@ -32,6 +32,8 @@ export interface Row {
 const SHOWN = 12
 const MOVE = 'transform 280ms cubic-bezier(0.77, 0, 0.175, 1), opacity 200ms cubic-bezier(0.23, 1, 0.32, 1)'
 const ENTER = 'transform 240ms cubic-bezier(0.23, 1, 0.32, 1), opacity 200ms cubic-bezier(0.23, 1, 0.32, 1)'
+/** A row caught mid-glide by another switch: away at once from where it is drawn, on the ease-out, so it never stalls. */
+const RETARGET = 'transform 280ms cubic-bezier(0.23, 1, 0.32, 1), opacity 200ms cubic-bezier(0.23, 1, 0.32, 1)'
 
 export function RankingLive({
   rows,
@@ -90,8 +92,15 @@ export function RankingLive({
     const el = list.current
     if (!el || reduced || before.current.size === 0) return
     const lis = [...el.querySelectorAll<HTMLLIElement>('li[data-name]')]
+    // Which rows are still on their way, read before their moves are cut.
+    const moving = new Set(
+      lis
+        .filter((li) => li.getAnimations().some((a) => a.playState === 'running' && 'transitionProperty' in a && (a as CSSTransition).transitionProperty === 'transform'))
+        .map((li) => li.dataset.name!),
+    )
     for (const li of lis) {
-      li.style.transition = 'none'
+      // Only the move is cut for the measurement: a row still fading in goes on fading.
+      li.style.transition = 'transform 0s'
       li.style.transform = 'none'
     }
     const now = lis.map((li) => li.getBoundingClientRect().top)
@@ -109,7 +118,7 @@ export function RankingLive({
     // Force the inverted frame, then release to the natural position.
     void el.offsetHeight
     for (const li of lis) {
-      li.style.transition = li.dataset.entering === undefined ? MOVE : ENTER
+      li.style.transition = li.dataset.entering !== undefined ? ENTER : moving.has(li.dataset.name!) ? RETARGET : MOVE
       li.style.transform = ''
       li.style.opacity = ''
     }

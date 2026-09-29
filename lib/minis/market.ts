@@ -10,8 +10,10 @@ const REACH = 1.645 * MODEL.sigma * 1.25
 export interface MarketSource {
   /** The mid in ticks of the row `age` rows back, or undefined before the first. */
   mid(age: number): number | undefined
-  /** The price now, in ticks. */
+  /** The price now, in ticks; the rows written in all, and how far the market is into the next (0 to 1). */
   readonly now: number
+  readonly written: number
+  readonly u: number
   /** The fan's `b`-th percentile at step `j` (0 to 64), and path `i`'s price at step `j`, as multiples of the price now. */
   band(b: number, j: number): number
   strand(i: number, j: number): number
@@ -54,14 +56,19 @@ export function marketShape(s: MarketSource): Shape {
   const [first, ...rest] = smiles
   // The row under it: the book's price on the left, the year from now on the right, its 5th–95th filling the row.
   const y0 = TH * 0.64, rh = TH - y0, split = TW * 0.56, gap = 24
-  const mids: number[] = []
-  for (let a = 239; a >= 0; a -= 5) {
+  // Every fifth row by its own count, so a sample stays the same row as the rows go by; each slides left by how far the
+  // market is into the next row, and the line ends at the price now: it glides rather than shimmering.
+  const samples: [number, number][] = []
+  for (let a = 239; a >= 0; a--) {
+    if ((s.written - 1 - a) % 5 !== 0) continue
     const v = s.mid(a)
-    if (v !== undefined) mids.push(v)
+    if (v !== undefined) samples.push([split * (1 - (a + s.u) / 239), v])
   }
-  const lo = Math.min(...mids) - 6, hi = Math.max(...mids) + 6
+  samples.push([split, s.now])
+  const vs = samples.map((p) => p[1])
+  const lo = Math.min(...vs) - 6, hi = Math.max(...vs) + 6
   const midY = (v: number) => y0 + rh / 2 + ((v - s.now) / (hi - lo)) * -rh * 0.8
-  const past = whole(mids.map((v, i) => [(i / Math.max(1, mids.length - 1)) * split, midY(v)] as const))
+  const past = whole(samples.filter(([x]) => x >= 0).map(([x, v]) => [x, midY(v)] as const))
   // A fixed scale (REACH), so the futures widen as the volatility rises.
   const yr = (v: number) => y0 + rh / 2 - (Math.log(v) / REACH) * (rh / 2)
   const x = (j: number) => split + gap + (j / 64) * (TW - split - gap)

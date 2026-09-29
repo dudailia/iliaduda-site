@@ -284,6 +284,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
   const newest = (lane: number) => step(market.flow, -1, lane, 1)
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    // A key on the strips is the keyboard reading them: they hold while it does.
+    market.hold('focus', true)
     if (e.key === ' ' && !reduced && !still) {
       e.preventDefault()
       market.setPaused(!market.paused)
@@ -353,9 +355,10 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           aria-label="The order flow behind Fig. 1. Arrow keys step through the orders: left and right in time, up and down between kinds; Home goes to the newest; Escape clears; Space pauses."
           aria-describedby="fig-order-flow-reading"
           onKeyDown={onKey}
-          onFocus={() => {
-            // Stepping through orders from the keyboard holds the strips too, until focus moves on.
-            market.hold('focus', true)
+          onFocus={(e) => {
+            // Stepping through orders from the keyboard holds the strips too, until focus moves on; a click that
+            // focuses the strips holds nothing (a mouse over them holds them already), so the market never stays frozen.
+            if (e.currentTarget.matches(':focus-visible')) market.hold('focus', true)
             if (pinned.current) return
             if (market.ready) return pin(newest(LANES.indexOf(MARKET_BUY)))
             void market.prepare().then(() => {
@@ -411,7 +414,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         </dl>
         <div data-orderflow-controls="" className="flex min-h-8 shrink-0 gap-2">
           {live && !reduced && !still ? (
-            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} min-w-[4.5rem]`}>
+            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">
               {paused ? 'Resume' : 'Pause'}
             </button>
           ) : null}

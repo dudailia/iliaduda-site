@@ -277,7 +277,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   /** Drag offset of the orbit and the reader's lean, on critically damped springs back to their targets. */
   const spring = { yaw: 0, pitch: 0, vy: 0, vp: 0, ty: 0, tp: 0 }
   const lean = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
-  let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number } | null = null
+  // A shock's nod, on a spring of its own (the drag's ω 7), so Pause can hold it without holding the reader's drag.
+  const nod = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
+  let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; live: boolean } | null = null
 
   // ── input ──────────────────────────────────────────────────────────────────
   const pick = (clientX: number, clientY: number): Probe | null => {
@@ -296,7 +298,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   }
   const onDown = (e: PointerEvent) => {
     if (drag) return
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: raw.yaw(spring.yaw), rawPitch: raw.pitch(spring.pitch) }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: 0, rawPitch: 0, live: false }
     canvas.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent) => {
@@ -308,19 +310,30 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       if (drag.moved > 4) {
         // The hand's grip shows while the surface turns under it.
         canvas.style.cursor = 'grabbing'
+        // The hand takes the surface where it is now: while the press could still have been a tap, the spring carried
+        // it on, so a surface grabbed again as it springs home never jumps back to where the press began.
+        const first = !drag.live
+        if (first) {
+          drag.live = true
+          drag.rawYaw = raw.yaw(spring.yaw)
+          drag.rawPitch = raw.pitch(spring.pitch)
+          drag.t = e.timeStamp
+          spring.vy = 0
+          spring.vp = 0
+        }
         // The surface follows the hand 1:1 while dragging, easing into soft limits (tanh) instead of stopping
         // dead, and the hand's speed is kept so the release carries it.
         const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
         drag.t = e.timeStamp
         drag.rawYaw -= dx * 0.006
         const yaw = soft.yaw(drag.rawYaw)
-        spring.vy = spring.vy * 0.6 + ((yaw - spring.yaw) / dtS) * 0.4
+        if (!first) spring.vy = spring.vy * 0.6 + ((yaw - spring.yaw) / dtS) * 0.4
         spring.yaw = yaw
         // Touch turns only: a vertical swipe belongs to the page.
         if (e.pointerType !== 'touch') {
           drag.rawPitch += dy * 0.004
           const pitch = soft.pitch(drag.rawPitch)
-          spring.vp = spring.vp * 0.6 + ((pitch - spring.pitch) / dtS) * 0.4
+          if (!first) spring.vp = spring.vp * 0.6 + ((pitch - spring.pitch) / dtS) * 0.4
           spring.pitch = pitch
         }
       }
@@ -424,11 +437,14 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   }
   /** Each note's words: their height (measured once a size), and how far above the point they last stood. */
   const noteH: number[] = []
-  const noteDy: number[] = []
+  const noteDy: (number | undefined)[] = []
+  // A note mid-way through its word swap to the other side of its point.
+  const noteSwap: boolean[] = []
   // The page's own face may arrive after the first frame and set the words a little taller: measured again then.
   void document.fonts?.ready.then(() => {
     noteH.length = 0
     noteDy.length = 0
+    noteSwap.length = 0
     sim.dirty = true
   })
   /** The tag: how much it is shown (it comes and goes over about 150ms), what it last said, and which side it is on. */
@@ -457,7 +473,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         spring.ty = aimed.yaw ? soft.yaw(aimed.yaw) : 0
         spring.tp = aimed.pitch ? soft.pitch(aimed.pitch) : 0
       }
-      if (!drag || drag.moved <= 4) {
+      if (!drag || !drag.live) {
         step2(spring, 'yaw', 'vy', spring.ty, dt, 7)
         step2(spring, 'pitch', 'vp', spring.tp, dt, 7)
       }
@@ -466,13 +482,18 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // in a row nod no harder than the hardest of them.
       const blow = hooks.impact?.() ?? 0
       if (blow > 0) {
-        spring.vp = Math.max(spring.vp, 0.55 * blow)
-        spring.vy = Math.min(spring.vy, -0.3 * blow)
+        nod.vp = Math.max(nod.vp, 0.55 * blow)
+        nod.vy = Math.min(nod.vy, -0.3 * blow)
         flash = Math.max(flash, blow)
         // For the specs: the animation frame the blow landed in, on the frame's own clock.
         canvas.dataset.landed = String(document.timeline?.currentTime ?? performance.now())
       }
-      flash = flash > 0.004 ? flash * Math.exp(-dt / 0.3) : 0
+      // Paused, the nod and the smile's light stand where they are (Pause holds everything, WCAG 2.2.2).
+      if (!paused) {
+        step2(nod, 'yaw', 'vy', 0, dt, 7)
+        step2(nod, 'pitch', 'vp', 0, dt, 7)
+        flash = flash > 0.004 ? flash * Math.exp(-dt / 0.3) : 0
+      }
       const leaning = paused ? null : hooks.lean()
       const ly = leaning ? -LEAN.yaw * leaning.x : lean.yaw, lp = leaning ? -LEAN.pitch * leaning.y : lean.pitch
       step2(lean, 'yaw', 'vy', ly, dt, 4)
@@ -522,11 +543,12 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         (paused && swayK > 0) ||
         Math.abs((q === 0 ? 0 : 1) - finishK) > 0.01 ||
         Math.abs(spring.yaw - spring.ty) + Math.abs(spring.pitch - spring.tp) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
+        (!paused && Math.abs(nod.yaw) + Math.abs(nod.pitch) + Math.abs(nod.vy) + Math.abs(nod.vp) > 1e-4) ||
         Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
         Math.abs(shock.v) > 1e-5 ||
         Math.abs(hooks.level() - shock.x) > 1e-4 ||
         Math.abs((sim.hover || hooks.pinned() ? 1 : 0) - tagK) > 0.01 ||
-        flash > 0 ||
+        (!paused && flash > 0) ||
         (hooks.zoom?.() ?? 1) !== lastZoom
       // Unpaused, it drifts, so every frame is drawn; paused, only a change is.
       const story = ph ? ph.lines + ph.rise + ph.labels + ph.shock + ph.relax : -1
@@ -543,7 +565,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // poster's exactly), over 1.5s on the in-out; Pause lets it coast to rest (240ms) and pick up again (400ms).
       swayIn = ph ? 0 : Math.min(1, swayIn + (dt / 1.5) * swayK)
       const kind = hooks.frame()
-      const cam = camera(kind, Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw, spring.pitch + lean.pitch)
+      const cam = camera(kind, Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw + nod.yaw, spring.pitch + lean.pitch + nod.pitch)
       lastZoom = hooks.zoom?.() ?? 1
       cam.dist *= lastZoom
       const m = mvp(kind, cam, cssW / cssH)
@@ -638,7 +660,32 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         if (!el || !o) return
         // At a shock's peak the words would rise past the stage's top: they stop there, and the leader shortens.
         noteH[i] ||= el.querySelector<HTMLElement>('[data-note-words]')?.offsetHeight ?? 0
-        const dy = noteRise(sy, o[1], noteH[i]!)
+        const below = (noteDy[i] ?? -1) > 0
+        if (noteSwap[i]) {
+          // Mid-swap the words keep riding the point on the side they are leaving.
+          const keep = below ? 10 : Math.min(-10, Math.max(o[1], 4 + noteH[i]! - sy))
+          if (keep !== noteDy[i]) setNoteRise(el, (noteDy[i] = keep), o[2])
+          return
+        }
+        const dy = noteRise(sy, o[1], noteH[i]!, 4, below)
+        if (noteDy[i] !== undefined && dy > 0 !== below) {
+          // To the other side of its point through the site's word swap: blur out where they are, move, blur back in.
+          const words = el.querySelector<HTMLElement>('[data-note-words]')
+          const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
+          const land = () => {
+            setNoteRise(el, (noteDy[i] = dy), o[2])
+            noteSwap[i] = false
+            words?.animate([{ filter: 'blur(3px)' }, { filter: 'blur(0px)' }], { duration: 120, easing: ease })
+          }
+          const out = words?.animate([{ filter: 'blur(0px)' }, { filter: 'blur(3px)' }], { duration: 120, easing: ease, fill: 'forwards' })
+          if (!out) return land()
+          noteSwap[i] = true
+          out.onfinish = () => {
+            out.cancel()
+            land()
+          }
+          return
+        }
         if (dy !== noteDy[i]) setNoteRise(el, (noteDy[i] = dy), o[2])
       })
       const dot = hooks.dot()
@@ -654,7 +701,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         if (tagK < 0.005) tagK = 0
         const text = `vol ${(at * 100).toFixed(1)}%`
         if (text !== tagText) tag.textContent = tagText = text
-        const left = dotX > cssW - 96
+        // Over to the left past 96px from the edge, and back only under 120px, so a dot at the edge never flips it.
+        const left = tagLeft ? dotX > cssW - 120 : dotX > cssW - 96
         if (left !== tagLeft) {
           tagLeft = left
           tag.style.transform = left ? 'translateX(calc(-100% - 1.25rem))' : ''
@@ -683,6 +731,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // A new size may wrap a note's words differently: measured again.
       noteH.length = 0
       noteDy.length = 0
+      noteSwap.length = 0
     },
     setQuality(level) {
       q = level

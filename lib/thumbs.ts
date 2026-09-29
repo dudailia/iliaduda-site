@@ -5,7 +5,7 @@ import ranking from '@/content/data/startup-ranking.json'
 import ofz from '@/content/data/ofz-curve.json'
 import { categorise } from './closebooks'
 import { zcy } from './gcurve'
-import { posterFlow } from './market/flow'
+import { HZ, posterFlow } from './market/flow'
 import { marketFrame } from './market/poster'
 import { offeredTerms } from './settlement'
 import { marketShape } from './minis/market'
@@ -57,6 +57,8 @@ function market(): Thumb {
         return r >= 0 ? f.mids[r]! : undefined
       },
       now: f.book.mid,
+      written: f.written,
+      u: Math.min(1, Math.max(0, (f.t - f.times[f.row(0)]!) * HZ)),
       band: (b, j) => fan.band(b, j),
       strand: (i, j) => st[i * 65 + j]!,
       surface,

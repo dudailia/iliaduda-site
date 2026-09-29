@@ -61,6 +61,8 @@ export class Director {
   private then: (() => void) | null = null
   /** How fast the camera was moving when a flight was stopped, carried into its way home. */
   private carry: Drift | null = null
+  /** How fast the camera was moving when Replay began, carried into its rewind as a stop carries a flight's. */
+  private rewindCarry: Drift | null = null
 
   get rewinding(): boolean {
     return this.then != null
@@ -83,13 +85,15 @@ export class Director {
     this.from = this.pose
     this.t = 0
     this.depth0 = this.depth
+    this.rewindCarry = this.speed
     this.then = then
   }
 
   step(m: Moment): Pose {
     const was = this.pose
     this.pose = this.move(m)
-    if (was && this.mode === 'flight') this.speed = driftOf(was, this.pose, m.dt)
+    // The camera's speed in every mode, so whatever takes over (a stop's way home, Replay's rewind) carries it on.
+    if (was && m.dt > 0) this.speed = driftOf(was, this.pose, m.dt)
     return this.pose
   }
   private speed: Drift | null = null
@@ -101,6 +105,7 @@ export class Director {
     // which it takes the place of (the reader asked for the flight last).
     if (p > 0 && this.last === 0) {
       this.then = null
+      this.rewindCarry = null
       this.flightFrom = this.pose ?? rest
       this.depth0 = this.depth
       this.mode = 'flight'
@@ -109,13 +114,18 @@ export class Director {
     this.flightP = p
     if (this.then) {
       this.t += m.dt * 1000
-      const u = EASE_IN_OUT(clamp01(this.t / REWIND_MS))
+      const dur = REWIND_MS
+      const s = clamp01(this.t / dur)
+      const u = EASE_IN_OUT(s)
       this.depth = this.depth0 * (1 - u)
       // The frame's labels come back as the camera gets there, as they do on the way home from a flight.
       this.labels = Math.max(this.labels, smooth(0.3, 0.8, u))
-      const next = blend(this.from ?? rest, framePose(aspect), u)
-      if (this.t >= REWIND_MS) {
+      const base = blend(this.from ?? rest, framePose(aspect), u)
+      // The speed the camera had when Replay was pressed, spent over the way (a Hermite tangent, as a stop's way home).
+      const next = this.rewindCarry ? along(base, this.rewindCarry, (dur / 1000) * (s - 2 * s * s + s * s * s)) : base
+      if (this.t >= dur) {
         this.mode = 'frame'
+        this.rewindCarry = null
         const then = this.then
         this.then = null
         then()

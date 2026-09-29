@@ -53,11 +53,12 @@ const NOTE_ALIGN: Record<string, string> = {
  * Where a note's words hang from its point, in CSS pixels (negative is up): at its own offset `dy` above it, unless that
  * would put them past the top of the stage, as the surface's peak rises in a shock; then as low as keeps them whole,
  * the leader shortening to no less than 10px; and where even that leaves no room, 10px below the point instead.
- * `y` is the point's height in the stage, `h` the words'.
+ * `y` is the point's height in the stage, `h` the words'. `below`: the words hang below already, and stay there until
+ * 16px of room has opened above, so a peak hovering at the edge never flips them back and forth.
  */
-export function noteRise(y: number, dy: number, h: number, top = 4): number {
+export function noteRise(y: number, dy: number, h: number, top = 4, below = false): number {
   const up = Math.max(dy, top + h - y)
-  return up <= -10 ? up : 10
+  return up <= (below ? -16 : -10) ? up : 10
 }
 
 /** Hangs a note's words `dy` from its point, above it or (for a positive `dy`) below: the leader's end moves with them. */
@@ -65,8 +66,10 @@ export function setNoteRise(el: HTMLElement, dy: number, align: string) {
   const words = el.querySelector<HTMLElement>('[data-note-words]')
   const lead = el.querySelector('line')
   if (words) {
-    words.style.top = `${dy}px`
-    words.style.transform = dy > 0 ? NOTE_ALIGN[align]!.replace('-100%)', '0)') : NOTE_ALIGN[align]!
+    // Moved by its transform, never its top, so following the point runs no layout.
+    words.style.top = '0px'
+    const a = dy > 0 ? NOTE_ALIGN[align]!.replace('-100%)', '0)') : NOTE_ALIGN[align]!
+    words.style.transform = `translate3d(0, ${dy.toFixed(1)}px, 0) ${a}`
   }
   lead?.setAttribute('y2', String(dy))
 }

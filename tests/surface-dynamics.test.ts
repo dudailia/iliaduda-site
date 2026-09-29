@@ -221,6 +221,11 @@ describe('the view', () => {
     expect(noteRise(50, -62, 24)).toBe(-22)
     // No room above for the words and a 10px leader: they hang 10px below the point instead.
     expect(noteRise(20, -62, 24)).toBe(10)
+    // Once below, they stay below until 16px of room has opened above, so a peak hovering at the edge never flips them
+    // back and forth: at 12px of room still below, at 16px above again.
+    expect(noteRise(40, -62, 24, 4, true)).toBe(10)
+    expect(noteRise(44, -62, 24, 4, true)).toBe(-16)
+    expect(noteRise(40, -62, 24)).toBe(-12)
   })
 
   it('the stage’s and the frame box’s classes are the two framings’ aspects', () => {

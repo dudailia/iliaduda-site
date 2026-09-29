@@ -415,6 +415,12 @@ export function MarketLive({
       v.book.inset = v.fan.inset = kindRef.current === 'tall' ? 24 : 0
       const dt = lastDraw.current ? Math.min(0.1, (now - lastDraw.current) / 1000) : 1 / 60
       lastDraw.current = now
+      // Paused, a landing's envelopes stand still: their start moves on with every paused frame, so they pick up on
+      // Resume where they were (Pause holds everything, WCAG 2.2.2).
+      if (pausedRef.current) {
+        if (landing.current) landing.current.at += dt * 1000
+        blow.current.at += dt * 1000
+      }
       const stateOf = (mm: Mirror): Story => {
         if (pausedRef.current) return 'paused'
         const since = performance.now() - landedAt.current.at
@@ -518,7 +524,8 @@ export function MarketLive({
       })
 
       // Readouts, ten times a second.
-      if (now - lastText.current > 100) {
+      // The rail's numbers change with the picture: not before both flat views have drawn.
+      if (flat && now - lastText.current > 100) {
         lastText.current = now
         const h = m.h
         write('time', clock(h.t))

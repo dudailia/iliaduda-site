@@ -477,7 +477,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   if (o.atRest?.()) director.startAtRest()
   let cam: CamMode = 'frame'
   let flightP = 0
-  let fadeTo: { t: number; ms: number } | null = null
+  let fadeTo: { t: number; ms: number; from: number } | null = null
   let streamT = 0
   let driftT = 0
   /**
@@ -527,6 +527,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     h: number
     text: string
     data: boolean
+    /** The opacity it is drawn at, following its target over 60ms; null until first placed, when it takes it at once. */
+    k: number | null
   }
   const labels: Label[] = []
   const label = (text: string, cls: string, at: () => V3, show: () => number, data = false) => {
@@ -537,7 +539,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     o.labels.appendChild(el)
     const side = cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0
     const vside = cls.includes('-translate-y-full') ? -1 : cls.includes('translate-y-full') ? 1 : cls.includes('-translate-y-1/2') ? -0.5 : 0
-    labels.push({ el, at, show, side, vside, w: -1, h: -1, text: '', data })
+    labels.push({ el, at, show, side, vside, w: -1, h: -1, text: '', data, k: null })
     return el
   }
   const inSeq = () => seq === 'pending' || seq === 'playing'
@@ -1054,7 +1056,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.bindVertexArray(null)
   }
 
-  function placeLabels() {
+  /** Places every label; true while any is still following its opacity, so the next frame is drawn too. */
+  function placeLabels(dt: number): boolean {
+    let following = false
     // Labels whose text changed are measured first, all together, before any style is written this frame: one
     // layout at most, never one for each label after another's write.
     for (const l of labels)
@@ -1063,12 +1067,20 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         l.w = l.el.offsetWidth
         l.h = l.el.offsetHeight
       }
+    const follow = 1 - Math.exp(-dt / 0.06)
     for (const l of labels) {
-      const a = l.show() * (l.data ? fadeMul : 1)
       const [x, y, z] = l.at()
       const s = project(vp, x, y, z)
-      const on = a > 0.01 && s[2] > 0.05 && Math.abs(s[0]) < 1.05 && Math.abs(s[1]) < 1.05
-      l.el.style.opacity = on ? a.toFixed(3) : '0'
+      // Near the frame's edge a label fades out rather than cutting (the strike stays named: it is kept inside the
+      // stage), and it fades before it passes the eye.
+      const edge = l.el === strikeEl ? 1 : 1 - smooth(0.9, 1.05, Math.max(Math.abs(s[0]), Math.abs(s[1])))
+      const near = smooth(0.05, 0.25, s[2])
+      const a = l.show() * (l.data ? fadeMul : 1) * edge * near
+      // Followed over 60ms, so a change of the camera's mode never steps a label's opacity in one frame.
+      l.k = l.k === null || Math.abs(a - l.k) < 0.005 ? a : l.k + (a - l.k) * follow
+      if (l.k !== a) following = true
+      const on = l.k > 0.01
+      l.el.style.opacity = on ? l.k.toFixed(3) : '0'
       l.el.style.visibility = on ? 'visible' : 'hidden'
       if (!on) continue
       // Kept inside the stage both ways, 4px in, however the camera sits.
@@ -1082,6 +1094,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       else if (top + l.h > cssH - 4) py -= top + l.h - (cssH - 4)
       l.el.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`
     }
+    return following
   }
 
   /** Where the sequence is, from its phases: none, waiting to start, playing, or played. */
@@ -1125,17 +1138,21 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       }
       clock.now = t
       clock.frameNo++
-      clock.dtEma = clock.dtEma * 0.9 + dt * 0.1
-      // The display's own frame interval, learned: the shortest smoothed frame
-      // seen, relaxing slowly so a change of display is picked up.
-      clock.vsync = Math.min(clock.vsync * 1.0005, Math.max(1 / 240, clock.dtEma))
+      // A redraw with no time between (a resize) says nothing about the display's frame interval.
+      if (dt > 0) {
+        clock.dtEma = clock.dtEma * 0.9 + dt * 0.1
+        // The display's own frame interval, learned: the shortest smoothed frame
+        // seen, relaxing slowly so a change of display is picked up.
+        clock.vsync = Math.min(clock.vsync * 1.0005, Math.max(1 / 240, clock.dtEma))
+      }
       if (firstAt < 0) firstAt = t
       if (!warm && (pricer.ready() || t - firstAt > 1.5)) warm = true
       // The reader's clocks (the sequence, the flight) move on drawn frames; the sequence waits for a warm figure.
       o.tick(warm || !inSeq() ? dt * 1000 : 0)
       if (fadeTo) {
         fadeTo.t += dt * 1000
-        fadeMul = 1 - EASE_OUT(Math.min(1, fadeTo.t / fadeTo.ms))
+        // From wherever the picture was (a Replay pressed while it was still coming back in), never from full.
+        fadeMul = fadeTo.from * (1 - EASE_OUT(Math.min(1, fadeTo.t / fadeTo.ms)))
         if (fadeTo.t >= fadeTo.ms) fadeTo = null
       } else if (!director.rewinding && fadeMul < 1) {
         // Back in on the same ease-out it went out on, over the same 240ms.
@@ -1229,8 +1246,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
           histText = ht
           histEl.textContent = ht ? 'Payoff × how often it happens' : 'Where the paths end'
         }
-        placeLabels()
-        dirty = false
+        dirty = placeLabels(dt)
         o.labels.dataset.draws = String(++draws)
         o.labels.dataset.camera = cam
       }
@@ -1243,7 +1259,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       }
       gl.flush()
       report(markedNow)
-      return true
+      // Paused, with nothing to draw, the frame says so: the governor must not read a still figure as spare time and climb.
+      return still && paused ? 'idle' : true
     },
     resize(w, h, cw2, ch2) {
       cw = w
@@ -1283,7 +1300,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         streamT = 0
         then()
       })
-      fadeTo = { t: 0, ms: 240 }
+      fadeTo = { t: 0, ms: 240, from: fadeMul }
     },
     priceAt(x, y) {
       const rect = o.labels.getBoundingClientRect()
