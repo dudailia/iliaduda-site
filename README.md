@@ -32,6 +32,30 @@ platform's own exponential, are the one part that is not claimed bit for bit.
 The home figure's volatility is that market's realised volatility where
 `/market` opens, worked out by the server and again by the browser.
 
+The worker and the page speak one protocol (`lib/market/protocol.ts`): the page
+asks for a frame each time it draws, lending the worker one of a small pool of
+transferable buffers (no `SharedArrayBuffer`, so no cross-origin isolation
+headers), and gets back the market's clock, book, ladder, new depth rows, new
+trades, its realised volatility and stress, and, when one is finished, a year
+of futures from the mid. The worker moves the market on by the time since the
+page's last frame, at most a tenth of a simulated second a frame, so a tab left
+in the background or a phone that drops frames finds the market where it left
+it and never races through the missed minutes; the time it held is counted and
+shown. It measures itself: futures drawn a second, its busy share, and so its
+headroom. The Contents' miniatures of `/market` and `/order-book` run the same
+engine on the page's own thread, four milliseconds a frame, and a click hands
+the miniature's moment to the paper, which runs the same seeded market to it.
+
+What "deterministic" covers: from the same seed and the same log of shocks, the
+order flow, the book, the tape, the realised volatility and the stress are the
+same to the last bit, however the market is stepped (single quanta, whole
+seconds, one long jump, slices across frames) and in whichever engine runs it.
+The engine computes every exponential, logarithm and power with its own
+routines (`lib/market/detmath.ts`), since engines may round the platform's
+differently. What it does not cover: the futures fan (drawn with the platform's
+exponential, checked statistically instead), the drawing, and how many frames
+a device shows.
+
 The figures are hand-authored SVG and WebGL, with no chart library. Every
 number in them comes from `content/facts.ts`, where each entry names the file
 it was verified against.
@@ -101,11 +125,31 @@ pnpm check:all        # all of the above, in order
   - kopeck-exact settlement arithmetic;
   - the rolling contact windows;
   - the categorisation rules.
+- The market (`tests/market-*.test.ts`, `tests/futures-fan.test.ts`):
+  - one market however it is stepped, and a pinned hash that tells apart two
+    doubles one unit in the last place apart;
+  - `dexp` and `dlog` within two units in the last place of `Math.*`, and no
+    platform exponential anywhere in the engine;
+  - calibration over ten seeds: 200–400 events a simulated second, realised
+    volatility 20–30% a year, a spread of a tick or two, the stationary rate
+    within 2% of (I − B)⁻¹μ, and the book's invariants over a million events;
+  - the time-rescaling test (each type's compensator between its events is
+    Exp(1)), parent attribution summing to one, and the immigrant share the
+    theory gives;
+  - the liquidity shock: what it does within a second, how it relaxes, that it
+    replays, and that fifty presses in a second leave every state bounded;
+  - the surface free of static arbitrage at every stress, and the fan's
+    quantiles, martingale and Black–Scholes price within Monte Carlo error.
+- **`lighthouse-config.test.ts`**: both Lighthouse configs measure every route,
+  each under exactly one budget.
 - **e2e**: axe including best-practice rules in both themes, a visible focus
   ring on everything in the tab order, zero off-origin requests, no horizontal
   scroll at 360/768/1440, no rail item over another, the self-hosted faces in
   use, each figure doing the one thing it exists to show, the CV PDF served as
-  one page, and the old URLs redirecting.
+  one page, and the old URLs redirecting. The live figures run on Chromium with
+  a GPU, on WebKit as an iPhone (`--project=iphone`), and `/market`'s market in
+  Chromium, WebKit and Firefox against the hash Node computes
+  (`market-engines.spec.ts`).
 
 Measured on the preview deployment (25 September 2026), mobile Lighthouse, two runs on each of ten routes:
 
