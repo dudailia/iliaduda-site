@@ -596,9 +596,12 @@
 
     }
 
+    /* A contact link is a 24px target at least (WCAG 2.5.8): its padding alone lands it a fraction short at the
+       sheet's small type. Screen only; the printed sheet is unchanged. */
     .cv-contact a {
       display: inline-block;
       padding: 0.4em 0;
+      min-height: 1.5rem;
     }
   }
 
