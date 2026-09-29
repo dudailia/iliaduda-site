@@ -21,9 +21,29 @@ const ROWS = 2 * WINDOW.half + 1
 const mix = (a: RGB, b: RGB, t: number, i: number) => a[i]! + (b[i]! - a[i]!) * t
 const css = (c: RGB, opacity = 1) => `rgb(${Math.round(c[0] * 255)} ${Math.round(c[1] * 255)} ${Math.round(c[2] * 255)}${opacity < 1 ? ` / ${opacity.toFixed(3)}` : ''})`
 
+/** Each canvas's size in CSS pixels, kept by a ResizeObserver, so drawing a frame reads no layout. */
+const sizes = new WeakMap<HTMLCanvasElement, { width: number; height: number }>()
+let watcher: ResizeObserver | null = null
+function sizeOf(cv: HTMLCanvasElement) {
+  let s = sizes.get(cv)
+  if (!s) {
+    const r = cv.getBoundingClientRect()
+    s = { width: r.width, height: r.height }
+    sizes.set(cv, s)
+    watcher ??= new ResizeObserver((es) => {
+      for (const e of es) {
+        const b = e.contentBoxSize?.[0]
+        sizes.set(e.target as HTMLCanvasElement, b ? { width: b.inlineSize, height: b.blockSize } : { width: e.contentRect.width, height: e.contentRect.height })
+      }
+    })
+    watcher.observe(cv)
+  }
+  return s
+}
+
 /** A canvas sized to its box at up to two device pixels a CSS pixel; true when its size changed. */
 function fit(cv: HTMLCanvasElement, box: { w: number; h: number }): boolean {
-  const r = cv.getBoundingClientRect()
+  const r = sizeOf(cv)
   const dpr = Math.min(2, window.devicePixelRatio || 1)
   const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr))
   box.w = r.width
@@ -64,6 +84,9 @@ export class BookView {
   /** Rows the heat image holds, as the mirror counts them (`taken`); -1: none. */
   private builtTaken = -1
   private builtBase = NaN
+  /** Where the window stood, and the reader's hairline, at the last frame drawn. */
+  private drawnCentre = NaN
+  private drawnHover: number | null = null
   private builtPal: Palette | null = null
   private last = -1
   /** Where the reader points, in CSS pixels across the strip, or null. */
@@ -112,8 +135,11 @@ export class BookView {
     if (!this.win) this.win = new PriceWindow(m.h.mid)
     this.win.step(m.h.mid, dt)
     const flash = landing ? (now - landing.at) / 1000 : Infinity
-    if (!resized && this.last === m.frames && flash > 1.2 && this.hover === null && this.builtPal === pal && Math.abs(this.win.centre - this.builtBase) < 1e-9) return false
+    // Nothing new since the last frame drawn (the window where it was, to a thousandth of a tick): nothing to draw.
+    if (!resized && this.last === m.frames && flash > 1.2 && this.hover === this.drawnHover && this.builtPal === pal && Math.abs(this.win.centre - this.drawnCentre) < 1e-3) return false
     this.last = m.frames
+    this.drawnCentre = this.win.centre
+    this.drawnHover = this.hover
     const lay = this.layout()
     const dpr = this.cv.width / this.box.w
     g.setTransform(dpr, 0, 0, dpr, 0, 0)

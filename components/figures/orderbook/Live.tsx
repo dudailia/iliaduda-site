@@ -90,8 +90,13 @@ export function OrderBookLive({
     }
   }, [])
 
+  // The rail's numbers change four times a second at most, as Fig. 2's do: a readout that can be read.
+  const statsAt = useRef(-Infinity)
   const writeStats = useCallback(
     (s: Pick<Stats, 'rate' | 'trades' | 'shares' | 'mid' | 'spread'>) => {
+      const now = performance.now()
+      if (now - statsAt.current < 250) return
+      statsAt.current = now
       write('rate', `${s.rate.toFixed(1)} a second`)
       write('mid', fmt.mid(s.mid))
       write('spread', fmt.spread(s.spread))

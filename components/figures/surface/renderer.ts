@@ -1,6 +1,6 @@
 import { program } from '@/lib/gl'
 import { invert } from '@/lib/m4'
-import { EASE_IN_OUT_QUAD, EASE_OUT } from '@/lib/ease'
+import { EASE_IN_OUT_QUAD, EASE_OUT, EASE_OUT_CSS } from '@/lib/ease'
 import { FILL, KEY, LIGHT, LINE_FLIP, oklab, RAMP, rampStops, UP_LIGHT } from '@/lib/surface/look'
 import { lineReveal } from '@/lib/surface/sequence'
 import { spring as spring2 } from '@/lib/stage/spring'
@@ -671,7 +671,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         if (noteDy[i] !== undefined && dy > 0 !== below) {
           // To the other side of its point through the site's word swap: blur out where they are, move, blur back in.
           const words = el.querySelector<HTMLElement>('[data-note-words]')
-          const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
+          const ease = EASE_OUT_CSS
           const land = () => {
             setNoteRise(el, (noteDy[i] = dy), o[2])
             noteSwap[i] = false

@@ -20,6 +20,8 @@
 @theme {
   /* The site's one ease-out, for Tailwind's `ease-out` too: the strong curve every arrival and press uses. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* And its one in-out, for a change of shape on screen (Tailwind's `ease-in-out` too, so its default is never used). */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --color-ink: #16181c;
   --color-paper: #faf9f7;
   --color-graphite: #5b6068;
@@ -226,7 +228,7 @@
      the way fast. Both ends of a morph carry view-transition-class: figure. */
   ::view-transition-group(*.figure) {
     animation-duration: 380ms;
-    animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1);
+    animation-timing-function: var(--ease-in-out);
   }
 
   /* The two pictures (the thumbnail's drawing, the figure's) are not the same image, so the crossfade between them
@@ -235,12 +237,12 @@
     isolation: isolate;
   }
   ::view-transition-old(*.figure) {
-    animation: 380ms cubic-bezier(0.77, 0, 0.175, 1) both vt-figure-out;
+    animation: 380ms var(--ease-in-out) both vt-figure-out;
     /* The shorthand drops the UA's plus-lighter animation: without it two half-opaque pictures dip by a quarter. */
     mix-blend-mode: plus-lighter;
   }
   ::view-transition-new(*.figure) {
-    animation: 380ms cubic-bezier(0.77, 0, 0.175, 1) both vt-figure-in;
+    animation: 380ms var(--ease-in-out) both vt-figure-in;
     mix-blend-mode: plus-lighter;
   }
 
@@ -248,7 +250,7 @@
   ::view-transition-old(*.figure):only-child,
   ::view-transition-new(*.figure):only-child {
     animation-duration: 180ms;
-    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+    animation-timing-function: var(--ease-out);
     mix-blend-mode: normal;
   }
 
@@ -267,14 +269,14 @@
   ::view-transition-old(running-head):only-child,
   ::view-transition-new(running-head):only-child {
     animation-duration: 180ms;
-    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+    animation-timing-function: var(--ease-out);
   }
 
   ::view-transition-group(root),
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: 180ms;
-    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+    animation-timing-function: var(--ease-out);
   }
 }
 

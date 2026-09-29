@@ -108,9 +108,12 @@ const EDGE = { enter: 8, stay: 2 }
 /** Whether a label box may go here: inside the frame, and clear of every box placed before it. */
 export function fits(b: Box, placed: readonly Box[], w: number, h: number, shown = false): boolean {
   const m = shown ? EDGE.stay : EDGE.enter
-  const x0 = b.x0 - GAP.x, x1 = b.x1 + GAP.x, y0 = b.y0 - GAP.y, y1 = b.y1 + GAP.y
+  // A label already shown keeps its place until it truly touches another; a new one waits for the full gap, so two
+  // labels drifting close do not flicker in and out as the camera moves.
+  const g = shown ? { x: 0, y: 0 } : GAP
+  const x0 = b.x0 - g.x, x1 = b.x1 + g.x, y0 = b.y0 - g.y, y1 = b.y1 + g.y
   if (x0 < m || x1 > w - m || y0 < 0 || y1 > h) return false
-  return !placed.some((p) => x0 < p.x1 + GAP.x && p.x0 - GAP.x < x1 && y0 < p.y1 + GAP.y && p.y0 - GAP.y < y1)
+  return !placed.some((p) => x0 < p.x1 + g.x && p.x0 - g.x < x1 && y0 < p.y1 + g.y && p.y0 - g.y < y1)
 }
 
 /** Place labels most important first: each gets its box, or null if it would not fit. */

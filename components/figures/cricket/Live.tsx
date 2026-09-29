@@ -65,6 +65,8 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const from = useRef(0)
   const elapsed = useRef(0)
   const seen = useRef(true)
+  /** A replay waiting off screen: how to carry on when the figure is back. */
+  const parked = useRef<(() => void) | null>(null)
   /** This visit's replay is still to come: the pre-paint mark hides the drawn line until it starts. */
   const armed = useRef(false)
 
@@ -124,20 +126,30 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
 
   const stop = () => {
     cancelAnimationFrame(raf.current)
+    parked.current = null
     setPlaying(false)
   }
 
   const play = (fromIndex: number) => {
     cancelAnimationFrame(raf.current)
+    parked.current = null
     from.current = fromIndex
     elapsed.current = 0
     setPlaying(true)
     let last = 0
     // Time passes on the frames the figure is seen for: off screen or in a hidden tab the playhead waits.
     const tick = (t: number) => {
+      // Off screen the replay waits, asking for no frames: it picks up where it was as the figure comes back.
+      if (!seen.current) {
+        parked.current = () => {
+          last = 0
+          raf.current = requestAnimationFrame(tick)
+        }
+        return
+      }
       const dt = last ? Math.min(100, t - last) : 0
       last = t
-      if (seen.current && !document.hidden) elapsed.current += dt
+      if (!document.hidden) elapsed.current += dt
       const i = Math.min(n - 1, from.current + Math.floor((elapsed.current / REPLAY_MS) * (n - 1)))
       setAt(i)
       if (i < n - 1) raf.current = requestAnimationFrame(tick)
@@ -155,11 +167,22 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     armed.current = d.dataset.cricketSeq === '1'
     const el = box.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => (seen.current = !!e?.isIntersecting), { threshold: 0 })
+    const io = new IntersectionObserver(
+      ([e]) => {
+        seen.current = !!e?.isIntersecting
+        const go = parked.current
+        if (seen.current && go) {
+          parked.current = null
+          go()
+        }
+      },
+      { threshold: 0 },
+    )
     io.observe(el)
     return () => {
       io.disconnect()
       cancelAnimationFrame(raf.current)
+      parked.current = null
     }
   }, [])
 
@@ -179,6 +202,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   useEffect(() => {
     if (!reduced || !matchMedia('(prefers-reduced-motion: reduce)').matches) return
     cancelAnimationFrame(raf.current)
+    parked.current = null
     queueMicrotask(() => {
       setPlaying(false)
       setAt(n - 1)

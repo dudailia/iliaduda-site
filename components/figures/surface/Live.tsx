@@ -1,5 +1,6 @@
 'use client'
 
+import { EASE_OUT_CSS } from '@/lib/ease'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { CONTROL } from '@/components/stage/controls'
@@ -844,7 +845,7 @@ function glideDetails(e: MouseEvent<HTMLElement>) {
   const from = details.open ? rows.offsetHeight : 0
   const seen = details.open ? Number(getComputedStyle(rows).opacity) : 0
   run?.anim.cancel()
-  const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
+  const ease = EASE_OUT_CSS
   const clip = { overflow: 'clip' }
   let anim: Animation
   if (opening) {

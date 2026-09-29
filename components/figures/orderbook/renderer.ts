@@ -416,7 +416,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   type Kind = LabelKind | 'probe'
   type Label = { el: HTMLSpanElement; kind: Kind; text: string; w: number; h: number; o: number; want: number; seen: boolean }
   const LOOK: Record<Kind, string> = {
-    tag: 'text-paper bg-ink',
+    // As wide as its longest price ("Price $100.215", 14 of the mono face's 0.6em characters, and its padding), so it
+    // does not jump a few pixels each way as the mid passes between whole and half cents.
+    tag: 'text-paper bg-ink min-w-[calc(8.4em+8px)] text-center',
     wall: 'text-ink bg-paper/85',
     time: 'text-graphite bg-paper/90',
     tick: 'text-graphite bg-paper/90',

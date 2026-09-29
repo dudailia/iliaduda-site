@@ -479,8 +479,10 @@ export function MarketLive({
       if (readingAgo.current !== null) readRef.current?.(readingAgo.current, false)
       v.fan.as = pointed.current?.sigma ?? null
       stillTick.current?.(m, now)
-      if (v.book.draw(m, p, now, landing.current, dt)) drewOnce.current.book = true
-      if (v.fan.draw(m, p, now, landing.current, dt)) drewOnce.current.fan = true
+      // Drawn while Fig. 1 is on screen; with only Fig. 2 in view the market runs on for its rates, and nothing here
+      // is drawn that no one sees.
+      if (stageOn.current && v.book.draw(m, p, now, landing.current, dt)) drewOnce.current.book = true
+      if (stageOn.current && v.fan.draw(m, p, now, landing.current, dt)) drewOnce.current.fan = true
       if (!flat && drewOnce.current.book && drewOnce.current.fan) setFlat(true)
 
       // The book's words: prices up its side, where the window has them now.
@@ -587,6 +589,15 @@ export function MarketLive({
     }
     lastLoad.current = m.h.load
     wasAbsorbing.current = m.h.absorbing
+  }, [])
+  // Whether Fig. 1's stage is on screen at all (its flat views draw only then).
+  const stageOn = useRef(true)
+  useEffect(() => {
+    const el = stage.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => void (stageOn.current = !!e?.isIntersecting))
+    io.observe(el)
+    return () => io.disconnect()
   }, [])
   // The market runs while Fig. 1 or Fig. 2, which reports on it, is on screen.
   const follow = useRef<HTMLElement | null>(null)

@@ -1,5 +1,6 @@
 'use client'
 
+import { EASE_OUT_CSS } from '@/lib/ease'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { CONTROL } from '@/components/stage/controls'
@@ -826,7 +827,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             style={{
               ...fade(stillShown),
               filter: stillShown ? 'blur(0)' : 'blur(2px)',
-              transition: `${fade(stillShown).transition}, filter 240ms cubic-bezier(0.23, 1, 0.32, 1)`,
+              transition: `${fade(stillShown).transition}, filter 240ms ${EASE_OUT_CSS}`,
             }}
           />
           <div ref={stillLabels} aria-hidden="true" className="pointer-events-none absolute inset-0" style={fade(stillShown)} />

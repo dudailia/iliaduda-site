@@ -70,7 +70,7 @@ export interface Options {
   onStats: (s: Stats) => void
   /** The sequence's first frame is on screen. */
   onSequenceFrame: () => void
-  /** The still frame was on screen when this renderer was made: open on the resting view it shows. */
+  /** The still frame is on screen as the first frame is drawn: open on the resting view it shows. */
   atRest?: () => boolean
 }
 
@@ -473,8 +473,6 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let ph: Phases | null = null
   /** The camera's place in the story (lib/futures/director.ts); `cam` and `flightP` are its reading this frame. */
   const director = new Director()
-  // Replacing the still frame (a late first frame, a context given back), the figure opens where the still stood.
-  if (o.atRest?.()) director.startAtRest()
   let cam: CamMode = 'frame'
   let flightP = 0
   let fadeTo: { t: number; ms: number; from: number } | null = null
@@ -507,7 +505,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let dirty = true
   let draws = 0
   /** Why the last frame was drawn, for ?debug=1: nothing, when it was still. */
-  let drawnFor = ''
+  // Why the last frame was drawn, kept as it was and joined only when ?debug=1 reads it.
+  let drawnFor: string[] = []
   let refreshedAt = -1
 
   // Labels
@@ -562,6 +561,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     true,
   )
   let histText = 0
+  // The words the histogram is to say, and when their swap began (seconds on the clock; −1: none under way).
+  let histWant = 0
+  let histSwapAt = -1
   // The climax: the payoff bars, averaged and discounted, are the call's price.
   // The number is the live Monte Carlo estimate, not a restatement of the formula.
   // In the composed frame it stands under the strike line, where the payoff bars are empty; in depth, a point further
@@ -1145,7 +1147,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         // seen, relaxing slowly so a change of display is picked up.
         clock.vsync = Math.min(clock.vsync * 1.0005, Math.max(1 / 240, clock.dtEma))
       }
-      if (firstAt < 0) firstAt = t
+      if (firstAt < 0) {
+        firstAt = t
+        // Replacing the still frame (a late first frame, a context given back), the figure opens where the still
+        // stood: asked on the first frame, since the still may have come up after the renderer was made.
+        if (o.atRest?.()) director.startAtRest()
+      }
       if (!warm && (pricer.ready() || t - firstAt > 1.5)) warm = true
       // The reader's clocks (the sequence, the flight) move on drawn frames; the sequence waits for a warm figure.
       o.tick(warm || !inSeq() ? dt * 1000 : 0)
@@ -1228,7 +1235,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       if (!arrived(focus, 1, 1e-4) || !arrived(edgeK, 0, 1e-4)) why.push('focus')
       if (!arrived(sig, sigma, 1e-6) || !arrived(kv, previewK ?? strike, 1e-3)) why.push('inputs')
       if (!arrived(morph, morphTarget, 1e-5)) why.push('morph')
-      drawnFor = why.join(' ')
+      drawnFor = why
       const still = why.length === 0
       if (!still) {
         vp = viewProjection(pose, aspect)
@@ -1241,12 +1248,24 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         drawBars(dt)
         composite()
         drawOverlay()
+        // The histogram's words change at the morph's middle through the site's word swap, on the clock, whatever the
+        // morph's own speed: out through a 3px blur (120ms), the new words, back in (120ms).
         const ht = morph.x >= 0.5 ? 1 : 0
-        if (ht !== histText) {
-          histText = ht
-          histEl.textContent = ht ? 'Payoff × how often it happens' : 'Where the paths end'
+        if (ht !== histWant) {
+          histWant = ht
+          histSwapAt = clock.now
         }
-        dirty = placeLabels(dt)
+        if (histSwapAt >= 0) {
+          const u = (clock.now - histSwapAt) / 0.12
+          if (u >= 1 && histText !== histWant) {
+            histText = histWant
+            histEl.textContent = histText ? 'Payoff × how often it happens' : 'Where the paths end'
+          }
+          const b = u < 1 ? u : u < 2 ? 2 - u : 0
+          histEl.style.filter = b > 0 ? `blur(${(3 * b).toFixed(2)}px)` : ''
+          if (u >= 2) histSwapAt = -1
+        }
+        dirty = placeLabels(dt) || histSwapAt >= 0
         o.labels.dataset.draws = String(++draws)
         o.labels.dataset.camera = cam
       }
@@ -1323,7 +1342,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         rate: rate > 0 ? `${(rate / 1e6).toFixed(1)}M paths/s` : 'measuring',
         camera: cam,
         stream: `${streamT.toFixed(1)} s${o.paused() ? ' (paused)' : ''}`,
-        draws: `${draws}${drawnFor ? ` · drawing for: ${drawnFor}` : ' · still'}`,
+        draws: `${draws}${drawnFor.length ? ` · drawing for: ${drawnFor.join(' ')}` : ' · still'}`,
       }
     },
     dispose() {

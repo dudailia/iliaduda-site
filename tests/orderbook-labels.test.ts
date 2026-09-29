@@ -77,6 +77,15 @@ describe('arranging labels', () => {
     expect(arrange([{ ...item, shown: true }], 400, 400)[0]).not.toBeNull()
   })
 
+  it('keeps a shown label beside a neighbour it just touches, where a new one would wait for the full gap', () => {
+    const [w, h] = size('10 s ago', 'time')
+    const first = { x: 100, y: 100, w, h, anchor: 'l' as const }
+    // The second starts 2px after the first ends: inside the 3px a new label keeps from a neighbour on each side.
+    const next = { x: 100 + w + 2, y: 100, w, h, anchor: 'l' as const }
+    expect(arrange([first, next], 400, 400)[1]).toBeNull()
+    expect(arrange([first, { ...next, shown: true }], 400, 400)[1]).not.toBeNull()
+  })
+
   it('reads a box the way its anchor says', () => {
     const b: Box = boxAt(100, 50, 40, 10, 'r')
     expect([b.x0, b.x1, b.y0, b.y1]).toEqual([60, 100, 45, 55])

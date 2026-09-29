@@ -27,5 +27,11 @@ export function bezier(x1: number, y1: number, x2: number, y2: number): (t: numb
 export const EASE_OUT = bezier(0.23, 1, 0.32, 1)
 /** Changing shape on screen. `cubic-bezier(0.77, 0, 0.175, 1)`. */
 export const EASE_IN_OUT = bezier(0.77, 0, 0.175, 1)
+/**
+ * The same two curves as CSS, for style strings and WAAPI (which cannot read `var(--ease-out)`); app/globals.css holds
+ * them as `--ease-out` and `--ease-in-out`.
+ */
+export const EASE_OUT_CSS = 'cubic-bezier(0.23, 1, 0.32, 1)'
+export const EASE_IN_OUT_CSS = 'cubic-bezier(0.77, 0, 0.175, 1)'
 /** A long camera move (easings.net easeInOutQuad). `cubic-bezier(0.45, 0, 0.55, 1)`. */
 export const EASE_IN_OUT_QUAD = bezier(0.45, 0, 0.55, 1)

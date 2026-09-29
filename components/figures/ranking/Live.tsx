@@ -1,5 +1,6 @@
 'use client'
 
+import { EASE_IN_OUT_CSS, EASE_OUT_CSS } from '@/lib/ease'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { useReducedMotion } from '@/components/stage/env'
@@ -30,10 +31,10 @@ export interface Row {
 }
 
 const SHOWN = 12
-const MOVE = 'transform 280ms cubic-bezier(0.77, 0, 0.175, 1), opacity 200ms cubic-bezier(0.23, 1, 0.32, 1)'
-const ENTER = 'transform 240ms cubic-bezier(0.23, 1, 0.32, 1), opacity 200ms cubic-bezier(0.23, 1, 0.32, 1)'
+const MOVE = `transform 280ms ${EASE_IN_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
+const ENTER = `transform 240ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 /** A row caught mid-glide by another switch: away at once from where it is drawn, on the ease-out, so it never stalls. */
-const RETARGET = 'transform 280ms cubic-bezier(0.23, 1, 0.32, 1), opacity 200ms cubic-bezier(0.23, 1, 0.32, 1)'
+const RETARGET = `transform 280ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 
 export function RankingLive({
   rows,
@@ -53,7 +54,8 @@ export function RankingLive({
   const list = useRef<HTMLOListElement>(null)
   const before = useRef<Map<string, number>>(new Map())
   /** Rows that have just left the top, fading where they stood: each with its row and its place, in px from the list's top. */
-  const [gone, setGone] = useState<{ row: Row; top: number; height: number; key: number }[]>([])
+  // The rows leaving the top, with the numbers they had there (the treatment just left), fading where they stood.
+  const [gone, setGone] = useState<{ row: Row; top: number; height: number; key: number; rank: number; score: number; frac: number }[]>([])
   const goneKey = useRef(0)
 
   const shown = [...rows].sort((x, y) => x[v].rank - y[v].rank).slice(0, SHOWN)
@@ -70,13 +72,13 @@ export function RankingLive({
     const m = new Map<string, number>()
     const el = list.current
     const top0 = el?.getBoundingClientRect().top ?? 0
-    const leaving: { row: Row; top: number; height: number; key: number }[] = []
+    const leaving: (typeof gone)[number][] = []
     const kept = new Set([...rows].sort((x, y) => x[next].rank - y[next].rank).slice(0, SHOWN).map((r) => r.name))
     el?.querySelectorAll<HTMLLIElement>('li[data-name]').forEach((li) => {
       const r = li.getBoundingClientRect()
       m.set(li.dataset.name!, r.top)
       const row = rows.find((x) => x.name === li.dataset.name)
-      if (!reduced && row && !kept.has(row.name)) leaving.push({ row, top: r.top - top0, height: r.height, key: ++goneKey.current })
+      if (!reduced && row && !kept.has(row.name)) leaving.push({ row, top: r.top - top0, height: r.height, key: ++goneKey.current, rank: row[v].rank, score: row[v].score, frac: row[v].score / max })
     })
     before.current = m
     setV(next)
@@ -199,7 +201,7 @@ export function RankingLive({
               <span className="relative h-2.5" aria-hidden>
                 <span
                   className="absolute inset-y-0 left-0 w-full origin-left bg-indigo"
-                  style={{ transform: `scaleX(${r[v].score / max})`, transition: reduced ? 'none' : 'transform 280ms cubic-bezier(0.77, 0, 0.175, 1)' }}
+                  style={{ transform: `scaleX(${r[v].score / max})`, transition: reduced ? 'none' : `transform 280ms ${EASE_IN_OUT_CSS}` }}
                 />
               </span>
               <span className="text-meta tabular text-right text-graphite">{r[v].score.toFixed(1)}</span>
@@ -216,15 +218,15 @@ export function RankingLive({
           <li
             key={`gone-${g.key}`}
             aria-hidden
-            className="absolute inset-x-0 grid min-w-0 grid-cols-[1.5rem_minmax(0,8.5rem)_1fr_2.5rem_2.25rem] items-center gap-x-2.5 border-b border-rule py-1.5 opacity-0 transition-opacity duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-100 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
+            className="absolute inset-x-0 grid min-w-0 grid-cols-[1.5rem_minmax(0,8.5rem)_1fr_2.5rem_2.25rem] items-center gap-x-2.5 border-b border-rule py-1.5 opacity-0 transition-opacity duration-200 ease-out starting:opacity-100 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
             style={{ top: g.top, height: g.height }}
           >
-            <span className="text-meta tabular text-graphite">{g.row[v].rank}</span>
+            <span className="text-meta tabular text-graphite">{g.rank}</span>
             <span className="text-note truncate">{g.row.name}</span>
             <span className="relative h-2.5">
-              <span className="absolute inset-y-0 left-0 w-full origin-left bg-indigo" style={{ transform: `scaleX(${g.row[v].score / max})` }} />
+              <span className="absolute inset-y-0 left-0 w-full origin-left bg-indigo" style={{ transform: `scaleX(${g.frac})` }} />
             </span>
-            <span className="text-meta tabular text-right text-graphite">{g.row[v].score.toFixed(1)}</span>
+            <span className="text-meta tabular text-right text-graphite">{g.score.toFixed(1)}</span>
             <span className="text-meta tabular text-right text-ink">↓</span>
           </li>
         ))}

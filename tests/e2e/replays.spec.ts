@@ -59,6 +59,38 @@ test('off screen, the cricket replay waits for the reader', async ({ page }) => 
   expect(Number(await ball(page).inputValue())).toBe(held)
 })
 
+test('off screen, the cricket replay asks for no frames, and carries on from where it was when seen again', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __raf: number }
+    w.__raf = 0
+    const raf = window.requestAnimationFrame.bind(window)
+    window.requestAnimationFrame = (cb) => {
+      w.__raf++
+      return raf(cb)
+    }
+  })
+  await page.goto('/cricstate')
+  await page.locator('#fig-replay').scrollIntoViewIfNeeded()
+  // Playing: past the first ball and short of the last (where the slider rests before the replay starts).
+  const max = Number(await ball(page).getAttribute('max'))
+  await expect
+    .poll(async () => {
+      const v = Number(await ball(page).inputValue())
+      return v > 0 && v < max
+    }, { timeout: 3_000 })
+    .toBe(true)
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await page.waitForTimeout(400)
+  const count = () => page.evaluate(() => (window as unknown as { __raf: number }).__raf)
+  const before = await count()
+  const held = Number(await ball(page).inputValue())
+  await page.waitForTimeout(1_000)
+  // A second at 60 Hz would be about sixty frames: a few at most (the page's own scroll work).
+  expect((await count()) - before).toBeLessThan(6)
+  await page.locator('#fig-replay').scrollIntoViewIfNeeded()
+  await expect.poll(async () => Number(await ball(page).inputValue()), { timeout: 3_000 }).toBeGreaterThan(held)
+})
+
 test('the reader’s own steps on the ball slider are not spoken twice', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/cricstate')
