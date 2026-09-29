@@ -18,6 +18,7 @@ import { withError } from '@/lib/futures/format'
 import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
 import type { FuturesRenderer, Stats } from './renderer'
+import { rangeFill } from '@/components/stage/range'
 
 /**
  * Fig. 1, live. The page arrives with the poster — a real frame computed on
@@ -377,7 +378,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     if (typeof D.requestPermission === 'function' && permission !== 'granted') return
     const onTilt = (e: DeviceOrientationEvent) => {
       if (pausedRef.current) return
-      lean.current = tilt.current.read(e.beta, e.gamma, screen.orientation?.angle ?? 0)
+      lean.current = tilt.current.read(e.beta, e.gamma, screen.orientation?.angle ?? 0, e.timeStamp)
       leanFrom.current = 'tilt'
     }
     addEventListener('deviceorientation', onTilt)
@@ -934,7 +935,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               value={Math.round(sigma * 100)}
               aria-valuetext={`${pct(sigma)} a year`}
               onChange={(e) => commit(Number(e.currentTarget.value) / 100, strike)}
-              className="mt-0.5 block h-6 w-full accent-[var(--color-indigo)]"
+              className="mt-0.5 block h-6 w-full"
+              style={rangeFill(Math.round(sigma * 100), MODEL.sigmaMin * 100, MODEL.sigmaMax * 100)}
             />
           </label>
           <label className="block">
@@ -952,7 +954,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               value={strike}
               aria-valuetext={`$${strike}`}
               onChange={(e) => commit(sigma, Number(e.currentTarget.value))}
-              className="mt-0.5 block h-6 w-full accent-[var(--color-indigo)]"
+              className="mt-0.5 block h-6 w-full"
+              style={rangeFill(strike, MODEL.strikeMin, MODEL.strikeMax)}
             />
           </label>
         </div>

@@ -4,6 +4,7 @@ import { SkipLink } from '@/components/SkipLink'
 import { sourceCodePro, sourceSerif } from '@/lib/fonts'
 import { AVAILABILITY, PERSON, POSITIONING, SITE } from '@/lib/site'
 import './globals.css'
+import { Analytics } from '@vercel/analytics/next'
 
 export const metadata: Metadata = {
   // The deployment's own origin, so a preview's Open Graph image resolves on
@@ -70,6 +71,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           // close the tag early.
           dangerouslySetInnerHTML={{ __html: JSON.stringify(person).replace(/</g, '\\u003c') }}
         />
+        {/* Vercel Web Analytics, on the production deployment only: its script and its counts are the site's own origin
+            (/_vercel/insights), without cookies; a preview or a local build has no such path, so it is not asked for. */}
+        {SITE.isProduction ? <Analytics /> : null}
       </body>
     </html>
   )

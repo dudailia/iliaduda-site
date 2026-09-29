@@ -83,16 +83,22 @@ describe('the worker’s market', () => {
     const host = new MarketHost(SEED, POSTER_T, ticking())
     let { at } = run(host, 1000 / 60, 1)
     host.pause()
-    const t = host.market.t
+    const t0 = host.market.t
     const buf = new ArrayBuffer(FRAME_BYTES)
-    for (let i = 0; i < 60; i++) host.frame((at += 1000 / 60), buf)
+    // It coasts to rest over 240ms (a little less than a quarter second of simulated time goes by) and then holds.
+    for (let i = 0; i < 20; i++) host.frame((at += 1000 / 60), buf)
+    const t = host.market.t
+    expect(t - t0).toBeGreaterThan(0.05)
+    expect(t - t0).toBeLessThan(0.24)
+    for (let i = 0; i < 40; i++) host.frame((at += 1000 / 60), buf)
     expect(host.market.t).toBe(t)
     expect(readFrame(buf).h[H.paused]).toBe(1)
     host.resume()
     const q = host.market.flow.quanta
     host.act('shock')
     expect(host.market.log).toHaveLength(0)
-    host.frame((at += 1000 / 60), buf)
+    // Resumed, the market picks up from rest over 400ms: the shock lands on its first quantum, a few frames on.
+    for (let i = 0; i < 30 && host.market.log.length === 0; i++) host.frame((at += 1000 / 60), buf)
     expect(host.market.log).toEqual([{ q, action: 'shock' }])
     expect(readFrame(buf).h[H.shocks]).toBe(1)
   })

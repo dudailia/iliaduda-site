@@ -158,7 +158,7 @@ export function CategorisationLive({
   const acted = Object.keys(human).length
   const lit = (value: string, key: keyof typeof counts) =>
     acted && before && before[key] !== counts[key] ? (
-      <span key={`${key}-${acted}`} className="-mx-0.5 rounded-sm px-0.5 transition-[background-color] duration-700 ease-out starting:bg-indigo-wash">
+      <span key={`${key}-${acted}`} data-lit="" className="-mx-0.5 rounded-sm px-0.5 transition-[background-color] duration-700 ease-out starting:bg-indigo-wash">
         {value}
       </span>
     ) : (
@@ -275,7 +275,11 @@ export function CategorisationLive({
                       />
                       <span className="absolute -inset-y-[3px] w-px bg-ink" style={{ left: `${threshold * 100}%` }} />
                     </span>
-                    <span className="text-meta tabular text-ink">
+                    {/* The settled score arrives through the row's blur, in the frame its bar starts to settle. */}
+                    <span
+                      key={final ? 'settled' : 'waiting'}
+                      className={`text-meta tabular text-ink ${!settled && final ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}
+                    >
                       <span className="sr-only">confidence </span>
                       {conf.toFixed(2)}
                     </span>

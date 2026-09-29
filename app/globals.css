@@ -177,6 +177,61 @@
     border-radius: 1px;
   }
 
+  /* The site's slider, the same in every browser (iOS Safari ignores accent-color): a 4px track in the context tone,
+     indigo as far as the value (--fill, which each input sets from its own value: components/stage/range.ts), and a
+     16px indigo thumb ringed in paper, inside the input's 24px to the touch. Forced colours keep the system's own. */
+  input[type='range'] {
+    --fill: 0%;
+    --track: color-mix(in oklab, var(--color-graphite) 45%, var(--color-paper));
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type='range']:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(to right, var(--color-indigo) var(--fill), var(--track) var(--fill));
+  }
+  input[type='range']::-moz-range-track {
+    height: 4px;
+    background: var(--track);
+  }
+  input[type='range']::-moz-range-progress {
+    height: 4px;
+    background: var(--color-indigo);
+  }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    border: 2px solid var(--color-paper);
+    border-radius: 50%;
+    background: var(--color-indigo);
+    box-shadow: 0 0 0 1px var(--color-indigo);
+  }
+  input[type='range']::-moz-range-thumb {
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-paper);
+    border-radius: 50%;
+    background: var(--color-indigo);
+    box-shadow: 0 0 0 1px var(--color-indigo);
+  }
+  @media (forced-colors: active) {
+    input[type='range'] {
+      -webkit-appearance: auto;
+      appearance: auto;
+    }
+  }
+
   /* Anchored figures must not land under a browser's find bar or feel flush. */
   [id] {
     scroll-margin-top: 1.5rem;
@@ -205,6 +260,14 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* A colour cue is not movement: the count a reviewer's click moved (CloseBooks) still lights and fades under reduced
+   motion, the one cue for which count it was. */
+@media (prefers-reduced-motion: reduce) {
+  [data-lit] {
+    transition-duration: 700ms !important;
   }
 }
 
@@ -401,6 +464,50 @@
     font-size: var(--text-meta);
     font-variant-numeric: tabular-nums;
     color: var(--color-graphite);
+  }
+}
+/* /market's three views side by side where the screen is wide (lg) or short (a phone turned sideways): the surface at
+   its own aspect on the left, the book over the futures on the right, the line between them under both, and the whole
+   stage one screen tall at most (--h), so on a laptop's first screen, and once in view on a phone, the shock lands in
+   all three at once. Each pane's canvas is half the height left after the titles and axes (6.5rem in all). Outside
+   any layer, so it wins over the panes' own sizes. */
+@media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem) {
+  [data-market-views] {
+    --h: clamp(16rem, calc(100svh - 34rem), 24rem);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'surface lower' 'story story';
+    column-gap: 0.75rem;
+  }
+  [data-market-views] > [data-market-surface-box] {
+    grid-area: surface;
+    margin-inline: 0;
+  }
+  [data-market-views] > [data-market-surface-box] > [data-market-surface] {
+    height: var(--h);
+    width: auto;
+    max-width: none;
+    aspect-ratio: 1.62;
+    /* At this size the strike axis's words reach past the surface's left edge: they run into the margin, not cut. */
+    overflow: visible;
+  }
+  [data-market-views] > [data-market-lower] {
+    grid-area: lower;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.5rem;
+    margin-top: 0;
+    align-content: start;
+  }
+  [data-market-views] > [data-market-story] {
+    grid-area: story;
+  }
+  [data-market-views] [data-market-pane] {
+    height: calc((var(--h) - 6.5rem) / 2);
+  }
+}
+@media (min-width: 40rem) and (max-width: 63.99rem) and (max-height: 30rem) {
+  [data-market-views] {
+    --h: calc(100svh - 7rem);
   }
 }
 /* The Contents' Pause arrives with the miniatures it holds, rising 4px into place over 240ms, as the figures' controls

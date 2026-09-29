@@ -43,6 +43,8 @@ export class MarketHost {
   private sim = 0
   private lastAt: number | null = null
   private paused = false
+  /** How fast the market runs against the page's clock, 0 to 1: below 1 only while it coasts to or from a Pause. */
+  private rate = 1
   private rowsFrom = 0
   private tape: Trade[] = []
   private seq = 0
@@ -87,6 +89,8 @@ export class MarketHost {
 
   pause(): void {
     this.paused = true
+    // A market paused before its first frame (Pause kept from an earlier page) opens at rest, with no coast.
+    if (this.lastAt == null) this.rate = 0
   }
 
   resume(): void {
@@ -103,10 +107,14 @@ export class MarketHost {
     const start = this.now()
     const dt = this.lastAt == null ? 0 : Math.max(0, (at - this.lastAt) / 1000)
     this.lastAt = at
-    const step = this.paused ? 0 : Math.min(dt, HOST.cap)
-    // Held: the time the page was away or too slow to follow, which the market did not run; the reader's own pause is
-    // not that.
-    if (!this.paused) this.held += dt - step
+    // Paused, the market coasts to rest over 240ms, and picks up over 400ms on Resume, as the order book's does and
+    // the surface above it: one button, one way of stopping.
+    this.rate = this.paused ? Math.max(0, this.rate - dt / 0.24) : Math.min(1, this.rate + dt / 0.4)
+    const capped = Math.min(dt, HOST.cap)
+    const step = capped * this.rate
+    // Held: the time the page was away or too slow to follow, which the market did not run; the reader's own pause
+    // (and its coast) is not that.
+    if (!this.paused) this.held += dt - capped
     const t = this.market.t
     this.sim += step
     this.market.advance(this.sim)

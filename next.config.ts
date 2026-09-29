@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next'
 
 /**
- * Content Security Policy. Everything is same-origin: no CDN, no analytics, no
- * third-party script, and the origin e2e gate asserts it.
+ * Content Security Policy. Everything is same-origin: no CDN and no third-party script (Vercel Web Analytics is
+ * served and counted at the site's own /_vercel/insights), and the origin e2e gate asserts it.
  *
  * One exception, and only on preview deployments: Vercel injects its preview
  * toolbar (comments and feedback) from vercel.live. Blocking it was harmless

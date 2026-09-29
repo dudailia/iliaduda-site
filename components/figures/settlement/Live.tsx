@@ -5,6 +5,7 @@ import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { EPISODE_MS, requestCode, used, WINDOWS, type Allowance, type Outcome } from '@/lib/contact'
 import { LADDER, offeredTerms, rub, terms, termForMonthly } from '@/lib/settlement'
 import { CONTROL, option } from '@/components/stage/controls'
+import { rangeFill } from '@/components/stage/range'
 
 /**
  * Two things the portal's debtor path has to get right, side by side: what a
@@ -188,7 +189,8 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                   clearTimeout(heardTimer.current)
                   setHeard('')
                 }}
-                className="mt-1 h-6 w-full accent-[var(--color-indigo)]"
+                className="mt-1 h-6 w-full"
+                style={rangeFill(i, 0, offered.length - 1)}
               />
             </label>
             <label className="block">
@@ -281,8 +283,15 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
             The login’s statutory cost · 230-FZ art. 7, messages
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            {/* Both labels in one cell, the one not shown kept invisible: the press changes its own words, never its
+                width, so the controls beside it stay under the pointer. */}
             <button type="button" onClick={request} className={CONTROL}>
-              {inEpisode ? 'Send the code again' : 'Request a login code'}
+              <span className="grid text-center">
+                <span className="invisible [grid-area:1/1]" aria-hidden>
+                  {inEpisode ? 'Request a login code' : 'Send the code again'}
+                </span>
+                <span className="[grid-area:1/1]">{inEpisode ? 'Send the code again' : 'Request a login code'}</span>
+              </span>
             </button>
             <button type="button" onClick={() => setNow((t) => t + 10 * MIN)} className={CONTROL}>
               +10 minutes

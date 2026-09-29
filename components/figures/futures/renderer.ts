@@ -294,14 +294,15 @@ void main() {
     float pays = 1.0 - exp(-uTone * d.r);
     float not_ = 0.7 * (1.0 - exp(-uTone * d.g));
     float halo = 1.0 - exp(-1.4 * (b.r + 0.4 * b.g));
-    float x = 0.15 * smoothstep(0.5, 1.0, 1.0 - exp(-uTone * 0.08 * d.r));
+    // Only the very densest core leans toward (night's light) ink, and a little: more washed the fan out to a pale blob.
+    float x = 0.06 * smoothstep(0.5, 1.0, 1.0 - exp(-uTone * 0.08 * d.r));
     vec3 E = uWash * halo;
     float T = 1.0 - halo;
     E = E * (1.0 - not_) + uGraphite * not_;
     T *= 1.0 - not_;
     E = E * (1.0 - pays) + uIndigo * pays;
     T *= 1.0 - pays;
-    E += uIndigo * 0.18 * (1.0 - exp(-1.2 * b.r));
+    E += uIndigo * 0.1 * (1.0 - exp(-1.2 * b.r));
     E = E * (1.0 - x) + uInk * x;
     T *= 1.0 - x;
     o = vec4(E + n, T);
@@ -554,12 +555,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   for (const s of TICKS) label(`$${s}`, LABELS.tick.cls, () => [LABELS.tick.x, wy(s), zEdge()], () => labelU * tickShown(s - kv.x))
   // The strike stays named through the whole flight: it is what the colours mean.
   const strikeEl = label('', LABELS.strike.cls, () => [LABELS.strike.label, wy(kv.x), zEdge()], () => 1)
-  // One label for the histogram. Its words change halfway through the morph,
-  // and it dips to nothing there, so one text never crossfades into another.
-  const histEl = label('Where the paths end', `${LABELS.hist.cls} text-ink`, () => [LABELS.hist.at[0], LABELS.hist.at[1], 0], () =>
-    labelU * landing() * smooth(0.02, 0.22, Math.abs(2 * morph.x - 1)),
-    true,
-  )
+  // One label for the histogram. Its words change halfway through the morph, through a 3px blur at full opacity (the
+  // swap below), so one text never crossfades into another.
+  const histEl = label('Where the paths end', `${LABELS.hist.cls} text-ink`, () => [LABELS.hist.at[0], LABELS.hist.at[1], 0], () => labelU * landing(), true)
   let histText = 0
   // The words the histogram is to say, and when their swap began (seconds on the clock; −1: none under way).
   let histWant = 0
@@ -812,7 +810,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform3fv(P.composite.u('uWash'), palette.wash)
     gl.uniform1f(P.composite.u('uDark'), palette.dark ? 1 : 0)
     gl.uniform1f(P.composite.u('uBloom'), bloom ? bloomK : 0)
-    gl.uniform1f(P.composite.u('uTone'), palette.dark ? 0.9 : DAY.tone)
+    // At night a lower tone keeps the dense core indigo, not whitened, so the fan's split at the strike still reads.
+    gl.uniform1f(P.composite.u('uTone'), palette.dark ? 0.25 : DAY.tone)
     gl.uniform1f(P.composite.u('uCap'), DAY.cap)
     gl.uniform1f(P.composite.u('uHalo'), DAY.halo)
     gl.uniform1f(P.composite.u('uFade'), fadeMul)

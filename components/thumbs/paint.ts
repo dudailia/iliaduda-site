@@ -21,6 +21,8 @@ export interface Mini {
   draw(g: CanvasRenderingContext2D, w: number, h: number, t: number, dt: number, pal: MiniPalette): void
   /** For the engine's minis: the simulated time the market is at, handed to the paper through the morph. */
   time?(): number
+  /** Whether its own time `t` is between two of its moves (none mid-glide): a mini losing its turn plays on to one. */
+  atRest?(t: number): boolean
 }
 export type MakeMini = (svg: SVGSVGElement) => Mini
 

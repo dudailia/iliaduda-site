@@ -15,7 +15,7 @@ describe('the tilt lean', () => {
     expect(l.read(40, 5, 0)).toEqual({ x: 0, y: 0 })
   })
 
-  it('leans with the tilt from there, on both axes, and never past full', () => {
+  it('leans with the tilt from there, on both axes, softly toward full and never past it', () => {
     const l = new Lean()
     l.read(40, 5, 0)
     const right = l.read(40, 15, 0)
@@ -24,7 +24,7 @@ describe('the tilt lean', () => {
     const back = l.read(52, 5, 0)
     expect(Math.abs(back.y)).toBeGreaterThan(0.3)
     const far = l.read(40, 80, 0)
-    expect(far.x).toBe(1)
+    expect(far.x).toBeCloseTo(1, 2)
   })
 
   it('turns its axes with the screen', () => {
@@ -56,5 +56,18 @@ describe('the tilt lean', () => {
     const held = l.read(40, 15, 0)
     expect(l.read(85, 40, 0)).toEqual(held)
     expect(l.read(null, null, 0)).toEqual(held)
+  })
+})
+
+describe('the tilt by time', () => {
+  it('settles a new grip in the same seconds whether the sensor reports 60 or 20 times a second', () => {
+    const run = (hz: number) => {
+      const l = new Lean()
+      l.read(40, 5, 0, 0)
+      let last = { x: 0, y: 0 }
+      for (let i = 1; i <= 5 * hz; i++) last = l.read(40, 17, 0, (i * 1000) / hz)
+      return last.x
+    }
+    expect(Math.abs(run(60) - run(20))).toBeLessThan(0.02)
   })
 })

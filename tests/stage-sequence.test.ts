@@ -112,3 +112,20 @@ describe('what counts as asking to get on with it', () => {
     expect(isSkipInput({ type: 'keydown', key: 'a' })).toBe(true)
   })
 })
+
+describe('a skip', () => {
+  it('finishes each phase evenly from where it stood: one still to come does not leap in the first frame', () => {
+    const s = new Sequence(5000, { lines: [0, 0.2], rise: [0.2, 0.5], shock: [0.5, 1] })
+    s.start()
+    s.advance(700)
+    expect(s.phases().rise).toBe(0)
+    s.skip()
+    s.advance(16)
+    // 16ms of 240: a fifteenth of the way, not the most of it.
+    expect(s.phases().rise).toBeCloseTo(16 / 240, 5)
+    expect(s.phases().lines).toBeCloseTo(0.7 + 0.3 * (16 / 240), 5)
+    s.advance(240)
+    expect(s.done).toBe(true)
+    expect(s.phases()).toEqual({ lines: 1, rise: 1, shock: 1 })
+  })
+})

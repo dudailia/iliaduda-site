@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { DOMAIN, ETA_BOUND, gWithEta, P } from '@/lib/svi'
 import { CONTROL } from '@/components/stage/controls'
+import { rangeFill } from '@/components/stage/range'
 
 /** A typeset minus sign, as the margins everywhere else print one. */
 const minus = (x: string) => x.replace('-', '−')
@@ -121,7 +122,8 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
           value={eta}
           onChange={(e) => setEta(Number(e.currentTarget.value))}
           aria-valuetext={`eta ${eta.toFixed(2)}; ${arbitrage ? `butterfly arbitrage, lowest g ${minG.toFixed(3)}` : 'no butterfly arbitrage'}`}
-          className="mt-1 h-6 w-full accent-[var(--color-indigo)]"
+          className="mt-1 h-6 w-full"
+          style={rangeFill(eta, 0.4, ETA_MAX)}
         />
       </label>
       <div className="mt-2 flex gap-2">

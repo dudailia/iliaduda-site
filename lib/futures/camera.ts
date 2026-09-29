@@ -379,8 +379,9 @@ export function endPose(aspect: number): Pose {
  * Fly through, at progress p (0…1) from `start`: down behind today, looking
  * along the time axis with the futures opening ahead; alongside the fan; out
  * to the wall. A cubic Hermite through the keys, with Catmull–Rom tangents
- * inside and none at the ends, so the camera eases out of rest and settles
- * into the wall's view instead of arriving at speed. From 0.8 on it holds
+ * inside, the first leg's chord at the start (the flight's own clock eases it
+ * out of rest) and none at the end, so it settles into the wall's view
+ * instead of arriving at speed. From 0.8 on it holds
  * that view, where the histogram becomes the payoff.
  */
 export function flightPose(p: number, aspect: number, start: Pose): Pose {
@@ -404,10 +405,14 @@ export function flightPose(p: number, aspect: number, start: Pose): Pose {
   const u = (p - a.at) / h
   const u2 = u * u, u3 = u2 * u
   const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2
-  // The slope at key j, per unit of p: none at the first and last keys; at the first inner key, toward the next key
-  // only, so wherever the rest was, the flight from behind today on is the same path.
+  // The slope at key j, per unit of p: half the first leg's chord at the start, so the flight leaves on its own clock's
+  // ease (easeInOutQuad) and not on that times a still tangent (a quartic start, dead for its first second); none at
+  // the last key; at the first inner key, toward the next key only, so wherever the rest was, the flight from behind
+  // today on is the same path.
   const slope = (j: number, sel: 'eye' | 'target', c: number) =>
-    j === 0 || j === k.length - 1
+    j === 0
+      ? (0.5 * (k[1]!.pose[sel][c]! - k[0]!.pose[sel][c]!)) / (k[1]!.at - k[0]!.at)
+      : j === k.length - 1
       ? 0
       : j === 1
         ? (k[2]!.pose[sel][c]! - k[1]!.pose[sel][c]!) / (k[2]!.at - k[1]!.at)

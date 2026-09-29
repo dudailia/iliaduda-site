@@ -3,7 +3,7 @@ import { diffuse, linOf, rampLab, rampStops, rampT, srgbOf } from '@/lib/surface
 import { FRAME_H, poster, RAMP_CSS, type PosterData } from '@/lib/surface/poster'
 import { MESH_CSS, meshMarkup } from '@/lib/surface/posterMarkup'
 import { iv, type Params } from '@/lib/surface/ssvi'
-import { apply, camera, kOfU, mvp, tOfV, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
+import { apply, camera, EXPIRY_TICKS, kOfU, mvp, tOfV, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 
 /**
  * The still frame's sheet, drawn smooth on a 2D canvas: the figure a reader
@@ -80,7 +80,41 @@ export function drawSheet(canvas: HTMLCanvasElement, p: Params, kind: FrameKind,
       g.strokeStyle = col
       g.stroke()
     }
+
+  // By night the live figure's resting glow on every ticked smile (renderer.ts: 0.07, 14px, a Gaussian across it),
+  // added as light, so the still frame rests as the live one does. Three widths stand in for the Gaussian.
+  if (pal.dark) {
+    const c = [0, 1, 2].map((i) => Math.round((pal.indigo[i]! + (pal.ink[i]! - pal.indigo[i]!) * 0.4) * 255))
+    g.globalCompositeOperation = 'lighter'
+    g.lineCap = 'round'
+    g.strokeStyle = `rgb(${c[0]} ${c[1]} ${c[2]})`
+    for (const [T] of EXPIRY_TICKS) {
+      g.beginPath()
+      for (let i = 0; i <= SMILE_N; i++) {
+        const k = kOfU(i / SMILE_N)
+        const q = apply(m, wx(k), wy(iv(p, k, T)) + 0.008, wz(T))
+        const sx = ((q[0] / q[3]) * 0.5 + 0.5) * w, sy = (1 - ((q[1] / q[3]) * 0.5 + 0.5)) * h
+        if (i) g.lineTo(sx, sy)
+        else g.moveTo(sx, sy)
+      }
+      for (const [width, strength] of GLOW) {
+        g.lineWidth = width
+        g.globalAlpha = strength
+        g.stroke()
+      }
+    }
+    g.globalAlpha = 1
+    g.globalCompositeOperation = 'source-over'
+  }
 }
+
+/** The smiles' resting glow as three strokes, widest faintest: together about the live glow's 0.07 at the centre. */
+const GLOW: readonly (readonly [number, number])[] = [
+  [14, 0.012],
+  [8, 0.02],
+  [3, 0.035],
+]
+const SMILE_N = 96
 
 /**
  * The still frame put in place of a poster's picture, and drawn for surface `p`: the first time, the poster's image

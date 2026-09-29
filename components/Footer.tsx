@@ -64,8 +64,8 @@ export function Footer() {
         <div className="h-10" />
         <Row rail="Colophon">
           <p className="text-note max-w-[36rem] text-graphite">
-            Set in Source Serif 4 and Source Code Pro, both self-hosted. No third-party requests,
-            no analytics.{' '}
+            Set in Source Serif 4 and Source Code Pro, both self-hosted. No third-party requests;
+            visits are counted by Vercel Web Analytics, from this site&rsquo;s own address and without cookies.{' '}
             <a href="https://github.com/dudailia/iliaduda-site">Source on GitHub</a>.
           </p>
         </Row>

@@ -268,7 +268,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   /** The shock shown: the signature's, or the reader's level followed on a quick spring (ω = 30/s, the home figure's). */
   const shock = { x: hooks.level(), v: 0 }
   /** Replay's way back into the page: from what was shown when it was pressed, on the site's ease-out. */
-  let sinking: { t: number; rise: number; lines: number; labels: number; shock: number; done: () => void } | null = null
+  let sinking: { t: number; rise: number; lines: number; labels: number; shock: number; sway: number; done: () => void } | null = null
   /** What the last frame showed, for a sink to start from. */
   let shown = { rise: 1, lines: 1, labels: 1, shock: 0 }
   /** The story's phases at the last frame, summed: a change (Replay, its end) is drawn by a paused figure too. */
@@ -280,6 +280,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   // A shock's nod, on a spring of its own (the drag's ω 7), so Pause can hold it without holding the reader's drag.
   const nod = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
   let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; live: boolean } | null = null
+  /** Until when a key's aim is followed on the quick spring (performance.now(), ms). */
+  let keyedUntil = 0
 
   // ── input ──────────────────────────────────────────────────────────────────
   const pick = (clientX: number, clientY: number): Probe | null => {
@@ -470,12 +472,16 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // /market's keys aim the view, within the drag's soft limits, on the drag's own spring; home is zero.
       const aimed = hooks.aim?.()
       if (aimed && !drag) {
-        spring.ty = aimed.yaw ? soft.yaw(aimed.yaw) : 0
-        spring.tp = aimed.pitch ? soft.pitch(aimed.pitch) : 0
+        const ty = aimed.yaw ? soft.yaw(aimed.yaw) : 0, tp = aimed.pitch ? soft.pitch(aimed.pitch) : 0
+        // A key's aim is followed on the quick spring (ω 30, there in about 160ms): a key press never trails.
+        if (ty !== spring.ty || tp !== spring.tp) keyedUntil = performance.now() + 500
+        spring.ty = ty
+        spring.tp = tp
       }
       if (!drag || !drag.live) {
-        step2(spring, 'yaw', 'vy', spring.ty, dt, 7)
-        step2(spring, 'pitch', 'vp', spring.tp, dt, 7)
+        const w = performance.now() < keyedUntil ? 30 : 7
+        step2(spring, 'yaw', 'vy', spring.ty, dt, w)
+        step2(spring, 'pitch', 'vp', spring.tp, dt, w)
       }
       // A shock's blow: the camera nods (a kick to the drag spring's speed, ω 7, which carries it home without an
       // overshoot) and the one-month smile lights. The kick sets the speed rather than adding to it, so shocks pressed
@@ -494,7 +500,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         step2(nod, 'pitch', 'vp', 0, dt, 7)
         flash = flash > 0.004 ? flash * Math.exp(-dt / 0.3) : 0
       }
-      const leaning = paused ? null : hooks.lean()
+      // Paused, while the hand turns it, or while a mouse reads a point, the lean rests where it is: the grip is the
+      // hand's alone, and the point being read stays under the pointer (as the order book holds still for a reading).
+      const reading = sim.hover !== null
+      const leaning = paused || drag?.live || reading ? null : hooks.lean()
       const ly = leaning ? -LEAN.yaw * leaning.x : lean.yaw, lp = leaning ? -LEAN.pitch * leaning.y : lean.pitch
       step2(lean, 'yaw', 'vy', ly, dt, 4)
       step2(lean, 'pitch', 'vp', lp, dt, 4)
@@ -531,8 +540,11 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         x = k.shock * out(SINK_S)
         shock.x = x
         shock.v = 0
+        // The sway sinks with the sheet, so Replay never snaps the camera; its clock starts over with the story.
+        swayIn = k.sway * out(SINK_S)
         if (k.t >= SINK_S) {
           sinking = null
+          swayT = 0
           k.done()
         }
       }
@@ -563,7 +575,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       finishK += ((q === 0 ? 0 : 1) - finishK) * (1 - Math.exp(-dt / 0.08))
       // The sway comes in after the story, and from a still start on a visit without one (so the first frame is the
       // poster's exactly), over 1.5s on the in-out; Pause lets it coast to rest (240ms) and pick up again (400ms).
-      swayIn = ph ? 0 : Math.min(1, swayIn + (dt / 1.5) * swayK)
+      if (!sinking) swayIn = ph ? 0 : Math.min(1, swayIn + (dt / 1.5) * swayK)
       const kind = hooks.frame()
       const cam = camera(kind, Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw + nod.yaw, spring.pitch + lean.pitch + nod.pitch)
       lastZoom = hooks.zoom?.() ?? 1
@@ -628,18 +640,27 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
           gl.drawArrays(gl.TRIANGLES, 0, frontCount)
           gl.uniform1f(line.u('uWidth'), 1)
         }
-        if (lit > 0.01 && frontCount) {
+        // By night every ticked smile keeps a faint glow at rest (a sixth of a shock's, arriving with the sheet), so
+        // the surface is lit, not matte; the one-month smile's shock glow is laid over it.
+        const resting = palette.dark ? 0.07 * labelsK : 0
+        if ((lit > 0.01 && frontCount) || resting > 0.005) {
           glow.use()
           gl.uniformMatrix4fv(glow.u('uMVP'), false, m)
           gl.uniform2f(glow.u('uPx'), 2 / cssW, 2 / cssH)
           gl.uniform1f(glow.u('uWidth'), 14)
           for (let i = 0; i < 3; i++) glowColor[i] = palette.indigo[i]! + (palette.ink[i]! - palette.indigo[i]!) * 0.4
           gl.uniform3fv(glow.u('uColor'), glowColor)
-          gl.uniform1f(glow.u('uAlpha'), 0.45 * lit)
           gl.enable(gl.BLEND)
           gl.blendFunc(gl.ONE, gl.ONE)
           gl.depthMask(false)
-          gl.drawArrays(gl.TRIANGLES, 0, frontCount)
+          if (resting > 0.005) {
+            gl.uniform1f(glow.u('uAlpha'), resting)
+            gl.drawArrays(gl.TRIANGLES, 0, smileCount)
+          }
+          if (lit > 0.01 && frontCount) {
+            gl.uniform1f(glow.u('uAlpha'), 0.45 * lit)
+            gl.drawArrays(gl.TRIANGLES, 0, frontCount)
+          }
           gl.depthMask(true)
           gl.disable(gl.BLEND)
         }
@@ -718,8 +739,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // The clocks move after the frame, so the first frame is the poster's moment exactly. The story plays out
       // whether or not the figure is paused; the drift holds.
       hooks.tick(dt * 1000)
-      swayK = paused ? Math.max(0, swayK - dt / 0.24) : Math.min(1, swayK + dt / 0.4)
-      swayT += dt * swayK
+      // The sway coasts to rest for Pause and for a reading, and picks up again once they end.
+      swayK = paused || reading ? Math.max(0, swayK - dt / 0.24) : Math.min(1, swayK + dt / 0.4)
+      // Held while the story plays, so the sway eases in after it from rest (sin 0), not partway through a swing.
+      if (!ph) swayT += dt * swayK
       return true
     },
     resize(bw, bh, cw, ch) {
@@ -745,7 +768,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     },
     sink(done) {
       if (sinking) return
-      sinking = { t: 0, ...shown, done }
+      sinking = { t: 0, ...shown, sway: swayIn, done }
       sim.dirty = true
     },
     dispose() {

@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { zcy, type GParams } from '@/lib/gcurve'
+import { rangeFill } from '@/components/stage/range'
 
 /**
  * The OFZ zero-coupon curve, one trading day at a time. Every day of the two
@@ -206,7 +207,8 @@ export function OfzLive({
               setAt(Number(e.currentTarget.value))
               setAnnounce('')
             }}
-            className="h-6 w-full accent-[var(--color-indigo)]"
+            className="h-6 w-full"
+            style={rangeFill(at, 0, days.length - 1)}
           />
           {/* Positions follow the thumb's centre, which travels the track
               inset by half its own width. */}

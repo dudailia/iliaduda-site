@@ -172,9 +172,9 @@ the worker's scripts to a headless browser; production has no wall.
 
 ## Notes
 
-- Two self-hosted variable typefaces, latin subset. No font CDN, no analytics
-  and no third-party script; the CSP only admits Vercel's toolbar, and only on
-  previews.
+- Two self-hosted variable typefaces, latin subset. No font CDN and no third-party script; the CSP only admits
+  Vercel's toolbar, and only on previews. Vercel Web Analytics counts visits on production only, from the site's own
+  origin (/_vercel/insights) and without cookies.
 - The OTF files in `assets/og-fonts/` are build-time input for the Open Graph
   cards (`ImageResponse` cannot read woff2), kept outside `public/`.
 - Canonical URLs: `lib/site.ts` falls back to `iliaduda-site.vercel.app` until

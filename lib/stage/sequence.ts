@@ -68,7 +68,18 @@ export class Sequence<P extends string> {
     this.skipT = 0
   }
 
+  /**
+   * Each phase, 0…1. While a skip plays, every phase finishes from where it stood, evenly over the skip's 240ms (the
+   * renderer's own ease shapes it, once), rather than the rest of the story squeezed into it: a phase still to come
+   * would otherwise leap most of its way in the skip's first frame.
+   */
   phases(): Record<P, number> {
+    if (this.skipFrom >= 0 && !this.done) {
+      const u = this.skipT / SKIP_MS
+      const from = this.at(this.skipFrom)
+      for (const k of Object.keys(from) as P[]) from[k] = from[k] + (1 - from[k]) * u
+      return from
+    }
     return this.at(this.ms)
   }
 

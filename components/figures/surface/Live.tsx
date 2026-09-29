@@ -21,6 +21,7 @@ import { invert } from '@/lib/m4'
 import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel, Frame, FRAME_ASPECT, NoteMark, noteRise, setNoteRise } from './marks'
 import type { Probe, Sim, SurfaceRenderer } from './renderer'
+import { rangeFill } from '@/components/stage/range'
 
 /**
  * Fig. 1 of the IV paper, live: the SSVI surface in 3D. The poster (server)
@@ -705,7 +706,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             value={shock}
             onChange={(e) => onShock(Number(e.target.value))}
             aria-valuetext={shock < 0.025 ? 'calm' : `${shock.toFixed(2)} times a full shock; 1-month at-the-money volatility ${peakAtm}%`}
-            className="h-6 w-32 accent-indigo sm:w-40"
+            className="h-6 w-32 sm:w-40"
+            style={rangeFill(shock, 0, SIZE_MAX)}
           />
           {/* The mark at 1: the size of the story's own shock. */}
           <datalist id="iv-shock-ticks">
@@ -834,8 +836,9 @@ function Margin({
 /**
  * The Greeks open and close with a short glide rather than a jump: their rows grow into place (200ms) and go first
  * when closed (150ms, exits faster), on the site's ease-out; everything under them moves with the rows, not at once.
- * A click during either glide turns it back from where it is. A keyboard's Enter or Space opens them at once, as
- * keyboard actions here never animate, and so does reduced motion, which is static on this site.
+ * A click during either glide turns it back from where it is. A keyboard's Enter or Space opens them at once, as a
+ * disclosure opened from the keyboard does not animate on this site (chrome; a figure's own explanation, such as the
+ * ranking's rows moving on an arrow key, still moves), and so does reduced motion, which is static on this site.
  */
 const gliding = new WeakMap<HTMLDetailsElement, { anim: Animation; opening: boolean }>()
 function glideDetails(e: MouseEvent<HTMLElement>) {

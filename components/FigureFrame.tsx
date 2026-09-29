@@ -27,6 +27,7 @@ export function FigureFrame({
   vt,
   railBelow = true,
   inline = false,
+  span = false,
   className,
   children,
 }: {
@@ -47,11 +48,14 @@ export function FigureFrame({
    *  narrow-screen arrangement holds at every width: number above, readouts
    *  below, nothing in a margin that belongs to someone else. */
   inline?: boolean
+  /** Takes the whole frame at lg, the rail's width too (/market's three views side by side): the number above the title
+   *  and the readouts below the figure, as on narrow screens. */
+  span?: boolean
   /** Replaces the figure's own vertical margins (the home page's Fig. 1 sits closer to the front matter). */
   className?: string
   children: ReactNode
 }) {
-  const wide = !inline
+  const wide = !inline && !span
   return (
     // Named by its title and described by its caption, by id: both sit inside the grid, not as the figure's own first
     // or last child, so they are not its caption by position.

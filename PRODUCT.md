@@ -35,7 +35,7 @@ The site reads as a working paper whose figures are alive: each project is a sho
 - Glacier Capital Systems (proprietary trading firm; Quantitative Analyst and Engineer, remote, Jan 2026 – present) is described at résumé level only: what he builds and the stack. Never strategies, parameters, data, code, internal names/paths, env vars, test counts, performance numbers, returns, Sharpe, tickers or strategy-vs-benchmark charts.
 - Never invent metrics, clients, users or results. Missing facts ship as visible TODO placeholders and are listed for the owner.
 - When sources conflict, the September 2026 résumé wins and the conflict is listed.
-- Nothing paid is enabled. Vercel Web Analytics may be suggested, never enabled.
+- Nothing paid is enabled. Vercel Web Analytics (free, cookieless, served from the site's own origin) counts visits on production, by the owner's decision of 2026-09-29.
 
 ## Brand Commitments
 

@@ -42,6 +42,8 @@ export interface Shared {
   readonly paused: boolean
   /** Advance the page's one market by this frame (components/figures/orderbook/market.ts): once, whoever asks first. */
   advance(): void
+  /** The time this frame draws at: the market's clock and the part of a quantum it is owed (market.ts drawnAt). */
+  drawnAt(): number
   /** The order chosen in Fig. 2, which this figure marks with its probe when the reader is not probing it: price, time. */
   highlight(): { price: number; t: number } | null
   /** The signature's phases while it waits or plays (lib/orderbook/sequence.ts); null once it is over, or on a visit without one. */
@@ -512,7 +514,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
    * with the hand's speed.
    */
   const turn = { yaw: { x: 0, v: 0 }, pitch: { x: 0, v: 0 } }
-  let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; touch: boolean } | null = null
+  let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; touch: boolean; live: boolean } | null = null
   const follow = { x: centre, v: 0 }
   /** The drift's speed: 1 running, coasting to 0 over 240ms on Pause and back over 400ms on Resume, as the home figure's. */
   let driftK = 1
@@ -571,7 +573,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const unsoft = (y: number, a: number) => a * Math.atanh(Math.max(-0.999, Math.min(0.999, y / a)))
   const onDown = (e: PointerEvent) => {
     if (drag) return
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, 0.3), touch: e.pointerType === 'touch' }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, 0.3), touch: e.pointerType === 'touch', live: false }
     canvas.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent) => {
@@ -581,6 +583,13 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       drag.x = e.clientX
       drag.y = e.clientY
       if (drag.moved > (drag.touch ? 8 : 4)) {
+        // The first real move takes the terrain where it is (its spring home ran on under a mere press), still.
+        if (!drag.live) {
+          drag.live = true
+          drag.rawYaw = unsoft(turn.yaw.x, 0.6)
+          drag.rawPitch = unsoft(turn.pitch.x, 0.3)
+          turn.yaw.v = turn.pitch.v = 0
+        }
         // The hand's grip shows while the terrain turns under it.
         canvas.style.cursor = 'grabbing'
         const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
@@ -731,7 +740,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       pDirty = false
     }
     const head = sim.row(0)
-    fracZ = Math.min(1, (sim.t - sim.times[head]!) * HZ)
+    // At the time the frames have reached, not the market's last whole quantum, so at 120 Hz the rows glide every frame.
+    const at = sh.drawnAt()
+    fracZ = Math.min(1, (at - sim.times[head]!) * HZ)
     const target = sim.mids[head]!
     if (Math.abs(target - follow.x) > 40 || fresh > 5 * HZ) {
       follow.x = target
@@ -746,7 +757,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     spring(lean.yaw, leaning ? -SWAY.yaw * leaning.x : lean.yaw.x, dt, LEAN_W)
     spring(lean.pitch, leaning ? -SWAY.pitch * leaning.y : lean.pitch.x, dt, LEAN_W)
     // Let go, the turn goes home on the IV surface's spring, carrying the hand's speed.
-    if (!drag) {
+    if (!drag || !drag.live) {
       spring(turn.yaw, 0, dt, 7)
       spring(turn.pitch, 0, dt, 7)
     }
@@ -862,7 +873,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     points.use()
     gl.bindVertexArray(pVao)
     gl.uniformMatrix4fv(points.u('uMVP'), false, mvp)
-    gl.uniform1f(points.u('uNow'), sim.t - T0)
+    gl.uniform1f(points.u('uNow'), at - T0)
     gl.uniform1f(points.u('uCentre'), centre - START)
     gl.uniform1f(points.u('uDpr'), dpr)
     gl.uniform1f(points.u('uHist'), rowsF || rows)

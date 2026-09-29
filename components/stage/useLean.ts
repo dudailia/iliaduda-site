@@ -24,7 +24,7 @@ export function useLean(live: boolean, reduced: boolean, paused: { current: bool
     if (typeof D.requestPermission === 'function' && permission !== 'granted') return
     const onTilt = (e: DeviceOrientationEvent) => {
       if (paused.current) return
-      lean.current = tilt.current.read(e.beta, e.gamma, screen.orientation?.angle ?? 0)
+      lean.current = tilt.current.read(e.beta, e.gamma, screen.orientation?.angle ?? 0, e.timeStamp)
       from.current = 'tilt'
     }
     addEventListener('deviceorientation', onTilt)

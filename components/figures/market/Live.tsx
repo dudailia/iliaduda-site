@@ -27,7 +27,7 @@ import type { Mirror } from '@/lib/market/mirror'
 import { PROTOCOL } from '@/lib/market/protocol'
 import { handedTo, spend } from '@/lib/minis/handoff'
 import type { LiveInfo } from '@/lib/stage/debug'
-import { EASE_OUT } from '@/lib/ease'
+import { EASE_OUT, EASE_OUT_CSS } from '@/lib/ease'
 import { MARKET_SEQ, marketSequence, punch, storyOf } from '@/lib/market/sequence'
 import { FAN_RANGE, logTicks, priceTicks, SPAN, WINDOW } from '@/lib/market/views'
 import { params } from '@/lib/surface/shock'
@@ -148,12 +148,15 @@ export function MarketLive({
   // Once the shocked frames have been fetched and decoded they stay in the page over the calm ones, and the two
   // crossfade (240ms, the ease-out), so no view steps from one moment to the other; under reduced motion, at once.
   const [shockReady, setShockReady] = useState(false)
+  const [shockBlur, setShockBlur] = useState(false)
   const stillsOf = (view: 'book' | 'fan') => (
     <>
       {stills.calm[view]}
       {shockReady ? (
+        // The two pictures cross through the site's 2px blur (at the midpoint, as the morph's do), not a plain double
+        // exposure: 240ms on the ease-out.
         <div
-          className="absolute inset-0 bg-paper transition-opacity duration-[240ms] ease-out motion-reduce:transition-none"
+          className={`absolute inset-0 bg-paper transition-[opacity,filter] duration-[240ms] ease-out motion-reduce:transition-none ${shockBlur ? 'blur-[2px]' : ''}`}
           style={{ opacity: still === 'shock' ? 1 : 0 }}
           data-market-shocked={still === 'shock' ? '1' : '0'}
         >
@@ -204,7 +207,8 @@ export function MarketLive({
   /** The book's reading from the keyboard: seconds before now, or null. */
   const keyAgo = useRef<number | null>(null)
   const bookEl = useRef<HTMLDivElement>(null)
-  const lowerRow = useRef<HTMLDivElement>(null)
+  /** The three views together: the surface, the line between them, the book and the futures. */
+  const viewsBox = useRef<HTMLDivElement>(null)
   // The signature: the story's clock, whether it has pressed its shock, and the camera's blow.
   const seq = useRef(marketSequence())
   const storyPressed = useRef(false)
@@ -365,9 +369,10 @@ export function MarketLive({
   // The surface's quality waits to climb until the story is told: the lead-in and the shock never sharpen mid-moment.
   const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seq.current.started && !seq.current.done }))
   const { box, canvas, live: surfaceLive, eligible, reduced, tier, quality, fps } = useStage(create, stageOpts)
-  // The story waits until the book and the futures are wholly in view, the surface above them, so the shock lands where
-  // all three can be seen; never on a partial view held for a moment.
-  const sig = useSignature('market', lowerRow, seq, { start: 0.98, hold: 0.98 })
+  // The story waits until all three views are wholly in view (on a laptop and a phone turned sideways they sit side by
+  // side, one screen tall at most: app/globals.css), so the shock lands where all three can be seen; never on a partial
+  // view held for a moment.
+  const sig = useSignature('market', viewsBox, seq, { start: 0.98, hold: 0.98 })
   const sigRef = useRef(sig)
   const lean = useLean(surfaceLive, reduced, pausedRef)
   const fallback = useFallback(canvas, surfaceLive, () => {})
@@ -463,6 +468,10 @@ export function MarketLive({
           // Waiting for the book and the futures to be on screen: the line already says the story's first words.
           tell(pausedRef.current ? 'paused' : 'calm')
         } else tell(stateOf(m))
+      } else if (sg.armed.current && !seq.current.done) {
+        // Armed, before all three views draw: the line says the story's first words already, so going live is one
+        // blur in ("Calm"), never "Running" swapped for "Calm" a moment later.
+        tell(pausedRef.current ? 'paused' : 'calm')
       } else tell(stateOf(m))
 
       // The market started over (Reset): the new strip opens under the old, which fades (240ms, the ease-out).
@@ -503,6 +512,10 @@ export function MarketLive({
         // the window holds, and a label held half faded would be half legible: it is shown or not.
         const edge = Math.min(1, Math.max(0, (Math.min(y, lay.h - y) - 8) / 12))
         const o = pausedRef.current ? (edge >= 0.5 ? 1 : 0) : edge
+        // Paused, a half-faded label eases to shown or hidden over 150ms rather than popping; running, the edge's own
+        // fade moves it frame by frame.
+        const ease = pausedRef.current ? `opacity 150ms ${EASE_OUT_CSS}` : ''
+        if (el.style.transition !== ease) el.style.transition = ease
         if (o === 0) {
           el.style.opacity = '0'
           return
@@ -802,10 +815,22 @@ export function MarketLive({
         return img.decode().catch(() => {})
       }),
     ))
+  // The stills' crossfade blurs for its first half (the 240ms filter transition then carries it back to sharp).
+  const blurTimer = useRef(0)
+  useEffect(() => () => clearTimeout(blurTimer.current), [])
+  const crossBlur = () => {
+    setShockBlur(true)
+    clearTimeout(blurTimer.current)
+    blurTimer.current = window.setTimeout(() => setShockBlur(false), 120)
+  }
   const toggleStill = () => {
-    if (still === 'shock') return setStill('calm')
+    if (still === 'shock') {
+      crossBlur()
+      return setStill('calm')
+    }
     void fetchShock().then(() => {
       setShockReady(true)
+      crossBlur()
       setStill('shock')
     })
   }
@@ -943,7 +968,6 @@ export function MarketLive({
     atm: pct(atmOf(initial.stress)),
     range: `${dollars(initial.lo)}–${dollars(initial.hi)}`,
   }
-  const rows = READOUTS.map(([id, label]) => ({ label, value: <span ref={(el) => void (out.current[id] = el)} data-market-value="">{first[id]}</span> }))
   const rowsBelow = READOUTS.map(([id, label]) => ({ label, value: <span ref={(el) => void (out.current[`${id}-m`] = el)} data-market-value="">{first[id]}</span> }))
 
   return (
@@ -953,8 +977,8 @@ export function MarketLive({
       title={title}
       subtitle={subtitle}
       vt="market"
+      span
       railBelow={false}
-      rail={<Readouts rows={rows} />}
       hint={
         <>
           {/* Room kept for the longest wording, so the right one arriving moves nothing. */}
@@ -974,8 +998,9 @@ export function MarketLive({
       table={table}
     >
       <div ref={stage} className="relative" data-market-stage="" data-market-live={live ? '1' : '0'}>
+        <div ref={viewsBox} data-market-views="">
         {/* The surface: the market's stress sets its shock. */}
-        <div className="relative -mx-6 sm:mx-0">
+        <div className="relative -mx-6 sm:mx-0" data-market-surface-box="">
           {/* The surface leans with the reader, as every 3D figure does: toward a fine pointer, with a phone's tilt (iOS
               asks on the first tap); a drag, or the arrow keys, turn it. */}
           <div
@@ -1033,7 +1058,7 @@ export function MarketLive({
           ) : null}
         </p>
 
-        <div ref={lowerRow} className="mt-3 grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-4">
+        <div data-market-lower="" className="mt-3 grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-4">
           {/* The book: the last twenty seconds, and the book at now. */}
           <div className="-mx-6 sm:mx-0">
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite sm:px-0" data-market-book-title="">
@@ -1068,6 +1093,7 @@ export function MarketLive({
                       },
                     }
                   : {})}
+                data-market-pane=""
                 className="peer relative h-28 overflow-hidden bg-paper focus-visible:outline-none sm:h-52"
                 style={{ touchAction: 'pan-y pinch-zoom' }}
                 onPointerMove={onBookMove}
@@ -1098,7 +1124,7 @@ export function MarketLive({
           {/* The futures: a year from the price now. */}
           <div className="-mx-6 sm:mx-0">
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite sm:px-0">Futures, the next year</p>
-            <div className="relative h-28 overflow-hidden bg-paper sm:h-52" data-market-fan="">
+            <div className="relative h-28 overflow-hidden bg-paper sm:h-52" data-market-fan="" data-market-pane="">
               <div data-market-still="" style={underlay(live)}>{stillsOf('fan')}</div>
               <canvas ref={fanCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
               <div data-market-words="" className="pointer-events-none absolute inset-0" style={fade(live)} aria-hidden="true">
@@ -1112,6 +1138,8 @@ export function MarketLive({
               <span>a year</span>
             </div>
           </div>
+        </div>
+
         </div>
 
         <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2 print:hidden" data-market-controls="">
@@ -1135,7 +1163,7 @@ export function MarketLive({
           ) : null}
         </div>
       </div>
-      <div className="mt-4 lg:hidden">
+      <div className="mt-4">
         <Readouts rows={rowsBelow} across />
       </div>
       <DebugSlot title="Fig. 1" read={readDebug} />

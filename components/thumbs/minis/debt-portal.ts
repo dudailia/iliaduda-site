@@ -12,6 +12,8 @@ export const make: MakeMini = (svg) => {
   const n = line.length
   return {
     ready: () => n > 1,
+    // Each term is held 1.4s of its 1.8, the choice stepping in the last 0.4.
+    atRest: (t) => ((t / 1.8) % (2 * (n - 1))) % 1 < 1.4 / 1.8,
     draw(g, w, h, t, _dt, pal) {
       paint(g, sh, w, h, pal)
       const step = 1.8

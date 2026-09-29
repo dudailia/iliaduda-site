@@ -47,6 +47,23 @@ test('a second look this visit is the finished match', async ({ page }) => {
   expect(await opacity(page)).toBe(1)
 })
 
+test('a scrub while the finished match lets go for Replay wins: the replay does not start over it', async ({ page }) => {
+  // A second look this visit: the finished match, with Replay.
+  await page.addInitScript(() => sessionStorage.setItem('cricket-seq', '1'))
+  await page.goto('/cricstate')
+  await page.locator('#fig-replay').scrollIntoViewIfNeeded()
+  const max = Number(await ball(page).getAttribute('max'))
+  await page.getByRole('button', { name: 'Replay' }).click()
+  // Inside the 150ms let-go: the reader steps back a ball.
+  await ball(page).focus()
+  await page.keyboard.press('ArrowLeft')
+  await page.waitForTimeout(500)
+  expect(Number(await ball(page).inputValue())).toBe(max - 1)
+  await expect(page.locator('#fig-replay button', { hasText: 'Play' })).toBeVisible()
+  // And the drawn match came back.
+  await expect.poll(() => opacity(page)).toBe(1)
+})
+
 test('off screen, the cricket replay waits for the reader', async ({ page }) => {
   await page.goto('/cricstate')
   await page.locator('#fig-replay').scrollIntoViewIfNeeded()

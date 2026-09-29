@@ -1,4 +1,4 @@
-import { EASE_IN_OUT, EASE_IN_OUT_QUAD } from '../ease'
+import { EASE_IN_OUT_QUAD } from '../ease'
 import { along, blend, driftOf, flightPose, framePose, type Drift, type Pose } from './camera'
 
 /**
@@ -114,9 +114,12 @@ export class Director {
     this.flightP = p
     if (this.then) {
       this.t += m.dt * 1000
-      const dur = REWIND_MS
+      // As long as the way back is (a camera already near the composed frame waits on no empty move; 240ms at the
+      // least, the fade's own), on the quad long camera moves use: the strong in-out whipped back at five times the
+      // settle's speed over the same arc.
+      const dur = REWIND_MS * Math.max(0.27, Math.min(1, this.depth0))
       const s = clamp01(this.t / dur)
-      const u = EASE_IN_OUT(s)
+      const u = EASE_IN_OUT_QUAD(s)
       this.depth = this.depth0 * (1 - u)
       // The frame's labels come back as the camera gets there, as they do on the way home from a flight.
       this.labels = Math.max(this.labels, smooth(0.3, 0.8, u))
@@ -171,15 +174,17 @@ export class Director {
       case 'return': {
         this.t += m.dt * 1000
         const s = clamp01(this.t / HOME_MS)
-        const u = EASE_IN_OUT(s)
+        // On the quad in-out long camera moves use (cubic-bezier(0.45, 0, 0.55, 1)): the strong in-out's steep middle
+        // surged home at over twice the flight's own speed after the stop's turn.
+        const u = EASE_IN_OUT_QUAD(s)
         this.depth = this.depth0 + (1 - this.depth0) * u
         this.labels = Math.max(this.labels, smooth(0.3, 0.8, u))
         if (this.t >= HOME_MS) {
           this.mode = 'rest'
           this.carry = null
         }
-        // Home on the in-out, plus the speed the camera had when it was stopped, spent over the way (a Hermite
-        // tangent: all of it at the start, none at the end), so it slows rather than stopping dead and starting again.
+        // Home, plus the speed the camera had when it was stopped, spent over the way (a Hermite tangent: all of it at
+        // the start, none at the end), so it slows rather than stopping dead and starting again.
         const home = blend(this.from ?? rest, rest, u)
         return this.carry ? along(home, this.carry, (HOME_MS / 1000) * (s - 2 * s * s + s * s * s)) : home
       }

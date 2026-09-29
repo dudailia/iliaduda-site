@@ -24,7 +24,7 @@ export const AVAILABILITY = {
 
 /** One line, used by the masthead and the metadata description. */
 export const POSITIONING =
-  'Mathematics and Business Administration at Northeastern, class of 2028. I work on quantitative finance and the systems around it: research stacks, market tooling and applied LLM infrastructure.'
+  'Mathematics and Business Administration at Northeastern, class of 2028, and Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026. I work on quantitative finance and the systems around it: research stacks, market tooling and applied LLM infrastructure.'
 
 /**
  * The CV is a page (/cv) and a PDF printed from it at build time by

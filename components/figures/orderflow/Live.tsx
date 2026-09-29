@@ -159,16 +159,20 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(HEIGHT * dpr)
     }
-    // The last frame's strips: refilled in place each frame, and used as they are when the market has not moved
+    // The last frame's strips: refilled in place each frame, and used as they are until the window moves on a column
     // (a pointer moving over a paused figure redraws the selection, not the window).
     let fr: FlowFrame | undefined
     let frAt = NaN, frCols = 0
     const draw = () => {
       const f = market.flow
       const cols = Math.max(60, Math.min(900, Math.round(plot(w).pw)))
-      if (!fr || f.t !== frAt || cols !== frCols) {
-        fr = flowFrame(f, { t0: f.t - SECONDS, t1: f.t, cols }, HAWKES, fr)
-        frAt = f.t
+      // The window ends on a whole column, so the strips step by exactly one column as time passes: binned against a
+      // window sliding by a fraction every frame, an order would hop between neighbouring columns and the curves shimmer.
+      const step = SECONDS / cols
+      const t1 = Math.floor(f.t / step) * step
+      if (!fr || t1 !== frAt || cols !== frCols) {
+        fr = flowFrame(f, { t0: t1 - SECONDS, t1, cols }, HAWKES, fr)
+        frAt = t1
         frCols = cols
       }
       if (pinned.current && !alive(f, pinned.current)) pinned.current = null
@@ -177,7 +181,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       let sel: Selected | null = null
       if (r && onStrip(f, r)) {
         const x = read(f, r)
-        sel = { ago: f.t - x.t, lane: LANE_OF[x.type]!, wake: x.byKind.map((k) => ({ lane: LANE_OF[k.type]!, p: k.p, beta: HAWKES.decay[k.type]! })) }
+        sel = { ago: Math.max(0, t1 - x.t), lane: LANE_OF[x.type]!, wake: x.byKind.map((k) => ({ lane: LANE_OF[k.type]!, p: k.p, beta: HAWKES.decay[k.type]! })) }
       }
       drawFlow(ctx, w, HEIGHT, dpr, fr, cols, look, sel)
       // For the specs and ?debug=1: frames drawn, and the market's simulated clock.
@@ -209,12 +213,14 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       draw()
     })
     ro.observe(st)
+    // Paused, it draws on while the market coasts to rest (240ms), then stops.
     const loop = () => {
       market.tick()
       draw()
+      if (paused && !market.moving) return
       raf = requestAnimationFrame(loop)
     }
-    if (inView && shown && !reduced && !paused && !still && !held) raf = requestAnimationFrame(loop)
+    if (inView && shown && !reduced && (!paused || market.moving) && !still && !held) raf = requestAnimationFrame(loop)
     else if (inView || reduced || still || held) draw()
     return () => {
       cancelAnimationFrame(raf)

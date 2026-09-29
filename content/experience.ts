@@ -58,9 +58,9 @@ export const roles: readonly Role[] = [
     title: 'Sole Developer and Project Lead',
     place: 'Remote',
     dates: 'July 2026 – present',
-    brief: 'Built a regulated consumer product end to end: debt lookup, a settlement calculator, SMS authentication and card and SBP payment, under 152-FZ and 230-FZ.',
+    brief: 'Built a regulated consumer product end to end: debt lookup, a settlement calculator, SMS authentication and an SBP payment screen, under 152-FZ and 230-FZ.',
     detail: [
-      'Only developer on a self-service debt-settlement portal for a licensed collection organisation: debt lookup, a settlement calculator, SMS authentication, and card and SBP payment.',
+      'Only developer on a self-service debt-settlement portal for a licensed collection organisation: debt lookup, a settlement calculator, SMS authentication, and an SBP payment screen whose amount the server recomputes from the chosen term, never taking it from the browser.',
       'Architecture set by statute: 152-FZ data localisation rules out foreign hosting and CDNs, and the 230-FZ contact cap means the login SMS itself spends part of a debtor’s legal allowance, so the limits are enforced in code.',
       'Next.js 16 with Turbopack and Tailwind 4, hosted on Yandex Cloud.',
     ],

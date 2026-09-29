@@ -49,6 +49,8 @@ export function useMarket(
   const [hash, setHash] = useState<string | null>(null)
   const worker = useRef<Worker | null>(null)
   const paused = useRef(false)
+  /** When Pause was pressed (performance.now()), for the frames asked for while the market coasts to rest. */
+  const pausedAtRef = useRef(-Infinity)
   const draw = useRef(opts.draw)
   const onTake = useRef(opts.onTake)
   useEffect(() => {
@@ -90,7 +92,9 @@ export function useMarket(
       // Paused, it asks for nothing more once it has the frame it opens on and that frame's fan (a market paused on an
       // earlier page of the visit still goes live, all its views drawn, to be resumed); the held market draws the fan
       // on, and nothing else moves.
-      if (!inFlight && (!paused.current || got === 0 || !mirror.fan) && pool.length) {
+      // A Pause just pressed: frames go on being asked for while the market coasts to rest (240ms, and a little).
+      const coasting = paused.current && now - pausedAtRef.current < 300
+      if (!inFlight && (!paused.current || coasting || got === 0 || !mirror.fan) && pool.length) {
         const buf = pool.pop()!
         inFlight = true
         post({ kind: 'frame', at: now, buf }, [buf])
@@ -188,6 +192,7 @@ export function useMarket(
     act: (a) => send({ kind: 'act', act: a }),
     pause: () => {
       paused.current = true
+      pausedAtRef.current = performance.now()
       send({ kind: 'pause' })
     },
     resume: () => {

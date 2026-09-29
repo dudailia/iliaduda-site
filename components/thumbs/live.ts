@@ -66,6 +66,13 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
 
   const frame = (now: number) => {
     raf = 0
+    for (const [id, until] of leaving) {
+      const l = live.get(id)
+      if (!l || now > until || l.mini.atRest?.(clock.timeOf(id)) !== false) {
+        clock.show(id, false)
+        leaving.delete(id)
+      }
+    }
     // Every box measured first, then every canvas drawn: no layout read between two writes.
     const todo = clock.tick(now).flatMap((f) => {
       const l = live.get(f.id)
@@ -128,6 +135,8 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
   const onScreen = new Map<string, HTMLElement>()
   let pointed: string | null = null
   let active: string | null = null
+  /** Miniatures that lost their turn mid-glide, playing on to their next rest, with when they must stop by. */
+  const leaving = new Map<string, number>()
   const choose = () => {
     // Only a miniature whose code is here runs its clock: its first frame is then its time zero, the thumbnail's.
     let next = pointed && onScreen.has(pointed) && live.has(pointed) ? pointed : null
@@ -144,9 +153,17 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
       }
     }
     if (next === active) return
-    if (active) clock.show(active, false)
+    if (active) {
+      // One caught mid-glide plays on to its next rest (600ms at most) rather than freezing half-way.
+      const was = live.get(active)
+      if (was?.mini.atRest && !was.mini.atRest(clock.timeOf(active))) leaving.set(active, performance.now() + 600)
+      else clock.show(active, false)
+    }
     active = next
-    if (active) clock.show(active, true)
+    if (active) {
+      leaving.delete(active)
+      clock.show(active, true)
+    }
     run()
   }
   let chooseQueued = false

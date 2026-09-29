@@ -7,18 +7,24 @@
  * angles swing wildly for a small movement.
  */
 
-/** Degrees of tilt for a full lean. */
+/** Degrees of tilt for most of a full lean: the lean is soft past it (tanh), friction rather than a wall. */
 const RANGE = 22
-/** How much of the way to the current grip the neutral moves per reading: a held grip is neutral within seconds. */
+/** How long the neutral takes to follow a new grip (s, a time constant): a held grip is neutral within seconds. */
+const SETTLE_S = 4.2
+/** Without a reading's time, the share of the way it moves per reading (60 a second: the same 4.2s). */
 const SETTLE = 0.004
 
 export class Lean {
   private b0: number | null = null
   private g0 = 0
   private last = { x: 0, y: 0 }
+  private at: number | null = null
 
-  /** A DeviceOrientationEvent's beta and gamma, and the screen's orientation angle; x and y in −1…1. */
-  read(beta: number | null, gamma: number | null, angle: number): { x: number; y: number } {
+  /**
+   * A DeviceOrientationEvent's beta and gamma, the screen's orientation angle, and the reading's time (its timeStamp,
+   * ms: the neutral settles by time, however often the sensor reports); x and y in −1…1.
+   */
+  read(beta: number | null, gamma: number | null, angle: number, time?: number): { x: number; y: number } {
     if (beta == null || gamma == null || Math.abs(beta) > 80) return this.last
     if (this.b0 == null) {
       this.b0 = beta
@@ -44,9 +50,12 @@ export class Lean {
         sx = dg
         sy = db
     }
-    this.b0 += db * SETTLE
-    this.g0 += dg * SETTLE
-    const c = (v: number) => Math.max(-1, Math.min(1, v / RANGE))
+    const dt = time !== undefined && this.at !== null ? Math.min(0.25, Math.max(0, (time - this.at) / 1000)) : null
+    if (time !== undefined) this.at = time
+    const k = dt === null ? SETTLE : 1 - Math.exp(-dt / SETTLE_S)
+    this.b0 += db * k
+    this.g0 += dg * k
+    const c = (v: number) => Math.tanh(v / RANGE)
     return (this.last = { x: c(sx), y: c(-sy) })
   }
 }

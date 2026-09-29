@@ -224,3 +224,16 @@ describe('picking a price on the expiry wall', () => {
     }
   })
 })
+
+describe('the flight leaves at once', () => {
+  it('moves off its first key on its own clock, not from a standstill: a hundredth of the way, a tenth of the first leg’s distance', () => {
+    const start = restPose(1.6)
+    const d = (p: number) => {
+      const a = flightPose(p, 1.6, start).eye
+      return Math.hypot(a[0] - start.eye[0], a[1] - start.eye[1], a[2] - start.eye[2])
+    }
+    const leg = d(0.28)
+    // With a still tangent at the start the Hermite gives ~3u² of the leg here (about 0.4%); along the chord, ~u (3.6%).
+    expect(d(0.01) / leg).toBeGreaterThan(0.02)
+  })
+})

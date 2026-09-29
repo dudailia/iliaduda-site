@@ -1,4 +1,4 @@
-import { Flow, POSTER_T, posterFlow } from '@/lib/market/flow'
+import { Flow, POSTER_T, QUANTA, posterFlow } from '@/lib/market/flow'
 import { handedTo, spend } from '@/lib/minis/handoff'
 import { advanceInSlices } from '@/lib/market/slices'
 
@@ -44,6 +44,8 @@ export class PageMarket {
     const was = this.held
     if (on) this.holds.add(by)
     else this.holds.delete(by)
+    // Held, it stops where it is read; let go, it picks up from rest over 400ms, whichever figure's frame comes first.
+    if (this.held && !was) this.rate = 0
     if (this.held !== was) for (const s of this.subs) s()
   }
 
@@ -130,11 +132,16 @@ export class PageMarket {
   tick(): number {
     const now = (document.timeline?.currentTime as number | null) ?? performance.now()
     if (now === this.at) return 0
-    const dt = this.at < 0 ? 0 : Math.min(MAX_DT, Math.max(0, (now - this.at) / 1000))
+    // A frame after the loops had stopped (paused, off screen, a hidden tab) moves nothing: the market picks up from
+    // there, rather than leaping the tenth of a second the cap allows.
+    const dt = this.at < 0 || now - this.at > 250 ? 0 : Math.min(MAX_DT, Math.max(0, (now - this.at) / 1000))
     this.at = now
-    // Held for a reading, it stops where it is read. Paused, it coasts to rest over 240ms, and picks up again over
-    // 400ms on Resume, as the home figure's stream does: the scroll never stops dead or jolts back.
-    if (this.held) return 0
+    // Held for a reading, it stops where it is read, and picks up over 400ms when let go. Paused, it coasts to rest
+    // over 240ms, and picks up again over 400ms on Resume, as the home figure's stream does: never dead, never a jolt.
+    if (this.held) {
+      this.rate = 0
+      return 0
+    }
     // A market opened paused (Pause is kept for the visit) starts at rest, with no coast.
     this.rate ??= this.paused ? 0 : 1
     this.rate = this.paused ? Math.max(0, this.rate - dt / 0.24) : Math.min(1, this.rate + dt / 0.4)
@@ -142,8 +149,21 @@ export class PageMarket {
     this.owed += dt * this.rate
     return this.flow.advance(this.owed)
   }
+  /**
+   * The time the frames have reached, for drawing: the market's clock plus the part of a quantum it is owed but has
+   * not yet run. At 120 Hz a frame owes half a quantum, and a figure drawn at this time glides every frame rather than
+   * every other one; what it draws is still the market's own rows.
+   */
+  get drawnAt(): number {
+    const t = this.flow.t
+    return Math.min(t + 1 / QUANTA, Math.max(t, this.owed))
+  }
   /** How fast the market runs against real time, 0 to 1: 1 unless it is coasting to or from a Pause. */
   private rate: number | null = null
+  /** Still coasting to rest (a Pause just pressed): a figure keeps drawing until it has stopped. */
+  get moving(): boolean {
+    return (this.rate ?? (this.paused ? 0 : 1)) > 0
+  }
 
   subscribe = (fn: () => void) => {
     this.subs.add(fn)

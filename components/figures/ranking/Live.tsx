@@ -57,6 +57,8 @@ export function RankingLive({
   /** The list's height as seen before a switch, and the glide of its height that follows (see the FLIP below). */
   const beforeH = useRef(0)
   const heightGlide = useRef(0)
+  /** The tallest the list has been at this width: kept as its least height, so a shorter treatment moves nothing under it. */
+  const reserved = useRef({ w: 0, h: 0 })
   /** Rows that have just left the top, fading where they stood: each with its row and its place, in px from the list's top. */
   // The rows leaving the top, with the numbers they had there (the treatment just left), fading where they stood.
   const [gone, setGone] = useState<{ row: Row; top: number; height: number; key: number; rank: number; score: number; frac: number }[]>([])
@@ -122,14 +124,20 @@ export function RankingLive({
         delete li.dataset.entering
       }
     })
-    // A name that wraps under one treatment and not another (on a phone) changes the list's height: it glides with the
-    // rows, rather than moving everything under it in one frame.
+    // A name that wraps under one treatment and not another (on a phone) changes the list's height. The room it took is
+    // kept (at this width), so a shorter list moves nothing under it; a list taller than any yet glides open with the
+    // rows, once, rather than moving everything under it in one frame.
     el.style.height = ''
     el.style.transition = ''
-    const h = el.getBoundingClientRect().height
+    el.style.minHeight = ''
+    const box = el.getBoundingClientRect()
+    if (Math.abs(box.width - reserved.current.w) > 0.5) reserved.current = { w: box.width, h: 0 }
+    const h = Math.max(box.height, reserved.current.h)
+    reserved.current.h = h
     const h0 = beforeH.current
-    const glide = Math.abs(h - h0) > 0.5 && h0 > 0
+    const glide = h - h0 > 0.5 && h0 > 0
     if (glide) el.style.height = `${h0}px`
+    else el.style.minHeight = `${h}px`
     // Force the inverted frame, then release to the natural position.
     void el.offsetHeight
     for (const li of lis) {
@@ -145,6 +153,7 @@ export function RankingLive({
         if (token !== heightGlide.current) return
         el.style.height = ''
         el.style.transition = ''
+        el.style.minHeight = `${h}px`
       }, 300)
     }
     before.current = new Map()
@@ -195,7 +204,7 @@ export function RankingLive({
           </button>
         ))}
       </div>
-      <p className="text-note mt-3 min-h-[3em] text-graphite" aria-live="polite">
+      <p className="text-note mt-3 min-h-[4.5em] text-graphite sm:min-h-[3em]" aria-live="polite">
         {current.note}
       </p>
 

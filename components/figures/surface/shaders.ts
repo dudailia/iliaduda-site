@@ -132,8 +132,6 @@ void main() {
     float pl = max(1.0 - clamp(d.y - 0.35, 0.0, 1.0), 1.0 - clamp(d.x - 0.35, 0.0, 1.0));
     lab = mix(lab, to, pl * 0.7 * uProbe.z);
   }
-  // Rising out of the page: a sheet still on the floor is the paper's colour, and takes its own as it lifts.
-  lab = mix(uPaper, lab, uRise);
   vec3 N = normalize(vN);
 #ifdef LITE
   float dif = (uLight.x + uLight.y * max(dot(N, uKey), 0.0) + uLight.z * max(dot(N, uFill), 0.0)) / uUp;
@@ -146,6 +144,9 @@ void main() {
   float sp = pow(max(dot(N, Hh), 0.0), 56.0) * uSpec;
   vec3 c = lin(lab) * dif + vec3(sp);
 #endif
+  // Rising out of the page: a sheet still on the floor is the paper itself, and takes its colour and its light as it
+  // lifts (mixed after the lighting, so the flat sheet carries no ghost of the shape's shading).
+  c = mix(lin(uPaper), c, uRise);
   o = vec4(srgb(c), 1.0);
 }`
 

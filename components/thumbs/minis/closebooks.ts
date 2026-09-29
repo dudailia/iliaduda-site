@@ -11,6 +11,11 @@ export const make: MakeMini = (svg) => {
   const bars = sh.bars ?? []
   return {
     ready: () => bars.length > 0,
+    // The batch settles from 9s to about 9.9s of its 12.
+    atRest: (t) => {
+      const c = t % 12
+      return c < 9 || c >= 9.15 + bars.length * 0.045 + 0.24
+    },
     draw(g, w, h, t, _dt, pal) {
       const c = t % 12
       const faded = c < 9 ? 1 : 1 - 0.85 * EASE_OUT(Math.min(1, (c - 9) / 0.15))

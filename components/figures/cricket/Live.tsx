@@ -5,6 +5,7 @@ import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
 import { CONTROL } from '@/components/stage/controls'
+import { rangeFill } from '@/components/stage/range'
 
 /**
  * A held-out match, replayed ball by ball: the model's calibrated probability
@@ -59,6 +60,11 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const box = useRef<HTMLDivElement>(null)
   const reduced = useReducedMotion()
   const [at, setAt] = useState(n - 1)
+  /**
+   * How far the playhead is past ball `at`, 0…1, while a replay sweeps: the line and the dot move on continuous time
+   * (at 120 Hz every frame moves them), the readouts and the slider on whole balls.
+   */
+  const [frac, setFrac] = useState(0)
   const [playing, setPlaying] = useState(false)
   /** Said only for what the reader did not do on the control itself: the replay coming to its end. */
   const [said, setSaid] = useState('')
@@ -98,13 +104,17 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   }, [playing])
 
   // Replay from the end lets the drawn match go first (150ms on the ease-out), as every re-run on the site does, then
-  // plays it again from the first ball; a press while it lets go does nothing more. The opacity is set only while it
-  // lets go, so the first visit's pre-paint hide still holds.
+  // plays it again from the first ball, the line and the playhead coming back over the same 150ms; a press while it
+  // lets go does nothing more. The opacity is set only once it lets go, so the first visit's pre-paint hide still holds.
   const letting = useRef(false)
   const letTimer = useRef(0)
   useEffect(() => () => clearTimeout(letTimer.current), [])
+  const played = () => [...(box.current?.querySelectorAll<SVGElement | HTMLElement>('[data-played]') ?? [])]
+  const back = (parts: (SVGElement | HTMLElement)[]) => {
+    for (const el of parts) el.style.opacity = ''
+  }
   const replay = () => {
-    const parts = [...(box.current?.querySelectorAll<SVGElement>('[data-played]') ?? [])]
+    const parts = played()
     if (reduced || !parts.length) return play(0)
     if (letting.current) return
     letting.current = true
@@ -115,17 +125,21 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     letTimer.current = window.setTimeout(() => {
       letting.current = false
       setAt(0)
+      setFrac(0)
       play(0)
-      requestAnimationFrame(() => {
-        for (const el of parts) {
-          el.style.transition = ''
-          el.style.opacity = ''
-        }
-      })
+      requestAnimationFrame(() => back(parts))
     }, 150)
+  }
+  /** The reader took the slider (or paused) while the match let go: their move wins, and the drawn match comes back. */
+  const keep = () => {
+    if (!letting.current) return
+    clearTimeout(letTimer.current)
+    letting.current = false
+    back(played())
   }
 
   const stop = () => {
+    keep()
     cancelAnimationFrame(raf.current)
     parked.current = null
     setPlaying(false)
@@ -137,6 +151,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     // Reduced motion (the browser's own answer): the replay's end at once, the whole match, said as it would be.
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setAt(n - 1)
+      setFrac(0)
       setPlaying(false)
       setSaid(`Replayed to the end: ${result}.`)
       return
@@ -158,8 +173,10 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       const dt = last ? Math.min(100, t - last) : 0
       last = t
       if (!document.hidden) elapsed.current += dt
-      const i = Math.min(n - 1, from.current + Math.floor((elapsed.current / REPLAY_MS) * (n - 1)))
+      const u = Math.min(n - 1, from.current + (elapsed.current / REPLAY_MS) * (n - 1))
+      const i = Math.floor(u)
       setAt(i)
+      setFrac(u - i)
       if (i < n - 1) raf.current = requestAnimationFrame(tick)
       else {
         setPlaying(false)
@@ -214,6 +231,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     queueMicrotask(() => {
       setPlaying(false)
       setAt(n - 1)
+      setFrac(0)
     })
     if (armed.current) release()
   }, [reduced, n])
@@ -225,6 +243,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const need = target ? target - runs : 0
   const thisBall = offWkts ? (offWkts > 1 ? `${offWkts} wickets` : 'wicket') : `${offRuns} run${offRuns === 1 ? '' : 's'}`
   const done = at === n - 1 && !playing
+  // Where the playhead is drawn: between two balls while a replay sweeps, on the segment that joins them.
+  const hx = x(Math.min(n - 1, at + frac))
+  const hy = frac > 0 && at < n - 1 ? y(p) + (y(balls[at + 1]![9]) - y(p)) * frac : y(p)
 
   const rows = [
     { label: 'Innings', value: inn === 1 ? `1 · ${first} batting` : `2 · ${second} chasing` },
@@ -288,18 +309,18 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               <path d={path} fill="none" stroke="var(--color-indigo-wash)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
               {/* Played so far: clipped at the playhead. */}
               <clipPath id="replay-clip">
-                <rect x={0} y={-20} width={x(at) + 0.5} height={H + 40} />
+                <rect x={0} y={-20} width={hx + 0.5} height={H + 40} />
               </clipPath>
               <path data-played="" d={path} fill="none" stroke="var(--color-indigo)" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" clipPath="url(#replay-clip)" />
               {wickets}
-              <line data-played="" x1={x(at)} x2={x(at)} y1={0} y2={H} stroke="var(--color-indigo)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+              <line data-played="" x1={hx} x2={hx} y1={0} y2={H} stroke="var(--color-indigo)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
             </svg>
             {/* Moved by transform, in the plot's own units (a size container), never by left and top. */}
             <span
               aria-hidden
               data-played=""
               className="pointer-events-none absolute top-0 left-0 size-2.5 rounded-full border-2 border-paper bg-indigo"
-              style={{ transform: `translate(calc(${Math.min(99, (x(at) / W) * 100).toFixed(2)}cqw - 50%), calc(${((y(p) / H) * 100).toFixed(2)}cqh - 50%))` }}
+              style={{ transform: `translate(calc(${Math.min(99, (hx / W) * 100).toFixed(2)}cqw - 50%), calc(${((hy / H) * 100).toFixed(2)}cqh - 50%))` }}
             />
           </div>
         </div>
@@ -326,9 +347,10 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               if (armed.current) release()
               if (playing) stop()
               else if (at >= n - 1) replay()
-              else play(at)
+              // On from where the playhead stands, between balls if a pause caught it there.
+              else play(at + frac)
             }}
-            className={`${CONTROL} w-[4.5rem] shrink-0`}
+            className={`${CONTROL} w-[4.5rem] shrink-0 motion-reduce:hidden`}
           >
             {playing ? 'Pause' : at >= n - 1 ? 'Replay' : 'Play'}
           </button>
@@ -344,12 +366,15 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               if (armed.current) release()
               stop()
               setAt(Number(e.currentTarget.value))
+              setFrac(0)
             }}
             onKeyDown={() => {
               if (armed.current) release()
+              keep()
               if (playing) stop()
             }}
-            className="h-6 w-full accent-[var(--color-indigo)]"
+            className="h-6 w-full"
+            style={rangeFill(at, 0, n - 1)}
           />
         </div>
         {/* The slider speaks for itself (aria-valuetext); this says only what the reader did not do there. */}
