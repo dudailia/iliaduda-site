@@ -13,6 +13,9 @@ import { paint, type MakeMini } from '../paint'
  * price running into the futures, which breathe with its realised volatility (mapped exactly from the one fan, as the
  * paper's figure does between fans), and the surface at its stress.
  */
+/** The fan's paths the thumbnail draws (lib/minis/market.ts). */
+const DRAWN = [0, 12, 24, 36]
+
 export const make: MakeMini = () => {
   const m = new Market(SEED, MARKET, false)
   const fan = new Fan()
@@ -21,7 +24,7 @@ export const make: MakeMini = () => {
   let live = 0
   let base: Parameters<typeof fanAt>[0] | null = null
   const bands = new Float64Array(5 * 65)
-  const strands = new Float64Array(48 * 65)
+  const strands = new Float64Array(DRAWN.length * 65)
   return {
     ready: () => base !== null,
     time: () => m.t,
@@ -38,9 +41,13 @@ export const make: MakeMini = () => {
       }
       if (!base) {
         if (!fan.work(512)) return
-        base = { sigma: m.sigma, r: MODEL.r, dt: MODEL.T / MODEL.steps, bands: fan.bandsData(), strands: fan.strands() }
-      }
-      live += dt
+        // The frame the fan is whole paints the thumbnail's own moment: its time goes on only from the next.
+        // Only what the thumbnail draws is mapped each frame: the five bands and its four paths (0, 12, 24, 36).
+        const all = fan.strands()
+        const kept = new Float64Array(DRAWN.length * 65)
+        DRAWN.forEach((id, i) => kept.set(all.subarray(id * 65, id * 65 + 65), i * 65))
+        base = { sigma: m.sigma, r: MODEL.r, dt: MODEL.T / MODEL.steps, bands: fan.bandsData(), strands: kept }
+      } else live += dt
       m.advance(POSTER_T + live)
       fanAt(base, m.sigma, bands, strands)
       const f = m.flow
@@ -55,7 +62,7 @@ export const make: MakeMini = () => {
           written: f.written,
           u: Math.min(1, Math.max(0, (f.t - f.times[f.row(0)]!) * HZ)),
           band: (b, j) => bands[b * 65 + j]!,
-          strand: (i, j) => strands[i * 65 + j]!,
+          strand: (i, j) => strands[DRAWN.indexOf(i) * 65 + j]!,
           surface: surfaceOf(m.stress),
           // Turned as the paper's surface sways (48 s), from where the thumbnail has it.
           sway: Math.sin((2 * Math.PI * live) / 48),

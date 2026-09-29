@@ -420,6 +420,8 @@ export function MarketLive({
       if (pausedRef.current) {
         if (landing.current) landing.current.at += dt * 1000
         blow.current.at += dt * 1000
+        // The story line's clock too, so what it says after a long pause is what it said before it.
+        landedAt.current.at += dt * 1000
       }
       const stateOf = (mm: Mirror): Story => {
         if (pausedRef.current) return 'paused'

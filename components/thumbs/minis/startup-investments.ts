@@ -5,7 +5,7 @@ import { paint, readShape, type MakeMini } from '../paint'
 /**
  * The startup ranking's miniature: the thumbnail's top ten under the first treatment, then re-ranked under the second
  * and the third, each held seven seconds, the bars gliding to their places over 600ms (the site's
- * cubic-bezier(0.77, 0, 0.175, 1)). Each bar's score under the other two treatments is on the thumbnail
+ * cubic-bezier(0.77, 0, 0.175, 1)). Each bar's score under all three treatments is on the thumbnail
  * (`data-mini`), so the miniature draws only the paper's own numbers; the top pick is indigo, so the change of lead reads.
  */
 export const make: MakeMini = (svg) => {

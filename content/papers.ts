@@ -20,8 +20,8 @@ export interface Paper {
   readonly title: string
   /** Two sentences, plain English, what it shows before what it lacks. */
   readonly abstract: string
-  /** The paper page's own opening, when the abstract (kept whole for the contents and the metadata) is longer than a
-   *  first screen should carry: at most 45 words. */
+  /** The paper page's own opening, when the abstract (kept whole for the metadata) is longer than a first screen
+   *  should carry: at most 45 words. */
   readonly standfirst?: string
   /** The Contents' line for it: what was built and what it shows, in 30 words or fewer, from the abstract. */
   readonly dek: string
@@ -53,7 +53,7 @@ export const papers: readonly Paper[] = [
       'One simulated market runs in your browser, and its Hawkes order book, a year of its futures and an arbitrage-free SSVI vol surface are drawn from it in the same frame. Press Liquidity shock: a sell sweeps the bids, and all three views take it at once.',
     standfirst:
       'One simulated market, drawn three ways in the same frame as it runs in your browser: its order book, a year of its futures and the vol surface its stress sets. A liquidity shock lands in all three at once; what follows is the model’s own.',
-    dek: 'One simulated market runs in your browser, drawn three ways in one frame: its order book, a year of futures, its vol surface. A liquidity shock hits all three at once.',
+    dek: 'One simulated market runs in your browser, drawn three ways in one frame: its order book, a year of futures, its vol surface. A liquidity shock hits all three.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
   },

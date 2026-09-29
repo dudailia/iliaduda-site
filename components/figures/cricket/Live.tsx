@@ -98,6 +98,8 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   // plays it again from the first ball; a press while it lets go does nothing more. The opacity is set only while it
   // lets go, so the first visit's pre-paint hide still holds.
   const letting = useRef(false)
+  const letTimer = useRef(0)
+  useEffect(() => () => clearTimeout(letTimer.current), [])
   const replay = () => {
     const parts = [...(box.current?.querySelectorAll<SVGElement>('[data-played]') ?? [])]
     if (reduced || !parts.length) return play(0)
@@ -107,7 +109,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       el.style.transition = 'opacity 150ms var(--ease-out)'
       el.style.opacity = '0'
     }
-    window.setTimeout(() => {
+    letTimer.current = window.setTimeout(() => {
       letting.current = false
       setAt(0)
       play(0)

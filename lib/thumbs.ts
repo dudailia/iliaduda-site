@@ -11,7 +11,7 @@ import { offeredTerms } from './settlement'
 import { marketShape } from './minis/market'
 import { orderBookShape } from './minis/orderBook'
 import { ivSurfaceShape } from './minis/ivSurface'
-import type { Pts, Shape } from './minis/shape'
+import { TH, TW, type Pts, type Shape } from './minis/shape'
 
 /**
  * Miniatures of each paper's Fig. 1, drawn from the same data: for the
@@ -21,7 +21,6 @@ import type { Pts, Shape } from './minis/shape'
  */
 
 export { TH, TW } from './minis/shape'
-import { TH, TW } from './minis/shape'
 
 export interface Thumb {
   /** Context marks: drawn in the rule or wash colour. */

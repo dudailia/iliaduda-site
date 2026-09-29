@@ -45,6 +45,11 @@ export class MiniClock {
     for (const m of this.minis.values()) m.last = null
   }
 
+  /** A mini's own time, seconds (0 for one the clock has not met). */
+  timeOf(id: string): number {
+    return this.minis.get(id)?.t ?? 0
+  }
+
   /** True when there is nothing to draw: the page may stop asking for frames. */
   get idle(): boolean {
     if (this.hidden) return true

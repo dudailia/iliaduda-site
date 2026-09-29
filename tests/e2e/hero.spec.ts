@@ -210,7 +210,7 @@ test('at rest, a click on the price scale sets the strike to the price printed t
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 8_000 })
   // Held still, so the scale stays where it was read.
-  await page.getByRole('button', { name: 'Pause' }).click()
+  await page.locator('#fig-futures').getByRole('button', { name: 'Pause' }).click()
   await page.waitForTimeout(600)
   const tick = page.locator(`${STAGE} [data-camera] span`, { hasText: /^\$150$/ })
   const b = (await tick.boundingBox())!
@@ -259,7 +259,7 @@ test('by day the paying paths are ink on paper, at least 3:1 against it', async 
   if (!(await goLive(page))) return test.skip(true, 'no GPU here')
   await expect(page.locator('[data-paths]').first()).not.toHaveAttribute('data-paths', '0', { timeout: 15_000 })
   await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 6_000 })
-  await page.getByRole('button', { name: 'Pause' }).click()
+  await page.locator('#fig-futures').getByRole('button', { name: 'Pause' }).click()
   await page.waitForTimeout(400)
   // The densest futures, wherever the camera has put them: the darkest patch on the fan's side of the stage, away from
   // the bars on the wall.
@@ -281,7 +281,7 @@ test('by day the core of the futures is a deep indigo, not ink-black: the bundle
     await page.goto('/')
     if (!(await goLive(page))) return test.skip(true, 'no GPU here')
     await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 8_000 })
-    await page.getByRole('button', { name: 'Pause' }).click()
+    await page.locator('#fig-futures').getByRole('button', { name: 'Pause' }).click()
     await page.waitForTimeout(1_000)
     // The left half: today and the body of the fan, clear of the wall and its bars.
     const t = await inkTones(page, 0.5)

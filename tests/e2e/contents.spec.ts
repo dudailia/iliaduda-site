@@ -48,11 +48,15 @@ test('a miniature’s first frame is its thumbnail', async ({ page }) => {
   const t = thumb(page, 'closebooks')
   await t.scrollIntoViewIfNeeded()
   await choose(page, 'closebooks')
-  // The build's picture, then the canvas over it the moment it shows (the batch holds for its first four seconds).
-  const before = await t.screenshot()
+  // The canvas over the build's picture, shown, while the batch holds its first frame (nine seconds); then the same
+  // box with the canvas stepped out of the way, the SVG alone.
   await expect(t.locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
-  await page.waitForTimeout(250)
   const after = await t.screenshot()
+  await t.locator('canvas').evaluate((c) => {
+    ;(c as HTMLCanvasElement).style.transition = 'none'
+    ;(c as HTMLCanvasElement).style.opacity = '0'
+  })
+  const before = await t.screenshot()
   const diff = await page.evaluate(
     async ([a, b]) => {
       const load = (s: string) =>
@@ -75,10 +79,10 @@ test('a miniature’s first frame is its thumbnail', async ({ page }) => {
     },
     [before.toString('base64'), after.toString('base64')],
   )
-  // The same picture, drawn by the canvas instead of the SVG: a mean difference per channel under 3 of 255 at a whole
-  // device-pixel ratio, and under 8 at a phone's fractional one (2.625), where the two smooth their edges differently.
-  const dpr = await page.evaluate(() => devicePixelRatio)
-  expect(diff).toBeLessThan(Number.isInteger(dpr) ? 3 : 8)
+  // The same picture, drawn by the canvas instead of the SVG, on the same device pixels: only the edges differ, each
+  // rasteriser smoothing them its own way (measured 5.4 of 255 on average at 1×, and about 5 at a phone's 2.625); the
+  // canvas resampled off the device's pixel grid measured 8.6 to 9.5.
+  expect(diff).toBeLessThan(8)
 })
 
 test('draws at most thirty frames a second, and stops when scrolled away', async ({ page }) => {
@@ -113,7 +117,7 @@ test('under reduced motion the thumbnails stay the build’s pictures', async ({
   expect(await page.locator('[data-vt-contents] canvas').count()).toBe(0)
 })
 
-test('on a phone the thumbnails show under each abstract, and come alive too', async ({ page, isMobile }) => {
+test('on a phone the thumbnails show at the column’s width, and come alive too', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'a phone')
   await seen(page)
   await toContents(page)
@@ -135,10 +139,14 @@ test.describe('through the morph', () => {
     await page.waitForTimeout(3_000)
     const mini = Number(await cv.getAttribute('data-t'))
     expect(mini).toBeGreaterThan(145)
+    // The mark as the page first paints, whatever the figure then decides.
+    await page.addInitScript(() =>
+      document.addEventListener('DOMContentLoaded', () => ((window as unknown as { __handoff?: string }).__handoff = document.documentElement.dataset.marketHandoff)),
+    )
     await page.locator('[data-vt-contents] h3 a[href="/market"]').click()
     await page.waitForURL('**/market')
     // The paper's still frames and numbers are at its own moment: they wait for the handed one.
-    expect(await page.evaluate(() => document.documentElement.dataset.marketHandoff)).toBe('1')
+    expect(await page.evaluate(() => (window as unknown as { __handoff?: string }).__handoff)).toBe('1')
     await page.evaluate(() => document.querySelector('[data-market-stage]')?.scrollIntoView({ block: 'start' }))
     const live = await expect(page.locator('[data-market-stage]'))
       .toHaveAttribute('data-market-live', '1', { timeout: 20_000 })
@@ -151,6 +159,8 @@ test.describe('through the morph', () => {
 })
 
 test('Pause holds every thumbnail where it is, for the rest of the visit, and Resume lets them go on (WCAG 2.2.2)', async ({ page }) => {
+  // The page coming back paused hydrates without a mismatch: the words it was sent are the words it first renders.
+  const errors = errorsOf(page)
   await seen(page)
   await toContents(page)
   await choose(page, 'market')
@@ -171,6 +181,7 @@ test('Pause holds every thumbnail where it is, for the rest of the visit, and Re
   const b = await frames(page, 'market')
   await page.waitForTimeout(1_000)
   expect(await frames(page, 'market')).toBeGreaterThan(b + 10)
+  expect(errors).toEqual([])
 })
 
 test('one thumbnail moves at a time: the one the reader is at; the others hold their frame', async ({ page, isMobile }) => {
@@ -185,4 +196,18 @@ test('one thumbnail moves at a time: the one the reader is at; the others hold t
   await page.waitForTimeout(800)
   expect(await frames(page, 'market')).toBe(held)
   expect(await frames(page, 'cricstate')).toBeGreaterThan(10)
+})
+
+test('pointing at an entry’s title marks its thumbnail, and pointing at the thumbnail marks the title', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a pointer')
+  await seen(page)
+  await toContents(page)
+  const li = page.locator('[data-vt-contents] li').filter({ has: page.locator('[data-vt-thumb="fig-cricstate"]') })
+  const border = () => li.locator('[data-vt-thumb]').evaluate((e) => getComputedStyle(e).borderTopColor)
+  const deco = () => li.locator('h3 a').evaluate((e) => getComputedStyle(e).textDecorationColor)
+  const [b0, d0] = [await border(), await deco()]
+  await li.locator('h3 a').hover()
+  await expect.poll(border).not.toBe(b0)
+  await li.locator('[data-vt-thumb]').hover()
+  await expect.poll(deco).not.toBe(d0)
 })

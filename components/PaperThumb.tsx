@@ -20,7 +20,7 @@ export function PaperThumb({ slug, href }: { slug: string; href: string }) {
     >
       <svg viewBox={`0 0 ${TW} ${TH}`} preserveAspectRatio="none" className="h-full w-full overflow-visible" data-mini={t.mini}>
         {t.context.map((d, i) => (
-          <path key={`c${i}`} d={d} fill="none" stroke={CONTEXT_CSS} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          <path key={`c${i}`} d={d} fill="none" stroke={CONTEXT_CSS} strokeWidth={1} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         ))}
         {t.quiet?.map(([x, y, w, h], i) => (
           <rect key={`q${i}`} x={x} y={y} width={w} height={h} fill="var(--color-indigo-wash)" data-quiet="" />
@@ -29,7 +29,7 @@ export function PaperThumb({ slug, href }: { slug: string; href: string }) {
           <rect key={`b${i}`} x={x} y={y} width={w} height={h} fill="var(--color-indigo)" />
         ))}
         {t.claim.map((d, i) => (
-          <path key={`p${i}`} d={d} fill="none" stroke="var(--color-indigo)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+          <path key={`p${i}`} d={d} fill="none" stroke="var(--color-indigo)" strokeWidth={1.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         ))}
       </svg>
     </a>

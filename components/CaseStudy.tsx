@@ -95,8 +95,9 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
           {rows.map(([k, v]) => (
             <div key={k} className="contents">
               <dt className="text-meta font-mono text-graphite sm:pt-0.5">{k}</dt>
-              {/* Its links stand a little taller than their line, so a finger has room (as /market's always did). */}
-              <dd className="min-w-0 break-words font-mono [&_a]:inline-block [&_a]:py-0.5">{v}</dd>
+              {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
+                  long address still wraps at 360px. */}
+              <dd className="min-w-0 break-words font-mono [&_a]:py-1">{v}</dd>
             </div>
           ))}
         </dl>

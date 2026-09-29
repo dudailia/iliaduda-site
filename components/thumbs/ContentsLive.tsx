@@ -13,16 +13,12 @@ const PAUSED = 'contents-paused'
  * miniatures run.
  */
 export function ContentsLive() {
-  const [paused, setPaused] = useState(() => {
-    try {
-      return typeof window !== 'undefined' && sessionStorage.getItem(PAUSED) === '1'
-    } catch {
-      return false
-    }
-  })
+  // Not paused on the server's render and the client's first: the visit's Pause is read once the miniatures load, so
+  // the page hydrates with the words it was sent.
+  const [paused, setPaused] = useState(false)
   const [running, setRunning] = useState(false)
   const minis = useRef<Minis | null>(null)
-  const pausedRef = useRef(paused)
+  const pausedRef = useRef(false)
 
   useEffect(() => {
     const list = document.querySelector('[data-vt-contents]')
@@ -35,7 +31,14 @@ export function ContentsLive() {
         void import('./live').then(
           (m) => {
             if (gone) return
-            minis.current = m.start(pausedRef.current)
+            let held = false
+            try {
+              held = sessionStorage.getItem(PAUSED) === '1'
+            } catch {}
+            pausedRef.current = held
+            setPaused(held)
+            // Stopped for good (reduced motion asked for): the button goes with them.
+            minis.current = m.start(held, () => setRunning(false))
             if (minis.current) setRunning(true)
           },
           () => {},

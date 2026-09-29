@@ -7,13 +7,11 @@ import { MINIS } from './registry'
 /**
  * The Contents' thumbnails come alive: each, once half of it is on screen and the page is idle, loads its paper's
  * miniature (./minis/), which draws the thumbnail's own picture on a canvas over it and then moves as its figure does,
- * the canvas crossfading in over 180ms on the ease-out. One clock for all of them (lib/minis/clock.ts): at most thirty
- * frames a second, only those on screen, none while the page is hidden. Reduced motion or save-data: the thumbnails
+ * the canvas crossfading in over 180ms on the ease-out. One moves at a time (the entry under the pointer or focus, else
+ * the one nearest the screen's middle), on one clock (lib/minis/clock.ts): at most thirty frames a second, none while
+ * the page is hidden. Reduced motion or save-data: the thumbnails
  * stay the build's pictures. Returns the stop.
  */
-/** The thumbnail's padding (p-1.5), CSS pixels: where its picture starts inside the canvas. */
-const PAD = 6
-
 export interface Minis {
   stop(): void
   /** Hold every miniature where it is (Pause, WCAG 2.2.2), or let them go on. */
@@ -21,43 +19,65 @@ export interface Minis {
 }
 
 /** Starts the miniatures, or returns null where they do not run (reduced motion, save-data). */
-export function start(paused: boolean): Minis | null {
+export function start(paused: boolean, onStop: () => void = () => {}): Minis | null {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches || saveData()) return null
   const clock = new MiniClock()
-  const live = new Map<string, { mini: Mini; cv: HTMLCanvasElement; g: CanvasRenderingContext2D; shown: boolean; frames: number; device: [number, number] | null }>()
+  type Live = { mini: Mini; cv: HTMLCanvasElement; g: CanvasRenderingContext2D; shown: boolean; frames: number; pad: number; ox: number; oy: number }
+  const live = new Map<string, Live>()
   let pal: MiniPalette = palette()
   let raf = 0
   let gone = false
   const cancels: (() => void)[] = []
+
+  /** The thumbnail's padding box (inside its 1px border), in CSS pixels: where the canvas and its picture go. */
+  const boxOf = (l: Live) => {
+    const a = l.cv.parentElement!
+    const r = a.getBoundingClientRect()
+    const bx = a.clientLeft, by = a.clientTop
+    return { left: r.left + bx, top: r.top + by, width: r.width - 2 * bx, height: r.height - 2 * by }
+  }
+  /**
+   * Draws a miniature at its time `t`. The canvas is laid on the device's own pixel grid (moved back by its box's
+   * fraction of a device pixel, and sized in whole device pixels), so its bitmap is never resampled and draws as crisp
+   * as the SVG under it; the picture is drawn where the SVG's is, inset by the thumbnail's padding and that fraction.
+   */
+  const drawAt = (l: Live, box: ReturnType<typeof boxOf>, t: number, dt: number) => {
+    const dpr = Math.min(3, devicePixelRatio || 1)
+    const ox = ((box.left * dpr) % 1) / dpr, oy = ((box.top * dpr) % 1) / dpr
+    const W = Math.ceil((box.width + ox) * dpr), H = Math.ceil((box.height + oy) * dpr)
+    if (l.cv.width !== W || l.cv.height !== H || l.ox !== ox || l.oy !== oy) {
+      l.cv.width = W
+      l.cv.height = H
+      l.cv.style.width = `${W / dpr}px`
+      l.cv.style.height = `${H / dpr}px`
+      l.cv.style.transform = `translate(${-ox}px, ${-oy}px)`
+      l.ox = ox
+      l.oy = oy
+    }
+    l.g.setTransform(1, 0, 0, 1, 0, 0)
+    l.g.clearRect(0, 0, W, H)
+    l.g.setTransform(dpr, 0, 0, dpr, 0, 0)
+    // The padding box painted paper (the canvas's sliver past it left clear, over the border).
+    l.g.fillStyle = pal.paper
+    l.g.fillRect(ox, oy, box.width, box.height)
+    l.g.translate(ox + l.pad, oy + l.pad)
+    l.mini.draw(l.g, box.width - 2 * l.pad, box.height - 2 * l.pad, t, dt, pal)
+  }
 
   const frame = (now: number) => {
     raf = 0
     // Every box measured first, then every canvas drawn: no layout read between two writes.
     const todo = clock.tick(now).flatMap((f) => {
       const l = live.get(f.id)
-      return l ? [{ f, l, r: l.cv.getBoundingClientRect() }] : []
+      return l ? [{ f, l, box: boxOf(l) }] : []
     })
-    for (const { f, l, r } of todo) {
-      // A backing store of the box's own device pixels, so the canvas is never resampled and draws as crisp as the SVG
-      // under it; where the browser cannot say (Safari), the box times the screen's density (to 3), rounded.
-      const dpr = Math.min(3, devicePixelRatio || 1)
-      const [W, H] = l.device ?? [Math.round(r.width * dpr), Math.round(r.height * dpr)]
-      if (l.cv.width !== W || l.cv.height !== H) {
-        l.cv.width = W
-        l.cv.height = H
-      }
-      // The canvas covers the thumbnail's padding too, so a dot at the picture's edge is whole; the picture itself is
-      // drawn inset by the padding (6px), where the SVG's is, scaled by the backing store's own rounding so the first
-      // frame registers with the thumbnail to the device pixel.
-      l.g.setTransform(1, 0, 0, 1, 0, 0)
-      l.g.clearRect(0, 0, W, H)
-      l.g.setTransform(W / r.width, 0, 0, H / r.height, 0, 0)
-      l.g.translate(PAD, PAD)
-      l.mini.draw(l.g, r.width - 2 * PAD, r.height - 2 * PAD, f.t, f.dt, pal)
+    for (const { f, l, box } of todo) {
+      drawAt(l, box, f.t, f.dt)
       // For the specs: frames drawn, and an engine mini's simulated time.
       l.cv.dataset.frames = String(++l.frames)
       const at = l.mini.time?.()
       if (at !== undefined) l.cv.dataset.t = at.toFixed(3)
+      // Shown once its first frame is drawn: the thumbnail's own.
       if (!l.shown && l.mini.ready()) {
         // Drawn its first frame, the thumbnail's own: now it shows.
         l.shown = true
@@ -82,20 +102,14 @@ export function start(paused: boolean): Minis | null {
             if (gone) return
             const cv = document.createElement('canvas')
             cv.setAttribute('aria-hidden', 'true')
-            cv.className = 'pointer-events-none absolute inset-0 print:hidden h-full w-full opacity-0 transition-opacity duration-[180ms] ease-out'
+            cv.className = 'pointer-events-none absolute top-0 left-0 print:hidden opacity-0 transition-opacity duration-[180ms] ease-out'
             const g = cv.getContext('2d')
             if (!g) return
             a.append(cv)
-            const l = { mini: make(svg), cv, g, shown: false, frames: 0, device: null as [number, number] | null }
+            // The thumbnail's own padding (p-1.5, so it follows the reader's font size): where its picture starts.
+            const pad = Number.parseFloat(getComputedStyle(a).paddingLeft) || 6
+            const l: Live = { mini: make(svg), cv, g, shown: false, frames: 0, pad, ox: -1, oy: -1 }
             live.set(slug, l)
-            try {
-              const ro = new ResizeObserver(([e]) => {
-                const d = e?.devicePixelContentBoxSize?.[0]
-                if (d) l.device = [d.inlineSize, d.blockSize]
-              })
-              ro.observe(cv, { box: 'device-pixel-content-box' })
-              cancels.push(() => ro.disconnect())
-            } catch {}
             choose()
             run()
           },
@@ -143,7 +157,11 @@ export function start(paused: boolean): Minis | null {
   const slugOf = (el: Element | null) =>
     el?.closest('[data-vt-contents] li')?.querySelector<HTMLElement>('[data-vt-thumb]')?.dataset.vtThumb?.replace(/^fig-/, '') ?? null
   const onPoint = (e: Event) => {
-    pointed = slugOf(e.target as Element | null)
+    // Pointed at or focused; the pointer leaving the list, or the focus leaving it, hands back to whatever is still
+    // there: the keyboard's focus keeps priority over a pointer gone, and a pointer over the list over focus gone.
+    if (e.type === 'pointerleave') pointed = slugOf(list?.contains(document.activeElement) ? document.activeElement : null)
+    else if (e.type === 'focusout') pointed = slugOf((e as FocusEvent).relatedTarget as Element | null) ?? slugOf(list?.querySelector('li:hover') ?? null)
+    else pointed = slugOf(e.target as Element | null)
     choose()
   }
   const list = document.querySelector('[data-vt-contents]')
@@ -173,6 +191,7 @@ export function start(paused: boolean): Minis | null {
   list?.addEventListener('pointerover', onPoint)
   list?.addEventListener('focusin', onPoint)
   list?.addEventListener('pointerleave', onPoint)
+  list?.addEventListener('focusout', onPoint)
   let held = paused
   const onVis = () => {
     clock.hide(document.hidden || held)
@@ -200,20 +219,18 @@ export function start(paused: boolean): Minis | null {
   const scheme = matchMedia('(prefers-color-scheme: dark)')
   // A new colour scheme: every canvas steps back to the thumbnail under it (which follows the page's colours at once)
   // and crossfades in again on its next frame, drawn in the new palette.
+  // A new colour scheme: every shown canvas is drawn again at once, where it was (its own time, no time passing), in
+  // the new palette, so one held or paused keeps its frame and none shows the old scheme's paper.
   const onScheme = () => {
     pal = palette()
-    for (const l of live.values()) {
-      l.shown = false
-      l.cv.style.transition = 'none'
-      l.cv.style.opacity = '0'
-      delete l.cv.dataset.shown
-      requestAnimationFrame(() => (l.cv.style.transition = ''))
-    }
+    for (const [id, l] of live) if (l.shown) drawAt(l, boxOf(l), clock.timeOf(id), 0)
     run()
   }
   scheme.addEventListener('change', onScheme)
   const stop = () => {
+    if (gone) return
     gone = true
+    onStop()
     cancelAnimationFrame(raf)
     io.disconnect()
     cancels.forEach((c) => c())
@@ -223,6 +240,7 @@ export function start(paused: boolean): Minis | null {
     list?.removeEventListener('pointerover', onPoint)
     list?.removeEventListener('focusin', onPoint)
     list?.removeEventListener('pointerleave', onPoint)
+    list?.removeEventListener('focusout', onPoint)
     scheme.removeEventListener('change', onScheme)
     still.removeEventListener('change', onStill)
     for (const l of live.values()) l.cv.remove()

@@ -135,13 +135,15 @@ export class PageMarket {
     // Held for a reading, it stops where it is read. Paused, it coasts to rest over 240ms, and picks up again over
     // 400ms on Resume, as the home figure's stream does: the scroll never stops dead or jolts back.
     if (this.held) return 0
+    // A market opened paused (Pause is kept for the visit) starts at rest, with no coast.
+    this.rate ??= this.paused ? 0 : 1
     this.rate = this.paused ? Math.max(0, this.rate - dt / 0.24) : Math.min(1, this.rate + dt / 0.4)
     if (this.rate === 0) return 0
     this.owed += dt * this.rate
     return this.flow.advance(this.owed)
   }
   /** How fast the market runs against real time, 0 to 1: 1 unless it is coasting to or from a Pause. */
-  private rate = 1
+  private rate: number | null = null
 
   subscribe = (fn: () => void) => {
     this.subs.add(fn)

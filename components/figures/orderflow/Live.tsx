@@ -380,7 +380,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           className="peer relative cursor-crosshair touch-pan-y select-none [--g:0px] focus-visible:outline-none @min-[520px]:[--g:124px]"
           style={{ height: HEIGHT }}
         >
-          <div className="absolute inset-y-0 right-2 left-(--g)" style={underlay(live)}>
+          <div className="absolute inset-y-0 right-2 left-(--g)" style={underlay(live)} data-orderflow-still="">
             {poster}
           </div>
           <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />

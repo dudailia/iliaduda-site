@@ -167,13 +167,6 @@
     a:hover {
       text-decoration-color: var(--color-ink);
     }
-    /* A Contents entry's title and thumbnail are one way in: pointing at either marks both. */
-    [data-vt-contents] li:has(h3 a:hover) [data-vt-thumb] {
-      border-color: var(--color-graphite);
-    }
-    [data-vt-contents] li:has([data-vt-thumb]:hover) h3 a {
-      text-decoration-color: var(--color-ink);
-    }
   }
 
   :focus-visible {
@@ -387,12 +380,24 @@
 
 /* The order book's poster: on a first visit (the pre-paint mark, lib/stage/prepaint.ts) the page is empty, and the
    terrain rises out of it; if the live figure declines, the finished picture fades in on the site's ease-out. */
+/* A Contents entry's title and thumbnail are one way in: pointing at either marks both. Outside any layer, so it
+   wins over the elements' own utilities (border-rule, decoration-transparent), which a base-layer rule cannot. */
+@media (hover: hover) and (pointer: fine) {
+  [data-vt-contents] li:has(h3 a:hover) [data-vt-thumb] {
+    border-color: var(--color-graphite);
+  }
+  [data-vt-contents] li:has([data-vt-thumb]:hover) h3 a {
+    text-decoration-color: var(--color-ink);
+  }
+}
+
 /* Arrived from the Contents' miniature (lib/minis/handoff.ts): the still frames and readouts, at the figure's own
    moment, wait for the handed one; the live figure lifts the mark. The morph lands on the empty stage. */
 :root[data-market-handoff] [data-market-still],
 :root[data-market-handoff] [data-market-value],
 :root[data-orderbook-handoff] [data-orderbook-poster],
-:root[data-orderbook-handoff] [data-orderbook-value] {
+:root[data-orderbook-handoff] [data-orderbook-value],
+:root[data-orderbook-handoff] [data-orderflow-still] {
   /* Over the still frames' own inline visibility (the stage kit's underlay). */
   visibility: hidden !important;
 }
