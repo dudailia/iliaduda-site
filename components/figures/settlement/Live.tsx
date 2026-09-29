@@ -185,7 +185,7 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                 value={typed}
                 onChange={(e) => onTyped(e.currentTarget.value)}
                 placeholder="e.g. 4000"
-                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite max-sm:text-[1rem]"
+                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite max-sm:text-small"
               />
             </label>
             <p className="sr-only" aria-live="polite">
