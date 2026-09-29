@@ -152,16 +152,23 @@ pnpm check:all        # all of the above, in order
   Chromium, WebKit and Firefox against the hash Node computes
   (`market-engines.spec.ts`).
 
-Measured on the preview deployment (25 September 2026), mobile Lighthouse, two runs on each of ten routes:
+Measured on the preview deployment (29 September 2026, `redesign` at 3f745af), mobile Lighthouse, two runs on
+each of twelve routes, against each page's budget (`lighthouserc.prod.json`):
 
 | | |
 |---|---|
 | Performance | 93–100 |
 | Accessibility | 100 |
-| Best practices | 100 |
 | CLS | 0 |
-| Transfer | 233–258 KB (budget 260) |
+| Transfer, home | 260,162–260,197 B (budget 275,000) |
+| Transfer, `/market` | 304,270–304,384 B (budget 335,000) |
+| Transfer, `/order-book`, `/iv-surface` | 278,039–283,906 B (budget 300,000) |
+| Transfer, every other page | 222,053–246,243 B (budget 261,000) |
 | Third-party requests | 0 |
+
+Lighthouse's phone draws WebGL in software, so it measures the still frames; the live figures load after its trace
+on a device that can run them. `/market`'s best-practices score on a preview (96) is Vercel's login wall refusing
+the worker's scripts to a headless browser; production has no wall.
 
 ## Notes
 
