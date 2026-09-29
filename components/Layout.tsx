@@ -111,7 +111,8 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
         <Fragment key={it}>
           <span className={it.length <= 34 ? 'whitespace-nowrap' : ''}>
             {it}
-            {i < list.length - 1 ? ' ·' : ''}
+            {/* Held to its item by a no-break space: a line never starts with the dot. */}
+            {i < list.length - 1 ? '\u00a0·' : ''}
           </span>
           {i < list.length - 1 ? ' ' : ''}
         </Fragment>

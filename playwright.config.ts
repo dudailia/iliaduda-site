@@ -16,6 +16,8 @@ const WEBKIT =
   process.env.PW_WEBKIT ??
   ['Library/Caches/pw-webkit-2336-mac15/pw_run.sh', 'Library/Caches/ms-playwright/webkit-2336-mac15/pw_run.sh'].map((p) => join(homedir(), p)).find((p) => existsSync(p))
 
+const FIREFOX = !!process.env.CI || existsSync(firefox.executablePath())
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -24,8 +26,8 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: BASE, trace: 'off' },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /webkit/ },
-    { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 780 } }, testIgnore: /webkit/ },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /webkit|clock/ },
+    { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 780 } }, testIgnore: /webkit|clock/ },
     // WebKit at an iPhone's size, touch and pixel ratio. It is WebKit for the
     // desktop, so it has the desktop's WebGL: the iPhone's missing extensions
     // are tested in Chromium (hero-formats.spec.ts), and a real phone checks the rest.
@@ -36,7 +38,14 @@ export default defineConfig({
     },
     // SpiderMonkey, the third engine for one market (`playwright install firefox`). Locally it runs where Firefox is
     // installed; on CI, which installs it, always, so a missing browser fails rather than skipping the paper's claim.
-    ...(process.env.CI || existsSync(firefox.executablePath()) ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /engines\.spec\.ts/ }] : []),
+    ...(FIREFOX ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /engines\.spec\.ts/ }] : []),
+    // Timing that a busy machine would falsify (a 30 Hz frame clock): alone, once every other project has finished.
+    {
+      name: 'clock',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+      testMatch: /clock\.spec\.ts/,
+      dependencies: ['desktop', 'mobile', 'iphone', ...(FIREFOX ? ['firefox'] : [])],
+    },
   ],
   /**
    * Runs against `next start`, not `next dev`. The development server injects a

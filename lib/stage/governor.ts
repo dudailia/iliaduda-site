@@ -44,12 +44,13 @@ export class Governor {
       this.slow = this.fast = 0
       return true
     }
-    // A step down tested: frames no quicker than before it (within 5%), steady, at a display's own rate, means the
-    // clock set their pace, not the work.
+    // A step down tested: frames no quicker than before it (within 10%), steady (their spread within a fifth of their
+    // interval), at a display's own rate, means the clock set their pace, not the work. A 60 Hz display on a device
+    // missing frames does not pass: its frames alternate, 17 and 33ms, about 25ms, which is no display's rate.
     if (this.probe && now - this.probe.at > 1500) {
       const p = this.probe
       this.probe = null
-      if (this.ema > p.ema * 0.95 && this.jitter < this.ema * 0.1 && isDisplayRate(this.ema)) {
+      if (this.ema > p.ema * 0.9 && this.jitter < this.ema * 0.2 && isDisplayRate(this.ema)) {
         this.refresh = this.ema
         this.failures[p.from] = Math.max(0, (this.failures[p.from] ?? 1) - 1)
         this.blockedUntil[p.from] = 0

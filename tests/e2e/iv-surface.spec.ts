@@ -42,7 +42,7 @@ test.describe('before any script runs', () => {
   test('is the calm surface, says synthetic where it is drawn, and reads its numbers in the margin', async ({ page }) => {
     await page.goto('/iv-surface')
     await expect(page.locator(`${FIG} [data-iv-poster] img[data-mesh]`)).toBeVisible()
-    await expect(page.locator(FIG)).toContainText(/Synthetic SSVI .* not market data/)
+    await expect(page.locator(FIG)).toContainText(/Synthetic SSVI\s.*\snot market data/)
     await expect(value(page, '1-month vol, at the money')).toHaveText(/^\d+\.\d%$/)
     await expect(value(page, 'No static arbitrage')).toContainText('passes')
   })
@@ -64,6 +64,19 @@ test('goes live, forms and takes its shock once per visit: a reload does not rep
   expect(await seq(page)).toBe('off')
   expect(errors).toEqual([])
 })
+
+for (const [w, h] of [[390, 844], [412, 839]] as const)
+  test(`on a ${w}×${h} phone, unscrolled, the story waits for its stage rather than playing below the fold`, async ({ browser }) => {
+    test.setTimeout(60_000)
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 })
+    const page = await ctx.newPage()
+    await page.goto('/iv-surface')
+    // Only the top of the stage is on this first screen: the story must not start (and be over) where it is not seen.
+    await page.waitForTimeout(7_000)
+    expect(await seq(page)).not.toBe('playing')
+    expect(await seq(page)).not.toBe('done')
+    await ctx.close()
+  })
 
 test('while the story plays and its narration is below the fold, the stage says what is happening', async ({ page, isMobile }) => {
   test.skip(isMobile, 'a laptop’s first screen')
@@ -88,11 +101,11 @@ test('a story the page starts while the figure is paused still plays through, an
   // Paused in an earlier look at the page, before its story was ever seen.
   await page.addInitScript(() => sessionStorage.setItem('surface-paused', '1'))
   await page.goto('/iv-surface')
-  // A quarter of the stage in view: enough for the figure to go live and settle, and for its story to start a
-  // moment later (a fifth held for 1.2 s), with nothing else on the page changing.
+  // Half the stage in view: enough for the figure to go live and settle, and for its story to start a moment later
+  // (45% held for 1.2 s), with nothing else on the page changing.
   await page.locator(STAGE).evaluate((el) => {
     const r = el.getBoundingClientRect()
-    window.scrollBy(0, r.top - (innerHeight - r.height * 0.25))
+    window.scrollBy(0, r.top - (innerHeight - r.height * 0.5))
   })
   const live = await expect
     .poll(() => canvasShown(page), { timeout: 20_000 })

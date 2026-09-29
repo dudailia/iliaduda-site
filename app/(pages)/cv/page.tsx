@@ -47,7 +47,7 @@ export default function Cv() {
   const places = `${AVAILABILITY.locations.slice(0, -1).join(', ')} or ${AVAILABILITY.locations.at(-1)}`
 
   return (
-    <div className="mx-auto w-full max-w-[872px] px-6 pt-8 sm:px-8 md:px-0 lg:pt-12 print:max-w-none print:p-0">
+    <div className="mx-auto w-full max-w-[872px] px-6 pt-8 sm:px-8 min-[936px]:px-0 lg:pt-12 print:max-w-none print:p-0">
       <p className="text-meta mb-4 flex flex-wrap justify-between gap-x-6 gap-y-1 font-mono text-graphite print:hidden">
         <span>One page · prints to Letter or A4</span>
         <a href={RESUME.pdf} className="inline-block py-2.5 text-ink" download>

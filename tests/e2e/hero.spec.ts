@@ -21,7 +21,7 @@ test.use({ launchOptions: { args: GPU } })
 
 test('says it is simulated where it is drawn', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('#fig-futures')).toContainText(/Simulated · geometric Brownian motion .* not market data/)
+  await expect(page.locator('#fig-futures')).toContainText(/Simulated\s· geometric Brownian motion\s.*\snot market data/)
 })
 
 test.describe('before any script runs', () => {

@@ -297,7 +297,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   // The quality waits to climb until the story is told: the forming and the shock never sharpen mid-moment.
   const [stageOpts] = useState(() => ({ hold: () => seq.current.started && !seq.current.done }))
   const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
-  const sig = useSignature('surface', box, seq)
+  // The surface forms and takes its shock across the whole stage: the story waits for most of it on screen (60%, or
+  // 45% held for a moment), as the order book's does, so on a tall phone it never plays below the fold unseen.
+  const sig = useSignature('surface', box, seq, { start: 0.6, hold: 0.45 })
   const lean = useLean(live, reduced, pausedRef)
   const fallback = useFallback(canvas, live, sig.release)
   const declined = fallback.declined
