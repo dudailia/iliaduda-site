@@ -30,6 +30,8 @@ export interface Thumb {
   readonly claim: readonly string[]
   /** Solid bars for the claim, as [x, y, w, h]. */
   readonly bars?: readonly (readonly [number, number, number, number])[]
+  /** Bars behind the claim, in the indigo wash, as [x, y, w, h]. */
+  readonly quiet?: readonly (readonly [number, number, number, number])[]
   /** What a live miniature needs beyond the picture (components/thumbs/minis/), as the SVG's `data-mini`. */
   readonly mini?: string
 }
@@ -75,14 +77,16 @@ function cricket(): Thumb {
 
 function startup(): Thumb {
   // The figure is a ranked bar list, so the thumbnail is one: the top ten as
-  // written, bar length the composite score.
+  // written, bar length the composite score, the top pick in indigo.
   const top = [...ranking.segments].sort((x, y) => x.a.rank - y.a.rank).slice(0, 10)
   const max = top[0]!.a.score
   const h = TH / top.length
   return {
     context: top.map((_, i) => line([[0, i * h + h - 4], [TW, i * h + h - 4]])),
     claim: [],
-    bars: top.map((s, i) => [TW * 0.08, i * h + h * 0.25, (s.a.score / max) * TW * 0.9, h * 0.42] as const),
+    // The top pick is the claim; the other nine sit behind it in the wash, so which segment leads is what reads.
+    bars: top.slice(0, 1).map((s, i) => [TW * 0.08, i * h + h * 0.25, (s.a.score / max) * TW * 0.9, h * 0.42] as const),
+    quiet: top.slice(1).map((s, i) => [TW * 0.08, (i + 1) * h + h * 0.25, (s.a.score / max) * TW * 0.9, h * 0.42] as const),
     // The ten's scores under the three treatments, for the miniature that re-ranks them.
     mini: JSON.stringify(top.map((s) => [s.a.score, s.b.score, s.c.score])),
   }

@@ -2,6 +2,7 @@ import { syntheticValue as value } from '@/content/synthetic'
 import { POSTER_T, SEED } from '@/lib/market/flow'
 import { shockedHash } from '@/lib/market/host'
 import { bookFrame, fanFrame, marketFrame, SHOCK_FRAME_S, type Moment } from '@/lib/market/poster'
+import { handoffMark } from '@/lib/minis/handoff'
 import { prepaint } from '@/lib/stage/prepaint'
 import { STAGE_CSS } from '@/lib/surface/poster'
 import { pct } from '@/lib/surface/readouts'
@@ -43,7 +44,7 @@ export function MarketFigure() {
   const atm = iv(surface, 0, 1 / 12)
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: prepaint('market') }} />
+      <script dangerouslySetInnerHTML={{ __html: prepaint('market') + handoffMark('market', 'market') }} />
       <style>{STAGE_CSS}</style>
       <MarketLive
         seed={SEED}

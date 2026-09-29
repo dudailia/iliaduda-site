@@ -1,16 +1,18 @@
-import { TH, TW, type Pts, type Shape } from '@/lib/minis/shape'
+import { CONTEXT_MIX, mixHex, TH, TW, type Pts, type Shape } from '@/lib/minis/shape'
 
 /** The colours a miniature draws in: the thumbnail's own (components/PaperThumb.tsx). */
 export interface MiniPalette {
   paper: string
   rule: string
   indigo: string
+  wash: string
 }
 
 export const palette = (): MiniPalette => {
   const s = getComputedStyle(document.documentElement)
   const v = (n: string) => s.getPropertyValue(n).trim()
-  return { paper: v('--color-paper'), rule: v('--color-rule'), indigo: v('--color-indigo') }
+  // The context tone the thumbnail's SVG strokes with (lib/minis/shape.ts, CONTEXT_CSS), mixed here.
+  return { paper: v('--color-paper'), rule: mixHex(v('--color-graphite'), v('--color-paper'), CONTEXT_MIX), indigo: v('--color-indigo'), wash: v('--color-indigo-wash') }
 }
 
 /** A running miniature: `ready` once it can draw its first frame, which is the thumbnail; then a frame at its own time. */
@@ -28,7 +30,7 @@ const path = (g: CanvasRenderingContext2D, pts: Pts, sx: number, sy: number) => 
   g.stroke()
 }
 
-/** Draws a shape as the thumbnail does: context in the rule colour at 1px, bars and the claim (1.5px) in indigo. */
+/** Draws a shape as the thumbnail does: context in its context tone at 1px, bars and the claim (1.5px) in indigo. */
 export function paint(g: CanvasRenderingContext2D, sh: Shape, w: number, h: number, pal: MiniPalette): void {
   const sx = w / TW, sy = h / TH
   g.fillStyle = pal.paper
@@ -37,6 +39,8 @@ export function paint(g: CanvasRenderingContext2D, sh: Shape, w: number, h: numb
   g.strokeStyle = pal.rule
   g.lineWidth = 1
   for (const p of sh.context) path(g, p, sx, sy)
+  g.fillStyle = pal.wash
+  for (const [x, y, bw, bh] of sh.quiet ?? []) g.fillRect(x * sx, y * sy, bw * sx, bh * sy)
   g.fillStyle = pal.indigo
   for (const [x, y, bw, bh] of sh.bars ?? []) g.fillRect(x * sx, y * sy, bw * sx, bh * sy)
   g.strokeStyle = pal.indigo
@@ -57,7 +61,8 @@ export function readShape(svg: SVGSVGElement): Shape {
   return {
     context: paths.filter((p) => !isClaim(p)).map((p) => pts(p.getAttribute('d') ?? '')),
     claim: paths.filter(isClaim).map((p) => pts(p.getAttribute('d') ?? '')),
-    bars: [...svg.querySelectorAll('rect')].map((r) => ['x', 'y', 'width', 'height'].map((a) => Number(r.getAttribute(a))) as [number, number, number, number]),
+    bars: [...svg.querySelectorAll('rect:not([data-quiet])')].map((r) => ['x', 'y', 'width', 'height'].map((a) => Number(r.getAttribute(a))) as [number, number, number, number]),
+    quiet: [...svg.querySelectorAll('rect[data-quiet]')].map((r) => ['x', 'y', 'width', 'height'].map((a) => Number(r.getAttribute(a))) as [number, number, number, number]),
   }
 }
 
@@ -95,4 +100,19 @@ export function dot(g: CanvasRenderingContext2D, x: number, y: number, o: number
   g.arc(x, y, 2.75, 0, Math.PI * 2)
   g.fill()
   g.globalAlpha = 1
+}
+
+/** The point on a polyline a fraction `u` (0 to 1) of the way across it: at a steady pace in x (a match's balls). */
+export function alongX(pts: Pts, u: number): readonly [number, number] {
+  if (pts.length < 2) return pts[0] ?? [0, 0]
+  const x0 = pts[0]![0], x1 = pts[pts.length - 1]![0]
+  const x = x0 + (x1 - x0) * Math.max(0, Math.min(1, u))
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!, b = pts[i]!
+    if (x <= b[0] || i === pts.length - 1) {
+      const f = b[0] > a[0] ? Math.max(0, Math.min(1, (x - a[0]) / (b[0] - a[0]))) : 0
+      return [x, a[1] + (b[1] - a[1]) * f]
+    }
+  }
+  return pts[pts.length - 1]!
 }

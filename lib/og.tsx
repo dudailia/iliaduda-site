@@ -113,6 +113,7 @@ export function ogThumb(slug: string): ReactNode {
       {t.context.map((d, i) => (
         <path key={`c${i}`} d={d} fill="none" stroke={OG.rule} strokeWidth={2 / sx} />
       ))}
+      {t.quiet?.map(([x, y, w, h], i) => <rect key={`q${i}`} x={x} y={y} width={w} height={h} fill={OG.wash} />)}
       {t.bars?.map(([x, y, w, h], i) => <rect key={`b${i}`} x={x} y={y} width={w} height={h} fill={OG.indigo} />)}
       {t.claim.map((d, i) => (
         <path key={`p${i}`} d={d} fill="none" stroke={OG.indigo} strokeWidth={3 / sx} />

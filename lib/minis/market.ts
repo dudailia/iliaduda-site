@@ -16,29 +16,34 @@ export interface MarketSource {
   band(b: number, j: number): number
   strand(i: number, j: number): number
   readonly surface: Params
+  /** Where the surface is in its sway, −1 to 1, as the figure's drift turns it (0 on the thumbnail). */
+  readonly sway?: number
 }
 
 /**
  * /market's Fig. 1 as it is laid out: the market's vol surface above, through the surface's own camera, and under it
- * the book's price over its last twenty seconds beside a year of its futures. The one-month smile and eight of the
- * year's paths are the claim; the other smiles, the strike lines, the price and the fan's 5th–95th the context. At a
+ * the book's price over its last twenty seconds beside a year of its futures. The one-month smile and the price running
+ * into the year's median are the claim; the other smiles, the strike lines, the fan's 5th–95th and four of its paths
+ * the context. At a
  * thumbnail's size (9rem) a dozen points a line draw it.
  */
 export function marketShape(s: MarketSource): Shape {
   // The surface through its camera, fitted to the top 56% of the box with a margin, keeping its proportions.
-  const mv = mvp('wide', camera('wide'))
-  const proj = (p: Params, k: number, T: number) => {
+  const at0 = mvp('wide', camera('wide'))
+  const turned = s.sway ? mvp('wide', camera('wide', s.sway)) : at0
+  const proj = (p: Params, k: number, T: number, mv = turned) => {
     const q = apply(mv, wx(k), wy(iv(p, k, T)), wz(T))
     // Clip space runs −1 to 1 both ways over a frame 1.62 times as wide as it is tall: in the frame's own proportions.
     return [(q[0] / q[3]) * FRAMES.wide.aspect, -q[1] / q[3]] as const
   }
-  const grid = (p: Params) => ({
-    smiles: EXPIRY_TICKS.map(([T]) => Array.from({ length: 13 }, (_, i) => proj(p, kOfU(i / 12), T))),
-    lines: STRIKE_TICKS.map((K) => Array.from({ length: 9 }, (_, j) => proj(p, Math.log(K), tOfV(j / 8)))),
+  const grid = (p: Params, mv = turned) => ({
+    smiles: EXPIRY_TICKS.map(([T]) => Array.from({ length: 13 }, (_, i) => proj(p, kOfU(i / 12), T, mv))),
+    lines: STRIKE_TICKS.map((K) => Array.from({ length: 9 }, (_, j) => proj(p, Math.log(K), tOfV(j / 8), mv))),
   })
   const { smiles, lines } = grid(s.surface)
-  // Fitted to the calm surface's extent, so a shock lifts the surface within the frame rather than rescaling it.
-  const calm = grid(CALM)
+  // Fitted to the calm surface's extent, unturned, so a shock lifts the surface within the frame and a sway turns it,
+  // rather than either rescaling it.
+  const calm = grid(CALM, at0)
   const xs = [...calm.smiles, ...calm.lines].flat()
   const x0 = Math.min(...xs.map((p) => p[0])), x1 = Math.max(...xs.map((p) => p[0]))
   const y0s = Math.min(...xs.map((p) => p[1])), y1s = Math.max(...xs.map((p) => p[1]))
@@ -63,7 +68,8 @@ export function marketShape(s: MarketSource): Shape {
   const band = (b: number) => whole(Array.from({ length: 17 }, (_, j) => [x(j * 4), yr(s.band(b, j * 4))] as const))
   const strand = (i: number) => whole(Array.from({ length: 17 }, (_, n) => [x(n * 4), yr(s.strand(i, n * 4))] as const))
   return {
-    context: [...rest.map(fit), ...lines.map(fit), past, band(0), band(4)],
-    claim: [fit(first!), ...Array.from({ length: 8 }, (_, i) => strand(i * 6))],
+    context: [...rest.map(fit), ...lines.map(fit), band(0), band(4), ...Array.from({ length: 4 }, (_, i) => strand(i * 12))],
+    // The claim: the one-month smile, and the price running into the year's median.
+    claim: [fit(first!), past, band(2)],
   }
 }

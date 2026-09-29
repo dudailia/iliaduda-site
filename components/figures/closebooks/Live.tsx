@@ -238,14 +238,16 @@ export function CategorisationLive({
                   <span />
                   <span className="text-meta min-w-0 font-mono text-graphite">
                     → {acct ? `${acct.code} ${acct.name}` : `${l.suggested.code} ${l.suggested.name}`}
-                    {/* The line is reserved before the row settles, so settling
-                        never changes the row's height. */}
-                    {note || finalNote ? (
-                      <span
-                        key={note ? 'acted' : 'final'}
-                        className={`block text-ink ${note ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : 'invisible'}`}
-                      >
-                        {note || finalNote}
+                    {/* The line is reserved before the row settles, and the rules' note and a reviewer's share one
+                        cell, the one not shown kept invisible, so neither settling nor a click changes the row's height. */}
+                    {finalNote || note ? (
+                      <span className="grid text-ink">
+                        <span className="invisible [grid-area:1/1]">{finalNote}</span>
+                        {note ? (
+                          <span key="acted" className="[grid-area:1/1] transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none">
+                            {note}
+                          </span>
+                        ) : null}
                       </span>
                     ) : null}
                   </span>

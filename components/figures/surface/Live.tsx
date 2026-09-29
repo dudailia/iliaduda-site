@@ -619,11 +619,15 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             className="text-note pointer-events-none absolute top-3 right-3 w-[min(60%,24rem)] text-right leading-snug text-ink transition-opacity duration-200 ease-out"
             style={{ opacity: onStage ? 1 : 0 }}
           >
-            <span
-              key={said}
-              className={`inline-block rounded-sm bg-paper/90 px-1.5 py-0.5 transition-[filter] duration-[120ms] ease-out starting:blur-[3px] ${going ? 'blur-[3px]' : ''}`}
-            >
-              <span className="font-semibold">{PHASE_TEXT[said].name}.</span> {PHASE_TEXT[said].short}
+            {/* The plate stays crisp; only its words blur through a turn of the story, as the line below does (a reader's
+                own change on the slider is simply there). */}
+            <span className="inline-block rounded-sm bg-paper/90 px-1.5 py-0.5">
+              <span
+                key={said}
+                className={`inline-block ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
+              >
+                <span className="font-semibold">{PHASE_TEXT[said].name}.</span> {PHASE_TEXT[said].short}
+              </span>
             </span>
           </p>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
@@ -802,7 +806,7 @@ function Margin({
       </dl>
       {/* The Greeks, one step away: the margin leads with what the figure shows. */}
       <details className={`text-meta font-mono ${across ? '' : 'mt-2 lg:text-right'}`}>
-        <summary onClick={glideDetails} className="cursor-pointer text-graphite marker:text-graphite hover:text-ink">
+        <summary onClick={glideDetails} className="cursor-pointer py-1 text-graphite marker:text-graphite hover:text-ink">
           Greeks at the point
         </summary>
         <dl className={`${dl} mt-2 ${across ? 'border-t-0 pt-0' : ''}`}>

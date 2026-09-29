@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { CONTEXT_MIX, mixHex } from '../lib/minis/shape'
 
 /**
  * Contrast is computed from app/globals.css — the actual source of truth — so
@@ -79,6 +80,12 @@ for (const [theme, block] of [
 
     it('the focus ring clears 3:1 against the background it sits on', () => {
       expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(3)
+    })
+
+    it('a thumbnail’s context marks (graphite mixed into paper) are seen at 2:1, and stay quieter than its text', () => {
+      const tone = mixHex(token('graphite'), paper, CONTEXT_MIX)
+      expect(ratio(tone, paper)).toBeGreaterThanOrEqual(2)
+      expect(ratio(tone, paper)).toBeLessThan(ratio(token('graphite'), paper))
     })
   })
 }

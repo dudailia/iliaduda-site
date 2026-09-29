@@ -420,6 +420,13 @@ export function OrderBookLive({
   const ref = (id: string) => (el: HTMLElement | null) => {
     out.current[id] = el
   }
+  // Arrived from the Contents' miniature: the still frame waited for the handed moment (lib/minis/handoff.ts); live at
+  // it now, or not to be, it need not wait any longer.
+  useEffect(() => {
+    if (live || why) delete document.documentElement.dataset.orderbookHandoff
+  }, [live, why])
+  // The hand-off, taken as the page opens, so it never outlives this visit to the page.
+  useEffect(() => void market.claim(), [])
 
   const rail = <Readouts initial={initial} set={ref} />
 
@@ -564,7 +571,7 @@ function Readouts({ initial, set, suffix = '', across = false }: { initial: Init
         return (
           <div key={id} className={`min-w-0 ${id === 'expected' && !across ? 'mt-1 border-t border-rule pt-3' : ''}`}>
             <dt className="text-graphite">{label}</dt>
-            <dd ref={fixed ? undefined : set(id + suffix)} className={`tabular ${fixed ? 'text-graphite' : 'text-ink'}`}>
+            <dd ref={fixed ? undefined : set(id + suffix)} data-orderbook-value={fixed ? undefined : ''} className={`tabular ${fixed ? 'text-graphite' : 'text-ink'}`}>
               {value}
             </dd>
           </div>

@@ -238,11 +238,17 @@
 
   /* The two pictures (the thumbnail's drawing, the figure's) are not the same image, so the crossfade between them
      passes through a 2px blur, which makes one changing picture of two overlapping ones. */
+  ::view-transition-image-pair(*.figure) {
+    isolation: isolate;
+  }
   ::view-transition-old(*.figure) {
     animation: 380ms cubic-bezier(0.77, 0, 0.175, 1) both vt-figure-out;
+    /* The shorthand drops the UA's plus-lighter animation: without it two half-opaque pictures dip by a quarter. */
+    mix-blend-mode: plus-lighter;
   }
   ::view-transition-new(*.figure) {
     animation: 380ms cubic-bezier(0.77, 0, 0.175, 1) both vt-figure-in;
+    mix-blend-mode: plus-lighter;
   }
 
   /* A figure named on one side only (there is nothing to morph into) goes with the page, at its pace. */
@@ -250,6 +256,13 @@
   ::view-transition-new(*.figure):only-child {
     animation-duration: 180ms;
     animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+    mix-blend-mode: normal;
+  }
+
+  /* A figure that arrived by the morph is finished from the morph's first frame: its poster does not fade in under it. */
+  :root[data-vt-arrival] [data-fill],
+  :root[data-vt-arrival] [data-iv-poster] {
+    transition: none;
   }
 
   /* The running head: identical on both sides, so no animation at all. From
@@ -374,6 +387,15 @@
 
 /* The order book's poster: on a first visit (the pre-paint mark, lib/stage/prepaint.ts) the page is empty, and the
    terrain rises out of it; if the live figure declines, the finished picture fades in on the site's ease-out. */
+/* Arrived from the Contents' miniature (lib/minis/handoff.ts): the still frames and readouts, at the figure's own
+   moment, wait for the handed one; the live figure lifts the mark. The morph lands on the empty stage. */
+:root[data-market-handoff] [data-market-still],
+:root[data-market-handoff] [data-market-value],
+:root[data-orderbook-handoff] [data-orderbook-poster],
+:root[data-orderbook-handoff] [data-orderbook-value] {
+  /* Over the still frames' own inline visibility (the stage kit's underlay). */
+  visibility: hidden !important;
+}
 [data-orderbook-poster] [data-fill] {
   transition: opacity 240ms var(--ease-out);
 }

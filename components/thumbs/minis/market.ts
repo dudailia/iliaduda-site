@@ -8,7 +8,7 @@ import { marketShape } from '@/lib/minis/market'
 import { paint, type MakeMini } from '../paint'
 
 /**
- * /market's miniature: the paper's own market, built on the page a few simulated seconds a frame to the thumbnail's
+ * /market's miniature: the paper's own market, built on the page four milliseconds a frame to the thumbnail's
  * moment, and its year of futures drawn a slice a frame there, as the worker draws them; then trading at real time, the
  * price running into the futures, which breathe with its realised volatility (mapped exactly from the one fan, as the
  * paper's figure does between fans), and the surface at its stress.
@@ -27,8 +27,12 @@ export const make: MakeMini = () => {
     time: () => m.t,
     draw(g, w, h, _t, dt, pal) {
       if (m.t < POSTER_T - 1e-9) {
-        at = Math.min(POSTER_T, at + 4)
-        m.advance(at)
+        // Four milliseconds of building a frame, half a simulated second at a time, so a slow phone never stalls.
+        const t0 = performance.now()
+        do {
+          at = Math.min(POSTER_T, at + 0.5)
+          m.advance(at)
+        } while (at < POSTER_T && performance.now() - t0 < 4)
         if (m.t >= POSTER_T - 1e-9) fan.begin(1, m.sigma)
         return
       }
@@ -51,6 +55,8 @@ export const make: MakeMini = () => {
           band: (b, j) => bands[b * 65 + j]!,
           strand: (i, j) => strands[i * 65 + j]!,
           surface: surfaceOf(m.stress),
+          // Turned as the paper's surface sways (48 s), from where the thumbnail has it.
+          sway: Math.sin((2 * Math.PI * live) / 48),
         }),
         w,
         h,

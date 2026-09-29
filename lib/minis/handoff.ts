@@ -31,3 +31,14 @@ export function spend(): void {
     sessionStorage.removeItem(KEY)
   } catch {}
 }
+
+/**
+ * The pre-paint mark for a paper arrived at from its miniature: set before the first paint when a fresh hand-off for
+ * `slug` waits (`data-{name}-handoff`), so the paper's still frames and readouts, which are at its own moment, wait
+ * (app/globals.css) and the numbers arrive once, at the handed one. The figure lifts the mark when it goes live; if it
+ * never does, the mark lifts itself after six seconds and the still frames stand.
+ */
+export function handoffMark(name: string, slug: string): string {
+  if (!/^[a-z]+$/.test(name) || !/^[a-z-]+$/.test(slug)) throw new Error('handoffMark: a lowercase name and slug')
+  return `try{var h=JSON.parse(sessionStorage.getItem('${KEY}')||'null'),n=Date.now();if(h&&h.slug==='${slug}'&&n>=h.at&&n-h.at<${FRESH}&&!matchMedia('(prefers-reduced-motion: reduce)').matches){var r=document.documentElement;r.dataset.${name}Handoff='1';setTimeout(function(){delete r.dataset.${name}Handoff},6000)}}catch(e){}`
+}

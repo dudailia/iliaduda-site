@@ -57,6 +57,26 @@ test('goes live with the site’s own worker, and all three views draw, fetching
   expect(errors).toEqual([])
 })
 
+test('the year’s range is never a range of nothing: the still frame’s stands until the fan is drawn', async ({ page }) => {
+  await seenStory(page)
+  await page.goto('/market')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const seen = await page.evaluate(
+    () =>
+      new Promise<string[]>((res) => {
+        const out: string[] = []
+        const t0 = performance.now()
+        const tick = () => {
+          document.querySelectorAll('#fig-1 [data-market-value]').forEach((e) => out.push(e.textContent ?? ''))
+          if (performance.now() - t0 < 3000) requestAnimationFrame(tick)
+          else res(out)
+        }
+        tick()
+      }),
+  )
+  expect(seen.filter((v) => v.includes('$0.00'))).toEqual([])
+})
+
 test('tells its shock once: calm, then a shock landing in all three views in one frame, then the recovery', async ({ page }) => {
   test.setTimeout(60_000)
   const errors = errorsOf(page)

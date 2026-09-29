@@ -1,6 +1,7 @@
 import { syntheticValue as value } from '@/content/synthetic'
 import { posterFlow } from '@/lib/market/flow'
 import { fmt } from '@/lib/orderbook/read'
+import { handoffMark } from '@/lib/minis/handoff'
 import { prepaint } from '@/lib/stage/prepaint'
 import { OrderBookLive } from './orderbook/Live'
 import { Poster } from './orderbook/Poster'
@@ -26,7 +27,7 @@ export function OrderBookFigure() {
   }))
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: prepaint('orderbook') }} />
+      <script dangerouslySetInnerHTML={{ __html: prepaint('orderbook') + handoffMark('orderbook', 'order-book') }} />
       <OrderBookLive
         poster={<Poster sim={sim} label={label} />}
         initial={initial}

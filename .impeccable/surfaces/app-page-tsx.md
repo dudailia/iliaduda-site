@@ -7,7 +7,7 @@ related_targets: []
 
 # Surface brief — home (the issue)
 
-Scope: `/` — masthead, Fig. 1 (live IV surface, M2), contents, experience in brief, other work. Mode: Persuade inside an Experience register (a recruiter decides whether to act; the work leads).
+Scope: `/` — masthead, Fig. 1 (a million simulated futures, live, M6), contents with live miniatures of each paper's figure (M9), experience in brief, other work. Mode: Persuade inside an Experience register (a recruiter decides whether to act; the work leads).
 
 Audience and job: finance co-op recruiters skimming in ~30 s; forwarded engineers/quants checking claims. Action: open the résumé/CV, email, LinkedIn, GitHub; open a paper.
 

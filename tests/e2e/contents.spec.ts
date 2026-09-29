@@ -22,6 +22,8 @@ async function toContents(page: Page) {
   await page.goto('/')
   await page.evaluate(() => document.querySelector('#contents')?.scrollIntoView({ block: 'start' }))
 }
+/** One thumbnail moves at a time: the entry under the reader's pointer or focus. Focus leaves the thumbnail's border as it is. */
+const choose = (page: Page, slug: string) => page.locator(`[data-vt-contents] li:has([data-vt-thumb="fig-${slug}"]) h3 a`).focus()
 
 test('the thumbnails are the build’s pictures until they are on screen, then each comes alive', async ({ page }) => {
   const errors = errorsOf(page)
@@ -31,6 +33,9 @@ test('the thumbnails are the build’s pictures until they are on screen, then e
   await page.waitForTimeout(1_500)
   expect(await page.locator('[data-vt-contents] canvas').count()).toBe(0)
   await page.evaluate(() => document.querySelector('#contents')?.scrollIntoView({ block: 'start' }))
+  // The one nearest the screen's middle comes alive first, with no pointer or focus.
+  await expect(page.locator('[data-vt-contents] canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
+  await choose(page, 'market')
   const first = thumb(page, 'market')
   await expect(first.locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
   await expect(first.locator('svg')).toBeVisible()
@@ -42,6 +47,7 @@ test('a miniature’s first frame is its thumbnail', async ({ page }) => {
   await toContents(page)
   const t = thumb(page, 'closebooks')
   await t.scrollIntoViewIfNeeded()
+  await choose(page, 'closebooks')
   // The build's picture, then the canvas over it the moment it shows (the batch holds for its first four seconds).
   const before = await t.screenshot()
   await expect(t.locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
@@ -78,6 +84,7 @@ test('a miniature’s first frame is its thumbnail', async ({ page }) => {
 test('draws at most thirty frames a second, and stops when scrolled away', async ({ page }) => {
   await seen(page)
   await toContents(page)
+  await choose(page, 'market')
   await expect(thumb(page, 'market').locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
   // Frames a second on the page's own clock: the canvas's count over two seconds.
   const rate = await thumb(page, 'market')
@@ -112,6 +119,7 @@ test('on a phone the thumbnails show under each abstract, and come alive too', a
   await toContents(page)
   const t = thumb(page, 'market')
   await expect(t).toBeVisible()
+  await choose(page, 'market')
   await expect(t.locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
 })
 
@@ -121,6 +129,7 @@ test.describe('through the morph', () => {
     await seen(page)
     await page.addInitScript(() => sessionStorage.setItem('market-seq', '1'))
     await toContents(page)
+    await choose(page, 'market')
     const cv = thumb(page, 'market').locator('canvas[data-shown]')
     await expect(cv).toHaveCount(1, { timeout: 10_000 })
     await page.waitForTimeout(3_000)
@@ -128,6 +137,8 @@ test.describe('through the morph', () => {
     expect(mini).toBeGreaterThan(145)
     await page.locator('[data-vt-contents] h3 a[href="/market"]').click()
     await page.waitForURL('**/market')
+    // The paper's still frames and numbers are at its own moment: they wait for the handed one.
+    expect(await page.evaluate(() => document.documentElement.dataset.marketHandoff)).toBe('1')
     await page.evaluate(() => document.querySelector('[data-market-stage]')?.scrollIntoView({ block: 'start' }))
     const live = await expect(page.locator('[data-market-stage]'))
       .toHaveAttribute('data-market-live', '1', { timeout: 20_000 })
@@ -135,12 +146,14 @@ test.describe('through the morph', () => {
       .catch(() => false)
     if (!live) return test.skip(true, 'no GPU here')
     expect(Number(await page.locator('[data-market-stage]').getAttribute('data-market-t'))).toBeGreaterThanOrEqual(mini)
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.marketHandoff ?? null)).toBeNull()
   })
 })
 
 test('Pause holds every thumbnail where it is, for the rest of the visit, and Resume lets them go on (WCAG 2.2.2)', async ({ page }) => {
   await seen(page)
   await toContents(page)
+  await choose(page, 'market')
   await expect(thumb(page, 'market').locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
   const pause = page.locator('[data-contents-pause]')
   await expect(pause).toBeVisible()
@@ -153,8 +166,23 @@ test('Pause holds every thumbnail where it is, for the rest of the visit, and Re
   await page.evaluate(() => document.querySelector('#contents')?.scrollIntoView({ block: 'start' }))
   await expect(pause).toHaveText('Resume', { timeout: 10_000 })
   await pause.click()
+  await choose(page, 'market')
   await expect(thumb(page, 'market').locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
   const b = await frames(page, 'market')
   await page.waitForTimeout(1_000)
   expect(await frames(page, 'market')).toBeGreaterThan(b + 10)
+})
+
+test('one thumbnail moves at a time: the one the reader is at; the others hold their frame', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'four on screen at a laptop’s size')
+  await seen(page)
+  await toContents(page)
+  await choose(page, 'market')
+  await expect(thumb(page, 'market').locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
+  await choose(page, 'cricstate')
+  await expect(thumb(page, 'cricstate').locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
+  const held = await frames(page, 'market')
+  await page.waitForTimeout(800)
+  expect(await frames(page, 'market')).toBe(held)
+  expect(await frames(page, 'cricstate')).toBeGreaterThan(10)
 })

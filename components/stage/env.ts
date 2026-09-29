@@ -70,8 +70,19 @@ export function saveData(): boolean {
   return !!c?.saveData
 }
 
-/** Run once the browser is idle, or after a short timeout where it cannot say. */
+/**
+ * Run once the browser is idle, or after a short timeout where it cannot say; and never while a view transition is
+ * still playing (the morph a paper arrives by, marked by app/(pages)/layout.tsx), so a figure's start never stutters it.
+ */
 export function whenIdle(fn: () => void): () => void {
+  if (document.documentElement.dataset.vtRunning) {
+    let cancel = () => {}
+    const id = setTimeout(() => (cancel = whenIdle(fn)), 100)
+    return () => {
+      clearTimeout(id)
+      cancel()
+    }
+  }
   if ('requestIdleCallback' in window) {
     const id = window.requestIdleCallback(fn, { timeout: 1500 })
     return () => window.cancelIdleCallback(id)

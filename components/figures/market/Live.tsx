@@ -448,6 +448,9 @@ export function MarketLive({
           // Paused, the story holds where it is, and the line says so.
           const turn = storyOf(ph)
           tell(pausedRef.current ? 'paused' : turn === 'recovery' ? 'recovering' : turn)
+        } else if (!seq.current.started) {
+          // Waiting for the book and the futures to be on screen: the line already says the story's first words.
+          tell(pausedRef.current ? 'paused' : 'calm')
         } else tell(stateOf(m))
       } else tell(stateOf(m))
 
@@ -524,7 +527,8 @@ export function MarketLive({
         write('sigma', pct(h.sigma))
         write('stress', h.stress.toFixed(2))
         write('atm', pct(atmOf(h.stress)))
-        write('range', `${dollars(v.fan.band(0, 64) * mid$)}–${dollars(v.fan.band(4, 64) * mid$)}`)
+        // The year's range once the fan has been drawn; until then the still frame's own, never a range of nothing.
+        if (v.fan.band(4, 64) > 0) write('range', `${dollars(v.fan.band(0, 64) * mid$)}–${dollars(v.fan.band(4, 64) * mid$)}`)
         // For the specs: the market's own clock.
         if (stage.current) {
           stage.current.dataset.marketT = h.t.toFixed(3)
@@ -795,6 +799,11 @@ export function MarketLive({
               ? 'Still frames: this browser has no WebGL2, so the market is not run here.'
               : null
   const live = market.live && flat && !market.declined
+  // Arrived from the Contents' miniature: the still frames waited for the handed moment (lib/minis/handoff.ts); live
+  // at it now, or not to be, they need not wait any longer.
+  useEffect(() => {
+    if (live || why) delete document.documentElement.dataset.marketHandoff
+  }, [live, why])
   // The line says the story and the market's state while it runs; where it does not, which still frame it shows.
   const line: Story | null = live ? said : why ? (still === 'shock' ? 'still-shock' : 'still-calm') : null
 
@@ -907,8 +916,8 @@ export function MarketLive({
     atm: pct(atmOf(initial.stress)),
     range: `${dollars(initial.lo)}–${dollars(initial.hi)}`,
   }
-  const rows = READOUTS.map(([id, label]) => ({ label, value: <span ref={(el) => void (out.current[id] = el)}>{first[id]}</span> }))
-  const rowsBelow = READOUTS.map(([id, label]) => ({ label, value: <span ref={(el) => void (out.current[`${id}-m`] = el)}>{first[id]}</span> }))
+  const rows = READOUTS.map(([id, label]) => ({ label, value: <span ref={(el) => void (out.current[id] = el)} data-market-value="">{first[id]}</span> }))
+  const rowsBelow = READOUTS.map(([id, label]) => ({ label, value: <span ref={(el) => void (out.current[`${id}-m`] = el)} data-market-value="">{first[id]}</span> }))
 
   return (
     <FigureFrame

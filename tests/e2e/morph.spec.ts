@@ -11,7 +11,6 @@ import { GPU } from './hero-kit'
  */
 
 test.use({ launchOptions: { args: GPU } })
-test.skip(({ isMobile }) => isMobile, 'the thumbnails show from the small-tablet width up')
 
 const mark = (page: Page, key: string) => page.evaluate((k) => document.documentElement.dataset[k] ?? null, key)
 
@@ -40,6 +39,18 @@ test('through the contents, the IV surface arrives finished too', async ({ page 
   await expect.poll(() => page.locator('#fig-iv-surface [data-iv-poster]').evaluate((e) => Number(getComputedStyle(e).opacity))).toBe(1)
 })
 
+test('through the contents, /market keeps its story: the morph lands on its calm, and the shock plays after it', async ({ page }) => {
+  await openFromContents(page, 'market')
+  expect(await mark(page, 'vtArrival')).toBe('1')
+  expect(await mark(page, 'marketSeq')).toBe('1')
+})
+
+test('on a phone the thumbnail grows into the paper’s figure too, the figure’s top only needing to be on screen', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'a phone')
+  await openFromContents(page, 'iv-surface')
+  expect(await mark(page, 'vtArrival')).toBe('1')
+})
+
 test('arriving from the footer is no morph: nothing is marked as one, and the story is still to come', async ({ page }) => {
   await page.goto('/')
   await page.locator('footer nav[aria-label="Papers"] a[href="/order-book"]').click()
@@ -58,7 +69,8 @@ test('a click that opens a new tab names nothing on the contents page', async ({
   expect(named).toBe(0)
 })
 
-test('back to the contents, the paper’s figure is the thumbnail it came from again', async ({ page }) => {
+test('back to the contents, the paper’s figure is the thumbnail it came from again', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'on a phone the contents link opens above the entry, its thumbnail off the screen')
   // Which thumbnails carry a name once the transition into the page is ready: the one the figure shrinks into.
   await page.addInitScript(() => {
     addEventListener('pagereveal', (e) => {
@@ -75,4 +87,17 @@ test('back to the contents, the paper’s figure is the thumbnail it came from a
   await page.locator('header a[href="/#contents"]').click()
   await page.waitForURL((u) => u.pathname === '/')
   await expect.poll(() => page.evaluate(() => (window as unknown as { __named?: string[] }).__named ?? null)).toEqual(['fig-closebooks'])
+})
+
+test('a morph mark left by a click that never became a transition does not make a later arrival a morph', async ({ page }) => {
+  // Under reduced motion a Contents click marks the morph, but no transition runs: the arrival spends the mark.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await openFromContents(page, 'market')
+  expect(await page.evaluate(() => sessionStorage.getItem('vt-morph'))).toBe(null)
+  // With motion again, a plain arrival (the home line's link) is no morph.
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.goto('/')
+  await page.locator('[data-one-market] a[href="/market"]').click()
+  await page.waitForURL('**/market')
+  expect(await mark(page, 'vtArrival')).toBe(null)
 })

@@ -49,20 +49,22 @@ export function Contents() {
       >
         <ol className="grid list-none border-t border-rule" data-vt-contents>
           {papers.map((p) => (
-            <li key={p.slug} className="grid gap-x-6 border-b border-rule py-6 sm:grid-cols-[minmax(0,1fr)_9rem]">
-              <div className="min-w-0">
-                <h3 className="text-h3">
-                  <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
-                    {p.title}
-                  </a>
-                </h3>
-                <p className="text-meta mt-1.5 font-mono text-graphite">
-                  <Items items={[...p.byline.split(' · '), p.status === 'pending' && 'pending publication']} />
-                </p>
-                <p className="text-note mt-3 max-w-[38rem]">{p.abstract}</p>
-              </div>
-              {/* On a phone under the abstract, at the laptop's size; beside it from sm. */}
-              <div className="mt-4 w-36 sm:mt-0 sm:w-auto sm:pt-1.5">
+            <li
+              key={p.slug}
+              // A phone reads the title, the byline, the figure (the column's width) and then its line; from sm the
+              // figure sits beside the text, as a paper's does.
+              className="grid grid-cols-1 gap-x-6 border-b border-rule py-6 [grid-template-areas:'title'_'byline'_'thumb'_'dek'] sm:grid-cols-[minmax(0,1fr)_9rem] sm:grid-rows-[auto_auto_1fr] sm:[grid-template-areas:'title_thumb'_'byline_thumb'_'dek_thumb']"
+            >
+              <h3 className="text-h3 min-w-0 [grid-area:title]">
+                <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
+                  {p.title}
+                </a>
+              </h3>
+              <p className="text-meta mt-1.5 min-w-0 font-mono text-graphite [grid-area:byline]">
+                <Items items={[...p.byline.split(' · '), p.figureNote, p.status === 'pending' && 'pending publication']} />
+              </p>
+              <p className="text-note mt-3 max-w-[38rem] min-w-0 [grid-area:dek]">{p.dek}</p>
+              <div className="mt-4 [grid-area:thumb] sm:mt-0 sm:self-start sm:pt-1.5">
                 <PaperThumb slug={p.slug} href={p.href} />
               </div>
             </li>

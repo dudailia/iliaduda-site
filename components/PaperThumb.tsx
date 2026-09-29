@@ -1,3 +1,4 @@
+import { CONTEXT_CSS } from '@/lib/minis/shape'
 import { thumbFor, TH, TW } from '@/lib/thumbs'
 
 /**
@@ -15,11 +16,14 @@ export function PaperThumb({ slug, href }: { slug: string; href: string }) {
       tabIndex={-1}
       aria-hidden
       data-vt-thumb={`fig-${slug}`}
-      className="relative block aspect-[5/3] w-full border border-rule bg-paper p-1.5 no-underline transition-colors duration-150 ease-out hover:border-graphite"
+      className="relative block aspect-[5/3] w-full border border-rule bg-paper p-1.5 no-underline transition-[border-color] duration-150 ease-[ease] hover:border-graphite"
     >
       <svg viewBox={`0 0 ${TW} ${TH}`} preserveAspectRatio="none" className="h-full w-full overflow-visible" data-mini={t.mini}>
         {t.context.map((d, i) => (
-          <path key={`c${i}`} d={d} fill="none" stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          <path key={`c${i}`} d={d} fill="none" stroke={CONTEXT_CSS} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        ))}
+        {t.quiet?.map(([x, y, w, h], i) => (
+          <rect key={`q${i}`} x={x} y={y} width={w} height={h} fill="var(--color-indigo-wash)" data-quiet="" />
         ))}
         {t.bars?.map(([x, y, w, h], i) => (
           <rect key={`b${i}`} x={x} y={y} width={w} height={h} fill="var(--color-indigo)" />

@@ -76,13 +76,25 @@ export class PageMarket {
   prepare(): Promise<Flow> {
     if (this.f) return Promise.resolve(this.f)
     // From the moment its Contents miniature was at, if the reader came from it (lib/minis/handoff.ts): the same market.
-    const from = handedTo('order-book', POSTER_T) ?? POSTER_T
-    spend()
+    const from = this.claim()
     this.building ??= advanceInSlices(new Flow(undefined, undefined, false), from, SLICE_MS, () => performance.now(), (next) => setTimeout(next, 0)).then((f) => {
       if (!this.f) this.settle(f)
       return this.f!
     })
     return this.building
+  }
+
+  private handed: number | null = null
+  /**
+   * The hand-off from the Contents, taken once, as the page opens (the figure calls this on mounting), so it is spent
+   * whether or not the market is ever built here; its moment is kept for prepare().
+   */
+  claim(): number {
+    if (this.handed === null) {
+      this.handed = handedTo('order-book', POSTER_T) ?? POSTER_T
+      spend()
+    }
+    return this.handed
   }
 
   private settle(f: Flow) {
