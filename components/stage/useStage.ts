@@ -144,6 +144,8 @@ export function useStage(
     let q = 0
     let maxQ = 0
     let gov = new Governor(0, 0)
+    /** The refresh the renderer was last told, in ms. */
+    let told = 1000 / 60
     let t0 = 0
     let last = 0
     let frames = 0
@@ -193,14 +195,17 @@ export function useStage(
       // The governor (lib/stage/governor.ts), against this display's own refresh, which it learns: 120 Hz, 60 Hz, or a
       // 30 Hz clock (Low Power Mode) that no lighter quality would speed up. The renderer is told the refresh too, so
       // its own pacing (the home figure's pricing) judges its frames by the same clock.
-      const was = gov.refresh
       if (gov.frame(dt, now, !!hold.current?.())) {
         q = gov.q
         renderer.setQuality?.(q)
         size()
         setQuality(q)
       }
-      if (gov.refresh !== was) renderer.refresh?.(gov.refresh / 1000)
+      // Told only when it has really moved (3%): the refresh relaxes a little every frame.
+      if (Math.abs(gov.refresh - told) > told * 0.03) {
+        told = gov.refresh
+        renderer.refresh?.(told / 1000)
+      }
       frames++
       if (now - fpsAt > 500) {
         setFps(Math.round((frames * 1000) / (now - fpsAt)))
@@ -238,6 +243,7 @@ export function useStage(
       maxQ = tierMax.current?.[t] ?? MAX_Q[t]
       q = Math.min(maxQ, 2)
       gov = new Governor(q, maxQ)
+      told = gov.refresh
       setTier(t)
       setQuality(q)
       try {

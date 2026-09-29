@@ -88,6 +88,24 @@ test('the volatility and strike inputs move the Black–Scholes price, and Reset
   await expect(page.getByRole('button', { name: 'Reset' })).toHaveCount(0)
 })
 
+test('printed while live after the strike moved, the sheet prints the reader\u2019s own call price', async ({ page }) => {
+  await seen(page)
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  const strike = page.getByRole('slider', { name: 'Strike' })
+  await strike.focus()
+  for (let i = 0; i < 15; i++) await page.keyboard.press('ArrowRight')
+  await expect(strike).toHaveValue('115')
+  const bs = await num(page, '[data-bs-price]', 'data-bs-price')
+  // The browser's print: the page is told, then laid out for paper, where the poster stands in for the canvas.
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')))
+  await page.emulateMedia({ media: 'print' })
+  const label = page.locator(`${STAGE} [data-futures-poster]`).getByText(/^Call price/).first()
+  const printed = Number(/\$(\d+\.\d\d)/.exec((await label.textContent()) ?? '')![1])
+  // The poster's own Monte Carlo price at K = 115 (65,536 paths), not the default's $10.55.
+  expect(Math.abs(printed - bs)).toBeLessThan(0.5)
+})
+
 test('reduced motion: a still frame, repriced on the CPU, no flight, and no empty row kept for one', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')

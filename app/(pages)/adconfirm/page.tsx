@@ -17,6 +17,7 @@ export default function AdConfirm() {
     <Shell>
       <article>
         <CaseStudyTitle
+          figure={false}
           byline={otherWork.find((o) => o.slug === 'adconfirm')!.status}
           level="h1"
           title="Eight vendors who disagree about what money is"

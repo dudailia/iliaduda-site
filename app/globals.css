@@ -403,6 +403,20 @@
     color: var(--color-graphite);
   }
 }
+/* The Contents' Pause arrives with the miniatures it holds, rising 4px into place over 240ms, as the figures' controls
+   do; its press and border keep the control's own 150ms. Outside any layer, so it wins over the control's utilities. */
+[data-contents-pause] {
+  transition:
+    border-color 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
+    opacity 240ms var(--ease-out),
+    translate 240ms var(--ease-out),
+    visibility 240ms;
+}
+[data-contents-pause].invisible {
+  opacity: 0;
+  translate: 0 4px;
+}
 /* A Contents entry's title and thumbnail are one way in: pointing at either marks both. Outside any layer, so it
    wins over the elements' own utilities (border-rule, decoration-transparent), which a base-layer rule cannot. */
 @media (hover: hover) and (pointer: fine) {

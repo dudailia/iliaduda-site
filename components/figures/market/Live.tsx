@@ -1037,10 +1037,14 @@ export function MarketLive({
           <div className="-mx-6 sm:mx-0">
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite sm:px-0" data-market-book-title="">
               <span ref={hoverEl}>Order book, the last 20 seconds</span>
-              <span id="market-book-keys" className="sr-only">
+            </p>
+            {/* The slider's description only (hidden, so it is never read as the page's text); there is none to
+                describe on a still frame. */}
+            {live ? (
+              <span id="market-book-keys" hidden>
                 A moment to read the market at. The arrow keys move it, Page Up and Page Down by five seconds; End returns to now.
               </span>
-            </p>
+            ) : null}
             <div className="relative">
               <div
                 ref={bookEl}

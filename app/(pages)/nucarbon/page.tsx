@@ -17,6 +17,7 @@ export default function Nucarbon() {
     <Shell>
       <article>
         <CaseStudyTitle
+          figure={false}
           byline={otherWork.find((o) => o.slug === 'nucarbon')!.status}
           level="h1"
           title="A carbon model for campus AI use, built to be argued with"

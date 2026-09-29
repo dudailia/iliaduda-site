@@ -44,17 +44,20 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
   const s = offered[i]!.s
   const hidden = all.filter((t) => !t.offered).length
 
+  // What typing an amount chose, said once the reader stops typing (the slider and readouts it moves say nothing).
+  const [heard, setHeard] = useState('')
+  const heardTimer = useRef(0)
+  useEffect(() => () => clearTimeout(heardTimer.current), [])
   const debtButtons = useRef<(HTMLButtonElement | null)[]>([])
   const chooseDebt = (d: number) => {
+    // A typed amount's answer, still to be said, is for the old debt: it is not said.
+    clearTimeout(heardTimer.current)
+    setHeard('')
     setDebt(d)
     const o = offeredTerms(d)
     setIndex(Math.max(0, o.findIndex((t) => t.months >= 12)))
     setTyped('')
   }
-  // What typing an amount chose, said once the reader stops typing (the slider and readouts it moves say nothing).
-  const [heard, setHeard] = useState('')
-  const heardTimer = useRef(0)
-  useEffect(() => () => clearTimeout(heardTimer.current), [])
   const onTyped = (v: string) => {
     setTyped(v)
     clearTimeout(heardTimer.current)
@@ -174,6 +177,8 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                 onChange={(e) => {
                   setIndex(Number(e.currentTarget.value))
                   setTyped('')
+                  clearTimeout(heardTimer.current)
+                  setHeard('')
                 }}
                 className="mt-1 h-6 w-full accent-[var(--color-indigo)]"
               />
@@ -185,7 +190,7 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                 value={typed}
                 onChange={(e) => onTyped(e.currentTarget.value)}
                 placeholder="e.g. 4000"
-                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite max-sm:text-small"
+                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite pointer-coarse:text-small"
               />
             </label>
             <p className="sr-only" aria-live="polite">
@@ -313,7 +318,8 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
             })}
           </div>
           <p className="text-note mt-3 min-h-[3em]" aria-live="polite">
-            <span key={asked} className="block transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none">
+            {/* Through the blur only once an answer arrives: the page's first sentence is there when it loads. */}
+            <span key={asked} className={`block ${asked ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}>
               {message(outcome)}
             </span>
           </p>

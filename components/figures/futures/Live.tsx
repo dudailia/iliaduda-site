@@ -2,6 +2,7 @@
 
 import { EASE_OUT_CSS } from '@/lib/ease'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
+import { flushSync } from 'react-dom'
 import { FigureFrame } from '@/components/FigureFrame'
 import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
@@ -237,6 +238,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       let size: [number, number, number, number] | null = null
       let quality = 2
       let palette = env.palette
+      /** The display's refresh as the stage has learned it, for a renderer that loads after it was told. */
+      let interval: number | null = null
       let gone = false
       let broken = false
       // Whatever becomes of it — a failed load, a shader that will not link, a
@@ -273,6 +276,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               },
             )
             real.setQuality!(quality)
+            if (interval !== null) real.refresh?.(interval)
             if (size) real.resize(...size)
             real.setParams(params.current.sigma, params.current.strike)
             renderer.current = real
@@ -304,6 +308,10 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           palette = p
           real?.setPalette!(p)
         },
+        refresh: (s) => {
+          interval = s
+          real?.refresh?.(s)
+        },
         dispose: () => {
           gone = true
           window.clearTimeout(slow)
@@ -316,7 +324,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     [onStats, onTick, onSequenceFrame, release],
   )
 
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, STAGE_OPTS)
+  // The quality waits to climb until the story is told, as the IV figure's does: the burst never sharpens mid-moment.
+  const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seqRef.current === 'pending' || seqRef.current === 'playing' }))
+  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
 
   // One market, checked here: once the figure runs live, this browser builds the same seeded market in a worker
   // (lib/market/market.worker.ts, /market's own) to the moment the volatility is read at, and marks what it got
@@ -498,6 +508,35 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       if (ens.current && ens.current.n < POSTER_PATHS) ens.current = null
     }
   }, [sigma, strike, live])
+
+  // Printed while live, the poster is what goes on paper (a canvas is the screen's): at that moment it is priced for the
+  // reader's own volatility and strike, on the CPU as the still frame is, so the sheet's call price is theirs. (While
+  // live the poster is not repriced as the inputs move: that would be CPU work under a running figure, for a picture
+  // no one sees on screen.)
+  useEffect(() => {
+    if (!live) return
+    const priceForPaper = () => {
+      if (sigma === MODEL.sigma && strike === MODEL.strike) return
+      let e = ens.current
+      if (!e || e.sigma !== sigma || e.n < POSTER_PATHS) {
+        const t0 = performance.now()
+        e = { sigma, t: new Float32Array(POSTER_PATHS), n: POSTER_PATHS, ms: 0 }
+        fill(e.t, sigma, 0, POSTER_PATHS)
+        e.ms = performance.now() - t0
+        ens.current = e
+      }
+      const f = summarize(e.t, strike)
+      flushSync(() => setFrame(f))
+    }
+    const print = matchMedia('print')
+    const onMedia = () => print.matches && priceForPaper()
+    addEventListener('beforeprint', priceForPaper)
+    print.addEventListener('change', onMedia)
+    return () => {
+      removeEventListener('beforeprint', priceForPaper)
+      print.removeEventListener('change', onMedia)
+    }
+  }, [live, sigma, strike])
 
   // Changing an input is using the figure: the sequence ends, the run starts
   // again and the convergence plot with it. Changes made on the canvas, not on

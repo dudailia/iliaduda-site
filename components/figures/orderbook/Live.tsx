@@ -92,11 +92,12 @@ export function OrderBookLive({
 
   // The rail's numbers change four times a second at most, as Fig. 2's do: a readout that can be read.
   const statsAt = useRef(-Infinity)
-  const writeStats = useCallback(
+  // The last numbers held back, written once the quarter second is up: a figure that stops drawing (paused, at rest)
+  // still leaves its margin at its last frame.
+  const trailing = useRef(0)
+  const putStats = useCallback(
     (s: Pick<Stats, 'rate' | 'trades' | 'shares' | 'mid' | 'spread'>) => {
-      const now = performance.now()
-      if (now - statsAt.current < 250) return
-      statsAt.current = now
+      statsAt.current = performance.now()
       write('rate', `${s.rate.toFixed(1)} a second`)
       write('mid', fmt.mid(s.mid))
       write('spread', fmt.spread(s.spread))
@@ -104,6 +105,17 @@ export function OrderBookLive({
     },
     [write],
   )
+  const writeStats = useCallback(
+    (s: Pick<Stats, 'rate' | 'trades' | 'shares' | 'mid' | 'spread'>) => {
+      const since = performance.now() - statsAt.current
+      clearTimeout(trailing.current)
+      if (since >= 250) return putStats(s)
+      // Held back (printing holds the margin at the poster's moment: statsAt is then Infinity, and nothing is queued).
+      if (Number.isFinite(statsAt.current)) trailing.current = window.setTimeout(() => putStats(s), 250 - since)
+    },
+    [putStats],
+  )
+  useEffect(() => () => clearTimeout(trailing.current), [])
 
   const writeProbe = useCallback(
     (r: Reading | null) => {
@@ -232,7 +244,9 @@ export function OrderBookLive({
     [writeProbe, writeStats],
   )
 
-  const { box, canvas, live, eligible, reduced, quality, fps, tier } = useStage(create, STAGE_OPTS)
+  // The quality waits to climb until the rise is over, as the IV figure's does: the terrain never sharpens mid-rise.
+  const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seq.current.started && !seq.current.done }))
+  const { box, canvas, live, eligible, reduced, quality, fps, tier } = useStage(create, stageOpts)
   // The terrain rises in the middle and bottom of its stage: the story waits for most of it to be in view (on a
   // laptop's first screen only the empty top of the stage shows), or nearly half held for a moment.
   const sig = useSignature('orderbook', box, seq, { start: 0.6, hold: 0.45 })
@@ -324,6 +338,29 @@ export function OrderBookLive({
     writeStats(initial)
     writeProbe(null)
   }, [initial, writeStats, writeProbe])
+
+  // On paper the poster stands in for the live terrain (a canvas is the screen's), so the margin prints the poster's
+  // moment too, not the live market's: the sheet's price and its margin agree. Live writing resumes after.
+  useEffect(() => {
+    const toPaper = () => {
+      clearTimeout(trailing.current)
+      putStats(initial)
+      statsAt.current = Infinity
+    }
+    const back = () => {
+      statsAt.current = -Infinity
+    }
+    const print = matchMedia('print')
+    const onMedia = () => (print.matches ? toPaper() : back())
+    addEventListener('beforeprint', toPaper)
+    addEventListener('afterprint', back)
+    print.addEventListener('change', onMedia)
+    return () => {
+      removeEventListener('beforeprint', toPaper)
+      removeEventListener('afterprint', back)
+      print.removeEventListener('change', onMedia)
+    }
+  }, [initial, putStats])
 
   // Announce a probe the reader moved, once it settles — never the stream.
   const announce = useRef<ReturnType<typeof setTimeout> | null>(null)

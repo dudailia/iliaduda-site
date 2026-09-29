@@ -54,6 +54,9 @@ export function RankingLive({
   const reduced = useReducedMotion()
   const list = useRef<HTMLOListElement>(null)
   const before = useRef<Map<string, number>>(new Map())
+  /** The list's height as seen before a switch, and the glide of its height that follows (see the FLIP below). */
+  const beforeH = useRef(0)
+  const heightGlide = useRef(0)
   /** Rows that have just left the top, fading where they stood: each with its row and its place, in px from the list's top. */
   // The rows leaving the top, with the numbers they had there (the treatment just left), fading where they stood.
   const [gone, setGone] = useState<{ row: Row; top: number; height: number; key: number; rank: number; score: number; frac: number }[]>([])
@@ -82,6 +85,7 @@ export function RankingLive({
       if (!reduced && row && !kept.has(row.name)) leaving.push({ row, top: r.top - top0, height: r.height, key: ++goneKey.current, rank: row[v].rank, score: row[v].score, frac: row[v].score / max })
     })
     before.current = m
+    beforeH.current = el?.getBoundingClientRect().height ?? 0
     setV(next)
     if (leaving.length) {
       setGone(leaving)
@@ -118,12 +122,30 @@ export function RankingLive({
         delete li.dataset.entering
       }
     })
+    // A name that wraps under one treatment and not another (on a phone) changes the list's height: it glides with the
+    // rows, rather than moving everything under it in one frame.
+    el.style.height = ''
+    el.style.transition = ''
+    const h = el.getBoundingClientRect().height
+    const h0 = beforeH.current
+    const glide = Math.abs(h - h0) > 0.5 && h0 > 0
+    if (glide) el.style.height = `${h0}px`
     // Force the inverted frame, then release to the natural position.
     void el.offsetHeight
     for (const li of lis) {
       li.style.transition = li.dataset.entering !== undefined ? ENTER : moving.has(li.dataset.name!) ? RETARGET : MOVE
       li.style.transform = ''
       li.style.opacity = ''
+    }
+    if (glide) {
+      el.style.transition = `height 280ms ${EASE_IN_OUT_CSS}`
+      el.style.height = `${h}px`
+      const token = ++heightGlide.current
+      window.setTimeout(() => {
+        if (token !== heightGlide.current) return
+        el.style.height = ''
+        el.style.transition = ''
+      }, 300)
     }
     before.current = new Map()
   }, [v, reduced])

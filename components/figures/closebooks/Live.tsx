@@ -68,6 +68,10 @@ export function CategorisationLive({
 
   const results: Result[] = feed.map((l) => categorise(l, chart))
 
+  // A press while the rows are leaving does nothing more, as the cricket replay's does.
+  const letting = useRef(false)
+  const letTimer = useRef(0)
+  useEffect(() => () => clearTimeout(letTimer.current), [])
   const stream = () => {
     setBefore(null)
     if (reduced) {
@@ -75,9 +79,12 @@ export function CategorisationLive({
       setRun((r) => r + 1)
       return
     }
+    if (letting.current) return
+    letting.current = true
     // The rows leave together (150ms), then the batch arrives again from the first line.
     setLeaving(true)
-    window.setTimeout(() => {
+    letTimer.current = window.setTimeout(() => {
+      letting.current = false
       setHuman({})
       setRun((r) => r + 1)
       setArrived(0)
@@ -245,7 +252,12 @@ export function CategorisationLive({
                       <span className="grid text-ink">
                         <span className="invisible [grid-area:1/1]">{finalNote}</span>
                         {note ? (
-                          <span key="acted" className="[grid-area:1/1] transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none">
+                          // A note arrives through the blur as its row settles in a run, or a reviewer's replaces the
+                          // rules' (its own key, so it arrives too); on a page that opens settled it is simply there.
+                          <span
+                            key={human[i] ?? 'rules'}
+                            className={`[grid-area:1/1] ${!settled || human[i] ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}
+                          >
                             {note}
                           </span>
                         ) : null}
@@ -270,6 +282,12 @@ export function CategorisationLive({
                   </span>
                   {/* A button's height kept from the start, so a row's "…" becoming Approve or Map does not grow it. */}
                   <span className="col-start-2 mt-1.5 flex min-h-8 items-center gap-2 sm:col-start-auto sm:mt-0 sm:justify-end">
+                    {/* What the settled row asks for (Approve, Map, or its status) arrives through the same blur as its
+                        note, in the same frame, rather than appearing crisp beside it. */}
+                    <span
+                      key={final ? 'settled' : 'waiting'}
+                      className={`inline-flex items-center ${!settled && final ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}
+                    >
                     {st === 'pending' && final ? (
                       <button
                         type="button"
@@ -302,6 +320,7 @@ export function CategorisationLive({
                         {!final ? '…' : human[i] ? 'approved · reviewer' : st}
                       </span>
                     )}
+                    </span>
                   </span>
                 </div>
               </li>

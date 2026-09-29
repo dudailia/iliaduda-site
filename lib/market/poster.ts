@@ -11,9 +11,9 @@ import { levelTone, logTicks, priceTicks, smoothedQueue, WINDOW } from './views'
  * /market's still frames, drawn on the server from the same seeded market at the same moment the live figure starts
  * from (POSTER_T), so the page opens on the market it then runs (components/figures/Market.tsx). The book and the
  * futures are images of their own (app/(pages)/market/*.svg), each defining the site's colour tokens for both
- * schemes, as the IV figure's poster does, so one file serves both; the book's heat is a mask (lib/png.ts) the
- * indigo shows through, as the live strip mixes it (components/figures/market/draw.ts): white, at each queue's
- * tone, so its luminance is that tone exactly, in any colour space. No text: the page places
+ * schemes, as the IV figure's poster does, so one file serves both; the book's heat is an image of opacities (lib/png.ts)
+ * the indigo is flooded through, as the live strip mixes it (components/figures/market/draw.ts): each queue's tone is
+ * its pixel's opacity, exactly, in any colour space. No text: the page places
  * the axes' words over them. Server only.
  */
 
@@ -73,12 +73,12 @@ export function bookFrame(moment: Moment = 'calm') {
 }
 
 /**
- * A queue's byte in the heat strip's mask: its tone, in steps of 4 of 255 (1.6% of the indigo mix, below what an eye can
+ * A queue's byte in the heat strip's image: its tone, in steps of 4 of 255 (1.6% of the indigo mix, below what an eye can
  * tell in a gradient), so the image compresses to a third of its size; the live strip draws the exact tone.
  */
 export const maskByte = (queue: number) => Math.min(255, Math.round((levelTone(queue) * 255) / 4) * 4)
 
-/** The heat strip: twenty seconds of the book's resting queues as a mask of the indigo, with the price and the trades over it. */
+/** The heat strip: twenty seconds of the book's resting queues, the indigo at each one's tone, with the price and the trades over it. */
 export function bookSvg(moment: Moment = 'calm'): string {
   const { m } = marketFrame(moment)
   const f = m.flow

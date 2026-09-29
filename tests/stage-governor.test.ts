@@ -63,6 +63,37 @@ describe('the quality governor', () => {
     expect(g.q).toBe(3)
   })
 
+  it('learns a 30 Hz clock while held, but goes back up only once the hold is let go', () => {
+    const g = new Governor(2, 3)
+    let now = 0
+    const seen: number[] = []
+    for (let i = 0; i < 90; i++) {
+      now += 1000 / 30
+      g.frame(1 / 30, now, true)
+      seen.push(g.q)
+    }
+    // Mid-story: it may step down once, and holds there rather than sharpening while the story plays.
+    expect(seen.at(-1)).toBeLessThanOrEqual(2)
+    const low = seen.at(-1)!
+    expect(seen.slice(seen.indexOf(low))).toEqual(seen.slice(seen.indexOf(low)).map(() => low))
+    for (let i = 0; i < 30; i++) {
+      now += 1000 / 30
+      g.frame(1 / 30, now, false)
+    }
+    expect(g.q).toBeGreaterThanOrEqual(2)
+    expect(g.refresh).toBeCloseTo(1000 / 30, 0)
+  })
+
+  it('does not take a step that helped a little for a slow clock: 27ms is no display rate, so it is work', () => {
+    const g = new Governor(3, 3)
+    // A 60 Hz display on a GPU that needs 20, 24, 27 and 30ms a frame at 0 to 3. The probe's step (30 → 27ms) is no
+    // display's rate, so it is not taken for a clock: the refresh stays where the fast frames put it (it only creeps,
+    // 0.05% a frame, as a change of display would need), and the quality stays down.
+    const { seen } = run(g, 6, (q) => [20, 24, 27, 30][q]!)
+    expect(g.refresh).toBeLessThan(20)
+    expect(Math.max(...seen.slice(-60))).toBeLessThan(3)
+  })
+
   it('does not climb while held (a figure mid-story asks it to wait)', () => {
     const g = new Governor(1, 3)
     let now = 0

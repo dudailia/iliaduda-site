@@ -49,12 +49,12 @@ export function Footer() {
           <nav aria-label="Pages">
             <ul className="text-note flex flex-wrap gap-x-8 gap-y-1.5">
               <li>
-                <a href="/about" className="inline-block py-1">
+                <a href="/about" className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
                   About
                 </a>
               </li>
               <li>
-                <a href="/cv" className="inline-block py-1">
+                <a href="/cv" className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
                   CV
                 </a>
               </li>

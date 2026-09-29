@@ -564,6 +564,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // The words the histogram is to say, and when their swap began (seconds on the clock; −1: none under way).
   let histWant = 0
   let histSwapAt = -1
+  // The swap's blur on the ease-out (the quintic, the power curve closest to the site's ease-out, whose inverse lets
+  // a swap turned back mid-way go on from the blur it has): up fast to 3px, the words change, then down fast.
+  const quint = (u: number) => 1 - (1 - Math.min(1, Math.max(0, u))) ** 5
+  const unQuint = (d: number) => 1 - (1 - Math.min(1, Math.max(0, d))) ** 0.2
+  const histBlur = (u: number) => (u < 1 ? quint(u) : u < 2 ? 1 - quint(u - 1) : 0)
   // The climax: the payoff bars, averaged and discounted, are the call's price.
   // The number is the live Monte Carlo estimate, not a restatement of the formula.
   // In the composed frame it stands under the strike line, where the payoff bars are empty; in depth, a point further
@@ -1253,7 +1258,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         const ht = morph.x >= 0.5 ? 1 : 0
         if (ht !== histWant) {
           histWant = ht
-          histSwapAt = clock.now
+          // Turned back mid-swap, the blur goes on from where it is: out again toward the other words, or back in to
+          // the words already there. `u` runs 0 → 1 blurring out and 1 → 2 blurring in, 120ms each.
+          const d = histSwapAt >= 0 ? histBlur((clock.now - histSwapAt) / 0.12) : 0
+          const u = histText === ht ? 1 + unQuint(1 - d) : unQuint(d)
+          histSwapAt = histText === ht && d === 0 ? -1 : clock.now - u * 0.12
         }
         if (histSwapAt >= 0) {
           const u = (clock.now - histSwapAt) / 0.12
@@ -1261,7 +1270,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
             histText = histWant
             histEl.textContent = histText ? 'Payoff × how often it happens' : 'Where the paths end'
           }
-          const b = u < 1 ? u : u < 2 ? 2 - u : 0
+          const b = histBlur(u)
           histEl.style.filter = b > 0 ? `blur(${(3 * b).toFixed(2)}px)` : ''
           if (u >= 2) histSwapAt = -1
         }
@@ -1343,6 +1352,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         strands: pathN,
         grid: `${i.grid}² paths × ${i.batches} batches a frame`,
         readback: `${i.readMs.toFixed(2)} ms`,
+        // The frame interval the pricing judges its batches by (the display's refresh, as the stage learned it).
+        clock: `${(clock.vsync * 1000).toFixed(1)} ms`,
         paths: `${est.n.toLocaleString('en-US')}${pricer.doneAt ? ' (complete)' : ''}`,
         rate: rate > 0 ? `${(rate / 1e6).toFixed(1)}M paths/s` : 'measuring',
         camera: cam,
