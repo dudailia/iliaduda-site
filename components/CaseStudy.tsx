@@ -26,8 +26,10 @@ export function CaseStudyTitle({
   level?: 'h1' | 'h2'
 }) {
   const Heading = level
+  // At lg the first figure sits 2.5rem under the abstract's rule rather than the 4rem between figures (its own margin,
+  // less this block's 1.5rem), so a laptop's first screen shows more of Fig. 1's stage.
   return (
-    <Row className="pt-10 lg:pt-16">
+    <Row className="pt-10 lg:-mb-6 lg:pt-12">
       <Heading className={level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'}>{title}</Heading>
       {byline ? (
         <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>

@@ -380,10 +380,31 @@
   --arrive: 40ms;
 }
 
-/* The order book's poster: on a first visit (the pre-paint mark, lib/stage/prepaint.ts) the page is empty, and the
-   terrain rises out of it; if the live figure declines, the finished picture fades in on the site's ease-out. */
 /* A Contents entry's title and thumbnail are one way in: pointing at either marks both. Outside any layer, so it
    wins over the elements' own utilities (border-rule, decoration-transparent), which a base-layer rule cannot. */
+/* The issue's numbering: beside the rail, each paper's number hangs in the gutter at its title's first baseline, as
+   a journal's contents numbers its papers (an inline box pulled left by as much as it takes, so the title does not
+   move). Its alternative text is empty: the list already says which entry is which. */
+@media (min-width: 64rem) {
+  [data-vt-contents] {
+    counter-reset: paper;
+  }
+  [data-vt-contents] > li {
+    counter-increment: paper;
+  }
+  [data-vt-contents] > li > h3::before {
+    content: counter(paper) / '';
+    display: inline-block;
+    width: 1.5rem;
+    margin-left: calc(-1.5rem - 1rem);
+    margin-right: 1rem;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-graphite);
+  }
+}
 @media (hover: hover) and (pointer: fine) {
   [data-vt-contents] li:has(h3 a:hover) [data-vt-thumb] {
     border-color: var(--color-graphite);
@@ -403,6 +424,8 @@
   /* Over the still frames' own inline visibility (the stage kit's underlay). */
   visibility: hidden !important;
 }
+/* The order book's poster: on a first visit (the pre-paint mark, lib/stage/prepaint.ts) the page is empty, and the
+   terrain rises out of it; if the live figure declines, the finished picture fades in on the site's ease-out. */
 [data-orderbook-poster] [data-fill] {
   transition: opacity 240ms var(--ease-out);
 }
