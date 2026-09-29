@@ -65,7 +65,7 @@ const STORY: Record<Story, { name: string; text: string; short: string }> = {
   calm: { name: 'Calm', text: 'One market, drawn three ways as it runs.', short: 'One market, three views.' },
   shock: { name: 'A liquidity shock', text: 'A sell takes every bid within twenty ticks, and sellers pile in.', short: 'The bids are swept.' },
   topped: { name: 'Another shock', text: 'The market was still absorbing the last: this one tops it back up to one.', short: 'Topped back up to one.' },
-  recovering: { name: 'Recovering', text: 'The book refills in seconds; the volatility, and the surface with it, fade over minutes.', short: 'The book refills in seconds.' },
+  recovering: { name: 'Recovering', text: 'The book refills in seconds, the volatility and the surface in minutes.', short: 'The book refills in seconds.' },
   running: { name: 'Running', text: 'Live, at real time.', short: 'Live, at real time.' },
   paused: { name: 'Paused', text: 'The market holds where it is.', short: 'Held where it is.' },
   'still-calm': { name: 'Still frame', text: 'The market calm, at the moment the live figure opens on.', short: 'The market calm.' },
@@ -1020,7 +1020,8 @@ export function MarketLive({
         {/* One line between the views: the story while it plays, then the market's state. Its room is kept, so what it
             says never moves the page; each turn blurs out and the next blurs in (120ms each way, 3px), at full opacity, so
             every frame keeps the text's contrast. */}
-        <p aria-hidden data-market-story={line ?? ''} className="text-note mt-2 min-h-[1lh] leading-snug text-ink print:hidden">
+        {/* One line kept for it, two where its longest turns wrap (from sm to md: at lg and on a phone they fit one). */}
+        <p aria-hidden data-market-story={line ?? ''} className="text-note mt-2 min-h-[1lh] leading-snug text-ink sm:max-md:min-h-[2lh] print:hidden">
           {line ? (
             <span
               key={line}

@@ -619,7 +619,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           <p
             aria-hidden
             data-phase-caption=""
-            className="text-note pointer-events-none absolute top-3 right-3 w-[min(60%,24rem)] text-right leading-snug text-ink transition-opacity duration-200 ease-out"
+            className="text-note pointer-events-none absolute top-3 right-3 w-[min(42%,17rem)] text-right leading-snug text-ink transition-opacity duration-200 ease-out"
             style={{ opacity: onStage ? 1 : 0 }}
           >
             {/* The plate stays crisp; only its words blur through a turn of the story, as the line below does (a reader's

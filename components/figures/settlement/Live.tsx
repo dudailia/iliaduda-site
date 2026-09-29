@@ -58,21 +58,29 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
     setIndex(Math.max(0, o.findIndex((t) => t.months >= 12)))
     setTyped('')
   }
+  // What an amount typed chooses, in words: shown under the field as it is typed, and said once the typing stops.
+  const termWords = (t: (typeof offered)[number]) => `${t.months === 1 ? 'one payment' : `${t.months} months`}, ${rub(t.s.monthly)} a month`
+  const typedFor = (v: string): { text: string; invalid: boolean } => {
+    if (!v.trim()) return { text: '', invalid: false }
+    const roubles = Number.parseInt(v.replace(/[^\d]/g, ''), 10)
+    if (!/\d/.test(v) || !(roubles > 0)) return { text: 'An amount in roubles, in figures.', invalid: true }
+    const t = offered.find((o) => o.months === termForMonthly(debt, roubles * 100))!
+    const longest = offered.reduce((a, o) => (o.months > a.months ? o : a))
+    return roubles * 100 < longest.s.monthly
+      ? { text: `No offered term is that low: the longest, ${termWords(longest)}.`, invalid: false }
+      : { text: `Closest offered term: ${termWords(t)}.`, invalid: false }
+  }
+  const typedNote = typedFor(typed)
   const onTyped = (v: string) => {
     setTyped(v)
     clearTimeout(heardTimer.current)
     const roubles = Number.parseInt(v.replace(/[^\d]/g, ''), 10)
     if (Number.isFinite(roubles) && roubles > 0) {
       const months = termForMonthly(debt, roubles * 100)
-      const at = offered.findIndex((t) => t.months === months)
-      setIndex(at)
-      const t = offered[at]
-      if (t)
-        heardTimer.current = window.setTimeout(
-          () => setHeard(`Closest offered term: ${t.months === 1 ? 'one payment' : `${t.months} months`}, ${rub(t.s.monthly)} a month.`),
-          700,
-        )
+      setIndex(offered.findIndex((t) => t.months === months))
     }
+    const said = typedFor(v).text
+    if (said) heardTimer.current = window.setTimeout(() => setHeard(said), 700)
   }
 
   // ── contact allowance ───────────────────────────────────────────────────
@@ -190,9 +198,15 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
                 value={typed}
                 onChange={(e) => onTyped(e.currentTarget.value)}
                 placeholder="e.g. 4000"
+                aria-invalid={typedNote.invalid || undefined}
+                aria-describedby="settlement-typed"
                 className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite pointer-coarse:text-small"
               />
             </label>
+            {/* What the amount chose, for the eye at once (its line kept, so the page does not move as it appears). */}
+            <p id="settlement-typed" className="text-meta mt-1 min-h-[1lh] font-mono text-graphite">
+              {typedNote.text}
+            </p>
             <p className="sr-only" aria-live="polite">
               {heard}
             </p>
