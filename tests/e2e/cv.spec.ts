@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { RESUME } from '../../lib/site'
+import { CV_PHONE, RESUME } from '../../lib/site'
 
 /**
  * The CV is a page and a PDF printed from it at build time. Both must exist,
@@ -13,6 +13,17 @@ test('the PDF is served as a one-page PDF', async ({ request }) => {
   expect(r.status()).toBe(200)
   expect(r.headers()['content-type']).toContain('application/pdf')
   expect(pages(await r.body())).toBe(1)
+})
+
+test('the phone number is on the CV, beside the email, as a link a phone can call, and in the PDF', async ({ page, request }) => {
+  await page.goto('/cv')
+  const tel = page.locator('.cv-contact a[href^="tel:"]')
+  await expect(tel).toHaveCount(1)
+  await expect(tel).toHaveText(CV_PHONE.label)
+  await expect(tel).toHaveAttribute('href', CV_PHONE.href)
+  // The PDF's link annotations are plain text in the file: the number is printed on the sheet and callable from it.
+  const pdf = (await (await request.get(RESUME.pdf)).body()).toString('latin1')
+  expect(pdf).toContain(CV_PHONE.href)
 })
 
 test('the masthead and running head link the PDF, and /about links the page', async ({ page }) => {

@@ -58,7 +58,7 @@ export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
   [/\bvs\.?\s+(the\s+)?S&P|\bS&P\s?500\b/i, 'no strategy-versus-benchmark comparison'],
   [/\b[A-Z]+_[A-Z_]+=|\benv(ironment)? var(iable)?s?\b/, 'no environment settings of any trading work'],
 
-  // The public CV and every page: no phone number, ever.
+  // No phone number on the site, but the owner's on /cv (ALLOWED_PHONE, below).
   [/\+\d[\d\s().-]{8,}\d|\(\d{3}\)\s?\d{3}[\s.-]\d{4}\b/, 'no phone number on the public site'],
   // The owner's call (2026-09-30): no grade point average anywhere.
   [/\bGPA\b|grade point average/i, 'no GPA on the site'],
@@ -117,4 +117,21 @@ export function withheld(text: string): string[] {
     if (i > 0) check(`${words[i - 1]} ${w}`)
   })
   return hits
+}
+
+/**
+ * The one phone number the site may show: the owner's, on /cv (and so in the PDF printed from it), and where it is
+ * written down (lib/site.ts, as its label and its tel: link). Anywhere else, the phone ban above still fails it.
+ */
+export const ALLOWED_PHONE = {
+  forms: ['(617) 918-3964', '+16179183964'],
+  routes: ['/cv'],
+  files: ['lib/site.ts'],
+} as const
+
+/** The text a ban is checked against, where `where` is a route or a repo-relative file: the allowed number taken out
+ *  only where it is allowed. */
+export function allowPhone(text: string, where: string): string {
+  const here = (ALLOWED_PHONE.routes as readonly string[]).includes(where) || (ALLOWED_PHONE.files as readonly string[]).includes(where)
+  return here ? ALLOWED_PHONE.forms.reduce((t, f) => t.split(f).join(''), text) : text
 }

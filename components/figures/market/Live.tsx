@@ -547,7 +547,9 @@ export function MarketLive({
 
       // Readouts, ten times a second.
       // The rail's numbers change with the picture: not before both flat views have drawn.
-      if (flat && now - lastText.current > 100) {
+      // While a moment is pointed at, every frame: the book's label is written each frame, and the readouts, at ten a
+      // second, could show the moment a frame before it (the moment is so many seconds before a now that moves).
+      if (flat && (pointed.current || now - lastText.current > 100)) {
         lastText.current = now
         const h = m.h
         // While a past moment is pointed at, every readout is that moment's, as the book's label and the fan are: one

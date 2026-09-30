@@ -1,7 +1,8 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FORBIDDEN, withheld } from './forbidden'
+import { ALLOWED_PHONE, FORBIDDEN, allowPhone, withheld } from './forbidden'
+import { CV_PHONE } from '../lib/site'
 
 /**
  * A self-audit retracted a number of claims that appeared in earlier versions
@@ -58,7 +59,8 @@ describe('retracted claims cannot be restored', () => {
     it(`never says ${pattern.source}`, () => {
       const hits: string[] = []
       for (const file of files) {
-        const body = stripComments(readFileSync(file, 'utf8'))
+        const rel = relative(process.cwd(), file)
+        const body = allowPhone(stripComments(readFileSync(file, 'utf8')), rel)
         body.split('\n').forEach((line, i) => {
           if (pattern.test(line)) {
             hits.push(`${relative(process.cwd(), file)}:${i + 1}  ${line.trim()}`)
@@ -92,5 +94,19 @@ describe('per-project claims stay inside the project they are true of', () => {
     const coverageClaim =
       /\b(well|fully|unit|integration|end-to-end|thoroughly)[-\s]tested\b|\btest (coverage|suite)\b|\bis tested\b|\bhas tests\b/i
     expect(coverageClaim.test(closebooks[0])).toBe(false)
+  })
+})
+
+describe('the one phone number the site shows', () => {
+  it('is the number the gate allows, and nothing else', () => {
+    expect(ALLOWED_PHONE.forms).toContain(CV_PHONE.label)
+    expect(ALLOWED_PHONE.forms).toContain(CV_PHONE.href.replace(/^tel:/, ''))
+  })
+  it('is still banned outside the places it is allowed', () => {
+    const phone = FORBIDDEN.find(([, why]) => /phone/.test(why))![0]
+    expect(phone.test(allowPhone(`call ${CV_PHONE.label}`, 'app/page.tsx'))).toBe(true)
+    expect(phone.test(allowPhone(`call ${CV_PHONE.label}`, '/about'))).toBe(true)
+    expect(phone.test(allowPhone(`call ${CV_PHONE.label}`, '/cv'))).toBe(false)
+    expect(phone.test(allowPhone('call (617) 555-0100', '/cv'))).toBe(true)
   })
 })

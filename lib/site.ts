@@ -43,6 +43,12 @@ export const resumeLink = { href: RESUME.pdf, label: 'CV (PDF)' } as const
  * The site's own source, as the papers link it file by file: the `main` branch, which production is built from (one
  * change here moves every paper's links).
  */
+/**
+ * The owner's phone number, on /cv and the PDF printed from it and nowhere else (the owner's decision, 2026-09-30).
+ * tests/forbidden.ts allows exactly this number, on that page and in this file, and still fails any other.
+ */
+export const CV_PHONE = { label: '(617) 918-3964', href: 'tel:+16179183964' } as const
+
 export const SOURCE = 'https://github.com/dudailia/iliaduda-site/blob/main'
 
 /**
