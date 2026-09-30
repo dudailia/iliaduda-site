@@ -524,6 +524,11 @@
     justify-content: flex-end;
   }
 }
+/* Room kept for a text that may take its place (a hint's longest variant): drawn by CSS, so it is never read as the
+   page's text or found in it, and invisible where it is used. */
+[data-room]::before {
+  content: attr(data-room);
+}
 /* The Contents' Pause arrives with the miniatures it holds, rising 4px into place over 240ms, as the figures' controls
    do; its press and border keep the control's own 150ms. Outside any layer, so it wins over the control's utilities. */
 [data-contents-pause] {

@@ -586,7 +586,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       // shown, so neither going live nor keeping a still frame after all moves the page below, at any width.
       hint={
         <span className="grid">
-          <span aria-hidden className="invisible [grid-area:1/1]">{`${DECLINED_TEXT.load} ${readHow}`}</span>
+          <span aria-hidden className="invisible [grid-area:1/1]" data-room={`${DECLINED_TEXT.load} ${readHow}`} />
           <span className="[grid-area:1/1]">
             <Items items={hint} />
           </span>

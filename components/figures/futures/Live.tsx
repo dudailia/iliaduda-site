@@ -1,5 +1,6 @@
 'use client'
 
+import { Items } from '@/components/Layout'
 import { EASE_OUT_CSS } from '@/lib/ease'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
 import { flushSync } from 'react-dom'
@@ -841,7 +842,17 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
         railBelow={false}
-        hint={hint}
+        // Room kept for the longest of its hints (a still frame's longest reason, and the live figure's), in one cell with
+        // the one shown, so keeping a still frame after all moves nothing under the figure, whatever the fonts' widths.
+        hint={
+          <span className="grid">
+            <span aria-hidden className="invisible [grid-area:1/1]" data-room="Still frame: the live figure could not start here. Reloading the page may bring it." />
+            <span aria-hidden className="invisible [grid-area:1/1]" data-room={`${coarse ? 'Tap' : 'Click'} a price at expiry to set the strike · drag sideways for volatility.`} />
+            <span className="[grid-area:1/1]">
+              <Items items={hint} />
+            </span>
+          </span>
+        }
         caption={
           <>
             Each line is a path of geometric Brownian motion, stepped exactly in log space; its random numbers come from a
