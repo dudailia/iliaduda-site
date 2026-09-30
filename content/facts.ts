@@ -1,6 +1,7 @@
 /**
- * Every number rendered anywhere on this site lives here, and every entry
- * carries the file it was verified against.
+ * Every sourced number on this site lives here, and every entry carries the
+ * file it was verified against; everything else is computed on the page from
+ * the model it describes.
  *
  * tests/facts.test.ts fails the build if any entry has an empty `source`, and
  * tests/figures.test.ts fails the build if a figure component contains a
@@ -11,6 +12,9 @@
  * softened. Several claims that appeared in earlier versions of this portfolio
  * are absent for exactly that reason.
  */
+
+import { rules } from './rules'
+import { synthetic } from './synthetic'
 
 export type Unit =
   | 'percent'
@@ -23,6 +27,7 @@ export type Unit =
   | 'kwh'
   | 'kg'
   | 'weight'
+  | 'years'
   | 'none'
 
 export interface Fact {
@@ -31,12 +36,26 @@ export interface Fact {
   readonly label: string
   /** Non-empty, and specific enough to re-check. Enforced by test. */
   readonly source: string
+  /**
+   * `synthetic` marks a value that was chosen rather than measured — the
+   * parameters of an illustrative model. Its source must name the module that
+   * uses it and say "synthetic", and any page that draws it must label the
+   * figure synthetic where the figure is (tests/facts.test.ts, e2e synthetic).
+   */
+  readonly kind?: 'measured' | 'synthetic'
 }
 
 const facts = {
+  // Synthetic parameters for the hero figure live in ./synthetic, so the
+  // browser bundle carries seven numbers rather than this whole table.
+  ...synthetic,
+  // Rules a client figure runs live; see ./rules.
+  ...rules,
+
   // ── cricstate ──────────────────────────────────────────────────────────────
   // The figure axis. One unit throughout: relative NLL improvement over the
-  // B0 marginal baseline on the T1/T20 cell, post-calibration.
+  // level below on the T1/T20 cell, post-calibration (match state over the B0 marginal baseline; identity over match
+  // state; the latent on validation).
   crIdentityGain: {
     value: 0.31,
     unit: 'percent',
@@ -66,6 +85,30 @@ const facts = {
     unit: 'percent',
     label: 'ambiguous below',
     source: 'cricstate/report/paper.md:97-102 — REL_AMBIG_LO',
+  },
+  crT2Nll: {
+    value: 0.49036,
+    unit: 'nats',
+    label: 'B3 test NLL, T2/T20',
+    source: 'cricstate/docs/LEADERBOARD.md:76-83 — B3_gbm 0.49036 [0.47547, 0.50519]; reproduced by scripts/cricket_replay.py',
+  },
+  crT2Base: {
+    value: 0.69275,
+    unit: 'nats',
+    label: 'marginal-baseline test NLL, T2/T20',
+    source: 'cricstate/docs/LEADERBOARD.md:76-83 — B0_marginal 0.69275',
+  },
+  crT2TestMatches: {
+    value: 1489,
+    unit: 'count',
+    label: 'held-out T20 matches in the T2 test cell',
+    source: 'cricstate/docs/LEADERBOARD.md:76 — test n = 1,489 matches',
+  },
+  crFeatures: {
+    value: 27,
+    unit: 'count',
+    label: 'whitelisted match-state features',
+    source: 'cricstate/src/evalkit/features.py — FEATURE_COLUMNS; artifacts/t2/t20/B3_gbm/fingerprint.json n_features',
   },
   crMatches: {
     value: 16754,
@@ -136,10 +179,10 @@ const facts = {
     source: 'closebooks-app @6fdbb82d — find src/app/dashboard -name page.tsx | wc -l',
   },
   cbMigrations: {
-    value: 15,
+    value: 17,
     unit: 'count',
     label: 'SQL migrations',
-    source: 'closebooks-app @6fdbb82d — ls supabase/migrations | wc -l',
+    source: 'closebooks-app @ce76fb20 — ls supabase/migrations | wc -l',
   },
   cbServiceRoleRoutes: {
     value: 17,
@@ -164,12 +207,6 @@ const facts = {
     unit: 'count',
     label: 'transactions per model call',
     source: 'closebooks-app/src/lib/categorize.ts:5-9 — BATCH_SIZE',
-  },
-  cbAutoApprove: {
-    value: 0.85,
-    unit: 'none',
-    label: 'auto-approve confidence threshold',
-    source: 'closebooks-app/src/lib/categorize.ts:5-9 — AUTO_APPROVE_THRESHOLD',
   },
   cbHistoryBefore: {
     value: 62,
@@ -205,42 +242,6 @@ const facts = {
   },
   // 230-ФЗ art. 7. Two separate ceilings, because the statute treats a phone
   // call and an electronic message as different things.
-  dgCallsDay: {
-    value: 1,
-    unit: 'count',
-    label: 'calls per day',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgCallsWeek: {
-    value: 2,
-    unit: 'count',
-    label: 'calls per week',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgCallsMonth: {
-    value: 8,
-    unit: 'count',
-    label: 'calls per month',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgMessagesDay: {
-    value: 2,
-    unit: 'count',
-    label: 'messages per day',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgMessagesWeek: {
-    value: 4,
-    unit: 'count',
-    label: 'messages per week',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
-  dgMessagesMonth: {
-    value: 16,
-    unit: 'count',
-    label: 'messages per month',
-    source: 'dg-website/src/content/ru/knowledge.ts:93 — 230-ФЗ art. 7',
-  },
   dgClsGate: {
     value: 0.05,
     unit: 'none',
@@ -270,38 +271,6 @@ const facts = {
     unit: 'seconds',
     label: 'declared ready after launch',
     source: 'dg-website/lighthouserc.json:38-56',
-  },
-
-  // ── Glacier Capital Systems ───────────────────────────────────────────────
-  glQuoteRefresh: {
-    value: 60,
-    unit: 'seconds',
-    label: 'quote refresh cadence',
-    source: 'Glacier — WORKER_QUOTE_REFRESH_SEC, delta/dashboard/worker.py:107-160',
-  },
-  glRescan: {
-    value: 300,
-    unit: 'seconds',
-    label: 'full rescan cadence',
-    source: 'Glacier — WORKER_RESCAN_INTERVAL_SEC, delta/dashboard/worker.py:107-160',
-  },
-  glWorkerMemory: {
-    value: 512,
-    unit: 'none',
-    label: 'worker memory, MB',
-    source: 'Glacier — worker/fly.toml, memory_mb',
-  },
-  glPytestFiles: {
-    value: 37,
-    unit: 'count',
-    label: 'pytest files',
-    source: 'Glacier glacier_v2_local — find -name "test_*.py" | wc -l',
-  },
-  glVitestFiles: {
-    value: 44,
-    unit: 'count',
-    label: 'vitest files',
-    source: 'Glacier glacier_v2_local — find -name "*.test.ts" | wc -l',
   },
 
   // ── AdConfirm ─────────────────────────────────────────────────────────────
@@ -403,6 +372,24 @@ const facts = {
     label: 'company count',
     source: 'startup-investment-analysis notebook cell 119',
   },
+  siMassSegments: {
+    value: 48,
+    unit: 'count',
+    label: 'mass segments the model ranks',
+    source: 'startup-investment-analysis notebook cell 119 — mass_market_segments excluding unknown; content/data/startup-ranking.json',
+  },
+  siGrowingSegments: {
+    value: 10,
+    unit: 'count',
+    label: 'ranked segments whose 2014 funding rose, so present in growth_df',
+    source: 'startup-investment-analysis notebook cell 101 — growth_2014 > 0; scripts/startup_ranking.py',
+  },
+  siZeroedSegments: {
+    value: 38,
+    unit: 'count',
+    label: 'ranked segments scored zero on growth and CAGR',
+    source: 'startup-investment-analysis notebook cells 101 and 119 — absent from growth_df; scripts/startup_ranking.py',
+  },
   siWeightZeroed: {
     value: 65,
     unit: 'percent',
@@ -458,6 +445,34 @@ const facts = {
     unit: 'percent',
     label: 'error the app reports on its own output',
     source: 'nucarbon/app/executive/page.tsx:457',
+  },
+
+  // ── BCS: the OFZ curve, July–August 2023 ──────────────────────────────────
+  // Public market data, written by scripts/ofz_curve.mjs from the Moscow
+  // Exchange and cross-checked against the Bank of Russia.
+  bcTradingDays: {
+    value: 44,
+    unit: 'count',
+    label: 'trading days drawn',
+    source: 'content/data/ofz-curve.json → days (every date in cbr.ru/hd_base/zcyc_params, 03.07.2023–31.08.2023)',
+  },
+  bcKeyRateJune: {
+    value: 7.5,
+    unit: 'percent',
+    label: 'key rate into July',
+    source: 'cbr.ru/hd_base/KeyRate — 7.50 in effect from 01.06.2023',
+  },
+  bcKeyRateJuly: {
+    value: 8.5,
+    unit: 'percent',
+    label: 'key rate from 24 July',
+    source: 'cbr.ru/hd_base/KeyRate — 8.50 from 24.07.2023; Bank of Russia press release, 21 July 2023',
+  },
+  bcKeyRateAug: {
+    value: 12,
+    unit: 'percent',
+    label: 'key rate from 15 August',
+    source: 'cbr.ru/hd_base/KeyRate — 12.00 from 15.08.2023; Bank of Russia press release, extraordinary meeting of 15 August 2023',
   },
 } as const satisfies Record<string, Fact>
 

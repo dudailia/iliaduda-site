@@ -8,7 +8,7 @@ import { ACCENT, DIAGRAM_W, GRAPHITE, INK, RULE, SMALL, WASH } from '../figureKi
  * one: the seam is the target interface, and each adapter owns a private mapper
  * that lands on it. So the honest drawing is a convergence, not a pipeline.
  *
- * The marks record what the convergence costs. A hollow square means the
+ * The marks record what the convergence costs. A filled (indigo) square means the
  * adapter cannot populate line items at all, so the shared type is a lowest
  * common denominator rather than a union.
  */
@@ -19,7 +19,7 @@ interface Source {
   readonly lineItems: boolean
 }
 
-const SOURCES: readonly Source[] = [
+export const SOURCES: readonly Source[] = [
   { name: 'Xero', auth: 'oauth', lineItems: true },
   { name: 'QuickBooks', auth: 'oauth', lineItems: true },
   { name: 'FreeAgent', auth: 'oauth', lineItems: true },
@@ -27,7 +27,7 @@ const SOURCES: readonly Source[] = [
   { name: 'Square', auth: 'oauth', lineItems: false },
   { name: 'Zettle', auth: 'oauth', lineItems: true },
   { name: 'Shopify', auth: 'static', lineItems: true },
-  { name: 'EposNow', auth: 'static', lineItems: false },
+  { name: 'Epos Now', auth: 'static', lineItems: false },
 ]
 
 const W = DIAGRAM_W
@@ -57,21 +57,20 @@ function Marks() {
             >
               {s.name}
             </text>
-            <rect
-              x={LABEL_X + 8}
-              y={y}
-              width="8"
-              height="8"
-              fill={s.lineItems ? ACCENT : 'none'}
-              stroke={ACCENT}
-            />
-            <text x={LABEL_X + 22} y={y + 8} className="font-mono" fontSize="9" fill={GRAPHITE}>
+            {/* The claim is the three that cannot supply line items: they carry the indigo square; the rest, context, a
+                small graphite dot (no hollow boxes, which read as checkboxes). */}
+            {s.lineItems ? (
+              <circle cx={LABEL_X + 12} cy={y + 4} r="2.5" fill={GRAPHITE} />
+            ) : (
+              <rect x={LABEL_X + 8} y={y} width="8" height="8" fill={ACCENT} />
+            )}
+            <text x={LABEL_X + 22} y={y + 8} className="font-mono" fontSize="12" fill={GRAPHITE}>
               {s.auth === 'static' ? 'static' : 'oauth'}
             </text>
             <path
               d={`M ${LABEL_X + 78} ${y + 4} C ${HUB_X - 24} ${y + 4}, ${HUB_X - 24} ${midY}, ${HUB_X - 4} ${midY}`}
               fill="none"
-              stroke={RULE}
+              stroke={GRAPHITE}
               strokeWidth="1"
             />
           </g>
@@ -94,10 +93,10 @@ function Marks() {
         y={HUB_Y + 34}
         textAnchor="middle"
         className="font-mono"
-        fontSize="9.5"
+        fontSize="12"
         fill={GRAPHITE}
       >
-        one target interface
+        one target type
       </text>
 
       <line
@@ -108,12 +107,12 @@ function Marks() {
         stroke={RULE}
         strokeWidth="1"
       />
-      <g className="font-mono" fontSize="10" fill={GRAPHITE}>
-        <rect x="0" y={H - 44} width="8" height="8" fill="none" stroke={ACCENT} />
-        <text x="14" y={H - 36}>
+      <g className="font-mono" fontSize="12" fill={GRAPHITE}>
+        <rect x="0" y={H - 46} width="8" height="8" fill={ACCENT} stroke={ACCENT} />
+        <text x="14" y={H - 38}>
           {`${value('acAdaptersWithoutLineItems')} of ${value('acIntegrations')} cannot supply line items,`}
         </text>
-        <text x="14" y={H - 24}>
+        <text x="14" y={H - 25}>
           so the shared type is a lowest common
         </text>
         <text x="14" y={H - 12}>
@@ -130,7 +129,7 @@ export const schemaReconciliation = {
   ],
   description:
     `Eight accounting and point-of-sale integrations — Xero, QuickBooks, FreeAgent, Sage, Square, ` +
-    `Zettle, Shopify and EposNow — each map onto one internal interface called InvoiceData. Six ` +
+    `Zettle, Shopify and Epos Now — each map onto one internal interface called InvoiceData. Six ` +
     `authenticate by OAuth refresh and two by a static key. ` +
     `${value('acAdaptersWithoutLineItems')} of the ${value('acIntegrations')} cannot supply line ` +
     `items at all, so the shared type is a lowest common denominator rather than a union of what ` +

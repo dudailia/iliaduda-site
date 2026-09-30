@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { CONTEXT_MIX, mixHex } from '../lib/minis/shape'
 
 /**
  * Contrast is computed from app/globals.css — the actual source of truth — so
@@ -11,10 +12,19 @@ import { describe, expect, it } from 'vitest'
 
 const css = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
-function token(name: string): string {
-  const m = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css)
-  if (!m || !m[1]) throw new Error(`--color-${name} not found in app/globals.css`)
-  return m[1]
+/** The light set lives in @theme; the dark set redeclares the same six names
+ *  inside the prefers-color-scheme block. Each theme is checked on its own. */
+const themeBlock = /@theme\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
+const darkBlock = /@media \(prefers-color-scheme: dark\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
+// Print's own set (a white page, darker graphite and hairline for toner), declared on :root inside @media print.
+const printBlock = /@media print\s*\{\s*:root\s*\{([\s\S]*?)\n  \}/.exec(css)?.[1] ?? ''
+
+function reader(block: string, theme: string) {
+  return (name: string): string => {
+    const m = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(block)
+    if (!m || !m[1]) throw new Error(`--color-${name} not found in the ${theme} theme`)
+    return m[1]
+  }
 }
 
 function channel(v: number): number {
@@ -35,46 +45,83 @@ function ratio(a: string, b: string): number {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
 }
 
-const paper = token('paper')
+for (const [theme, block] of [
+  ['light', themeBlock],
+  ['dark', darkBlock],
+  ['print', printBlock],
+] as const) {
+  const token = reader(block, theme)
+  const paper = token('paper')
 
-describe('palette contrast against its documented use', () => {
-  it('body text (ink on paper) clears AAA for body size', () => {
-    expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(7)
+  describe(`${theme} palette contrast against its documented use`, () => {
+    it('body text (ink on paper) clears AAA for body size', () => {
+      expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(7)
+    })
+
+    it('margin notes and captions (graphite on paper) clear AA for body text', () => {
+      // Notes are 15px, which is body text, not large text — so 4.5:1, not 3:1.
+      expect(ratio(token('graphite'), paper)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('the accent clears AA for body text, because figure labels use it', () => {
+      expect(ratio(token('indigo'), paper)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('the accent wash is distinguishable from paper as a graphic', () => {
+      // A fill, never text. WCAG non-text contrast is 3:1 — but this fill is only
+      // ever read against its own outline and neighbouring marks, so the real
+      // requirement is that it is visible at all, and that the solid accent on
+      // top of it clears 3:1 so the two bars are never confusable.
+      expect(ratio(token('indigo'), token('indigo-wash'))).toBeGreaterThanOrEqual(3)
+    })
+
+    it('hairlines are visible without competing with text', () => {
+      const r = ratio(token('rule'), paper)
+      expect(r).toBeGreaterThanOrEqual(1.2)
+      expect(r).toBeLessThan(ratio(token('graphite'), paper))
+    })
+
+    it('the focus ring clears 3:1 against the background it sits on', () => {
+      expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(3)
+    })
+
+    it('a thumbnail’s context marks (graphite mixed into paper) are seen at 2:1, and stay quieter than its text', () => {
+      const tone = mixHex(token('graphite'), paper, CONTEXT_MIX)
+      expect(ratio(tone, paper)).toBeGreaterThanOrEqual(2)
+      expect(ratio(tone, paper)).toBeLessThan(ratio(token('graphite'), paper))
+    })
+  })
+}
+
+describe('the colours drawn outside the stylesheet are its tokens', () => {
+  const hex = (f: string) => readFileSync(f, 'utf8')
+  const light = reader(themeBlock, 'light')
+  const dark = reader(darkBlock, 'dark')
+
+  it('the browser’s own chrome (app/layout.tsx themeColor) is the paper, by day and by night', () => {
+    const src = hex('app/layout.tsx')
+    const color = (scheme: string) => new RegExp(`prefers-color-scheme: ${scheme}\\)', color: '(#[0-9a-fA-F]{6})'`).exec(src)?.[1]?.toLowerCase()
+    expect(color('light')).toBe(light('paper').toLowerCase())
+    expect(color('dark')).toBe(dark('paper').toLowerCase())
   })
 
-  it('margin notes and captions (graphite on paper) clear AA for body text', () => {
-    // Notes are 15px, which is body text, not large text — so 4.5:1, not 3:1.
-    expect(ratio(token('graphite'), paper)).toBeGreaterThanOrEqual(4.5)
-  })
-
-  it('the accent clears AA for body text, because figure labels use it', () => {
-    expect(ratio(token('indigo'), paper)).toBeGreaterThanOrEqual(4.5)
-  })
-
-  it('the accent wash is distinguishable from paper as a graphic', () => {
-    // A fill, never text. WCAG non-text contrast is 3:1 — but this fill is only
-    // ever read against its own outline and neighbouring marks, so the honest
-    // requirement is that it is visible at all, and that the solid accent on
-    // top of it clears 3:1 so the two bars are never confusable.
-    expect(ratio(token('indigo'), token('indigo-wash'))).toBeGreaterThanOrEqual(3)
-  })
-
-  it('hairlines are visible without competing with text', () => {
-    const r = ratio(token('rule'), paper)
-    expect(r).toBeGreaterThanOrEqual(1.2)
-    expect(r).toBeLessThan(ratio(token('graphite'), paper))
-  })
-
-  it('the focus ring clears 3:1 against the background it sits on', () => {
-    expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(3)
+  it('the Open Graph cards (lib/og.tsx) are drawn in the day palette', () => {
+    const src = hex('lib/og.tsx')
+    const og = (k: string) => new RegExp(`\\b${k}: '(#[0-9a-fA-F]{6})'`).exec(src)?.[1]?.toLowerCase()
+    for (const [k, t] of [['paper', 'paper'], ['ink', 'ink'], ['graphite', 'graphite'], ['rule', 'rule'], ['indigo', 'indigo'], ['wash', 'indigo-wash']] as const)
+      expect(og(k), k).toBe(light(t).toLowerCase())
   })
 })
 
-describe('the palette is exactly the six documented values', () => {
-  it('declares no seventh colour token', () => {
-    const declared = [...css.matchAll(/--color-([a-z-]+):/g)].map((m) => m[1])
-    expect(new Set(declared)).toEqual(
-      new Set(['ink', 'paper', 'graphite', 'rule', 'indigo', 'indigo-wash']),
-    )
+describe('the palette is exactly the six documented values, in both themes', () => {
+  const SIX = new Set(['ink', 'paper', 'graphite', 'rule', 'indigo', 'indigo-wash'])
+  const names = (block: string) => new Set([...block.matchAll(/--color-([a-z-]+):/g)].map((m) => m[1]))
+
+  it('declares no seventh colour token anywhere', () => {
+    expect(names(css)).toEqual(SIX)
+  })
+
+  it('the dark theme redeclares every role, so none silently falls back to light', () => {
+    expect(names(darkBlock)).toEqual(SIX)
   })
 })

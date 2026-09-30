@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Row } from './Layout'
+import { Items, Row } from './Layout'
 
 /**
  * Section headings live in the rail, right-aligned, rather than stacked above
@@ -13,21 +13,31 @@ import { Row } from './Layout'
  */
 
 export function CaseStudyTitle({
-  slug,
+  byline,
   title,
   standfirst,
   level = 'h2',
+  figure = true,
 }: {
-  slug: string
+  /** Role and dates, as on the résumé. Sits under the title, never above it:
+   *  a label over a heading is a kicker, and the heading has to carry itself. */
+  byline?: ReactNode
   title: string
   standfirst: ReactNode
   level?: 'h1' | 'h2'
+  /** A figure follows (every paper's Fig. 1): it sits closer under the abstract's rule at lg. */
+  figure?: boolean
 }) {
   const Heading = level
+  // At lg the first figure sits 2.5rem under the abstract's rule rather than the 4rem between figures (its own margin,
+  // less this block's 1.5rem), so a laptop's first screen shows more of Fig. 1's stage.
   return (
-    <Row rail={slug} className="pt-10 lg:pt-16">
-      <Heading className={level === 'h1' ? 'text-h1' : 'text-h2'}>{title}</Heading>
-      <div className="mt-4 max-w-[37.9rem] text-graphite">{standfirst}</div>
+    <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
+      <Heading className={level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'}>{title}</Heading>
+      {byline ? (
+        <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>
+      ) : null}
+      <div className="mt-5 max-w-[37.9rem]">{standfirst}</div>
       <hr className="mt-8 border-0 border-t border-rule" />
     </Row>
   )
@@ -55,8 +65,9 @@ export function Section({
   const Heading = level
   return (
     <section {...(id ? { id } : {})} className="mt-10 lg:mt-14">
-      <div className="grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-10 lg:gap-y-0">
-        <Heading className="text-meta font-mono font-normal tracking-normal text-ink lg:col-start-1 lg:row-start-1 lg:self-start lg:pt-1 lg:text-right">
+      {/* On paper, a block: a grid row gives the printer nowhere to hold a heading with the text under it. */}
+      <div className="grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 print:block">
+        <Heading className="text-meta font-mono font-normal tracking-normal text-ink print:mb-2 print:break-after-avoid lg:col-start-1 lg:row-start-1 lg:self-start lg:pt-1 lg:text-right">
           {heading}
         </Heading>
         {/* When a section opens with an annotated paragraph, that note wants
@@ -66,7 +77,9 @@ export function Section({
             leaves the occupied space unchanged — which looks fixed and still
             collides. every later note keeps aligning with its paragraph.
             tests/e2e/rail.spec.ts asserts no two rail items ever intersect. */}
-        <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
+        {/* The measure holds at every width, not only beside the rail: a tablet's column would otherwise run to 85
+            characters a line. */}
+        <div className="min-w-0 max-w-(--measure) lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
           {children}
         </div>
       </div>
@@ -88,7 +101,9 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
           {rows.map(([k, v]) => (
             <div key={k} className="contents">
               <dt className="text-meta font-mono text-graphite sm:pt-0.5">{k}</dt>
-              <dd className="min-w-0 break-words font-mono">{v}</dd>
+              {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
+                  long address still wraps at 360px. */}
+              <dd className="min-w-0 break-words font-mono [&_a]:py-1">{typeof v === 'string' ? <Items items={v} /> : v}</dd>
             </div>
           ))}
         </dl>

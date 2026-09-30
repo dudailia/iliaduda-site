@@ -1,0 +1,187 @@
+/**
+ * Where the terrain sits in the world and how it is looked at — shared by the
+ * server poster and the live renderer, so the still frame and the first live
+ * frame are the same picture.
+ *
+ * World axes: x across price (bids left, asks right), z across time (now at
+ * the front, z = Z_NOW; the past recedes toward −z), y up in depth.
+ */
+
+/** Ticks shown across the valley: 64 each side of the window's centre. */
+export const VIS = 128
+export const XW = 1.35
+export const DX = (2 * XW) / VIS
+/** World depth of one row (1/12 s). 256 rows ≈ 3.3 units. */
+export const DZ = 0.013
+/** Rows of history the renderer draws at each quality level, lowest first. */
+export const ROWS_BY_Q = [96, 150, 208, 256] as const
+/** The history at the default quality: what the poster labels, so its labels are the first live frame's. */
+export const HISTORY = ROWS_BY_Q[2]
+export const Z_NOW = 1.25
+/** Height of the walls at the reference depth. */
+export const H = 0.7
+/**
+ * Cumulative depth, in shares, drawn at height H; above it the walls keep rising, slower. The calibrated book holds
+ * about 350 shares within ten ticks of the touch and 1,000 within sixty, so H falls around forty ticks out.
+ */
+export const REF = 800
+
+/** Exponent of the height curve; the shader reads the same constant. */
+export const POW = 0.7
+/** Height of a wall with `cum` shares between it and the touch. A concave power keeps the thin book near the price legible. */
+export const height = (cum: number) => H * Math.pow(Math.abs(cum) / REF, POW)
+
+export type M4 = Float32Array
+export interface Camera {
+  yaw: number
+  pitch: number
+  dist: number
+  /** Point looked at. */
+  tx: number
+  ty: number
+  tz: number
+}
+
+export const FOV = (34 * Math.PI) / 180
+export const REST = { yaw: -0.16, pitch: 0.6, ty: 0.12, tz: -0.25 }
+/** How far the resting camera swings, in radians: the slow drift in yaw, and the reader's lean (pointer or tilt). */
+export const SWAY = { drift: 0.03, period: 48, yaw: 0.055, pitch: 0.025 }
+/**
+ * The walls at the valley's ends stand about 1.16 H tall, and 1.38 H at the 95th percentile over ten calm minutes
+ * (cumulative depth sixty-four ticks out): the fit leaves room for that, not just for H.
+ */
+const TALL = 1.4
+/**
+ * The resting pitch for a stage of this aspect: looking down the valley at about a third of a right angle, so the
+ * history climbs the frame as the walls fill its width; a laptop's wider column looks down a touch less, so its
+ * walls keep their height.
+ */
+export const restPitch = (aspect: number) => {
+  const t = Math.min(1, Math.max(0, (aspect - 0.9) / 0.35))
+  return REST.pitch - 0.05 * t * t * (3 - 2 * t)
+}
+
+/**
+ * Perspective with an optional vertical lens shift (in NDC), so a tall phone
+ * frame can sit the terrain lower, between its captions, without tilting the
+ * camera.
+ */
+export function perspective(aspect: number, shift = 0, near = 0.05, far = 40): M4 {
+  const f = 1 / Math.tan(FOV / 2)
+  const m = new Float32Array(16)
+  m[0] = f / aspect
+  m[5] = f
+  m[9] = -shift
+  m[10] = (far + near) / (near - far)
+  m[11] = -1
+  m[14] = (2 * far * near) / (near - far)
+  return m
+}
+
+/** The lens shift for a frame of this aspect. */
+export const lens = (aspect: number) => (aspect < 1 ? -0.1 : 0)
+
+export function mul(a: M4, b: M4): M4 {
+  const o = new Float32Array(16)
+  for (let c = 0; c < 4; c++)
+    for (let r = 0; r < 4; r++) {
+      let s = 0
+      for (let k = 0; k < 4; k++) s += a[k * 4 + r]! * b[c * 4 + k]!
+      o[c * 4 + r] = s
+    }
+  return o
+}
+
+/** Camera position for an orbit about the target. */
+export function eye(c: Camera): [number, number, number] {
+  const cp = Math.cos(c.pitch)
+  return [c.tx + c.dist * cp * Math.sin(c.yaw), c.ty + c.dist * Math.sin(c.pitch), c.tz + c.dist * cp * Math.cos(c.yaw)]
+}
+
+export function view(c: Camera): M4 {
+  const [ex, ey, ez] = eye(c)
+  let fx = c.tx - ex, fy = c.ty - ey, fz = c.tz - ez
+  const fl = Math.hypot(fx, fy, fz)
+  fx /= fl; fy /= fl; fz /= fl
+  // side = f × up(0,1,0)
+  let sx = -fz, sz = fx
+  const sl = Math.hypot(sx, sz)
+  sx /= sl; sz /= sl
+  const sy = 0
+  // up = side × f
+  const ux = sy * fz - sz * fy, uy = sz * fx - sx * fz, uz = sx * fy - sy * fx
+  return new Float32Array([
+    sx, ux, -fx, 0,
+    sy, uy, -fy, 0,
+    sz, uz, -fz, 0,
+    -(sx * ex + sy * ey + sz * ez), -(ux * ex + uy * ey + uz * ez), fx * ex + fy * ey + fz * ez, 1,
+  ])
+}
+
+export function apply(m: M4, x: number, y: number, z: number): [number, number, number, number] {
+  return [
+    m[0]! * x + m[4]! * y + m[8]! * z + m[12]!,
+    m[1]! * x + m[5]! * y + m[9]! * z + m[13]!,
+    m[2]! * x + m[6]! * y + m[10]! * z + m[14]!,
+    m[3]! * x + m[7]! * y + m[11]! * z + m[15]!,
+  ]
+}
+
+/** Screen position in CSS pixels (origin top-left) of a world point, or null behind the camera. */
+export function toScreen(m: M4, w: number, h: number, x: number, y: number, z: number): [number, number] | null {
+  const q = apply(m, x, y, z)
+  if (q[3] <= 0) return null
+  return [((q[0] / q[3]) * 0.5 + 0.5) * w, (1 - ((q[1] / q[3]) * 0.5 + 0.5)) * h]
+}
+
+/**
+ * The camera at which the terrain fills the frame for this aspect. On a wide
+ * screen the whole valley and ~14 s of history fit, centred: the three-quarter
+ * view brings the sellers' wall nearer, so the target slides along the valley
+ * until the paper either side is equal. On a tall phone the camera comes in so
+ * the walls near the price fill the width instead of a postage stamp of all
+ * 128 ticks.
+ */
+export function fit(yaw: number, pitch: number, aspect: number, sway = true): Camera {
+  const narrow = aspect < 1
+  const xw = narrow ? XW * 0.44 : XW
+  const back = Z_NOW - 2.2
+  const pts: [number, number, number][] = []
+  // A laptop's column shows the valley's ends, so it fits them as tall as they stand, at every extreme of the drift
+  // and the lean; a phone's full-bleed frame crops the ends anyway, and fits the lower walls near the price.
+  const top = narrow ? H : H * TALL
+  for (const x of [-xw, xw]) for (const z of [Z_NOW, back]) pts.push([x, 0, z], [x, top, z])
+  const swing = sway && !narrow
+  const sy = swing ? SWAY.drift + SWAY.yaw : 0, sp = swing ? SWAY.pitch : 0
+  const swings = [-sy, 0, sy].flatMap((dy) => [-sp, sp].map((dp) => [dy, dp] as const))
+  // A phone's stage is full-bleed, so the walls may run to its edges; a laptop's column keeps paper on both sides,
+  // enough for the drift to swing into.
+  const lim = narrow ? { x: 1.02, y: 0.86 } : { x: 0.93, y: 0.9 }
+  let base = { yaw, pitch, tx: 0, ty: REST.ty, tz: narrow ? REST.tz + 0.3 : REST.tz }
+  const project = (d: number, dy = 0, dp = 0) => {
+    const m = mul(perspective(aspect, lens(aspect)), view({ ...base, yaw: base.yaw + dy, pitch: base.pitch + dp, dist: d }))
+    return pts.map(([x, y, z]) => apply(m, x, y, z))
+  }
+  const solve = () => {
+    let lo = 0.5, hi = 20
+    for (let i = 0; i < 24; i++) {
+      const d = (lo + hi) / 2
+      const ok = swings.every(([dy, dp]) => project(d, dy, dp).every((q) => q[3] > 0 && Math.abs(q[0] / q[3]) <= lim.x && Math.abs(q[1] / q[3]) <= lim.y))
+      if (ok) hi = d
+      else lo = d
+    }
+    return hi
+  }
+  let dist = solve()
+  if (!narrow)
+    for (let k = 0; k < 12; k++) {
+      const xs = project(dist).map((q) => q[0] / q[3])
+      const off = (Math.min(...xs) + Math.max(...xs)) / 2
+      base = { ...base, tx: base.tx + off * 0.5 * dist * Math.tan(FOV / 2) * aspect * Math.cos(yaw) }
+      dist = solve()
+    }
+  return { ...base, dist }
+}
+
+/** The inverse of a 4×4 matrix (lib/m4.ts). */
+export { invert } from '../m4'

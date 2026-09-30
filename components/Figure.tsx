@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import { Row } from './Layout'
+import { Items, Row } from './Layout'
 
 /**
  * Every figure goes through here so the accessibility wiring cannot be
@@ -18,7 +18,8 @@ import { Row } from './Layout'
  * one of them is.
  *
  * `id` is a permanent anchor: these get pasted into email, which is how this
- * site actually gets used. They are listed in the sitemap and never renamed.
+ * site actually gets used. Fragments are not sitemap entries, but they are
+ * never renamed.
  */
 
 export interface Arrangement {
@@ -54,12 +55,14 @@ export function Figure({
   table,
 }: FigureProps) {
   return (
-    <figure id={id} className="my-12 lg:my-16">
+    <figure id={id} className="my-12 lg:my-16" aria-labelledby={`${id}-title`} aria-describedby={`${id}-caption`}>
       <Row rail={number}>
         <div className="text-note border-b border-rule pb-2">
-          <span className="block text-ink">{title}</span>
+          <span id={`${id}-title`} className="block text-pretty text-ink">{title}</span>
           {subtitle ? (
-            <span className="text-meta block pt-0.5 font-mono text-graphite">{subtitle}</span>
+            <span className="text-meta block pt-0.5 font-mono text-graphite">
+              <Items items={subtitle} />
+            </span>
           ) : null}
         </div>
 
@@ -85,7 +88,7 @@ export function Figure({
           )
         })}
 
-        <figcaption className="text-note mt-5 max-w-[39.2rem] text-graphite">{caption}</figcaption>
+        <figcaption id={`${id}-caption`} className="text-note mt-5 max-w-[39.2rem] text-graphite">{caption}</figcaption>
 
         {table ? <div className="sr-only">{table}</div> : null}
       </Row>

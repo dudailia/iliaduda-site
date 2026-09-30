@@ -18,6 +18,7 @@ import { ACCENT, DIAGRAM_W, GRAPHITE, INK, RULE, SMALL, WASH } from '../figureKi
 const RAW = value('siRowsRaw')
 const CLEANED = value('siRowsCleaned')
 const FINAL = value('siRowsFinal')
+const OUTLIERS = value('siOutliersRemoved')
 
 const STAGES = [
   { label: 'records as supplied', n: RAW, role: 'context' as const },
@@ -26,7 +27,8 @@ const STAGES = [
 ]
 
 const W = DIAGRAM_W
-const X0 = 0
+// Two units in: a glyph's side bearing at x = 0 reaches past the frame in some engines (Firefox measured 2).
+const X0 = 2
 const BAR_W = 300
 const TOP = 22
 const PITCH = 64
@@ -56,17 +58,17 @@ function Marks() {
               strokeWidth={s.role === 'measured' ? 0 : 1}
             />
             {i < STAGES.length - 1 ? (
-              <text x={X0} y={y + BAR_H + 20} fontSize="10" fill={GRAPHITE}>
+              <text x={X0} y={y + BAR_H + 20} fontSize="12" fill={GRAPHITE}>
                 {i === 0
                   ? `− ${fmt(RAW - CLEANED)} lacking a funding record or a date`
-                  : `− ${fmt(CLEANED - FINAL)} outliers, and years too thin to use`}
+                  : `− ${fmt(OUTLIERS)} outliers, − ${fmt(CLEANED - FINAL - OUTLIERS)} in thin years`}
               </text>
             ) : null}
           </g>
         )
       })}
       <line x1={X0} y1={H - 22} x2={W} y2={H - 22} stroke={RULE} strokeWidth="1" />
-      <text x={X0} y={H - 8} className="font-mono" fontSize="10" fill={GRAPHITE}>
+      <text x={X0} y={H - 8} className="font-mono" fontSize="12" fill={GRAPHITE}>
         {`${value('siLossPct')}% of supplied records are not ranked`}
       </text>
     </>

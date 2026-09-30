@@ -3,8 +3,17 @@ import { ROUTES } from './routes'
 
 for (const route of ROUTES) {
   test(`${route} gives every interactive element a visible focus ring`, async ({ page }) => {
+    // Reduced motion: a figure that streams in on view (CloseBooks) adds its
+    // buttons mid-loop otherwise, and the rings do not depend on motion.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto(route)
-    const targets = page.locator('a[href], button, [tabindex="0"]')
+    // Everything in the tab order. Elements with tabindex=-1 are out of it by
+    // design (a thumbnail that duplicates its title link, the inactive options
+    // of a roving radio group) and are reached another way; so is anything
+    // display:none at this width (the OFZ figure's endpoint marks on a phone).
+    const targets = page
+      .locator('a[href]:not([tabindex="-1"]), button:not([tabindex="-1"]), [tabindex="0"]')
+      .filter({ visible: true })
     const count = await targets.count()
     expect(count).toBeGreaterThan(0)
 
@@ -13,11 +22,12 @@ for (const route of ROUTES) {
       await el.focus()
       const ring = await el.evaluate((node) => {
         const s = getComputedStyle(node)
-        return {
-          outlineStyle: s.outlineStyle,
-          outlineWidth: s.outlineWidth,
-          outlineColor: s.outlineColor,
-        }
+        // A live figure's stage draws its ring over its canvas, on the ring beside it (components/stage/FocusRing.tsx).
+        const peer = s.outlineStyle === 'none' ? node.nextElementSibling : null
+        const p = peer ? getComputedStyle(peer) : null
+        return p && Number(p.opacity) === 1
+          ? { outlineStyle: p.outlineStyle, outlineWidth: p.outlineWidth, outlineColor: p.outlineColor }
+          : { outlineStyle: s.outlineStyle, outlineWidth: s.outlineWidth, outlineColor: s.outlineColor }
       })
       const visible =
         ring.outlineStyle !== 'none' && Number.parseFloat(ring.outlineWidth) >= 1

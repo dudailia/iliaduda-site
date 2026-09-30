@@ -2,10 +2,10 @@ import { value } from '@/content/facts'
 import { ACCENT, DIAGRAM_W, GRAPHITE, INK, LABEL, RULE, SMALL, WASH } from '../figureKit'
 
 /**
- * Fig 2. Where tenant isolation actually lives in CloseBooks — which is two
- * places, not one. The interesting thing is not the row-level security; it is
- * that a sixth of the routes go around it and are isolated by hand instead.
- * Drawing only the policy layer would have been the flattering version.
+ * Where tenant isolation lives in CloseBooks: two enforcement paths to the same
+ * rows. Most routes go through row-level security keyed on firm membership and
+ * role; the routes that need the service-role key carry an owner check of
+ * their own. The figure draws both, because the design is both.
  */
 
 const ROUTES = value('cbApiRoutes')

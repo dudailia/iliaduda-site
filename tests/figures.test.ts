@@ -37,11 +37,21 @@ const figureFiles = existsSync(dir)
 const PROJECT_OF: Readonly<Record<string, string>> = {
   'MaterialityBar.tsx': 'cr',
   'TenantIsolation.tsx': 'cb',
-  'ContactBudget.tsx': 'dg',
-  'OneWaySeam.tsx': 'gl',
   'SchemaReconciliation.tsx': 'ac',
   'DataLoss.tsx': 'si',
   'ConstantsDerivation.tsx': 'nc',
+  'ArbitrageBound.tsx': 'iv',
+  'CricketReplay.tsx': 'cr',
+  'SegmentRanking.tsx': 'si',
+  'CategorisationPipeline.tsx': 'cb',
+  'SettlementInstrument.tsx': 'dg',
+  'OfzCurve.tsx': 'bc',
+  'Futures.tsx': 'fu',
+  'Surface.tsx': 'iv',
+  'OrderBook.tsx': 'mk',
+  'OrderFlow.tsx': 'mk',
+  'Market.tsx': 'mk',
+  'MarketPipeline.tsx': 'mk',
 }
 
 function ownValues(file: string): Set<string> {
@@ -69,7 +79,9 @@ describe('figures', () => {
     const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ')
 
     it(`${file} reads its data from content/facts`, () => {
-      expect(/from '@\/content\/facts'/.test(code)).toBe(true)
+      // content/synthetic is part of the same table (facts.ts spreads it in);
+      // client figures import it directly so the browser gets only its values.
+      expect(/from '@\/content\/(facts|synthetic)'/.test(code)).toBe(true)
     })
 
     it(`${file} is mapped to a project`, () => {

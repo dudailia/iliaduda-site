@@ -153,7 +153,9 @@ function Wide() {
               stroke={ACCENT}
               strokeWidth={stroke(s.role)}
             />
-            <text x={W.x0 + w + 9} y={y + 16} fontSize="12.5" fill={INK}>
+            {/* A paper halo: the small gains' labels cross the ambiguous band
+                and the 1% line. */}
+            <text x={W.x0 + w + 9} y={y + 16} fontSize="12.5" fill={INK} stroke="var(--color-paper)" strokeWidth={4} paintOrder="stroke">
               {gain(s.gain)}
             </text>
           </g>
@@ -176,7 +178,7 @@ function Wide() {
             y={W.axisY + 19}
             textAnchor={anchorFor(t)}
             className="font-mono"
-            fontSize="11.5"
+            fontSize="12"
             fill={GRAPHITE}
           >
             {t}%
@@ -220,7 +222,7 @@ function Narrow() {
         const w = Math.max(nScale(s.gain), 1.5)
         return (
           <g key={s.key} className="font-mono">
-            <text x={N.x0} y={y - 7} fontSize="12" fill={INK}>
+            <text x={N.x0} y={y - 7} fontSize="12" fill={INK} stroke="var(--color-paper)" strokeWidth={4} paintOrder="stroke">
               {`${s.label}  ${gain(s.gain)}`}
             </text>
             <rect
@@ -252,7 +254,7 @@ function Narrow() {
             y={N.axisY + 19}
             textAnchor={anchorFor(t)}
             className="font-mono"
-            fontSize="11"
+            fontSize="12"
             fill={GRAPHITE}
           >
             {t}%
@@ -286,8 +288,8 @@ export const materialityArrangements = [
 
 export const materialityBar = {
   description:
-    `Relative improvement in negative log-likelihood over a marginal baseline, T1/T20, after calibration. ` +
-    `Match state improves on the baseline by ${STATE} percent. Player identity adds ${IDENTITY} percent and a ` +
+    `Relative improvement in negative log-likelihood over the level below, T1/T20, after calibration. ` +
+    `Match state improves on a marginal baseline by ${STATE} percent. Over match state, player identity adds ${IDENTITY} percent and a ` +
     `per-match latent adds ${LATENT} percent, both below the ${threshold(JUSTIFY)} threshold at which the ` +
     `decision rule would justify building the model, and player identity falls inside the ambiguous band ` +
     `between ${threshold(AMBIG_LO)} and ${threshold(JUSTIFY)}.`,

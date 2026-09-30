@@ -10,11 +10,18 @@
    thing on the page is a measurement, and within a measurement the colour says
    which number is the claim.
 
-   Contrast ratios against --paper are asserted in tests/contrast.test.ts, not
-   eyeballed.
+   There are two themes and still six roles. The dark set is the same six names
+   redeclared under prefers-color-scheme, so every utility and every figure
+   follows the reader's system setting without a toggle, a script or a flash of
+   the wrong theme. Contrast ratios for BOTH sets are asserted in
+   tests/contrast.test.ts, not eyeballed.
    --------------------------------------------------------------------------- */
 
 @theme {
+  /* The site's one ease-out, for Tailwind's `ease-out` too: the strong curve every arrival and press uses. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* And its one in-out, for a change of shape on screen (Tailwind's `ease-in-out` too, so its default is never used). */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --color-ink: #16181c;
   --color-paper: #faf9f7;
   --color-graphite: #5b6068;
@@ -46,6 +53,9 @@
   --text-h2--line-height: 1.22;
   --text-h1: 2.75rem; /* 44px */
   --text-h1--line-height: 1.12;
+  /* The masthead name — the one step above h1, used once, on the home page. */
+  --text-display: 3.5rem; /* 56px */
+  --text-display--line-height: 1.04;
 
   /* Deliberately NOT `ch`.
      The ch unit is the advance width of "0" in the FONT CURRENTLY IN USE, so a
@@ -59,88 +69,196 @@
      so the line length is unchanged once the font is in. */
   --measure: 44.375rem;
   --rail: 15rem;
-  --gutter: 2rem;
+  /* The space between rail and text column. One value, used by every grid. */
+  --gutter: 2.5rem;
 }
 
-/* ---------------------------------------------------------------------------
-   Base
-   --------------------------------------------------------------------------- */
-
-html {
-  /* No smooth scroll: figure anchors are pasted into email and should land
-     immediately, and it is motion nobody asked for. */
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
-  font-family: var(--font-serif);
-  font-size: var(--text-small);
-  line-height: 1.6;
-  font-variant-numeric: oldstyle-nums proportional-nums;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-@media (min-width: 48rem) {
-  body {
-    font-size: var(--text-body);
-    line-height: 1.62;
+/* Night reading. Warm near-black paper, warm off-white ink, and an indigo
+   lifted until it carries the same meaning at the same contrast. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink: #e9e6df;
+    --color-paper: #111316;
+    --color-graphite: #9ea3ab;
+    --color-rule: #2b2e34;
+    --color-indigo: #a3adf5;
+    --color-indigo-wash: #262b4c;
   }
 }
 
-h1,
-h2,
-h3 {
-  /* Same serif at larger sizes with tighter tracking. There is no third face
-     and no display weight. */
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  text-wrap: balance;
-  font-variant-numeric: lining-nums tabular-nums;
-}
+/* ---------------------------------------------------------------------------
+   Base.
 
-p {
-  text-wrap: pretty;
+   Everything here is inside @layer base. It was not, once: an unlayered
+   `a { border-bottom }` beats every Tailwind utility, because unlayered styles
+   outrank all layers regardless of specificity — so `border-0` on the index
+   links lost, and every entry drew a second rule under its first.
+   --------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  html {
+    /* No smooth scroll: figure anchors are pasted into email and should land
+       immediately, and it is motion nobody asked for. */
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--color-rule) var(--color-paper);
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    caret-color: var(--color-ink);
+    font-family: var(--font-serif);
+    font-size: var(--text-small);
+    line-height: 1.6;
+    font-variant-numeric: oldstyle-nums proportional-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  @media (min-width: 48rem) {
+    body {
+      font-size: var(--text-body);
+      line-height: 1.62;
+    }
+  }
+
+  ::selection {
+    background-color: var(--color-indigo-wash);
+    color: var(--color-ink);
+  }
+
+  h1,
+  h2,
+  h3 {
+    /* Same serif at larger sizes with tighter tracking. There is no third face
+       and no display weight. */
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  p,
+  li,
+  figcaption {
+    text-wrap: pretty;
+  }
+
+  /* iOS paints its own grey rectangle on a tapped control, over the control's own press (and its corners); the
+     controls and the Contents' thumbnails have feedback of their own. Text links keep it: they have no other. */
+  button,
+  [role='radio'],
+  [data-vt-thumb] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Links — ink with a graphite-mixed underline going to ink on hover (focus
+     has the ring) (the rule's own 1.3:1 all but vanished at 1x density, so a link
+     read as plain text). No accent, no arrow glyph. text-decoration rather than a border:
+     a border sits on the padding box, so the tap-target padding links carry on
+     mobile pushed the line a full 8px below the words it belonged to. */
+  a {
+    color: inherit;
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in oklab, var(--color-graphite) 55%, var(--color-paper));
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+    text-decoration-skip-ink: auto;
+    transition:
+      color 120ms ease,
+      text-decoration-color 120ms ease;
+  }
+
+  /* Gated: on touch, a tap leaves :hover stuck on until the next tap. */
+  @media (hover: hover) and (pointer: fine) {
+    a:hover {
+      text-decoration-color: var(--color-ink);
+    }
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  /* The site's slider, the same in every browser (iOS Safari ignores accent-color): a 4px track in the context tone,
+     indigo as far as the value (--fill, which each input sets from its own value: components/stage/range.ts), and a
+     16px indigo thumb ringed in paper, inside the input's 24px to the touch. Forced colours keep the system's own. */
+  input[type='range'] {
+    --fill: 0%;
+    --track: color-mix(in oklab, var(--color-graphite) 45%, var(--color-paper));
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type='range']:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(to right, var(--color-indigo) var(--fill), var(--track) var(--fill));
+  }
+  input[type='range']::-moz-range-track {
+    height: 4px;
+    background: var(--track);
+  }
+  input[type='range']::-moz-range-progress {
+    height: 4px;
+    background: var(--color-indigo);
+  }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    border: 2px solid var(--color-paper);
+    border-radius: 50%;
+    background: var(--color-indigo);
+    box-shadow: 0 0 0 1px var(--color-indigo);
+  }
+  input[type='range']::-moz-range-thumb {
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-paper);
+    border-radius: 50%;
+    background: var(--color-indigo);
+    box-shadow: 0 0 0 1px var(--color-indigo);
+  }
+  @media (forced-colors: active) {
+    input[type='range'] {
+      -webkit-appearance: auto;
+      appearance: auto;
+    }
+  }
+
+  /* Anchored figures must not land under a browser's find bar or feel flush. */
+  [id] {
+    scroll-margin-top: 1.5rem;
+  }
 }
 
 /* Numbers must align in columns wherever they are compared. */
-.tabular,
-[data-mono] {
+@utility tabular {
   font-family: var(--font-mono);
   font-variant-numeric: lining-nums tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
 
 /* ---------------------------------------------------------------------------
-   Links — ink with a rule-coloured underline going to ink on hover and focus.
-   No accent, no arrow glyph.
-   --------------------------------------------------------------------------- */
-
-a {
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px solid var(--color-rule);
-  transition:
-    color 120ms linear,
-    border-color 120ms linear;
-}
-
-a:hover {
-  border-bottom-color: var(--color-ink);
-}
-
-:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 3px;
-  border-radius: 1px;
-}
-
-/* ---------------------------------------------------------------------------
-   The site has no scroll-triggered motion at all — no fade, slide, reveal,
-   count-up or draw-on. The only transitions are the link colour changes above.
-   This guard exists so that guarantee still holds if motion is ever added.
+   Reduced motion: everything is static (DESIGN.md, Figures › Motion). The live
+   figures are still frames, and every transition and animation here is
+   instant, including the fades and arrivals below; this guard keeps that true
+   for any motion added later.
    --------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -154,7 +272,669 @@ a:hover {
   }
 }
 
-/* Anchored figures must not land under a browser's find bar or feel flush. */
-[id] {
-  scroll-margin-top: 1.5rem;
+/* A colour cue is not movement: the count a reviewer's click moved (CloseBooks) still lights and fades under reduced
+   motion, the one cue for which count it was. */
+@media (prefers-reduced-motion: reduce) {
+  [data-lit] {
+    transition-duration: 700ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Opening a paper from the contents: its figure grows out of the contents
+   entry's thumbnail. A cross-document view transition — the links are plain
+   anchors, so this is the browser's own navigation, no router and no script.
+   The thumbnail and the paper's Fig. 1 share a view-transition-name
+   (fig-<slug>); everything else crossfades quickly underneath.
+
+   Reduced motion: no transition at all, the new page is simply there.
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  /* The morph is the point of the navigation, so it gets a moving-on-screen
+     curve and a duration a reader can follow; the page underneath gets out of
+     the way fast. Both ends of a morph carry view-transition-class: figure. */
+  ::view-transition-group(*.figure) {
+    animation-duration: 380ms;
+    animation-timing-function: var(--ease-in-out);
+  }
+
+  /* The two pictures (the thumbnail's drawing, the figure's) are not the same image, so the crossfade between them
+     passes through a 2px blur, which makes one changing picture of two overlapping ones. */
+  ::view-transition-image-pair(*.figure) {
+    isolation: isolate;
+  }
+  ::view-transition-old(*.figure) {
+    animation: 380ms var(--ease-in-out) both vt-figure-out;
+    /* The shorthand drops the UA's plus-lighter animation: without it two half-opaque pictures dip by a quarter. */
+    mix-blend-mode: plus-lighter;
+  }
+  ::view-transition-new(*.figure) {
+    animation: 380ms var(--ease-in-out) both vt-figure-in;
+    mix-blend-mode: plus-lighter;
+  }
+
+  /* A figure named on one side only (there is nothing to morph into) goes with the page, at its pace. */
+  ::view-transition-old(*.figure):only-child,
+  ::view-transition-new(*.figure):only-child {
+    animation-duration: 180ms;
+    animation-timing-function: var(--ease-out);
+    mix-blend-mode: normal;
+  }
+
+  /* A figure that arrived by the morph is finished from the morph's first frame: its poster does not fade in under it. */
+  :root[data-vt-arrival] [data-fill],
+  :root[data-vt-arrival] [data-iv-poster] {
+    transition: none;
+  }
+
+  /* The running head: identical on both sides, so no animation at all. From
+     home, which has none, it fades in with the page, and going home it fades
+     out with it. */
+  ::view-transition-group(running-head) {
+    animation-duration: 0s;
+  }
+  ::view-transition-old(running-head):only-child,
+  ::view-transition-new(running-head):only-child {
+    animation-duration: 180ms;
+    animation-timing-function: var(--ease-out);
+  }
+
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: var(--ease-out);
+  }
+}
+
+@keyframes vt-figure-out {
+  50% {
+    filter: blur(2px);
+  }
+  to {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+@keyframes vt-figure-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  50% {
+    filter: blur(2px);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The home figure's first paint when its sequence is about to play: the
+   composed frame without its futures — the axes, today, the strike — which the
+   burst then fills. The inline script in components/figures/Futures.tsx sets
+   data-futures-seq before first paint; if the live figure declines, it is
+   removed and the finished picture fades in on the site's ease-out.
+   --------------------------------------------------------------------------- */
+
+[data-futures-poster] [data-fill] {
+  transition: opacity 240ms var(--ease-out);
+}
+
+:root[data-futures-seq] [data-futures-poster] [data-fill] {
+  opacity: 0;
+}
+
+/* The cricket replay's first look this visit (the pre-paint mark, lib/stage/prepaint.ts): until it starts, the line is
+   still to be drawn and the margin still to be read, so the replay never wipes a finished figure. */
+:root[data-cricket-seq] #fig-replay [data-played] {
+  opacity: 0;
+}
+:root[data-cricket-seq] #fig-replay [data-played-rail] :is(dt, dd) {
+  visibility: hidden;
+}
+
+/* The CloseBooks batch's first look this visit: its rows are still to come, and the gate still to count them. */
+:root[data-closebooks-seq] #fig-pipeline ol > li {
+  opacity: 0 !important;
+  transform: translateY(6px) !important;
+}
+:root[data-closebooks-seq] #fig-pipeline [data-batch-rail] :is(dt, dd),
+:root[data-closebooks-seq] #fig-pipeline [data-batch-gate] {
+  visibility: hidden;
+}
+
+/* The supplement to the site's two faces: the Greek and mathematical characters the papers use (scripts/subset-
+   fonts.py). Declared as further faces of the same families, with a unicode-range, so a browser fetches one only on a
+   page that shows one of its characters; the home page, whose only Greek letter (σ) is in the main faces, never does. */
+@font-face {
+  font-family: sourceSerif;
+  src: url('/fonts/source-serif-4-extra-var.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
+}
+@font-face {
+  font-family: sourceCodePro;
+  src: url('/fonts/source-code-pro-extra-var.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
+}
+
+/* The IV surface's poster: on a first visit (the pre-paint mark) the stage is empty paper and the surface forms out of
+   it on the canvas; if the live figure declines, the finished picture fades in on the site's ease-out. */
+[data-iv-poster],
+.iv-fig [data-fill] {
+  transition: opacity 240ms var(--ease-out);
+}
+:root[data-surface-seq] [data-iv-poster],
+:root[data-surface-seq] .iv-fig [data-fill] {
+  opacity: 0;
+}
+/* Its live controls arrive as the others' do: rising 4px into place, 40ms apart, into the room kept for them. */
+[data-surface-controls] [data-live-buttons] > button {
+  transition:
+    border-color 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
+    opacity 240ms var(--ease-out) var(--arrive, 0ms),
+    translate 240ms var(--ease-out) var(--arrive, 0ms);
+  @starting-style {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+[data-surface-controls] [data-live-buttons] > button:nth-child(2) {
+  --arrive: 40ms;
+}
+
+/* The issue's numbering: beside the rail, each paper's number hangs in the gutter at its title's first baseline, as
+   a journal's contents numbers its papers (an inline box pulled left by as much as it takes, so the title does not
+   move). Its alternative text is empty: the list already says which entry is which. */
+@media (min-width: 64rem) {
+  [data-vt-contents] {
+    counter-reset: paper;
+  }
+  [data-vt-contents] > li {
+    counter-increment: paper;
+  }
+  [data-vt-contents] > li > h3::before {
+    content: counter(paper) / '';
+    display: inline-block;
+    width: 1.5rem;
+    margin-left: calc(-1.5rem - 1rem);
+    margin-right: 1rem;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-graphite);
+  }
+}
+/* /market's three views side by side where the screen is wide (lg) or short (a phone turned sideways): the surface at
+   its own aspect on the left, the book over the futures on the right, the line between them under both, and the whole
+   stage one screen tall at most (--h), so on a laptop's first screen, and once in view on a phone, the shock lands in
+   all three at once. Each pane's canvas is half the height left after the titles and axes (6.5rem in all). Outside
+   any layer, so it wins over the panes' own sizes. */
+@media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem) {
+  [data-market-views] {
+    --h: clamp(15rem, calc(100svh - 34.75rem), 24rem);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'surface lower' 'story story';
+    column-gap: 0.75rem;
+  }
+  [data-market-views] > [data-market-surface-box] {
+    grid-area: surface;
+    margin-inline: 0;
+  }
+  [data-market-views] > [data-market-surface-box] > [data-market-surface] {
+    height: var(--h);
+    width: auto;
+    max-width: none;
+    aspect-ratio: 1.62;
+    /* At this size the strike axis's words reach past the surface's left edge: they run into the margin, not cut. */
+    overflow: visible;
+  }
+  [data-market-views] > [data-market-lower] {
+    grid-area: lower;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.5rem;
+    margin-top: 0;
+    align-content: start;
+  }
+  [data-market-views] > [data-market-story] {
+    grid-area: story;
+  }
+  [data-market-views] [data-market-pane] {
+    height: calc((var(--h) - 6.5rem) / 2);
+  }
+}
+@media (min-width: 40rem) and (max-width: 63.99rem) and (max-height: 30rem) {
+  [data-market-views] {
+    --h: calc(100svh - 7rem);
+  }
+}
+/* On a phone in portrait the three views fit one screen: the surface at its own 1.62 (not 1.1), and the book and the
+   futures side by side under it, each half the column, so the shock lands in all three where the reader can see them,
+   with the controls straight after. */
+@media (max-width: 39.99rem) {
+  [data-market-views] [data-market-surface] {
+    aspect-ratio: 1.62;
+  }
+  [data-market-views] > [data-market-lower] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.75rem;
+  }
+  [data-market-views] > [data-market-lower] > div {
+    margin-inline: 0;
+  }
+  [data-market-views] > [data-market-lower] > div > p {
+    padding-inline: 0;
+  }
+}
+/* On a laptop the controls share the story line's row, at its right end (the line keeps their room), so Liquidity
+   shock and the story's Pause are on the first screen with the three views, at 1280×800 as at 1440×900. */
+@media (min-width: 80rem) {
+  [data-market-views] > [data-market-story] {
+    display: flex;
+    align-items: center;
+    min-height: 2rem;
+    padding-right: 19.5rem;
+  }
+  [data-market-controls] {
+    margin-top: -2rem;
+    justify-content: flex-end;
+  }
+}
+/* Room kept for a text that may take its place (a hint's longest variant): drawn by CSS, so it is never read as the
+   page's text or found in it, and invisible where it is used. */
+[data-room]::before {
+  content: attr(data-room);
+}
+/* The Contents' Pause arrives with the miniatures it holds, rising 4px into place over 240ms, as the figures' controls
+   do; its press and border keep the control's own 150ms. Outside any layer, so it wins over the control's utilities. */
+[data-contents-pause] {
+  transition:
+    border-color 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
+    opacity 240ms var(--ease-out),
+    translate 240ms var(--ease-out),
+    visibility 240ms;
+}
+[data-contents-pause].invisible {
+  opacity: 0;
+  translate: 0 4px;
+}
+/* A Contents entry's title and thumbnail are one way in: pointing at either marks both. Outside any layer, so it
+   wins over the elements' own utilities (border-rule, decoration-transparent), which a base-layer rule cannot. */
+@media (hover: hover) and (pointer: fine) {
+  [data-vt-contents] li:has(h3 a:hover) [data-vt-thumb] {
+    border-color: var(--color-graphite);
+  }
+  [data-vt-contents] li:has([data-vt-thumb]:hover) h3 a {
+    text-decoration-color: var(--color-ink);
+  }
+}
+
+/* Arrived from the Contents' miniature (lib/minis/handoff.ts): the still frames and readouts, at the figure's own
+   moment, wait for the handed one; the live figure lifts the mark. The morph lands on the empty stage. */
+:root[data-market-handoff] [data-market-still],
+:root[data-market-handoff] [data-market-value],
+:root[data-orderbook-handoff] [data-orderbook-poster],
+:root[data-orderbook-handoff] [data-orderbook-value],
+:root[data-orderbook-handoff] [data-orderflow-still] {
+  /* Over the still frames' own inline visibility (the stage kit's underlay). */
+  visibility: hidden !important;
+}
+/* The order book's poster: on a first visit (the pre-paint mark, lib/stage/prepaint.ts) the page is empty, and the
+   terrain rises out of it; if the live figure declines, the finished picture fades in on the site's ease-out. */
+[data-orderbook-poster] [data-fill] {
+  transition: opacity 240ms var(--ease-out);
+}
+:root[data-orderbook-seq] [data-orderbook-poster] [data-fill] {
+  opacity: 0;
+}
+/* The live figures' controls arrive with the canvas they drive (the order book's and its Fig. 2's, /market's, the home
+   figure's): 240ms on the crossfade's curve, rising 4px into place one after another, 40ms apart. The rise is
+   `translate`, so a press's `scale` keeps its own quick 150ms, and only the arrival waits its turn. */
+[data-orderbook-controls] > button,
+[data-orderflow-controls] > button,
+[data-market-controls] > button,
+[data-futures-controls] > button {
+  transition:
+    border-color 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
+    opacity 240ms var(--ease-out) var(--arrive, 0ms),
+    translate 240ms var(--ease-out) var(--arrive, 0ms);
+  @starting-style {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+:is([data-orderbook-controls], [data-market-controls], [data-futures-controls]) > button:nth-child(2) {
+  --arrive: 40ms;
+}
+:is([data-market-controls], [data-futures-controls]) > button:nth-child(3) {
+  --arrive: 80ms;
+}
+
+/* The home figure's Reset, which appears as the reader first moves an input, enters from 0.97 over 160ms. */
+[data-futures-controls] > button[data-reset] {
+  transition:
+    border-color 150ms var(--ease-out),
+    scale 160ms var(--ease-out),
+    opacity 160ms var(--ease-out);
+  @starting-style {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+/* The keyboard's focus arrives at once (keyboard actions never animate, components/stage/controls.ts): only the
+   border's fade is cut; the press and the arrival keep theirs. In each rule's own property order. */
+:is([data-surface-controls] [data-live-buttons], [data-orderbook-controls], [data-orderflow-controls], [data-market-controls], [data-futures-controls]) > button:focus-visible {
+  transition-duration: 0ms, 150ms, 240ms, 240ms;
+}
+[data-futures-controls] > button[data-reset]:focus-visible {
+  transition-duration: 0ms, 160ms, 160ms;
+}
+[data-contents-pause]:focus-visible {
+  transition-duration: 0ms, 150ms, 240ms, 240ms, 240ms;
+}
+:root[data-futures-still] [data-futures-controls] {
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   The CV (/cv). One sheet, and the source of the PDF.
+
+   Every length inside .cv is in em, so the sheet on screen is the printed page
+   at a slightly larger scale with the same line breaks. The printable area is
+   the intersection of Letter and A4 — Letter's height, A4's width — so the
+   one page holds on either paper; scripts/cv-pdf.mjs fails the build if it
+   does not. Sizes: 9pt in print, 13.5px on the screen sheet, 15px on a
+   phone, where there is no sheet and the rail folds away.
+   --------------------------------------------------------------------------- */
+
+@layer components {
+  .cv {
+    font-size: 15px;
+    line-height: 1.3;
+    font-variant-numeric: lining-nums proportional-nums;
+    hyphens: manual;
+  }
+
+  @media (min-width: 48rem) {
+    .cv {
+      font-size: 13.5px;
+      /* Letter, 8.5in × 11in, at 9pt: 68em × 88em. Margins 0.5in top and
+         bottom, 0.55in at the sides, as in @page below. */
+      min-height: 88em;
+      padding: 4em 4.4em;
+      border: 1px solid var(--color-rule);
+    }
+  }
+
+  .cv p,
+  .cv li,
+  .cv dd {
+    text-wrap: pretty;
+  }
+
+  .cv-header {
+    padding-bottom: 0.7em;
+  }
+
+  .cv-name {
+    font-size: 2.15em;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+
+  .cv-line {
+    margin-top: 0.45em;
+  }
+
+  @media screen {
+    .cv-honours {
+      display: block;
+    }
+  }
+  .cv-contact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 1.4em;
+    margin-top: 0.3em;
+    font-family: var(--font-mono);
+    font-size: 0.84em;
+    color: var(--color-graphite);
+  }
+
+  .cv-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.3em 1.3em;
+    border-top: 1px solid var(--color-rule);
+    padding-top: 0.55em;
+    margin-top: 0.55em;
+  }
+
+  .cv-h2 {
+    font-family: var(--font-mono);
+    font-size: 0.84em;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.6;
+    color: var(--color-ink);
+  }
+
+  @media (min-width: 48rem) {
+    .cv-section {
+      grid-template-columns: 5.6em minmax(0, 1fr);
+    }
+
+    .cv-h2 {
+      text-align: right;
+    }
+  }
+
+  .cv-stack {
+    display: grid;
+    gap: 0.42em;
+  }
+
+  /* The date keeps the first line's right edge however the left side wraps:
+     a date pushed onto a line of its own costs a line per entry. */
+  .cv-entry-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0 1.2em;
+  }
+
+  /* On a phone there is no line to share: the date goes under its heading. */
+  @media not print {
+    @media (max-width: 47.99rem) {
+      .cv-entry-head {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+    }
+
+    /* A contact link is a 24px target at least (WCAG 2.5.8): its padding alone lands it a fraction short at the
+       sheet's small type. Screen only; the printed sheet is unchanged. */
+    .cv-contact a {
+      display: inline-block;
+      padding: 0.4em 0;
+      min-height: 1.5rem;
+    }
+  }
+
+  .cv-entry-head strong {
+    font-weight: 600;
+  }
+
+  .cv-date {
+    font-family: var(--font-mono);
+    font-size: 0.84em;
+    color: var(--color-graphite);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cv-muted {
+    color: var(--color-graphite);
+  }
+
+  .cv-bullets {
+    list-style: none;
+    margin-top: 0.1em;
+  }
+
+  /* A hairline dash, not a glyph, and IN FLOW. It was absolutely positioned
+     once, and Chromium paints positioned boxes after in-flow content — so the
+     PDF's text layer carried every bullet after the Skills section, cut off
+     from its role, which is what a résumé parser reads. scripts/cv-pdf.mjs
+     now fails the build on any positioned box inside the sheet. */
+  .cv-bullets li {
+    padding-left: 0.95em;
+    text-indent: -0.95em;
+  }
+
+  .cv-bullets li::before {
+    content: '';
+    display: inline-block;
+    width: 0.45em;
+    margin: 0 0.5em 0 0.1em;
+    vertical-align: 0.3em;
+    border-top: 1px solid var(--color-graphite);
+  }
+
+  /* Run-in labels: a label column would spend a sixth of the measure on four
+     words. */
+  .cv-skills {
+    display: grid;
+    gap: 0.1em;
+  }
+
+  .cv-skills dt {
+    display: inline;
+    color: var(--color-graphite);
+  }
+
+  .cv-skills dt::after {
+    content: ' ';
+  }
+
+  .cv-skills dd {
+    display: inline;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Print. Any page prints as a document: the light palette whatever the
+   reader's system theme (a dark page printed without backgrounds is light
+   text on white), no running head, no footer, no skip link.
+   --------------------------------------------------------------------------- */
+
+@page {
+  margin: 0.5in 0.55in;
+}
+
+@media print {
+  :root {
+    --color-ink: #16181c;
+    --color-paper: #ffffff;
+    --color-graphite: #4a4e55;
+    --color-rule: #cfcdc7;
+    --color-indigo: #2f3a8c;
+    --color-indigo-wash: #e4e6f2;
+    color-scheme: light;
+  }
+
+  body {
+    font-size: 10.5pt;
+  }
+
+  /* A figure prints whole, its title with its plot, where it fits on a sheet; a slider prints as nothing (its track is
+     a background, which printing drops, leaving a floating thumb); the day or value it set is in the readouts. */
+  figure {
+    break-inside: avoid;
+  }
+  input[type='range'] {
+    display: none;
+  }
+  /* On paper a link says where it goes (the CV's sheet, a printed page of its own, keeps its links as they are). */
+  main a[href^='/']:not([href^='/#'])::after {
+    content: ' (' var(--print-origin, '') attr(href) ')';
+    color: var(--color-graphite);
+  }
+  .cv a::after {
+    content: none;
+  }
+
+  .cv {
+    font-size: 9pt;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .cv a {
+    text-decoration: none;
+  }
+
+  /* The printable width is under the 48rem breakpoint, so the rail is put
+     back explicitly: the sheet prints as it previews. */
+  .cv-section {
+    grid-template-columns: 5.6em minmax(0, 1fr);
+    break-inside: avoid;
+  }
+
+  .cv-h2 {
+    text-align: right;
+  }
+
+  /* Every live figure prints its poster or still frames: a canvas is drawn in the screen's palette (a night one, from a
+     dark system), and the words laid over it with it, while the posters' pictures take the print tokens. The poster is
+     shown whole, whatever a first visit's pre-paint mark or a morph had hidden of it. */
+  [data-market-stage] canvas,
+  [data-market-stage] [data-market-words],
+  [data-futures-poster] ~ *,
+  [data-orderbook-poster] ~ *,
+  [data-orderflow-still] ~ canvas,
+  [data-surface-poster] ~ * {
+    display: none !important;
+  }
+  [data-market-stage] [data-market-still],
+  [data-futures-poster],
+  [data-orderbook-poster],
+  [data-orderflow-still],
+  [data-surface-poster],
+  :is([data-futures-poster], [data-orderbook-poster], [data-surface-poster]) :is([data-fill], [data-iv-poster]) {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Controls and the hints that say how to use them do nothing on paper. */
+  :is([data-futures-controls], [data-orderbook-controls], [data-orderflow-controls], [data-surface-controls]) {
+    display: none !important;
+  }
+  /* A figure's views are not cut across two sheets: each prints whole on one (/market's surface, then its book and futures
+     together, may each move to the next). */
+  [data-market-stage] > div,
+  div:has(> :is([data-futures-poster], [data-orderbook-poster], [data-orderflow-still], [data-surface-poster])) {
+    break-inside: avoid;
+  }
+  /* A still surface's smooth sheet is a canvas too (components/figures/surface/still.ts): from a dark system it prints
+     its contours and walls on paper instead of a night sheet. */
+  @media (prefers-color-scheme: dark) {
+    [data-still-sheet] {
+      display: none !important;
+    }
+  }
 }

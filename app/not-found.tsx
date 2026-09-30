@@ -1,17 +1,27 @@
+import type { Metadata } from 'next'
 import { Row, Shell } from '@/components/Layout'
+import { RunningHead } from '@/components/RunningHead'
+
+export const metadata: Metadata = { title: 'Not found' }
 
 export default function NotFound() {
   return (
-    <Shell>
-      <div className="pt-16 lg:pt-24">
-        <Row rail="404">
-          <h1 className="text-h2">That page is not here</h1>
-          <p className="mt-4 max-w-[34rem] text-graphite">
-            The link may be old, or I may have renamed something I said I would not rename. The
-            case studies are listed in the footer.
-          </p>
-        </Row>
-      </div>
-    </Shell>
+    <>
+      <RunningHead />
+      <main id="main">
+        <Shell>
+          <div className="pt-16 lg:pt-24">
+            <Row rail="404">
+              <h1 className="text-h2">That page is not here</h1>
+              <p className="mt-4 max-w-[34rem]">
+                Everything on the site is listed in the{' '}
+                <a href="/#contents">contents</a>, and the <a href="/cv">CV</a> is one
+                page away.
+              </p>
+            </Row>
+          </div>
+        </Shell>
+      </main>
+    </>
   )
 }

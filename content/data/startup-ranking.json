@@ -1,0 +1,929 @@
+{
+ "provenance": {
+  "notebook": "startup-investment-analysis @7fdaf0f — startup_investment_analysis.ipynb, cells 0–119 executed as written",
+  "dataset": "https://code.s3.yandex.net/datasets/cb_investments.zip",
+  "dataset_sha256": "c14436f11a303dd8741dfdeed715c3a1c21d8dfb6c152fe78efdd1595041a1f2",
+  "script": "scripts/startup_ranking.py",
+  "weights": {
+   "growth_2014": 0.35,
+   "cagr": 0.3,
+   "total_funding": 0.2,
+   "companies": 0.15
+  },
+  "rows_scored": 35589
+ },
+ "segments": [
+  {
+   "name": "Technology",
+   "funding": 1574401926.0,
+   "companies": 199,
+   "growth2014": 81145050.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 56.87,
+    "rank": 1
+   },
+   "b": {
+    "score": 59.7,
+    "rank": 4
+   },
+   "c": {
+    "score": 46.71,
+    "rank": 33
+   }
+  },
+  {
+   "name": "Apps",
+   "funding": 165034926.0,
+   "companies": 191,
+   "growth2014": 37369109.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 39.04,
+    "rank": 2
+   },
+   "b": {
+    "score": 55.9,
+    "rank": 11
+   },
+   "c": {
+    "score": 60.85,
+    "rank": 5
+   }
+  },
+  {
+   "name": "Medical",
+   "funding": 435695332.0,
+   "companies": 130,
+   "growth2014": 110766640.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 36.83,
+    "rank": 3
+   },
+   "b": {
+    "score": 36.78,
+    "rank": 38
+   },
+   "c": {
+    "score": 44.93,
+    "rank": 40
+   }
+  },
+  {
+   "name": "Startups",
+   "funding": 99178627.0,
+   "companies": 116,
+   "growth2014": 23421285.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 33.1,
+    "rank": 4
+   },
+   "b": {
+    "score": 54.48,
+    "rank": 20
+   },
+   "c": {
+    "score": 53.09,
+    "rank": 13
+   }
+  },
+  {
+   "name": "SaaS",
+   "funding": 354364617.0,
+   "companies": 228,
+   "growth2014": 13231139.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 32.57,
+    "rank": 5
+   },
+   "b": {
+    "score": 56.61,
+    "rank": 10
+   },
+   "c": {
+    "score": 51.97,
+    "rank": 16
+   }
+  },
+  {
+   "name": "Biotechnology",
+   "funding": 31899391121.0,
+   "companies": 3207,
+   "growth2014": -3184631247.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 31.29,
+    "rank": 6
+   },
+   "b": {
+    "score": 61.29,
+    "rank": 3
+   },
+   "c": {
+    "score": 48.13,
+    "rank": 23
+   }
+  },
+  {
+   "name": "Design",
+   "funding": 224619431.0,
+   "companies": 120,
+   "growth2014": 8029681.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 29.66,
+    "rank": 7
+   },
+   "b": {
+    "score": 55.46,
+    "rank": 13
+   },
+   "c": {
+    "score": 47.02,
+    "rank": 30
+   }
+  },
+  {
+   "name": "Big Data",
+   "funding": 354777208.0,
+   "companies": 127,
+   "growth2014": 533678.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 27.76,
+    "rank": 8
+   },
+   "b": {
+    "score": 55.77,
+    "rank": 12
+   },
+   "c": {
+    "score": 52.03,
+    "rank": 15
+   }
+  },
+  {
+   "name": "Software",
+   "funding": 15465365129.0,
+   "companies": 4223,
+   "growth2014": -596579837.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 24.66,
+    "rank": 9
+   },
+   "b": {
+    "score": 54.92,
+    "rank": 18
+   },
+   "c": {
+    "score": 67.18,
+    "rank": 1
+   }
+  },
+  {
+   "name": "Internet",
+   "funding": 378852185.0,
+   "companies": 204,
+   "growth2014": 48098660.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 17.68,
+    "rank": 10
+   },
+   "b": {
+    "score": 36.68,
+    "rank": 39
+   },
+   "c": {
+    "score": 45.88,
+    "rank": 34
+   }
+  },
+  {
+   "name": "Manufacturing",
+   "funding": 3174111155.0,
+   "companies": 533,
+   "growth2014": 22395680.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 12.11,
+    "rank": 11
+   },
+   "b": {
+    "score": 39.04,
+    "rank": 32
+   },
+   "c": {
+    "score": 47.2,
+    "rank": 27
+   }
+  },
+  {
+   "name": "Health Care",
+   "funding": 12660154500.0,
+   "companies": 1057,
+   "growth2014": -1171623833.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 11.34,
+    "rank": 12
+   },
+   "b": {
+    "score": 35.35,
+    "rank": 46
+   },
+   "c": {
+    "score": 47.17,
+    "rank": 28
+   }
+  },
+  {
+   "name": "Real Estate",
+   "funding": 477526125.0,
+   "companies": 230,
+   "growth2014": 23359709.0,
+   "inGrowthTable": true,
+   "a": {
+    "score": 11.27,
+    "rank": 13
+   },
+   "b": {
+    "score": 37.55,
+    "rank": 36
+   },
+   "c": {
+    "score": 50.02,
+    "rank": 18
+   }
+  },
+  {
+   "name": "Clean Technology",
+   "funding": 12164879086.0,
+   "companies": 1029,
+   "growth2014": -514373750.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 10.92,
+    "rank": 14
+   },
+   "b": {
+    "score": 65.95,
+    "rank": 1
+   },
+   "c": {
+    "score": 53.49,
+    "rank": 12
+   }
+  },
+  {
+   "name": "Mobile",
+   "funding": 6142203267.0,
+   "companies": 2028,
+   "growth2014": -616352700.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 10.78,
+    "rank": 15
+   },
+   "b": {
+    "score": 41.06,
+    "rank": 28
+   },
+   "c": {
+    "score": 54.07,
+    "rank": 11
+   }
+  },
+  {
+   "name": "Enterprise Software",
+   "funding": 8576295049.0,
+   "companies": 1232,
+   "growth2014": -908857500.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 9.41,
+    "rank": 16
+   },
+   "b": {
+    "score": 36.21,
+    "rank": 42
+   },
+   "c": {
+    "score": 48.01,
+    "rank": 24
+   }
+  },
+  {
+   "name": "E-Commerce",
+   "funding": 3720546130.0,
+   "companies": 1593,
+   "growth2014": -340878816.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 7.67,
+    "rank": 17
+   },
+   "b": {
+    "score": 39.94,
+    "rank": 29
+   },
+   "c": {
+    "score": 49.89,
+    "rank": 19
+   }
+  },
+  {
+   "name": "Curated Web",
+   "funding": 2879907484.0,
+   "companies": 1486,
+   "growth2014": -224741132.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 6.75,
+    "rank": 18
+   },
+   "b": {
+    "score": 42.34,
+    "rank": 27
+   },
+   "c": {
+    "score": 59.2,
+    "rank": 6
+   }
+  },
+  {
+   "name": "Semiconductors",
+   "funding": 7983155471.0,
+   "companies": 450,
+   "growth2014": -137955353.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 6.18,
+    "rank": 19
+   },
+   "b": {
+    "score": 62.58,
+    "rank": 2
+   },
+   "c": {
+    "score": 45.11,
+    "rank": 36
+   }
+  },
+  {
+   "name": "Advertising",
+   "funding": 4529760707.0,
+   "companies": 969,
+   "growth2014": -317122802.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 5.9,
+    "rank": 20
+   },
+   "b": {
+    "score": 38.34,
+    "rank": 34
+   },
+   "c": {
+    "score": 48.0,
+    "rank": 25
+   }
+  },
+  {
+   "name": "Hardware + Software",
+   "funding": 4671718153.0,
+   "companies": 939,
+   "growth2014": -521289642.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 5.88,
+    "rank": 21
+   },
+   "b": {
+    "score": 58.71,
+    "rank": 6
+   },
+   "c": {
+    "score": 50.53,
+    "rank": 17
+   }
+  },
+  {
+   "name": "Games",
+   "funding": 3513112345.0,
+   "companies": 999,
+   "growth2014": -116588108.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 5.37,
+    "rank": 22
+   },
+   "b": {
+    "score": 39.6,
+    "rank": 31
+   },
+   "c": {
+    "score": 48.14,
+    "rank": 22
+   }
+  },
+  {
+   "name": "Finance",
+   "funding": 3955366631.0,
+   "companies": 723,
+   "growth2014": -381435910.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 4.64,
+    "rank": 23
+   },
+   "b": {
+    "score": 36.95,
+    "rank": 37
+   },
+   "c": {
+    "score": 48.43,
+    "rank": 21
+   }
+  },
+  {
+   "name": "Health and Wellness",
+   "funding": 2337282930.0,
+   "companies": 760,
+   "growth2014": -203905800.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 3.76,
+    "rank": 24
+   },
+   "b": {
+    "score": 37.97,
+    "rank": 35
+   },
+   "c": {
+    "score": 49.53,
+    "rank": 20
+   }
+  },
+  {
+   "name": "Web Hosting",
+   "funding": 4439090143.0,
+   "companies": 379,
+   "growth2014": -410273436.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 3.69,
+    "rank": 25
+   },
+   "b": {
+    "score": 33.16,
+    "rank": 48
+   },
+   "c": {
+    "score": 36.26,
+    "rank": 47
+   }
+  },
+  {
+   "name": "Security",
+   "funding": 3461817637.0,
+   "companies": 499,
+   "growth2014": -235977160.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 3.51,
+    "rank": 26
+   },
+   "b": {
+    "score": 36.48,
+    "rank": 40
+   },
+   "c": {
+    "score": 45.06,
+    "rank": 37
+   }
+  },
+  {
+   "name": "Analytics",
+   "funding": 2706304890.0,
+   "companies": 584,
+   "growth2014": -471359754.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 3.35,
+    "rank": 27
+   },
+   "b": {
+    "score": 33.91,
+    "rank": 47
+   },
+   "c": {
+    "score": 42.8,
+    "rank": 44
+   }
+  },
+  {
+   "name": "Social Media",
+   "funding": 989712769.0,
+   "companies": 867,
+   "growth2014": -100903432.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 3.3,
+    "rank": 28
+   },
+   "b": {
+    "score": 57.79,
+    "rank": 7
+   },
+   "c": {
+    "score": 55.91,
+    "rank": 10
+   }
+  },
+  {
+   "name": "Education",
+   "funding": 1355586357.0,
+   "companies": 730,
+   "growth2014": -153307898.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 3.03,
+    "rank": 29
+   },
+   "b": {
+    "score": 59.31,
+    "rank": 5
+   },
+   "c": {
+    "score": 64.57,
+    "rank": 2
+   }
+  },
+  {
+   "name": "Hospitality",
+   "funding": 748501426.0,
+   "companies": 291,
+   "growth2014": -121387308.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 1.05,
+    "rank": 30
+   },
+   "b": {
+    "score": 56.68,
+    "rank": 8
+   },
+   "c": {
+    "score": 63.58,
+    "rank": 3
+   }
+  },
+  {
+   "name": "Fashion",
+   "funding": 793869012.0,
+   "companies": 263,
+   "growth2014": -56336439.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.97,
+    "rank": 31
+   },
+   "b": {
+    "score": 56.66,
+    "rank": 9
+   },
+   "c": {
+    "score": 47.13,
+    "rank": 29
+   }
+  },
+  {
+   "name": "Messaging",
+   "funding": 774215849.0,
+   "companies": 257,
+   "growth2014": -7931723.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.94,
+    "rank": 32
+   },
+   "b": {
+    "score": 53.75,
+    "rank": 23
+   },
+   "c": {
+    "score": 41.25,
+    "rank": 46
+   }
+  },
+  {
+   "name": "Consulting",
+   "funding": 563670514.0,
+   "companies": 286,
+   "growth2014": -39023302.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.91,
+    "rank": 33
+   },
+   "b": {
+    "score": 36.18,
+    "rank": 43
+   },
+   "c": {
+    "score": 45.45,
+    "rank": 35
+   }
+  },
+  {
+   "name": "Travel",
+   "funding": 582604153.0,
+   "companies": 279,
+   "growth2014": -83203578.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.9,
+    "rank": 34
+   },
+   "b": {
+    "score": 39.7,
+    "rank": 30
+   },
+   "c": {
+    "score": 62.19,
+    "rank": 4
+   }
+  },
+  {
+   "name": "News",
+   "funding": 614956584.0,
+   "companies": 261,
+   "growth2014": -22650543.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.85,
+    "rank": 35
+   },
+   "b": {
+    "score": 55.2,
+    "rank": 14
+   },
+   "c": {
+    "score": 52.13,
+    "rank": 14
+   }
+  },
+  {
+   "name": "Search",
+   "funding": 447782401.0,
+   "companies": 242,
+   "growth2014": -38804074.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.68,
+    "rank": 36
+   },
+   "b": {
+    "score": 36.31,
+    "rank": 41
+   },
+   "c": {
+    "score": 46.76,
+    "rank": 32
+   }
+  },
+  {
+   "name": "Music",
+   "funding": 403912336.0,
+   "companies": 231,
+   "growth2014": -28626106.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.61,
+    "rank": 37
+   },
+   "b": {
+    "score": 54.04,
+    "rank": 22
+   },
+   "c": {
+    "score": 43.34,
+    "rank": 42
+   }
+  },
+  {
+   "name": "Video",
+   "funding": 490602343.0,
+   "companies": 158,
+   "growth2014": -13784392.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.4,
+    "rank": 38
+   },
+   "b": {
+    "score": 55.04,
+    "rank": 17
+   },
+   "c": {
+    "score": 46.85,
+    "rank": 31
+   }
+  },
+  {
+   "name": "Photography",
+   "funding": 280186343.0,
+   "companies": 170,
+   "growth2014": -2135997.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.31,
+    "rank": 39
+   },
+   "b": {
+    "score": 54.81,
+    "rank": 19
+   },
+   "c": {
+    "score": 45.06,
+    "rank": 38
+   }
+  },
+  {
+   "name": "Automotive",
+   "funding": 473994991.0,
+   "companies": 133,
+   "growth2014": -48538364.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.3,
+    "rank": 40
+   },
+   "b": {
+    "score": 55.06,
+    "rank": 16
+   },
+   "c": {
+    "score": 47.72,
+    "rank": 26
+   }
+  },
+  {
+   "name": "Sports",
+   "funding": 211975470.0,
+   "companies": 176,
+   "growth2014": -2752013.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.29,
+    "rank": 41
+   },
+   "b": {
+    "score": 54.07,
+    "rank": 21
+   },
+   "c": {
+    "score": 56.91,
+    "rank": 9
+   }
+  },
+  {
+   "name": "Cloud Computing",
+   "funding": 452791023.0,
+   "companies": 127,
+   "growth2014": -11405922.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.26,
+    "rank": 42
+   },
+   "b": {
+    "score": 35.4,
+    "rank": 44
+   },
+   "c": {
+    "score": 43.25,
+    "rank": 43
+   }
+  },
+  {
+   "name": "Networking",
+   "funding": 396658690.0,
+   "companies": 121,
+   "growth2014": -6041032.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.21,
+    "rank": 43
+   },
+   "b": {
+    "score": 55.18,
+    "rank": 15
+   },
+   "c": {
+    "score": 42.11,
+    "rank": 45
+   }
+  },
+  {
+   "name": "Marketplaces",
+   "funding": 124839280.0,
+   "companies": 166,
+   "growth2014": -13847490.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.2,
+    "rank": 44
+   },
+   "b": {
+    "score": 53.57,
+    "rank": 24
+   },
+   "c": {
+    "score": 56.99,
+    "rank": 8
+   }
+  },
+  {
+   "name": "Public Relations",
+   "funding": 387738728.0,
+   "companies": 118,
+   "growth2014": -13657532.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.19,
+    "rank": 45
+   },
+   "b": {
+    "score": 53.17,
+    "rank": 26
+   },
+   "c": {
+    "score": 33.87,
+    "rank": 48
+   }
+  },
+  {
+   "name": "Entertainment",
+   "funding": 299317077.0,
+   "companies": 125,
+   "growth2014": -6593221.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.16,
+    "rank": 46
+   },
+   "b": {
+    "score": 38.92,
+    "rank": 33
+   },
+   "c": {
+    "score": 58.58,
+    "rank": 7
+   }
+  },
+  {
+   "name": "Social Network Media",
+   "funding": 167546537.0,
+   "companies": 138,
+   "growth2014": -842435.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.12,
+    "rank": 47
+   },
+   "b": {
+    "score": 53.35,
+    "rank": 25
+   },
+   "c": {
+    "score": 44.93,
+    "rank": 39
+   }
+  },
+  {
+   "name": "Nonprofits",
+   "funding": 248424871.0,
+   "companies": 122,
+   "growth2014": -16814158.0,
+   "inGrowthTable": false,
+   "a": {
+    "score": 0.12,
+    "rank": 48
+   },
+   "b": {
+    "score": 35.37,
+    "rank": 45
+   },
+   "c": {
+    "score": 43.81,
+    "rank": 41
+   }
+  }
+ ]
+}

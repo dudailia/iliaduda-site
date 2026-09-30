@@ -34,6 +34,9 @@ jobs:
       # contrast.test.ts  — WCAG ratios computed from globals.css, not eyeballed
       - name: Provenance, copy and contrast gates
         run: pnpm test
+        env:
+          # The withheld-word gate's HMAC key (tests/forbidden.ts); a repository secret, never in the repo.
+          WITHHELD_KEY: ${{ secrets.WITHHELD_KEY }}
 
   audit:
     name: accessibility, keyboard, origin, 360px
@@ -46,12 +49,15 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      # Firefox too: the paper says the market is the same in Chromium, WebKit and Firefox (market-engines.spec.ts).
+      - run: pnpm exec playwright install --with-deps chromium webkit firefox
 
       # Runs against `next start`, never `next dev`. Auditing the development
       # server would be measuring an environment no real visitor uses.
       - name: Axe (incl. best-practice), focus rings, off-origin requests, 360px
         run: pnpm exec playwright test
+        env:
+          WITHHELD_KEY: ${{ secrets.WITHHELD_KEY }}
 
   budget:
     name: lighthouse — accessibility 100, CLS, no third party
@@ -64,12 +70,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The build prints /cv to the résumé PDF in Chromium (scripts/cv-pdf.mjs), so it needs one here too.
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
 
       # Every minScore:1 assertion aggregates pessimistically, not by median.
       # See the note in lighthouserc.json: a boolean gate aggregated by median
       # reports green while failing two runs in five.
-      - name: Lighthouse CI (a11y = 100, CLS <= 0.005, 0 third-party requests)
+      - name: Lighthouse CI (a11y = 100, CLS <= 0.01, fonts per page, 0 third-party requests)
         run: pnpm exec lhci autorun
 
   # The deployed site is the only place the font actually swaps, so it is the

@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
+import { PERSON, SITE } from '@/lib/site'
 
 /**
- * The whole site is one asymmetric grid: a 68ch text column with a 15rem rail
+ * The whole site is one asymmetric grid: a 710px text column with a 15rem rail
  * to its left. The rail holds figure numbers, statuses and limitation notes.
  * It is what makes the page read as a document rather than a landing page.
  *
@@ -11,8 +12,12 @@ import type { ReactNode } from 'react'
 
 export function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[calc(var(--rail)+2.5rem+var(--measure))] px-6 sm:px-8">
+    <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">
       {children}
+      {/* The running head and footer do not print, so a printed page carries its author here (the CV's sheet has its own). */}
+      <p className="text-meta mt-10 hidden font-mono text-graphite print:block">
+        {[PERSON.name, PERSON.email, SITE.public, PERSON.linkedin, PERSON.github].map((v) => v.replace(/^https?:\/\/(www\.)?/, '')).join(' · ')}
+      </p>
     </div>
   )
 }
@@ -33,7 +38,7 @@ export function Row({
 }) {
   return (
     <div
-      className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-10 lg:gap-y-0 ${className}`}
+      className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 ${className}`}
     >
       <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right">{rail}</div>
       <div className="min-w-0">{children}</div>
@@ -80,7 +85,7 @@ export function Annotated({
   children: ReactNode
 }) {
   return (
-    <div className="lg:-ml-[calc(var(--rail)+2.5rem)] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-10">
+    <div className="lg:-ml-[calc(var(--rail)+var(--gutter))] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-(--gutter)">
       <div className="min-w-0 lg:col-start-2 lg:row-start-1">{children}</div>
       <aside className="text-note mt-3 border-l-2 border-rule pl-4 text-graphite lg:col-start-1 lg:row-start-1 lg:mt-0 lg:mb-2 lg:border-l-0 lg:pl-0 lg:text-right">
         {note}
@@ -92,4 +97,63 @@ export function Annotated({
 /** Body prose. One measure, one rhythm, no bullet lists. */
 export function Prose({ children }: { children: ReactNode }) {
   return <div className="max-w-[var(--measure)] [&>p+p]:mt-[1.1em]">{children}</div>
+}
+
+/**
+ * A mono metadata line — role · place · dates — that wraps between items and
+ * never inside one. On a phone "January 2026 – present" split across two lines
+ * reads as two facts; each item is kept whole, and the separator stays with the
+ * item before it so no line starts with a dot. An item too long for a phone's
+ * measure (a degree name) is left free to wrap rather than overflow.
+ */
+export function Items({ items }: { items: readonly (string | undefined | false)[] | string }) {
+  const list = (typeof items === 'string' ? items.split(' · ') : items).filter(Boolean) as string[]
+  return (
+    <>
+      {/* The space between items sits outside the unbreakable span: inside
+          it, there was nowhere left to break and the line ran off a phone. */}
+      {list.map((it, i) => {
+        // Held to its item by a no-break space, inside an inline block, which no engine breaks (WebKit found a break
+        // before the middle dot at the no-break space in a nowrap span): a line never starts with the dot. A long item
+        // may wrap, but its last word keeps the dot.
+        const dot = i < list.length - 1 ? '\u00a0·' : ''
+        const cut = it.length > 34 ? it.lastIndexOf(' ') : -1
+        return (
+          <Fragment key={it}>
+            {cut > 0 ? (
+              <span>
+                {it.slice(0, cut + 1)}
+                <span className="inline-block whitespace-nowrap">
+                  {it.slice(cut + 1)}
+                  {dot}
+                </span>
+              </span>
+            ) : (
+              <span className={it.length <= 34 ? 'inline-block whitespace-nowrap' : ''}>
+                {it}
+                {dot}
+              </span>
+            )}
+            {i < list.length - 1 ? ' ' : ''}
+          </Fragment>
+        )
+      })}
+    </>
+  )
+}
+
+/**
+ * Text whose hyphenated words stay on one line ("off-cycle" split as "off- / cycle" on a phone, "Hawkes- / driven" in a
+ * title): the fonts carry no no-break hyphen, so each such word is held in a nowrap span.
+ */
+export function Whole({ text }: { text: string }) {
+  return text.split(/(\S+-\S+)/).map((part, i) =>
+    i % 2 ? (
+      <span key={i} className="whitespace-nowrap">
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  )
 }

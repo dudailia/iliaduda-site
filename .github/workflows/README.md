@@ -15,4 +15,4 @@ fails the build rather than printing a warning:
 | `origin.spec.ts` | Any request leaving the deployment origin. |
 | `responsive.spec.ts` | Horizontal scroll at 360px. |
 | `fonts.spec.ts` | The self-hosted faces silently not being the ones in use. Both font-naming collisions this project hit were invisible on screen. |
-| `lighthouserc.json` | Accessibility below 100, CLS above 0.005, or a third-party request — with `pessimistic` aggregation on every boolean assertion. |
+| `lighthouserc.json` | On every route: accessibility below 100, CLS above 0.01, font bytes over the page's budget (76,000 B, or 87,000 B on the pages that fetch the Greek-and-maths supplement), or a third-party request — with `pessimistic` aggregation on every boolean assertion. |

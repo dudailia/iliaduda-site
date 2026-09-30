@@ -2,13 +2,11 @@ import { fact, value } from '@/content/facts'
 import { ACCENT, DIAGRAM_W, GRAPHITE, INK, RULE, WASH } from '../figureKit'
 
 /**
- * Fig 7. Every number nucarbon displays, traced back to where it comes from.
- *
- * The project's own limitation is the only interesting thing to draw. It
- * measures nothing: six constants and a set of assumed adoption rates produce
- * every figure on nine pages, and exactly one of the six has a traceable
- * source. The accent marks that one, so the figure says which parts are
- * evidence and which are assumption without needing a sentence to do it.
+ * Every number nucarbon displays, traced back to where it comes from: six
+ * constants and a set of adoption rates produce every figure in the application.
+ * The accent marks the two inputs taken from published sources — the grid's
+ * carbon intensity and the energy per query — so the figure separates cited
+ * inputs from adjustable assumptions without a sentence to do it.
  */
 
 interface Constant {
@@ -17,19 +15,20 @@ interface Constant {
   readonly sourced: boolean
 }
 
-const CONSTANTS: readonly Constant[] = [
-  { name: 'studentPopulation', display: fact('ncStudents').value.toLocaleString('en-US'), sourced: false },
-  { name: 'facultyStaff', display: fact('ncFaculty').value.toLocaleString('en-US'), sourced: false },
-  { name: 'queriesPerPersonPerDay', display: String(value('ncQueriesPerDay')), sourced: false },
-  { name: 'energyPerQueryKwh', display: String(value('ncEnergyPerQuery')), sourced: false },
-  { name: 'co2PerKwhKg', display: String(value('ncCo2PerKwh')), sourced: true },
-  { name: 'semesterStartDate', display: 'a date', sourced: false },
+// Named as a reader says them; the model's own identifiers are in its repository.
+export const CONSTANTS: readonly Constant[] = [
+  { name: 'students', display: fact('ncStudents').value.toLocaleString('en-US'), sourced: false },
+  { name: 'faculty and staff', display: fact('ncFaculty').value.toLocaleString('en-US'), sourced: false },
+  { name: 'queries a person a day', display: String(value('ncQueriesPerDay')), sourced: false },
+  { name: 'kWh per query', display: String(value('ncEnergyPerQuery')), sourced: true },
+  { name: 'kg CO₂ per kWh', display: String(value('ncCo2PerKwh')), sourced: true },
+  { name: 'semester start', display: 'per term', sourced: false },
 ]
 
 const W = DIAGRAM_W
 const TOP = 16
 const PITCH = 19
-const H = TOP + CONSTANTS.length * PITCH + 96
+const H = TOP + CONSTANTS.length * PITCH + 108
 const BRACKET_X = 208
 const BOX_X = BRACKET_X + 22
 const BOX_W = W - BOX_X - 5
@@ -43,18 +42,13 @@ function Marks() {
         const y = TOP + i * PITCH
         return (
           <g key={c.name} className="font-mono">
-            <rect
-              x="0"
-              y={y - 8}
-              width="8"
-              height="8"
-              fill={c.sourced ? ACCENT : 'none'}
-              stroke={c.sourced ? ACCENT : RULE}
-            />
-            <text x="14" y={y} fontSize="10" fill={INK}>
+            {/* A filled square for a published source, a small dot for an assumption: no hollow boxes, which read as
+                checkboxes on a figure that has none. */}
+            {c.sourced ? <rect x="0" y={y - 8} width="8" height="8" fill={ACCENT} /> : <circle cx="4" cy={y - 4} r="2.5" fill={GRAPHITE} />}
+            <text x="14" y={y} fontSize="12" fill={INK}>
               {c.name}
             </text>
-            <text x={BRACKET_X - 12} y={y} textAnchor="end" fontSize="10" fill={GRAPHITE}>
+            <text x={BRACKET_X - 12} y={y} textAnchor="end" fontSize="12" fill={GRAPHITE}>
               {c.display}
             </text>
           </g>
@@ -76,49 +70,53 @@ function Marks() {
         stroke={INK}
         strokeWidth="1"
       />
-      <rect x={BOX_X} y={midY - 22} width={BOX_W} height="44" fill={WASH} stroke={ACCENT} />
+      <rect x={BOX_X} y={midY - 29} width={BOX_W} height="58" fill={WASH} stroke={ACCENT} />
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY - 9}
+        y={midY - 11}
         textAnchor="middle"
         className="font-mono"
-        fontSize="9.5"
+        fontSize="12"
         fill={INK}
       >
         every figure
       </text>
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY + 3}
+        y={midY + 4}
         textAnchor="middle"
         className="font-mono"
-        fontSize="9.5"
+        fontSize="12"
         fill={INK}
       >
-        on nine
+        in the
       </text>
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY + 15}
+        y={midY + 19}
         textAnchor="middle"
         className="font-mono"
-        fontSize="9.5"
+        fontSize="12"
         fill={INK}
       >
-        pages
+        app
       </text>
 
       <line x1="0" y1={lastY + 18} x2={W} y2={lastY + 18} stroke={RULE} strokeWidth="1" />
-      <g className="font-mono" fontSize="10" fill={GRAPHITE}>
+      <g className="font-mono" fontSize="12" fill={GRAPHITE}>
         <rect x="0" y={lastY + 30} width="8" height="8" fill={ACCENT} stroke={ACCENT} />
         <text x="14" y={lastY + 38}>
-          the one constant with a traceable source
+          taken from a published source
         </text>
-        <text x="14" y={lastY + 52}>
-          {`plus ${value('ncTools')} tools with assumed adoption rates;`}
+        <circle cx="4" cy={lastY + 50} r="2.5" fill={GRAPHITE} />
+        <text x="14" y={lastY + 54}>
+          an adjustable assumption
         </text>
-        <text x="14" y={lastY + 64}>
-          {`the app reports ±${value('ncSelfReportedError')}% on its own output`}
+        <text x="14" y={lastY + 70}>
+          {`plus ${value('ncTools')} tools, each with an adoption rate;`}
+        </text>
+        <text x="14" y={lastY + 86}>
+          {`uncertainty reported on the page: ±${value('ncSelfReportedError')}%`}
         </text>
       </g>
     </>
@@ -130,10 +128,10 @@ export const constantsDerivation = {
     { key: 'only', viewBox: `0 0 ${W} ${H}`, width: W, height: H, Marks, className: 'max-w-[336px]' },
   ],
   description:
-    `Every number displayed across nine pages derives from ${value('ncConstants')} constants: a ` +
+    `Every number the application displays derives from ${value('ncConstants')} constants: a ` +
     `student population, a faculty and staff count, an assumed number of AI queries per person ` +
     `per day, an energy figure per query, a carbon intensity per kilowatt hour, and a semester ` +
-    `start date — plus ${value('ncTools')} tools carrying assumed adoption rates. Only the carbon ` +
-    `intensity has a traceable source. The application reports plus or minus ` +
-    `${value('ncSelfReportedError')} percent on its own output.`,
+    `start date — plus ${value('ncTools')} tools with adjustable adoption rates. The carbon ` +
+    `intensity and the energy per query come from published sources. The application reports ` +
+    `its uncertainty as plus or minus ${value('ncSelfReportedError')} percent.`,
 }

@@ -1,0 +1,153 @@
+import { expect, type Page } from '@playwright/test'
+
+/** Helpers shared by the home figure's specs (hero, hero-bfcache, hero-software). */
+
+export const GPU = ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist']
+
+export const STAGE = '[data-seq]'
+export const num = async (page: Page, sel: string, attr: string) => Number((await page.locator(sel).first().getAttribute(attr)) ?? NaN)
+export const canvasShown = (page: Page) =>
+  page.locator(`${STAGE} [data-live-canvas]`).evaluate((c) => getComputedStyle(c).visibility !== 'hidden' && Number(getComputedStyle(c).opacity) > 0.5)
+export const seq = (page: Page) => page.locator(STAGE).getAttribute('data-seq')
+export const fillOpacity = (page: Page) =>
+  page.locator('[data-futures-poster] [data-fill]').first().evaluate((e) => Number(getComputedStyle(e).opacity))
+export const errorsOf = (page: Page) => {
+  const errors: string[] = []
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
+  page.on('pageerror', (e) => errors.push(e.message))
+  return errors
+}
+/**
+ * Bring the stage fully into view and wait for it to go live, and for its
+ * controls to finish arriving (they rise into place; a click on one mid-way
+ * makes Playwright retry at another scroll, which can carry the figure off
+ * screen); false where this machine has no usable GPU.
+ */
+export async function goLive(page: Page) {
+  await page.locator(STAGE).scrollIntoViewIfNeeded()
+  const live = await expect
+    .poll(() => canvasShown(page), { timeout: 20_000 })
+    .toBe(true)
+    .then(() => true)
+    .catch(() => false)
+  if (live) await page.waitForFunction(() => !document.querySelector('[data-futures-controls]')?.getAnimations({ subtree: true }).length)
+  return live
+}
+/** A visit on which the sequence has already been seen: the figure opens finished. */
+export const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('futures-seq', '1'))
+/** Hold the lazily loaded renderer chunk back until `release` is called, and report when it was asked for. */
+export async function holdRenderer(page: Page) {
+  let loaded = false
+  let open!: () => void
+  const gate = new Promise<void>((r) => (open = r))
+  let asked!: () => void
+  const requested = new Promise<void>((r) => (asked = r))
+  await page.route('**/_next/static/chunks/*.js', async (route) => {
+    if (!loaded) return route.continue()
+    asked()
+    await gate
+    await route.continue()
+  })
+  return { armed: () => (loaded = true), requested, release: () => open() }
+}
+/** Mean colour (0–1 sRGB) of a patch of the stage, from a screenshot decoded in the page. */
+export async function patch(page: Page, box = { x0: 0, y0: 0, x1: 1, y1: 1 }) {
+  const b64 = (await page.locator(STAGE).screenshot()).toString('base64')
+  return page.evaluate(
+    async ({ b64, box }) => {
+      const img = new Image()
+      img.src = `data:image/png;base64,${b64}`
+      await img.decode()
+      const c = document.createElement('canvas')
+      c.width = img.width
+      c.height = img.height
+      const g = c.getContext('2d')!
+      g.drawImage(img, 0, 0)
+      const x0 = Math.round(img.width * box.x0), y0 = Math.round(img.height * box.y0)
+      const d = g.getImageData(x0, y0, Math.max(1, Math.round(img.width * box.x1) - x0), Math.max(1, Math.round(img.height * box.y1) - y0)).data
+      let r = 0, gr = 0, b = 0
+      for (let i = 0; i < d.length; i += 4) {
+        r += d[i]!
+        gr += d[i + 1]!
+        b += d[i + 2]!
+      }
+      const n = d.length / 4
+      return [r / n / 255, gr / n / 255, b / n / 255] as [number, number, number]
+    },
+    { b64, box },
+  )
+}
+/** The darkest `cell`-sized patch of a region of the stage (fractions of its box), from one screenshot. */
+export async function darkest(page: Page, box: { x0: number; y0: number; x1: number; y1: number }, cell = 0.05) {
+  const b64 = (await page.locator(STAGE).screenshot()).toString('base64')
+  return page.evaluate(
+    async ({ b64, box, cell }) => {
+      const img = new Image()
+      img.src = `data:image/png;base64,${b64}`
+      await img.decode()
+      const c = document.createElement('canvas')
+      c.width = img.width
+      c.height = img.height
+      const g = c.getContext('2d')!
+      g.drawImage(img, 0, 0)
+      const lin = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+      let best: [number, number, number] = [1, 1, 1], bestL = Infinity
+      const cw = Math.max(1, Math.round(img.width * cell)), ch = Math.max(1, Math.round(img.height * cell))
+      for (let x = Math.round(img.width * box.x0); x + cw <= Math.round(img.width * box.x1); x += cw)
+        for (let y = Math.round(img.height * box.y0); y + ch <= Math.round(img.height * box.y1); y += ch) {
+          const d = g.getImageData(x, y, cw, ch).data
+          let r = 0, gr = 0, bl = 0
+          for (let i = 0; i < d.length; i += 4) {
+            r += d[i]!
+            gr += d[i + 1]!
+            bl += d[i + 2]!
+          }
+          const n = d.length / 4
+          const m: [number, number, number] = [r / n / 255, gr / n / 255, bl / n / 255]
+          const l = 0.2126 * lin(m[0]) + 0.7152 * lin(m[1]) + 0.0722 * lin(m[2])
+          if (l < bestL) {
+            bestL = l
+            best = m
+          }
+        }
+      return best
+    },
+    { b64, box, cell },
+  )
+}
+/** The ink's tone on the stage (light mode): luminance percentiles of the pixels darker than 0.6 in its left `part`. */
+export async function inkTones(page: Page, part = 1) {
+  const b64 = (await page.locator(STAGE).screenshot()).toString('base64')
+  return page.evaluate(async ({ b64, part }) => {
+    const img = new Image()
+    img.src = `data:image/png;base64,${b64}`
+    await img.decode()
+    const c = document.createElement('canvas')
+    c.width = img.width
+    c.height = img.height
+    const g = c.getContext('2d')!
+    g.drawImage(img, 0, 0)
+    const d = g.getImageData(0, 0, img.width, img.height).data
+    const lin = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+    const ink: number[] = []
+    const w = Math.round(img.width * part)
+    for (let y = 0; y < img.height; y++)
+      for (let x = 0; x < w; x += 3) {
+        const i = (y * img.width + x) * 4
+        const l = 0.2126 * lin(d[i]! / 255) + 0.7152 * lin(d[i + 1]! / 255) + 0.0722 * lin(d[i + 2]! / 255)
+        if (l < 0.6) ink.push(l)
+      }
+    ink.sort((a, b) => a - b)
+    const q = (t: number) => ink[Math.floor(t * (ink.length - 1))] ?? 1
+    return { p05: q(0.05), p25: q(0.25), n: ink.length }
+  }, { b64, part })
+}
+export const luminance = ([r, g, b]: readonly number[]) => {
+  const l = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * l(r!) + 0.7152 * l(g!) + 0.0722 * l(b!)
+}
+export const contrast = (a: readonly number[], b: readonly number[]) => {
+  const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p)
+  return (x! + 0.05) / (y! + 0.05)
+}
+
