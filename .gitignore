@@ -52,3 +52,6 @@ next-env.d.ts
 
 # the CV PDF is printed from /cv at build time (scripts/cv-pdf.mjs)
 /public/ilia-duda-resume.pdf
+
+# the withheld-word gate's HMAC key: local only; CI reads the WITHHELD_KEY secret (tests/forbidden.ts)
+/.withheld-key

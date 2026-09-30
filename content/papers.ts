@@ -67,7 +67,7 @@ export const papers: readonly Paper[] = [
     abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} API routes over Postgres with row-level security, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn, or a reviewer’s approval, before it is exported.`,
     dek: 'A multi-tenant month-end close for CPA firms that I built alone: an LLM pipeline maps every bank line to the client’s accounts, and only confident or reviewer-approved lines export.',
     figureNote: 'synthetic feed',
-    byline: 'Founder and sole engineer · January 2026 – present',
+    byline: 'Founder and sole engineer · April 2026 – present',
     status: 'published',
   },
   {

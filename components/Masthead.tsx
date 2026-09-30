@@ -49,7 +49,7 @@ export function Masthead() {
   ] as const
 
   return (
-    <header className="pt-10 sm:pt-14 lg:pt-12 [@media(max-height:30rem)]:pt-6">
+    <header className="pt-8 sm:pt-14 lg:pt-12 [@media(max-height:30rem)]:pt-6">
       <Row>
         <h1 className="text-h1 lg:text-display">{PERSON.name}</h1>
         {/* The full measure at lg: three lines instead of four, so the front matter and Fig. 1 share a laptop's first screen;
@@ -57,7 +57,7 @@ export function Masthead() {
         <p className="mt-4 max-w-[36rem] lg:max-w-none [@media(max-height:30rem)]:max-w-none">{POSITIONING}</p>
       </Row>
 
-      <dl className="mt-7 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 lg:mt-6 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
+      <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 lg:mt-6 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
             <dt className="text-meta pt-0.5 font-mono text-graphite lg:text-right">{k}</dt>

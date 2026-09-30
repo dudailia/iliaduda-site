@@ -3,10 +3,12 @@
  * (Ilia_Duda_Resume-3, supplied 2026-09-24), which wins wherever sources
  * disagree — except where it carries Glacier internals, which stay off. Shared by the home page (brief) and /about (full).
  *
- * Glacier Capital Systems is a proprietary trading firm and appears at résumé
- * level only: title, dates, what is built and the stack. No strategies,
- * parameters, data, internal names, test counts or performance numbers — and
- * tests/copy.test.ts fails the build on the obvious ways that could slip in.
+ * Glacier Capital Systems is a proprietary options trading firm. Cleared by the
+ * owner (2026-09-30): the tools that automate its traders' investment
+ * workflows, the real-time dashboards, the analysis and research tooling, and
+ * the stack. Never strategies, parameters, performance, data, internal names,
+ * paths or code — and tests/copy.test.ts fails the build on the obvious ways
+ * that could slip in.
  */
 
 export interface Role {
@@ -39,16 +41,16 @@ export const roles: readonly Role[] = [
     title: 'Quantitative Analyst and Engineer',
     place: 'Remote',
     dates: 'January 2026 – present',
-    brief: 'Sole engineer on the firm’s Python research stack for options, and the real-time dashboard that puts its output in front of the trading desk.',
+    brief: 'Building the tools that automate the firm’s traders’ investment workflows: real-time dashboards, and the Python research and analysis tooling behind them.',
     detail: [
-      'Sole engineer on the firm’s Python research stack for options: volatility modelling, options-chain analysis, candidate scoring and market scanning.',
+      'Sole engineer building the tools that automate the traders’ investment workflows, starting with the firm’s Python research and analysis tooling for options: volatility modelling, options-chain analysis, candidate scoring and market scanning.',
       'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
-      'Built the real-time alert dashboard — Next.js on Vercel, Supabase, and a Python worker on Fly.io — replacing a cron-and-email pipeline, and moved strategy configuration out of code so non-engineers can tune it without a deploy.',
+      'Built the real-time dashboards the traders work from — Next.js on Vercel, Supabase, and a Python worker on Fly.io — replacing a cron-and-email pipeline, and moved strategy configuration out of code so non-engineers can tune it without a deploy.',
     ],
     cv: [
-      'Sole engineer on the firm’s Python research stack for options: volatility modelling, options-chain analysis, candidate scoring and market scanning.',
+      'Sole engineer building tools that automate the traders’ investment workflows: Python research and analysis tooling for options (volatility modelling, options-chain analysis, candidate scoring, market scanning).',
       'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
-      'Built the real-time alert dashboard (Next.js, Supabase, a Python worker on Fly.io) that replaced a cron-and-email pipeline; moved strategy configuration out of code.',
+      'Built the traders’ real-time dashboards (Next.js, Supabase, a Python worker on Fly.io), replacing a cron-and-email pipeline; moved strategy configuration out of code.',
     ],
   },
   {
@@ -75,7 +77,7 @@ export const roles: readonly Role[] = [
     org: 'CloseBooks',
     orgNote: 'month-end close for accounting firms',
     title: 'Founder',
-    dates: 'January 2026 – present',
+    dates: 'April 2026 – present',
     brief: 'Built and deployed a multi-tenant month-end close product for CPA firms on my own, with an AI categorisation pipeline on the Claude API.',
     detail: [
       'Built and deployed a multi-tenant month-end close product for CPA firms on my own: Next.js and TypeScript, Supabase Postgres with row-level security, and Stripe billing across three subscription tiers.',

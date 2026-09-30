@@ -1,4 +1,5 @@
-import { createHash } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 
 /**
  * Phrases that are unsupportable anywhere on this site, with the reason each
@@ -59,6 +60,8 @@ export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
 
   // The public CV and every page: no phone number, ever.
   [/\+\d[\d\s().-]{8,}\d|\(\d{3}\)\s?\d{3}[\s.-]\d{4}\b/, 'no phone number on the public site'],
+  // The owner's call (2026-09-30): no grade point average anywhere.
+  [/\bGPA\b|grade point average/i, 'no GPA on the site'],
 ]
 
 /**
@@ -81,6 +84,22 @@ const WITHHELD = new Set([
   'a95bc16631ae2b6fadb455ee',
 ])
 
+/**
+ * The same words as keyed digests: HMAC-SHA-256 under WITHHELD_KEY, the first 32 hex digits. Without the key no
+ * dictionary recovers them, which an unkeyed digest does not promise. The key is a GitHub Actions secret in CI and a
+ * gitignored file (.withheld-key) on the owner's machine; the owner fills this list with scripts/withheld-digest.mjs,
+ * and once it holds every word the unkeyed list above goes. With keyed digests listed and no key, the gate fails
+ * rather than passing unchecked.
+ */
+const WITHHELD_KEYED = new Set<string>([])
+function withheldKey(): string | null {
+  const env = process.env.WITHHELD_KEY?.trim()
+  if (env) return env
+  return existsSync('.withheld-key') ? readFileSync('.withheld-key', 'utf8').trim() || null : null
+}
+const KEY = WITHHELD_KEYED.size ? withheldKey() : null
+if (WITHHELD_KEYED.size && !KEY) throw new Error('tests/forbidden.ts: WITHHELD_KEY is not set (a GitHub Actions secret in CI, .withheld-key locally)')
+
 /** The withheld words a text contains, as their digests (never the words themselves). */
 export function withheld(text: string): string[] {
   const words = (text.toLowerCase().match(/[a-z0-9_.&]+/g) ?? []).map((w) => w.replace(/^\.+|\.+$/g, '')).filter(Boolean)
@@ -88,6 +107,10 @@ export function withheld(text: string): string[] {
   const check = (t: string) => {
     const d = createHash('sha256').update(t).digest('hex').slice(0, 24)
     if (WITHHELD.has(d)) hits.push(d)
+    if (KEY) {
+      const k = createHmac('sha256', KEY).update(t).digest('hex').slice(0, 32)
+      if (WITHHELD_KEYED.has(k)) hits.push(k)
+    }
   }
   words.forEach((w, i) => {
     check(w)

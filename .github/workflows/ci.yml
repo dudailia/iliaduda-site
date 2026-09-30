@@ -34,6 +34,9 @@ jobs:
       # contrast.test.ts  — WCAG ratios computed from globals.css, not eyeballed
       - name: Provenance, copy and contrast gates
         run: pnpm test
+        env:
+          # The withheld-word gate's HMAC key (tests/forbidden.ts); a repository secret, never in the repo.
+          WITHHELD_KEY: ${{ secrets.WITHHELD_KEY }}
 
   audit:
     name: accessibility, keyboard, origin, 360px
@@ -53,6 +56,8 @@ jobs:
       # server would be measuring an environment no real visitor uses.
       - name: Axe (incl. best-practice), focus rings, off-origin requests, 360px
         run: pnpm exec playwright test
+        env:
+          WITHHELD_KEY: ${{ secrets.WITHHELD_KEY }}
 
   budget:
     name: lighthouse — accessibility 100, CLS, no third party
