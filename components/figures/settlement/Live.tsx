@@ -305,7 +305,7 @@ export function SettlementLive({
     <FigureFrame
       id="fig-login"
       number="Fig. 2"
-      title="What the login that shows it may cost"
+      title="What each login code costs the debtor’s legal allowance"
       subtitle="230-FZ, Russia’s debt-collection law: article 7 caps the messages a debtor receives, article 8 lets them refuse contact"
       caption={loginCaption}
       table={loginTable}
@@ -359,7 +359,6 @@ export function SettlementLive({
               Interaction refused (art. 8)
             </label>
           </div>
-          <p className="text-meta mt-2 font-mono text-graphite">Clock: {clock(now)}</p>
 
           <div className="mt-3 grid gap-2">
             {WINDOWS.map((w) => {
@@ -385,7 +384,7 @@ export function SettlementLive({
               {said}
             </span>
           </p>
-          <p className="text-meta mt-1 max-w-[36rem] font-mono text-graphite">{callCaps}</p>
+          <p className="text-note mt-1 max-w-[36rem] text-graphite">{callCaps}</p>
         </section>
     </FigureFrame>
     </>

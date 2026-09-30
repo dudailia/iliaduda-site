@@ -154,7 +154,7 @@ test('a reviewer’s approval lights the export count it moved', async ({ page }
 test('switching treatment: the rows that leave the top fade where they stood, then go', async ({ page }) => {
   await page.goto('/startup-investments')
   await page.locator('#fig-ranking').scrollIntoViewIfNeeded()
-  await page.getByRole('radio', { name: 'Both fixed' }).click()
+  await page.getByRole('radio', { name: 'Lookup and CAGR fixed' }).click()
   const leaving = page.locator('#fig-ranking ol > li[aria-hidden="true"]')
   await expect(leaving.first()).toBeAttached()
   await expect(leaving).toHaveCount(0, { timeout: 1_000 })
@@ -165,7 +165,7 @@ test('a second switch while rows are moving takes them on from where they are, n
   await page.locator('#fig-ranking').scrollIntoViewIfNeeded()
   const names = () => page.locator('#fig-ranking ol > li[data-name]').evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.name!))
   const asWritten = await names()
-  await page.getByRole('radio', { name: 'Both fixed' }).click()
+  await page.getByRole('radio', { name: 'Lookup and CAGR fixed' }).click()
   await page.waitForTimeout(120)
   // A row in the top twelve both ways, mid-move: where it is drawn, and a frame after switching straight back.
   const both = (await names()).filter((n) => asWritten.includes(n))

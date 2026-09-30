@@ -254,13 +254,14 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const hy = frac > 0 && at < n - 1 ? y(p) + (y(balls[at + 1]![9]) - y(p)) * frac : y(p)
 
   const rows = [
+    // The claim first: the model's probability before this ball.
+    { label: `P(${first} win)`, value: pct(p) },
     { label: 'Innings', value: inn === 1 ? `1 · ${first} batting` : `2 · ${second} chasing` },
     { label: 'Before ball', value: `over ${over}.${ball}` },
     { label: 'Score', value: `${batting} ${runs}/${wkts}` },
     // Every row is always present, so the margin never changes height while
     // the replay runs — a row appearing mid-replay was a layout shift.
-    { label: 'Chase', value: target ? `${need} from ${left} balls` : '—' },
-    { label: `P(${first} win)`, value: pct(p) },
+    { label: 'Needs', value: target ? `${need} from ${left} balls` : '—' },
     { label: 'This ball', value: thisBall },
     { label: 'Result', value: done ? result : '—' },
   ]
@@ -313,7 +314,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       number="Fig. 1"
       vt="cricstate"
       title={`${first} v ${second}, replayed ball by ball`}
-      subtitle="probability the side batting first wins · gradient boosting on match state · calibrated on the season before · a match it never saw · log-odds scale"
+      subtitle="probability the side batting first wins · gradient boosting on match state · calibrated on the season after its training · a match it never saw · log-odds scale"
       rail={
         <div data-played-rail="">
           <Readouts rows={rows} />

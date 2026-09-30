@@ -102,7 +102,7 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
               <dt className="text-meta font-mono text-graphite sm:pt-0.5">{k}</dt>
               {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
                   long address still wraps at 360px. */}
-              <dd className="min-w-0 break-words font-mono [&_a]:py-1">{v}</dd>
+              <dd className="min-w-0 break-words font-mono [&_a]:py-1">{typeof v === 'string' ? <Items items={v} /> : v}</dd>
             </div>
           ))}
         </dl>

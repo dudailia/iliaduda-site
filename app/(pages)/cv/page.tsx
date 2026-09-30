@@ -27,10 +27,14 @@ const MONTH = /\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]+/g
 const shortDates = (d: string) => d.replace(MONTH, '$1')
 const bare = (href: string) => href.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
 
-/** The résumé keeps its own order, so a new paper in Contents does not reshuffle it. */
-const CV_ORDER = ['iv-surface', 'cricstate', 'startup-investments']
+/**
+ * The résumé keeps its own list and order, so a new paper in Contents does not reshuffle it. The one-page sheet holds
+ * three: the market (the Hawkes order book, the determinism, the fan and the surface in one frame) took the startup
+ * ranking's place, which stays on the site (TODO(owner): the swap is revertible, here).
+ */
+const CV_ORDER = ['iv-surface', 'cricstate', 'market']
 const PROJECTS = papers
-  .filter((p) => p.status === 'published' && p.cv)
+  .filter((p) => p.status === 'published' && p.cv && CV_ORDER.includes(p.slug))
   .sort((a, b) => (CV_ORDER.indexOf(a.slug) + 1 || 99) - (CV_ORDER.indexOf(b.slug) + 1 || 99))
 
 function Head({ children }: { children: string }) {
@@ -82,8 +86,11 @@ export default function Cv() {
               </p>
               <p className="cv-date">{shortDates(education.dates)}</p>
             </div>
+            {/* On screen the honours take their own line: the degree and honours together sit at the sheet's full width,
+                so a fallback font (a slow connection, before the webfont) wrapped them and the swap moved the sheet. In
+                print, where the page is held to one sheet, they share the line. */}
             <p>
-              {education.degree}. {education.honours}.
+              {education.degree}. <span className="cv-honours">{education.honours}.</span>
             </p>
             <p className="cv-muted">
               Coursework: {education.coursework.map((c) => c.replace(/^[A-Z]{4} \d{4} /, '')).join(', ')}.

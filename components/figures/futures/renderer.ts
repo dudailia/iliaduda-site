@@ -494,6 +494,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let firstFrame = true
   /** The one batch priced while the sequence waits has gone out. */
   let warmed = false
+  /** An input changed since the last pricing call: the next frame prices, paused or not. */
+  let repriced = false
   /**
    * Everything the figure draws and reads has been used once: the first
    * readback is back (or 1.5s have passed). A GPU builds a pipeline the first
@@ -1077,9 +1079,22 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     for (const l of labels) {
       const [x, y, z] = l.at()
       const s = project(vp, x, y, z)
-      // Near the frame's edge a label fades out rather than cutting (the strike stays named: it is kept inside the
-      // stage), and it fades before it passes the eye.
-      const edge = l.el === strikeEl ? 1 : 1 - smooth(0.9, 1.05, Math.max(Math.abs(s[0]), Math.abs(s[1])))
+      // Kept inside the stage both ways, 4px in, however the camera sits.
+      const px0 = ((s[0] + 1) / 2) * cssW
+      let px = px0
+      const left = px + l.side * l.w
+      if (left < 4) px += 4 - left
+      else if (left + l.w > cssW - 4) px -= left + l.w - (cssW - 4)
+      const py0 = ((1 - s[1]) / 2) * cssH
+      let py = py0
+      const top = py + l.vside * l.h
+      if (top < 4) py += 4 - top
+      else if (top + l.h > cssH - 4) py -= top + l.h - (cssH - 4)
+      // A label whose point has left the frame fades out rather than cutting, by how far the stage's edge has had to
+      // hold it back (not by where its point sits: one held just inside, as the price is at the wall's top, reads at
+      // full strength). The strike stays named. It fades before it passes the eye, too.
+      const held = Math.max(Math.abs(px - px0), Math.abs(py - py0))
+      const edge = l.el === strikeEl ? 1 : 1 - smooth(24, 96, held)
       const near = smooth(0.05, 0.25, s[2])
       const a = l.show() * (l.data ? fadeMul : 1) * edge * near
       // Followed over 60ms, so a change of the camera's mode never steps a label's opacity in one frame.
@@ -1089,15 +1104,6 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       l.el.style.opacity = on ? l.k.toFixed(3) : '0'
       l.el.style.visibility = on ? 'visible' : 'hidden'
       if (!on) continue
-      // Kept inside the stage both ways, 4px in, however the camera sits.
-      let px = ((s[0] + 1) / 2) * cssW
-      const left = px + l.side * l.w
-      if (left < 4) px += 4 - left
-      else if (left + l.w > cssW - 4) px -= left + l.w - (cssW - 4)
-      let py = ((1 - s[1]) / 2) * cssH
-      const top = py + l.vside * l.h
-      if (top < 4) py += 4 - top
-      else if (top + l.h > cssH - 4) py -= top + l.h - (cssH - 4)
       l.el.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`
     }
     return following
@@ -1280,9 +1286,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       // Waiting for its reader, the figure prices one batch, which builds and warms everything pricing uses (so the
       // burst does not stall on it), then holds until the sequence restarts the run from nothing. Paused, it holds
       // once it has an estimate worth showing, so the numbers stop with the picture (WCAG 2.2.2).
-      if (seq === 'pending' ? !warmed : !(paused && est.n >= HOLD_N)) {
+      // A change to an input always prices once, paused or not: that restarts the run for the new option, so the
+      // margin never measures the held estimate of one option against the formula of another.
+      if (seq === 'pending' ? !warmed : repriced || !(paused && est.n >= HOLD_N)) {
         pricer.price()
         warmed = true
+        repriced = false
       }
       gl.flush()
       report(markedNow)
@@ -1323,6 +1332,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       sigma = s
       strike = k
       pricer.setParams(s, k)
+      repriced = true
       dirty = true
     },
     rewind(then) {

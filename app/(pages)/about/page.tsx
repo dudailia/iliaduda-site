@@ -88,7 +88,8 @@ export default function About() {
             </picture>
           }
         >
-          <h1 className="text-h2 sm:text-h1">About</h1>
+          {/* The person, not the word: /about is a landing page from LinkedIn and email (its tab still says About). */}
+          <h1 className="text-h2 sm:text-h1">{PERSON.name}</h1>
           <div className="mt-5 max-w-[37.9rem]">
             <p>
               {POSITIONING} {AVAILABILITY.line}, based in Boston and just as open to{' '}
@@ -129,8 +130,8 @@ export default function About() {
                 ) : null}
                 {r.href ? (
                   <p className="text-note mt-2">
-                    <a href={r.href} className="whitespace-nowrap">
-                      Read the paper
+                    <a href={r.href} className="inline-block py-1 whitespace-nowrap">
+                      Read the paper<span className="sr-only">: {r.org}</span>
                     </a>
                   </p>
                 ) : null}
@@ -148,7 +149,9 @@ export default function About() {
                 <h3 className="text-body font-semibold tracking-normal">
                   <a href={p.href}>{p.title}</a>
                 </h3>
-                <p className="text-meta mt-0.5 font-mono text-graphite">{p.byline}</p>
+                <p className="text-meta mt-0.5 font-mono text-graphite">
+                  <Items items={p.byline} />
+                </p>
                 <p className="mt-1.5">{p.dek}</p>
               </li>
             ))}

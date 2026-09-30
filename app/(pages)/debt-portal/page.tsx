@@ -81,7 +81,7 @@ export default function DebtPortal() {
             Standards are build gates rather than intentions: types, lint, contrast computed from
             the design tokens, origin compliance, a JavaScript size ratchet, and accessibility 100
             as a hard failure. The layout-shift gate is {fact('dgClsGate').value} and the measured
-            value is {fact('dgClsMeasured').value} on every audited route; the suite runs {n('dgUnitTests')}{' '}
+            value is {fact('dgClsMeasured').value} on every audited route; the suite declares {n('dgUnitTests')}{' '}
             unit tests and {n('dgE2eCases')} end-to-end cases.
           </p>
           <p>

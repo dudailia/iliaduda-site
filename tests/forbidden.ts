@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 /**
  * Phrases that are unsupportable anywhere on this site, with the reason each
  * was banned. One list, read by both gates: tests/copy.test.ts scans source
@@ -7,7 +9,7 @@
  */
 export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
   [/real money/i, 'not supportable — no project handles customer money'],
-  [/real clients/i, 'not supportable — CloseBooks has no paying customers'],
+  [/real clients/i, 'no customer claims without a source'],
   [/production[- ]grade/i, 'superlative that cannot be defended'],
   [/battle[- ]tested/i, 'superlative that cannot be defended'],
   // Narrowed from /enterprise/ after it flagged "Young Enterprise UK", which is
@@ -52,12 +54,44 @@ export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
   [/\balpha\b(?!\s*:)/i, 'no performance metrics for any trading work'],
   [/\bmax(imum)? drawdown\b/i, 'no performance metrics for any trading work'],
   [/[+−-]\s?\d+(\.\d+)?\s?%\s+(total\s+)?returns?\b/i, 'no returns for any trading work'],
-  [/\bvs\.?\s+(the\s+)?(SPY|S&P)|\bS&P\s?500\b/i, 'no strategy-versus-benchmark comparison'],
-  [/\b(SPY|SMCI|NVDA|TSLA|AAPL|QQQ)\b/, 'no tickers'],
-  [/version delta/i, 'Glacier internal system name'],
-  [/worker\.py|fly\.toml|glacier_v2|WORKER_[A-Z_]+/, 'Glacier internal paths and settings'],
-  [/\bDTE\b|\bOTM\b/, 'Glacier strategy parameters'],
+  [/\bvs\.?\s+(the\s+)?S&P|\bS&P\s?500\b/i, 'no strategy-versus-benchmark comparison'],
+  [/\b[A-Z]+_[A-Z_]+=|\benv(ironment)? var(iable)?s?\b/, 'no environment settings of any trading work'],
 
   // The public CV and every page: no phone number, ever.
   [/\+\d[\d\s().-]{8,}\d|\(\d{3}\)\s?\d{3}[\s.-]\d{4}\b/, 'no phone number on the public site'],
 ]
+
+/**
+ * Words the trading work must never show (its internal names, paths, parameters and instruments), kept here only as
+ * SHA-256 digests (the first 24 hex digits): a public list of what must stay private would publish it. Every word and
+ * every pair of adjacent words of a text is hashed and looked up, lower-cased, so the gate is as strict as a pattern.
+ */
+const WITHHELD = new Set([
+  '34da9e97f85556a74e2f1a48',
+  'ef0ecc97a9e678e23ad77ea3',
+  '660f7078dc0b381a350960ea',
+  'c09ba16f44fd78506bd35fdb',
+  '76e4952ce4de5226bdeb05a9',
+  'a709ab3e88f5f3fa43f3094f',
+  '57d4aa377250296d19d9f55f',
+  '2bd5cad708abec6f1cb5698c',
+  '3067ff6517b69abd1db7dbd4',
+  '35da52e03109190fb247b712',
+  '199dc38e1a4d3008afbe8de8',
+  'a95bc16631ae2b6fadb455ee',
+])
+
+/** The withheld words a text contains, as their digests (never the words themselves). */
+export function withheld(text: string): string[] {
+  const words = (text.toLowerCase().match(/[a-z0-9_.&]+/g) ?? []).map((w) => w.replace(/^\.+|\.+$/g, '')).filter(Boolean)
+  const hits: string[] = []
+  const check = (t: string) => {
+    const d = createHash('sha256').update(t).digest('hex').slice(0, 24)
+    if (WITHHELD.has(d)) hits.push(d)
+  }
+  words.forEach((w, i) => {
+    check(w)
+    if (i > 0) check(`${words[i - 1]} ${w}`)
+  })
+  return hits
+}

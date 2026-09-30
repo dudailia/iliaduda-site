@@ -18,6 +18,7 @@ import { ACCENT, DIAGRAM_W, GRAPHITE, INK, RULE, SMALL, WASH } from '../figureKi
 const RAW = value('siRowsRaw')
 const CLEANED = value('siRowsCleaned')
 const FINAL = value('siRowsFinal')
+const OUTLIERS = value('siOutliersRemoved')
 
 const STAGES = [
   { label: 'records as supplied', n: RAW, role: 'context' as const },
@@ -60,7 +61,7 @@ function Marks() {
               <text x={X0} y={y + BAR_H + 20} fontSize="12" fill={GRAPHITE}>
                 {i === 0
                   ? `− ${fmt(RAW - CLEANED)} lacking a funding record or a date`
-                  : `− ${fmt(CLEANED - FINAL)} outliers, and years too thin to use`}
+                  : `− ${fmt(OUTLIERS)} outliers, − ${fmt(CLEANED - FINAL - OUTLIERS)} in thin years`}
               </text>
             ) : null}
           </g>

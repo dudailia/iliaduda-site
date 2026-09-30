@@ -74,6 +74,29 @@ test('paused, the numbers hold too, once there is an estimate to show', async ({
   await expect.poll(paths, { timeout: 30_000 }).toBe(268_435_456)
 })
 
+test('paused, a change to an input prices the new option: the gap is never measured across two options', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.addInitScript(() => sessionStorage.setItem('futures-paused', '1'))
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect.poll(() => num(page, '[data-paths]', 'data-paths'), { timeout: 20_000 }).toBeGreaterThanOrEqual(1_048_576)
+  await page.getByRole('slider', { name: 'Volatility' }).focus()
+  await page.keyboard.press('ArrowRight')
+  // The new option's estimate arrives, within its own error of the new formula.
+  await expect
+    .poll(
+      async () => {
+        const mc = await num(page, '[data-mc-price]', 'data-mc-price')
+        const se = await num(page, '[data-mc-price]', 'data-mc-se')
+        const bs = await num(page, '[data-bs-price]', 'data-bs-price')
+        return se > 0 && Math.abs(mc - bs) < 4 * se
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true)
+})
+
 test('a laptop’s pointer leans the view toward itself, and leaving lets it go', async ({ page, isMobile }) => {
   test.skip(isMobile, 'a pointer that hovers')
   await seen(page)

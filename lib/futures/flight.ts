@@ -1,4 +1,4 @@
-import { EASE_IN_OUT, EASE_IN_OUT_QUAD } from '../ease'
+import { EASE_IN_OUT, bezier } from '../ease'
 
 /**
  * The Fly-through clock: how far along the optional flythrough the camera
@@ -6,14 +6,19 @@ import { EASE_IN_OUT, EASE_IN_OUT_QUAD } from '../ease'
  * lib/futures/camera.ts, which only the renderer loads.
  */
 
-/** Fly through: out on easeInOutQuad, a hold on the payoff view, home on the site's in-out. */
+/**
+ * Fly through: out on a curve that leaves at 0.4 of its mean speed (the reader pressed it: easeInOutQuad's zero start
+ * speed showed nothing but the button's word for half a second) and lands at rest on the payoff view, peaking near
+ * easeInOutQuad's own; a hold there; home on the site's in-out. `cubic-bezier(0.3, 0.12, 0.45, 1)`.
+ */
+const FLIGHT_OUT = bezier(0.3, 0.12, 0.45, 1)
 export const FLIGHT_MS = 9000
 export const HOLD_MS = 1200
 export const RETURN_MS = 900
 
 export function flightAt(ms: number): number {
   if (ms <= 0) return 0
-  if (ms < FLIGHT_MS) return EASE_IN_OUT_QUAD(ms / FLIGHT_MS)
+  if (ms < FLIGHT_MS) return FLIGHT_OUT(ms / FLIGHT_MS)
   if (ms <= FLIGHT_MS + HOLD_MS) return 1
   if (ms < FLIGHT_MS + HOLD_MS + RETURN_MS) return 1 - EASE_IN_OUT((ms - FLIGHT_MS - HOLD_MS) / RETURN_MS)
   return 0

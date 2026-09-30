@@ -3,6 +3,7 @@
 import { EASE_IN_OUT_CSS, EASE_OUT_CSS } from '@/lib/ease'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
+import { Items } from '@/components/Layout'
 import { useReducedMotion } from '@/components/stage/env'
 import { option } from '@/components/stage/controls'
 
@@ -31,7 +32,10 @@ export interface Row {
   c: { score: number; rank: number }
 }
 
-const SHOWN = 12
+// The top fifteen, the reach of the paper's conclusion: the segments that stay in it under all three treatments are
+// the claim, in indigo; the rest are context, in graphite.
+const SHOWN = 15
+const survives = (r: { a: { rank: number }; b: { rank: number }; c: { rank: number } }) => r.a.rank <= SHOWN && r.b.rank <= SHOWN && r.c.rank <= SHOWN
 const MOVE = `transform 280ms ${EASE_IN_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 const ENTER = `transform 240ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 /** A row caught mid-glide by another switch: away at once from where it is drawn, on the ease-out, so it never stalls. */
@@ -217,7 +221,7 @@ export function RankingLive({
             <li
               key={r.name}
               data-name={r.name}
-              className="grid min-w-0 grid-cols-[1.5rem_minmax(0,8.5rem)_1fr_2.5rem_2.25rem] items-center gap-x-2.5 border-b border-rule py-1.5 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
+              className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_2.5rem_2.25rem] items-center gap-x-2.5 gap-y-1 border-b border-rule py-1.5 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
             >
               <span className="text-meta tabular text-graphite">{now}</span>
               {/* The whole name, wrapping if it must (at a phone's width, or enlarged): a row's height is its name's,
@@ -230,9 +234,11 @@ export function RankingLive({
                   </span>
                 ) : null}
               </span>
-              <span className="relative h-2.5" aria-hidden>
+              {/* On a phone the bar takes its own line under the name, across the row: squeezed beside it (70–100px on
+                  a 0–100 scale) the treatments' scores drew twelve identical bars. */}
+              <span className="relative col-[2/-1] row-start-2 h-2.5 sm:col-auto sm:row-auto" aria-hidden>
                 <span
-                  className="absolute inset-y-0 left-0 w-full origin-left bg-indigo"
+                  className={`absolute inset-y-0 left-0 w-full origin-left ${survives(r) ? 'bg-indigo' : 'bg-graphite'}`}
                   style={{ transform: `scaleX(${r[v].score / max})`, transition: reduced ? 'none' : `transform 280ms ${EASE_IN_OUT_CSS}` }}
                 />
               </span>
@@ -250,13 +256,13 @@ export function RankingLive({
           <li
             key={`gone-${g.key}`}
             aria-hidden
-            className="absolute inset-x-0 grid min-w-0 grid-cols-[1.5rem_minmax(0,8.5rem)_1fr_2.5rem_2.25rem] items-center gap-x-2.5 border-b border-rule py-1.5 opacity-0 transition-opacity duration-200 ease-out starting:opacity-100 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
+            className="absolute inset-x-0 grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_2.5rem_2.25rem] items-center gap-x-2.5 gap-y-1 border-b border-rule py-1.5 opacity-0 transition-opacity duration-200 ease-out starting:opacity-100 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
             style={{ top: g.top, height: g.height }}
           >
             <span className="text-meta tabular text-graphite">{g.rank}</span>
             <span className="text-note min-w-0 leading-snug [overflow-wrap:anywhere]">{g.row.name}</span>
-            <span className="relative h-2.5">
-              <span className="absolute inset-y-0 left-0 w-full origin-left bg-indigo" style={{ transform: `scaleX(${g.frac})` }} />
+            <span className="relative col-[2/-1] row-start-2 h-2.5 sm:col-auto sm:row-auto">
+              <span className={`absolute inset-y-0 left-0 w-full origin-left ${survives(g.row) ? 'bg-indigo' : 'bg-graphite'}`} style={{ transform: `scaleX(${g.frac})` }} />
             </span>
             <span className="text-meta tabular text-right text-graphite">{g.score.toFixed(1)}</span>
             <span className="text-meta tabular text-right text-ink">↓</span>
@@ -265,7 +271,7 @@ export function RankingLive({
       </ol>
 
       <p className="text-meta mt-3 font-mono text-graphite">
-        ∅ absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written
+        <Items items="indigo: in the top fifteen under all three treatments · ∅ absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written" />
       </p>
       <p className="sr-only">{description}</p>
     </div>

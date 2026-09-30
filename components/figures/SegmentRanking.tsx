@@ -31,12 +31,12 @@ export const VARIANTS = [
   },
   {
     key: 'b',
-    label: 'Lookup fixed',
+    label: 'Growth lookup fixed',
     note: 'Every segment gets its real 2014 change, negative where funding fell, and the notebook’s own CAGR.',
   },
   {
     key: 'c',
-    label: 'Both fixed',
+    label: 'Lookup and CAGR fixed',
     note: 'CAGR measured from each segment’s first funded year, instead of from 2000 with a $0 start read as $1.',
   },
 ] as const satisfies readonly { key: Variant; label: string; note: string }[]

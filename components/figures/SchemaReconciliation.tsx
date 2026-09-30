@@ -57,15 +57,13 @@ function Marks() {
             >
               {s.name}
             </text>
-            <rect
-              x={LABEL_X + 8}
-              y={y}
-              width="8"
-              height="8"
-              // The claim is the three that cannot supply line items: they carry the indigo, the rest are context.
-              fill={s.lineItems ? 'none' : ACCENT}
-              stroke={s.lineItems ? GRAPHITE : ACCENT}
-            />
+            {/* The claim is the three that cannot supply line items: they carry the indigo square; the rest, context, a
+                small graphite dot (no hollow boxes, which read as checkboxes). */}
+            {s.lineItems ? (
+              <circle cx={LABEL_X + 12} cy={y + 4} r="2.5" fill={GRAPHITE} />
+            ) : (
+              <rect x={LABEL_X + 8} y={y} width="8" height="8" fill={ACCENT} />
+            )}
             <text x={LABEL_X + 22} y={y + 8} className="font-mono" fontSize="12" fill={GRAPHITE}>
               {s.auth === 'static' ? 'static' : 'oauth'}
             </text>

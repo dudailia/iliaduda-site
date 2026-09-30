@@ -221,3 +221,20 @@ describe('isSkipInput', () => {
     for (const key of [' ', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'Home', 'End']) expect(isSkipInput({ type: 'keydown', key })).toBe(false)
   })
 })
+
+describe('a skip on the home figure', () => {
+  it('finishes each phase from where it stood, over the skip, rather than leaping the rest of the story in a frame', () => {
+    const t = new Timeline()
+    t.start()
+    t.advance(500)
+    const at = t.phases()
+    t.skip()
+    t.advance(8)
+    const one = t.phases()
+    // One 8ms frame into the 240ms skip: every phase has moved about a thirtieth of what it had left, not most of it.
+    for (const k of Object.keys(at) as (keyof typeof at)[]) expect(one[k] - at[k]).toBeLessThanOrEqual((1 - at[k]) * 0.05 + 1e-9)
+    t.advance(240)
+    for (const v of Object.values(t.phases())) expect(v).toBe(1)
+    expect(t.done).toBe(true)
+  })
+})

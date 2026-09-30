@@ -7,7 +7,7 @@ test('startup ranking: changing the treatment changes the top pick', async ({ pa
   await page.goto('/startup-investments')
   const top = page.locator('#fig-ranking dt:has-text("Top pick") + dd').first()
   await expect(top).toHaveText('Technology')
-  await page.getByRole('radio', { name: 'Both fixed' }).click()
+  await page.getByRole('radio', { name: 'Lookup and CAGR fixed' }).click()
   await expect(top).toHaveText('Software')
   // Arrow keys move between treatments, as in any radio group.
   await page.keyboard.press('ArrowLeft')

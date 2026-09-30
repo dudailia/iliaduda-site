@@ -56,7 +56,7 @@ export function CricketReplay() {
       caption={
         <>
           The published model, trained on matches up to November 2024 and calibrated on the
-          season after, scoring the tournament&rsquo;s final from the held-out test period —
+          season after, scoring the 2026 ICC Men&rsquo;s T20 World Cup final from the held-out test period —
           chosen by rule, not by curve. Across all {fact('crT2TestMatches').value.toLocaleString('en-US')}{' '}
           held-out matches its log-loss is {Math.round(fact('crT2Skill').value)}% lower than the
           base rate&rsquo;s.

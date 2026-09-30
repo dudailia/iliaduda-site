@@ -148,14 +148,15 @@
     text-wrap: pretty;
   }
 
-  /* Links — ink with a rule-coloured underline going to ink on hover and
-     focus. No accent, no arrow glyph. text-decoration rather than a border:
+  /* Links — ink with a graphite-mixed underline going to ink on hover and
+     focus (the rule's own 1.3:1 all but vanished at 1x density, so a link
+     read as plain text). No accent, no arrow glyph. text-decoration rather than a border:
      a border sits on the padding box, so the tap-target padding links carry on
      mobile pushed the line a full 8px below the words it belonged to. */
   a {
     color: inherit;
     text-decoration-line: underline;
-    text-decoration-color: var(--color-rule);
+    text-decoration-color: color-mix(in oklab, var(--color-graphite) 55%, var(--color-paper));
     text-decoration-thickness: 1px;
     text-underline-offset: 0.22em;
     text-decoration-skip-ink: auto;
@@ -607,6 +608,17 @@
     scale: 0.97;
   }
 }
+/* The keyboard's focus arrives at once (keyboard actions never animate, components/stage/controls.ts): only the
+   border's fade is cut; the press and the arrival keep theirs. In each rule's own property order. */
+:is([data-surface-controls] [data-live-buttons], [data-orderbook-controls], [data-orderflow-controls], [data-market-controls], [data-futures-controls]) > button:focus-visible {
+  transition-duration: 0ms, 150ms, 240ms, 240ms;
+}
+[data-futures-controls] > button[data-reset]:focus-visible {
+  transition-duration: 0ms, 160ms, 160ms;
+}
+[data-contents-pause]:focus-visible {
+  transition-duration: 0ms, 150ms, 240ms, 240ms, 240ms;
+}
 :root[data-futures-still] [data-futures-controls] {
   min-height: 0;
 }
@@ -661,6 +673,11 @@
     margin-top: 0.45em;
   }
 
+  @media screen {
+    .cv-honours {
+      display: block;
+    }
+  }
   .cv-contact {
     display: flex;
     flex-wrap: wrap;
@@ -816,6 +833,15 @@
 
   body {
     font-size: 10.5pt;
+  }
+
+  /* A figure prints whole, its title with its plot, where it fits on a sheet; a slider prints as nothing (its track is
+     a background, which printing drops, leaving a floating thumb); the day or value it set is in the readouts. */
+  figure {
+    break-inside: avoid;
+  }
+  input[type='range'] {
+    display: none;
   }
 
   .cv {

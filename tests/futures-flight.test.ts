@@ -31,6 +31,14 @@ describe('the flight clock', () => {
     }
   })
 
+  it('leaves at once: the reader sees it move in its first quarter second, not only the button change', () => {
+    // A reader-started move that starts from zero speed is an ease-in on input: 0.13% by 250ms on easeInOutQuad.
+    expect(flightAt(250)).toBeGreaterThan(0.01)
+    expect(flightAt(500)).toBeGreaterThan(0.025)
+    // and still lands at rest on the payoff view.
+    expect(flightAt(FLIGHT_MS - 1) ).toBeGreaterThan(0.9999)
+  })
+
   it('is long enough to read and short enough to watch', () => {
     // The flight is the one long camera move on the site.
     expect(FLIGHT_MS).toBeGreaterThanOrEqual(6000)

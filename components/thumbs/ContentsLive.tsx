@@ -73,11 +73,11 @@ export function ContentsLive() {
       <button
         type="button"
         onClick={toggle}
-        className={`${CONTROL} min-w-[6.5rem] ${running ? '' : 'invisible'}`}
-        aria-label={paused ? 'Resume the thumbnails' : 'Pause the thumbnails'}
+        className={`${CONTROL} min-w-[10.5rem] ${running ? '' : 'invisible'}`}
         data-contents-pause=""
       >
-        {paused ? 'Resume' : 'Pause'}
+        {/* Says what it holds: a lone "Pause" under the Contents named nothing a reader could see. */}
+        {paused ? 'Resume thumbnails' : 'Pause thumbnails'}
       </button>
     </div>
   )

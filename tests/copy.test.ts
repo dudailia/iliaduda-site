@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FORBIDDEN } from './forbidden'
+import { FORBIDDEN, withheld } from './forbidden'
 
 /**
  * A self-audit retracted a number of claims that appeared in earlier versions
@@ -44,6 +44,16 @@ describe('retracted claims cannot be restored', () => {
     expect(files.length).toBeGreaterThan(0)
   })
 
+  it('never shows a withheld word of the trading work', () => {
+    const hits: string[] = []
+    for (const file of files) {
+      const body = stripComments(readFileSync(file, 'utf8'))
+      body.split('\n').forEach((line, i) => {
+        for (const d of withheld(line)) hits.push(`${relative(process.cwd(), file)}:${i + 1}  (digest ${d})`)
+      })
+    }
+    expect(hits, 'résumé level only for the trading work').toEqual([])
+  })
   for (const [pattern, why] of FORBIDDEN) {
     it(`never says ${pattern.source}`, () => {
       const hits: string[] = []

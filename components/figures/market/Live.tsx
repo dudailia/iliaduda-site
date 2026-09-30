@@ -557,8 +557,10 @@ export function MarketLive({
         write('sigma', pct(h.sigma))
         write('stress', h.stress.toFixed(2))
         write('atm', pct(atmOf(h.stress)))
-        // The year's range once the fan has been drawn; until then the still frame's own, never a range of nothing.
-        if (v.fan.band(4, 64) > 0) write('range', `${dollars(v.fan.band(0, 64) * mid$)}–${dollars(v.fan.band(4, 64) * mid$)}`)
+        // The year's range once the fan has been drawn; until then the still frame's own, never a range of nothing. While
+        // a past moment is pointed at, the fan is that moment's, and the readouts all stay at now (the pointed moment's
+        // own numbers are in the book's label): one moment across the seven, never two.
+        if (v.fan.band(4, 64) > 0 && readingAgo.current === null) write('range', `${dollars(v.fan.band(0, 64) * mid$)}–${dollars(v.fan.band(4, 64) * mid$)}`)
         // For the specs: the market's own clock.
         if (stage.current) {
           stage.current.dataset.marketT = h.t.toFixed(3)

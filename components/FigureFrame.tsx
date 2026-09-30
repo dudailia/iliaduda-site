@@ -20,6 +20,7 @@ export function FigureFrame({
   number,
   title,
   subtitle,
+  subtitleRoom,
   rail,
   hint,
   caption,
@@ -35,6 +36,8 @@ export function FigureFrame({
   number: string
   title: string
   subtitle: string
+  /** The subtitle's longest form, when it changes with an input: its room is kept. */
+  subtitleRoom?: string
   /** Readouts in the margin on wide screens; below the figure on narrow ones. */
   rail?: ReactNode
   hint?: ReactNode
@@ -82,8 +85,17 @@ export function FigureFrame({
               {title}
             </span>
             {/* A subtitle wraps between its items, never inside one (DESIGN.md, the Whole Item Rule). */}
-            <span className="text-meta block pt-px font-mono text-graphite">
-              <Items items={subtitle} />
+            <span className={`text-meta pt-px font-mono text-graphite ${subtitleRoom ? 'grid' : 'block'}`}>
+              {/* A subtitle that changes with the reader's input keeps the room of its longest form, so nothing under
+                  it moves while they work the figure. */}
+              {subtitleRoom ? (
+                <span aria-hidden className="invisible [grid-area:1/1]">
+                  <Items items={subtitleRoom} />
+                </span>
+              ) : null}
+              <span className={subtitleRoom ? '[grid-area:1/1]' : undefined}>
+                <Items items={subtitle} />
+              </span>
             </span>
           </div>
           <div className="mt-5" style={vt ? vtStyle(vt) : undefined}>

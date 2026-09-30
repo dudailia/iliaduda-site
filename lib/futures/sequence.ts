@@ -111,7 +111,18 @@ export class Timeline {
     this.skipT = 0
   }
 
+  /**
+   * Each phase, 0…1. While a skip plays, every phase finishes from where it stood, evenly over the skip's 240ms (the
+   * renderer's own ease shapes it, once), as the shared clock does (lib/stage/sequence.ts): squeezing the rest of the
+   * story into the skip made a phase still to come leap most of its way in the skip's first frame.
+   */
   phases(): Phases {
+    if (this.skipFrom >= 0 && !this.done) {
+      const u = this.skipT / SKIP_MS
+      const from = phaseAt(this.skipFrom)
+      for (const k of Object.keys(from) as (keyof Phases)[]) from[k] = from[k] + (1 - from[k]) * u
+      return from
+    }
     return phaseAt(this.ms)
   }
 

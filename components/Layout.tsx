@@ -112,16 +112,32 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
     <>
       {/* The space between items sits outside the unbreakable span: inside
           it, there was nowhere left to break and the line ran off a phone. */}
-      {list.map((it, i) => (
-        <Fragment key={it}>
-          <span className={it.length <= 34 ? 'whitespace-nowrap' : ''}>
-            {it}
-            {/* Held to its item by a no-break space: a line never starts with the dot. */}
-            {i < list.length - 1 ? '\u00a0·' : ''}
-          </span>
-          {i < list.length - 1 ? ' ' : ''}
-        </Fragment>
-      ))}
+      {list.map((it, i) => {
+        // Held to its item by a no-break space, inside an inline block, which no engine breaks (WebKit found a break
+        // before the middle dot at the no-break space in a nowrap span): a line never starts with the dot. A long item
+        // may wrap, but its last word keeps the dot.
+        const dot = i < list.length - 1 ? '\u00a0·' : ''
+        const cut = it.length > 34 ? it.lastIndexOf(' ') : -1
+        return (
+          <Fragment key={it}>
+            {cut > 0 ? (
+              <span>
+                {it.slice(0, cut + 1)}
+                <span className="inline-block whitespace-nowrap">
+                  {it.slice(cut + 1)}
+                  {dot}
+                </span>
+              </span>
+            ) : (
+              <span className={it.length <= 34 ? 'inline-block whitespace-nowrap' : ''}>
+                {it}
+                {dot}
+              </span>
+            )}
+            {i < list.length - 1 ? ' ' : ''}
+          </Fragment>
+        )
+      })}
     </>
   )
 }

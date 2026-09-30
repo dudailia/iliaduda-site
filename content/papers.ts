@@ -54,6 +54,7 @@ export const papers: readonly Paper[] = [
     standfirst:
       'One simulated market, drawn three ways in the same frame as it runs in your browser: its order book, a year of its futures and the volatility surface its stress drives. A liquidity shock lands in all three at once; what follows is the model’s own.',
     dek: 'One simulated market runs in your browser, drawn three ways in one frame: its order book, a year of futures, its vol surface. A liquidity shock hits all three.',
+    cv: 'A deterministic Hawkes limit order book in a Web Worker, bit-identical in Chromium, WebKit, Firefox and Node, driving Monte Carlo price paths and an arbitrage-free SSVI surface in the same frame.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
   },
@@ -61,7 +62,7 @@ export const papers: readonly Paper[] = [
     slug: 'closebooks',
     href: '/closebooks',
     title: 'CloseBooks: a multi-tenant month-end close with an LLM in the loop',
-    abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} tenant-isolated API routes over Postgres, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn, or a reviewer’s approval, before it is exported.`,
+    abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} API routes over Postgres with row-level security, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn, or a reviewer’s approval, before it is exported.`,
     dek: 'A multi-tenant month-end close for CPA firms that I built alone: an LLM pipeline maps every bank line to the client’s accounts, and only confident or reviewer-approved lines export.',
     figureNote: 'synthetic feed',
     byline: 'Founder and sole engineer · January 2026 – present',
@@ -98,7 +99,7 @@ export const papers: readonly Paper[] = [
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
     cvName: 'Implied-volatility surface free of static arbitrage',
-    cv: 'A synthetic SSVI surface rendered live in raw WebGL2, with Dupire local volatility and Black–Scholes Greeks at any point; no-static-arbitrage conditions asserted by tests on a dense grid.',
+    cv: 'A synthetic SSVI surface free of static arbitrage, with Dupire local volatility and Black–Scholes Greeks at any point, the no-arbitrage conditions asserted by tests on a dense grid; drawn live in raw WebGL2.',
   },
   {
     slug: 'startup-investments',
@@ -118,7 +119,7 @@ export const papers: readonly Paper[] = [
     abstract: `A self-service portal where people settle a debt without a phone call, built end to end as sole developer for a licensed Russian collection organisation. Federal law set the architecture: personal data stays in the country, and the login code itself spends a legal contact allowance, so both are enforced in code and at build time.`,
     dek: 'A self-service portal for settling a debt without a phone call, built end to end as sole developer for a licensed Russian collection organisation, with federal law enforced in code.',
     figureNote: 'illustrative terms',
-    byline: 'Sole developer and project lead · July 2026 – present',
+    byline: 'Sole Developer and Project Lead · July 2026 – present',
     status: 'published',
   },
 ]
@@ -144,7 +145,7 @@ export const otherWork: readonly OtherWork[] = [
     href: '/adconfirm',
     name: 'AdConfirm',
     what: `Advertising inside invoices and receipts, across ${n('acIntegrations')} accounting and point-of-sale integrations, with metered billing`,
-    status: 'Co-founder · May 2026 – present',
+    status: 'AdConfirm · Co-Founder · May 2026 – present',
   },
 ]
 

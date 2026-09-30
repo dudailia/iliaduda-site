@@ -42,14 +42,9 @@ function Marks() {
         const y = TOP + i * PITCH
         return (
           <g key={c.name} className="font-mono">
-            <rect
-              x="0"
-              y={y - 8}
-              width="8"
-              height="8"
-              fill={c.sourced ? ACCENT : 'none'}
-              stroke={c.sourced ? ACCENT : GRAPHITE}
-            />
+            {/* A filled square for a published source, a small dot for an assumption: no hollow boxes, which read as
+                checkboxes on a figure that has none. */}
+            {c.sourced ? <rect x="0" y={y - 8} width="8" height="8" fill={ACCENT} /> : <circle cx="4" cy={y - 4} r="2.5" fill={GRAPHITE} />}
             <text x="14" y={y} fontSize="12" fill={INK}>
               {c.name}
             </text>
@@ -113,7 +108,7 @@ function Marks() {
         <text x="14" y={lastY + 38}>
           taken from a published source
         </text>
-        <rect x="0.5" y={lastY + 46.5} width="7" height="7" fill="none" stroke={GRAPHITE} />
+        <circle cx="4" cy={lastY + 50} r="2.5" fill={GRAPHITE} />
         <text x="14" y={lastY + 54}>
           an adjustable assumption
         </text>

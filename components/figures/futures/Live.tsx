@@ -57,6 +57,8 @@ type Mode = 'server' | 'cpu' | 'gpu'
 type Seq = 'off' | 'pending' | 'playing' | 'done'
 type Declined = 'software' | 'targets' | 'load' | 'error' | 'lost' | null
 interface Shown {
+  /** The option a live estimate is for (absent: the one on screen, as the server's and the CPU's are). */
+  for?: { sigma: number; strike: number }
   n: number
   mean: number
   se: number
@@ -183,7 +185,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         ? was
         : s.n === 0 && was.mode === 'gpu' && was.n > 0 && !(armed.current && !timeline.current.done)
           ? was
-          : { n: s.n, mean: s.mean, se: s.se, rate: s.rate, mode: 'gpu', done: s.done },
+          : { n: s.n, mean: s.mean, se: s.se, rate: s.rate, mode: 'gpu', done: s.done, for: { ...params.current } },
     )
     if (s.hist) {
       const { sigma: sg, strike: k } = params.current
@@ -707,6 +709,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
   const hasMean = shown.n > 1 && Number.isFinite(shown.mean)
   const fresh = shown.mode === 'gpu' || shown.mode === 'cpu' || (sigma === MODEL.sigma && strike === MODEL.strike)
   const priced = hasMean && fresh
+  // The estimate held while a new option's run starts is the old option's: its gap to the new formula means nothing.
+  const sameOption = !shown.for || (shown.for.sigma === sigma && shown.for.strike === strike)
   const changed = sigma !== MODEL.sigma || strike !== MODEL.strike
 
   const running = shown.mode === 'gpu' || shown.mode === 'cpu'
@@ -789,7 +793,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           {exact.toFixed(4)}
         </dd>
         <dt className="text-graphite">Gap to the formula</dt>
-        <dd className="tabular text-ink">{priced ? `${(diff / shown.se).toFixed(1)} SE` : '…'}</dd>
+        <dd className="tabular text-ink">{priced && sameOption ? `${(diff / shown.se).toFixed(1)} SE` : '…'}</dd>
       </dl>
       <dl className="mt-1 grid grid-cols-1 gap-y-px border-t border-rule pt-3 [&_dd]:mb-2">
         <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
@@ -840,6 +844,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         className="mt-10 mb-12 lg:mt-6 lg:mb-16"
         title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
         subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitleRoom={`Simulated · geometric Brownian motion · σ ${pct(MODEL.sigma)}, the simulated market’s realised vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
         railBelow={false}
         // Room kept for the longest of its hints (a still frame's longest reason, and the live figure's), in one cell with

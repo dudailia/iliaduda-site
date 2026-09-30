@@ -23,6 +23,8 @@ import { CONTROL } from '@/components/stage/controls'
  * settled at once.
  */
 
+const HINT = 'Approve a row waiting for review, or remap a blocked one, and watch the export gate'
+
 type Human = 'approved-by-reviewer' | 'remapped'
 
 const STAGGER = 45
@@ -128,14 +130,20 @@ export function CategorisationLive({
     0.16,
   )
 
+  // The batch's clock: rows arrive 45ms apart by elapsed time, read each frame, so a busy main thread cannot stretch
+  // the stagger (a chain of timeouts drifted by each one's delay); then the last row settles.
   useEffect(() => {
     if (settled) return
-    if (arrived < feed.length) {
-      const t = setTimeout(() => setArrived((a) => a + 1), STAGGER)
-      return () => clearTimeout(t)
+    const t0 = performance.now() - arrived * STAGGER
+    let raf = 0
+    const tick = (now: number) => {
+      const due = Math.min(feed.length, Math.floor((now - t0) / STAGGER))
+      if (due > arrived) return setArrived(due)
+      if (arrived >= feed.length && now - t0 >= feed.length * STAGGER + SETTLE + 80) return setSettled(true)
+      raf = requestAnimationFrame(tick)
     }
-    const t = setTimeout(() => setSettled(true), SETTLE + 80)
-    return () => clearTimeout(t)
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
   }, [arrived, settled, feed.length, run])
 
   const status = (i: number): Status | 'edited' => (human[i] ? 'edited' : results[i]!.status)
@@ -197,7 +205,8 @@ export function CategorisationLive({
         </div>
       }
       railBelow={false}
-      hint="Approve a row waiting for review, or remap a blocked one, and watch the export gate"
+      // Below lg the instruction sits above the rows (under the gate it asks the reader to watch), not two screens down.
+      hint={<span className="hidden lg:inline">{HINT}</span>}
       caption={caption}
       table={table}
     >
@@ -212,6 +221,7 @@ export function CategorisationLive({
           <span className="whitespace-nowrap">blocked {lit(String(counts.blocked), 'blocked')}{'\u00a0·'}</span>{' '}
           <span className="whitespace-nowrap">exportable {lit(`${counts.out} of ${feed.length}`, 'out')}</span>
         </p>
+        <p className="text-meta mb-2 font-mono text-graphite lg:hidden print:hidden">{HINT}</p>
         <ol role="list" className="grid list-none border-t border-rule" aria-label="Categorised bank lines">
           {feed.map((l, i) => {
             const r = results[i]!

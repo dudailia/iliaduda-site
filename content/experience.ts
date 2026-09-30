@@ -39,7 +39,7 @@ export const roles: readonly Role[] = [
     title: 'Quantitative Analyst and Engineer',
     place: 'Remote',
     dates: 'January 2026 – present',
-    brief: 'Sole engineer on the firm’s Python research stack for options, and the real-time dashboard that puts its output in front of the trader.',
+    brief: 'Sole engineer on the firm’s Python research stack for options, and the real-time dashboard that puts its output in front of the trading desk.',
     detail: [
       'Sole engineer on the firm’s Python research stack for options: volatility modelling, options-chain analysis, candidate scoring and market scanning.',
       'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
@@ -58,7 +58,7 @@ export const roles: readonly Role[] = [
     title: 'Sole Developer and Project Lead',
     place: 'Remote',
     dates: 'July 2026 – present',
-    brief: 'Built a regulated consumer product end to end: debt lookup, a settlement calculator, SMS authentication and an SBP payment screen, under 152-FZ and 230-FZ.',
+    brief: 'Building a regulated consumer product end to end: debt lookup, a settlement calculator, SMS authentication and an SBP payment screen, under 152-FZ and 230-FZ.',
     detail: [
       'Only developer on a self-service debt-settlement portal for a licensed collection organisation: debt lookup, a settlement calculator, SMS authentication, and an SBP payment screen whose amount the server recomputes from the chosen term, never taking it from the browser.',
       'Architecture set by statute: 152-FZ data localisation rules out foreign hosting and CDNs, and the 230-FZ contact cap means the login SMS itself spends part of a debtor’s legal allowance, so the limits are enforced in code.',
@@ -111,11 +111,11 @@ export const roles: readonly Role[] = [
     title: 'Investment Banking Intern',
     place: 'Moscow',
     dates: 'July – August 2023',
-    brief: 'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models; wrote daily briefings on government bonds through two rate hikes.',
+    brief: 'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models; wrote daily briefings on government bonds through two rate rises.',
     detail: [
       'Covered the Russian energy, metals and banking sectors.',
       'Built DCF, comparable-company and sensitivity models.',
-      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate increases in under four weeks, the second an extraordinary 350 bp.',
+      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate rises in 25 days, the second an extraordinary 350 bp.',
     ],
     cv: [
       'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models.',

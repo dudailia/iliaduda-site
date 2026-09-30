@@ -68,7 +68,8 @@ function Label({ l }: { l: PosterLabel }) {
   return (
     <>
       <rect x={l.x0} y={l.y0} width={r(l.x1 - l.x0)} height={r(l.y1 - l.y0)} rx={4} fill={k.back} fillOpacity={k.opacity} />
-      <text x={r((l.x0 + l.x1) / 2)} y={r((l.y0 + l.y1) / 2)} fill={k.text}>
+      {/* On each text: WebKit does not inherit dominant-baseline from the group, and the words sat above their pills. */}
+      <text x={r((l.x0 + l.x1) / 2)} y={r((l.y0 + l.y1) / 2)} fill={k.text} dominantBaseline="central">
         {l.text}
       </text>
     </>
