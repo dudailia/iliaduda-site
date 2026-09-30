@@ -207,13 +207,12 @@ test('a moment pointed at in the book is the moment every readout shows: one mom
     await expect(page.locator('[data-market-book-title]')).toContainText('s ago', { timeout: 1000 })
   }).toPass({ timeout: 15_000 })
   await page.waitForTimeout(400)
-  const label = (await page.locator('[data-market-book-title]').textContent()) ?? ''
-  const stressThen = /stress (\d\.\d\d)/.exec(label)![1]!
-  const shown = await page.locator('dd', { has: page.locator('[data-market-value]') }).evaluateAll((dds) =>
-    dds.map((d) => [d.previousElementSibling?.textContent ?? '', d.textContent ?? '']),
-  )
-  const stressRow = shown.find(([k]) => k.startsWith('Stress'))
-  expect(stressRow?.[1]).toBe(stressThen)
+  // The label and the readouts read in the same task, so both are of one drawn frame.
+  const [label, stressShown] = await page.evaluate(() => {
+    const dd = [...document.querySelectorAll('dd')].find((d) => d.querySelector('[data-market-value]') && d.previousElementSibling?.textContent?.startsWith('Stress'))
+    return [document.querySelector('[data-market-book-title]')?.textContent ?? '', dd?.textContent ?? '']
+  })
+  expect(stressShown).toBe(/stress (\d\.\d\d)/.exec(label)![1]!)
 })
 
 test('the book reads the market at a moment by keyboard, and the surface turns with the arrow keys', async ({ page, isMobile }) => {

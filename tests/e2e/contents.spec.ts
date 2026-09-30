@@ -153,7 +153,9 @@ test.describe('through the morph', () => {
       .then(() => true)
       .catch(() => false)
     if (!live) return test.skip(true, 'no GPU here')
-    expect(Number(await page.locator('[data-market-stage]').getAttribute('data-market-t'))).toBeGreaterThanOrEqual(mini)
+    // Its clock is written with the readouts (ten a second), so a frame after it goes live: polled, briefly. A market
+    // that had started over would need two and a half minutes to reach the miniature's moment, and fails this.
+    await expect.poll(async () => Number(await page.locator('[data-market-stage]').getAttribute('data-market-t')), { timeout: 5_000 }).toBeGreaterThanOrEqual(mini)
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.marketHandoff ?? null)).toBeNull()
   })
 })
