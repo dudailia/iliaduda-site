@@ -1021,10 +1021,11 @@ export function MarketLive({
             onClick={() => lean.onTap()}
             onBlur={() => (aim.current = { yaw: 0, pitch: 0 })}
           >
-            <div data-market-still="" style={underlay(surfaceLive)}>{stills.calm.surface}</div>
-            <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={{ ...fade(surfaceLive), touchAction: 'pan-y pinch-zoom' }} aria-hidden="true" />
+            {/* The three views arrive in one frame (the surface waits for the book and the fan): one market, drawn once. */}
+            <div data-market-still="" style={underlay(surfaceLive && live)}>{stills.calm.surface}</div>
+            <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={{ ...fade(surfaceLive && live), touchAction: 'pan-y pinch-zoom' }} aria-hidden="true" />
             {/* The axes' words, placed by the renderer each frame with its own projection (the IV figure's). */}
-            <div aria-hidden data-market-words="" className="pointer-events-none absolute inset-0" style={fade(surfaceLive)}>
+            <div aria-hidden data-market-words="" className="pointer-events-none absolute inset-0" style={fade(surfaceLive && live)}>
               <div ref={labelLayer}>
                 {LABELS.map((l, i) => (
                   <AxisLabel
@@ -1120,7 +1121,7 @@ export function MarketLive({
               </div>
               <FocusRing />
             </div>
-            <div className="text-meta relative mt-1 flex justify-between pr-20 pl-6 font-mono text-graphite sm:pr-14 sm:pl-0" aria-hidden="true">
+            <div className="text-meta relative mt-1 flex justify-between pr-14 pl-0 font-mono whitespace-nowrap text-graphite" aria-hidden="true">
               <span>20 s ago</span>
               <span>now</span>
             </div>
@@ -1137,7 +1138,7 @@ export function MarketLive({
                 ))}
               </div>
             </div>
-            <div className="text-meta mt-1 flex justify-between pr-[4.25rem] pl-8 font-mono text-graphite sm:pr-11 sm:pl-2" aria-hidden="true">
+            <div className="text-meta mt-1 flex justify-between pr-[3.25rem] pl-2 font-mono whitespace-nowrap text-graphite sm:pr-11" aria-hidden="true">
               <span>now</span>
               <span>a year</span>
             </div>

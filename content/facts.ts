@@ -53,7 +53,8 @@ const facts = {
 
   // ── cricstate ──────────────────────────────────────────────────────────────
   // The figure axis. One unit throughout: relative NLL improvement over the
-  // B0 marginal baseline on the T1/T20 cell, post-calibration.
+  // rung below on the T1/T20 cell, post-calibration (match state over the B0 marginal baseline; identity over match
+  // state; the latent on validation).
   crIdentityGain: {
     value: 0.31,
     unit: 'percent',
@@ -177,10 +178,10 @@ const facts = {
     source: 'closebooks-app @6fdbb82d — find src/app/dashboard -name page.tsx | wc -l',
   },
   cbMigrations: {
-    value: 15,
+    value: 17,
     unit: 'count',
     label: 'SQL migrations',
-    source: 'closebooks-app @6fdbb82d — ls supabase/migrations | wc -l',
+    source: 'closebooks-app @ce76fb20 — ls supabase/migrations | wc -l',
   },
   cbServiceRoleRoutes: {
     value: 17,

@@ -59,9 +59,10 @@ export class MiniClock {
 
   /** The frames to draw at `now` (ms): none between two of the clock's steps. */
   tick(now: number): MiniFrame[] {
-    if (this.idle || now < this.next) return []
-    // Half a millisecond early, so a display whose frames land a hair before the step still draws on it.
-    this.next = now + STEP - 0.5
+    // Up to 4ms early (half a 120 Hz frame), so a display's frame landing a little before the step draws on it, and
+    // the next step counts from the step, not from the frame: a steady beat, every 4th frame at 120 Hz, every 2nd at 60.
+    if (this.idle || now < this.next - 4) return []
+    this.next = Math.max(this.next + STEP, now + STEP / 2)
     const out: MiniFrame[] = []
     for (const [id, m] of this.minis) {
       if (!m.shown) continue

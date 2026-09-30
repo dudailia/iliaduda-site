@@ -84,16 +84,12 @@ export function terms(debt: number): readonly { months: number; offered: boolean
 
 export const offeredTerms = (debt: number) => terms(debt).filter((t) => t.offered)
 
-/** The offered term whose payment is nearest what the reader says they can
- *  pay; a tie goes to the longer term. */
+/** The shortest offered term whose payment the reader can make, at most what they say they can pay (the nearest
+ *  payment could be above it: a plan they cannot keep); below every payment, the longest term. */
 export function termForMonthly(debt: number, monthlyKopecks: number): number {
-  let best = offeredTerms(debt)[0]!
-  for (const t of offeredTerms(debt)) {
-    const d = Math.abs(t.s.monthly - monthlyKopecks)
-    const bd = Math.abs(best.s.monthly - monthlyKopecks)
-    if (d < bd || (d === bd && t.months > best.months)) best = t
-  }
-  return best.months
+  const o = offeredTerms(debt)
+  const fits = o.find((t) => t.s.monthly <= monthlyKopecks)
+  return (fits ?? o[o.length - 1]!).months
 }
 
 export const rub = (kopecks: number) =>

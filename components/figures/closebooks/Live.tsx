@@ -174,7 +174,7 @@ export function CategorisationLive({
   const acted = Object.keys(human).length
   const lit = (value: string, key: keyof typeof counts) =>
     acted && before && before[key] !== counts[key] ? (
-      <span key={`${key}-${acted}`} data-lit="" className="-mx-0.5 rounded-sm px-0.5 transition-[background-color] duration-700 ease-out starting:bg-indigo-wash">
+      <span key={`${key}-${acted}`} data-lit="" className="-mx-0.5 rounded-sm px-0.5 transition-[background-color] duration-700 ease-(--ease-in-out) starting:bg-indigo-wash">
         {value}
       </span>
     ) : (

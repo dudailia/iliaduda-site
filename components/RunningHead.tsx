@@ -36,6 +36,12 @@ export function RunningHead() {
                   Contents
                 </a>
               </li>
+              {/* Who this is, from any page: a reader landing on a paper from a link reaches it without the footer. */}
+              <li>
+                <a href="/about" className="inline-block py-2.5">
+                  About
+                </a>
+              </li>
               <li>
                 <a href={resumeLink.href} className="inline-block min-w-6 py-2.5 text-center">
                   {resumeLink.label}

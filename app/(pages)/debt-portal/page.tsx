@@ -82,7 +82,7 @@ export default function DebtPortal() {
             the design tokens, origin compliance, a JavaScript size ratchet, and accessibility 100
             as a hard failure. The layout-shift gate is {fact('dgClsGate').value} and the measured
             value is {fact('dgClsMeasured').value} on every audited route; the suite declares {n('dgUnitTests')}{' '}
-            unit tests and {n('dgE2eCases')} end-to-end cases.
+            unit tests and runs {n('dgE2eCases')} end-to-end cases.
           </p>
           <p>
             The gates are held to the same standard as the product: a boolean audit takes the

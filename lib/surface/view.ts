@@ -351,7 +351,8 @@ export type NoteAlign = 'left' | 'right' | 'center'
 export const NOTES: readonly Note[] = [
   {
     id: 'fear',
-    lead: 'Fear',
+    // Named as it is at rest as well as in the shock: at calm the words sit above "Calm.", so they name the shape, not a fear.
+    lead: 'Skew',
     text: 'crash insurance costs more',
     k: -0.34,
     T: 1 / 12,

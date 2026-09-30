@@ -97,7 +97,7 @@ export function OfzLive({
     <FigureFrame
       {...frame}
       rail={<Readouts rows={rows} across={frame.inline ?? false} />}
-      hint="Drag or use the arrow keys to move a trading day at a time · the dashed curve is the session before · dots are the bonds the curve was fitted to"
+      hint="Drag the slider, tap a rate decision, or use the arrow keys to move a trading day at a time · the dashed curve is the session before · dots are the bonds the curve was fitted to"
     >
       <div className="relative">
         <div className="flex">
@@ -212,7 +212,7 @@ export function OfzLive({
           />
           {/* Positions follow the thumb's centre, which travels the track
               inset by half its own width. */}
-          <div className="text-meta relative mt-1 h-12 font-mono">
+          <div className="text-meta relative mt-1 h-12 font-mono print:hidden">
             {marks.map((m) => {
               const f = m.index / (days.length - 1)
               const end = m.index === 0 || m.index === days.length - 1

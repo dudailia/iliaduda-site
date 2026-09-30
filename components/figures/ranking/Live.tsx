@@ -95,7 +95,7 @@ export function RankingLive({
     setV(next)
     if (leaving.length) {
       setGone(leaving)
-      window.setTimeout(() => setGone((g) => g.filter((x) => !leaving.includes(x))), 240)
+      window.setTimeout(() => setGone((g) => g.filter((x) => !leaving.includes(x))), 300)
     }
   }
 
@@ -116,7 +116,10 @@ export function RankingLive({
       li.style.transition = 'transform 0s'
       li.style.transform = 'none'
     }
-    const now = lis.map((li) => li.getBoundingClientRect().top)
+    // The new places from layout, which no transform touches: a glide still running to "none" is not cancelled by
+    // setting it again, and a drawn position read here would include it (a switch mid-glide jumped rows 154px).
+    const top0 = el.getBoundingClientRect().top + el.clientTop
+    const now = lis.map((li) => top0 + li.offsetTop)
     lis.forEach((li, i) => {
       const was = before.current.get(li.dataset.name!)
       if (was === undefined) {
@@ -212,6 +215,10 @@ export function RankingLive({
         {current.note}
       </p>
 
+      {/* The key before the rows: what indigo marks is read before the list, not after fifteen of them. */}
+      <p className="text-meta mt-3 font-mono text-graphite">
+        <Items items="indigo: in the top fifteen under all three treatments · ∅ absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written" />
+      </p>
       <ol ref={list} role="list" aria-label={`Top ${SHOWN} segments, ${current.label.toLowerCase()}`} className="relative mt-3 grid list-none border-t border-rule">
         {shown.map((r) => {
           const was = r.a.rank
@@ -256,7 +263,7 @@ export function RankingLive({
           <li
             key={`gone-${g.key}`}
             aria-hidden
-            className="absolute inset-x-0 grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_2.5rem_2.25rem] items-center gap-x-2.5 gap-y-1 border-b border-rule py-1.5 opacity-0 transition-opacity duration-200 ease-out starting:opacity-100 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
+            className="absolute inset-x-0 grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_2.5rem_2.25rem] items-center gap-x-2.5 gap-y-1 border-b border-rule py-1.5 opacity-0 transition-opacity duration-[280ms] ease-(--ease-in-out) starting:opacity-100 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
             style={{ top: g.top, height: g.height }}
           >
             <span className="text-meta tabular text-graphite">{g.rank}</span>
@@ -270,9 +277,6 @@ export function RankingLive({
         ))}
       </ol>
 
-      <p className="text-meta mt-3 font-mono text-graphite">
-        <Items items="indigo: in the top fifteen under all three treatments · ∅ absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written" />
-      </p>
       <p className="sr-only">{description}</p>
     </div>
     </FigureFrame>

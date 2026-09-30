@@ -80,7 +80,7 @@ export default function Market() {
             after that is scripted.
           </p>
           <p>
-            Over twenty seeds, within a second the spread opens to at least four ticks, the touch loses four fifths of its
+            Over twenty seeds, within a second the spread opens, for a moment, to at least four ticks, the touch loses four fifths of its
             shares and the stress passes 0.8; realised volatility is up by a quarter within two seconds and 1.4 to 5.6 times
             within ten; the spread is back within two ticks inside two seconds, and the stress below 0.05 inside five minutes.
             Shocks stack only up to one: what is still in the market is absorbed on a {SHOCK.halfLife}-second half-life, and a
@@ -97,7 +97,9 @@ export default function Market() {
             {HOST.cap} of a second, so a tab left in the background finds the market where it left it, and answers in one buffer
             the page lends it and gets back. It also draws the futures, {FAN.paths.toLocaleString('en-US')} paths each simulated
             second, {HOST.pathsPerFrame} a frame, for a price of one, which the page scales by the price now, exact for geometric
-            Brownian motion, so the fan moves with the price in the frame the price moves.
+            Brownian motion, so the fan moves with the price in the frame the price moves. The fan carries the realised
+            volatility of the moment for the whole year, as its readout says; just after a shock it runs wider than the
+            surface&rsquo;s implied volatility, which prices the shock fading.
           </p>
           <p>
             The market itself, its events, its book, its realised volatility, its stress and the shock still in it, comes out the

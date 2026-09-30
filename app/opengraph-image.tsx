@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { fonts, OG, OG_SIZE } from '@/lib/og'
-import { AVAILABILITY, PERSON } from '@/lib/site'
+import { AVAILABILITY, PERSON, POSITIONING } from '@/lib/site'
 
 export const alt = 'Ilia Duda — Quantitative Analyst and Engineer at a proprietary options trading firm; Mathematics and Business Administration at Northeastern'
 export const size = OG_SIZE
@@ -31,8 +31,8 @@ export default async function OpengraphImage() {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 92, letterSpacing: '-0.02em' }}>{PERSON.name}</div>
           <div style={{ fontSize: 36, color: OG.graphite, marginTop: 18, maxWidth: 880 }}>
-            Quantitative Analyst and Engineer at a proprietary options trading firm. Mathematics and Business
-            Administration at Northeastern, class of 2028.
+            {/* The masthead's own line, its first sentence (lib/site.ts), so the card never drifts from it. */}
+            {`${POSITIONING.split('. ')[0]}.`}
           </div>
         </div>
         <div

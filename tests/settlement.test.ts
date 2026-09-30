@@ -37,9 +37,17 @@ describe('settlement arithmetic', () => {
     }
     expect(terms(18_500_000).some((t) => !t.offered)).toBe(true)
   })
-  it('the inverse search picks the nearest offered term and breaks ties long', () => {
+  it('the inverse search picks the shortest offered term the reader can pay', () => {
     const d = 6_000_000
     for (const t of offeredTerms(d)) expect(termForMonthly(d, t.s.monthly)).toBe(t.months)
+    // A budget between two terms' payments chooses the one that fits, never the nearer one above it.
+    const o = offeredTerms(d)
+    for (let i = 1; i < o.length; i++) {
+      const budget = o[i - 1]!.s.monthly - 1
+      const m = termForMonthly(d, budget)
+      expect(o.find((t) => t.months === m)!.s.monthly).toBeLessThanOrEqual(budget)
+      expect(m).toBe(o[i]!.months)
+    }
   })
   it('refuses float money', () => {
     expect(() => settlementFor(1000.5, 3)).toThrow()

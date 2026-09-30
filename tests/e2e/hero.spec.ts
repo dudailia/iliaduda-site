@@ -238,6 +238,24 @@ test('at rest, a click on the price scale sets the strike to the price printed t
   expect(Math.abs(k - 150)).toBeLessThanOrEqual(2)
 })
 
+test('a click away from the wall, on today, sets no strike and keeps the price the figure claims', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse')
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 8_000 })
+  await page.locator('#fig-futures').getByRole('button', { name: 'Pause' }).click()
+  await page.waitForTimeout(600)
+  const today = page.locator(`${STAGE} [data-camera] span`, { hasText: /^Today/ })
+  const b = (await today.boundingBox())!
+  const before = await page.getByRole('slider', { name: 'Strike' }).inputValue()
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
+  expect(await page.getByRole('slider', { name: 'Strike' }).inputValue()).toBe(before)
+  await expect(page.locator(STAGE)).not.toContainText('Call at $')
+})
+
 test('a finger that starts a scroll on the figure sets nothing', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'touch')
   await seen(page)

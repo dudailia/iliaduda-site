@@ -50,6 +50,8 @@ interface Props {
 const CLAMP = 0.9995
 const logit = (p: number) => Math.log(p / (1 - p))
 const L = logit(CLAMP)
+// The axis reaches a little past the clamp: a line above 99.9% (the chase's end) runs inside the frame, not on it.
+const LA = L * 1.12
 const TICKS = [0.01, 0.1, 0.5, 0.9, 0.99, 0.999] as const
 const tickLabel = (t: number) => `${(t * 100).toFixed(t < 0.01 || t > 0.99 ? 1 : 0)}%`
 
@@ -80,9 +82,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   // Where the innings changes, and the x of every ball.
   const breakAt = balls.findIndex((b) => b[0] === 2)
   const x = (i: number) => (i / (n - 1)) * W
-  const y = (p: number) => ((L - logit(Math.min(CLAMP, Math.max(1 - CLAMP, p)))) / (2 * L)) * H
+  const y = (p: number) => ((LA - logit(Math.min(CLAMP, Math.max(1 - CLAMP, p)))) / (2 * LA)) * H
   // Built once: the line does not change, only how much of it is drawn.
-  const path = useMemo(() => balls.map((b, i) => `${i ? 'L' : 'M'}${((i / (n - 1)) * W).toFixed(1)} ${(((L - logit(Math.min(CLAMP, Math.max(1 - CLAMP, b[9])))) / (2 * L)) * H).toFixed(1)}`).join(''), [balls, n])
+  const path = useMemo(() => balls.map((b, i) => `${i ? 'L' : 'M'}${((i / (n - 1)) * W).toFixed(1)} ${(((LA - logit(Math.min(CLAMP, Math.max(1 - CLAMP, b[9])))) / (2 * LA)) * H).toFixed(1)}`).join(''), [balls, n])
   const wickets = useMemo(
     () => balls.map((bb, i) => (bb[8] ? <line key={i} x1={(i / (n - 1)) * W} x2={(i / (n - 1)) * W} y1={H} y2={H - 45} stroke="var(--color-ink)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /> : null)),
     [balls, n],

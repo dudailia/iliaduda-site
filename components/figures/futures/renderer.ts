@@ -1350,7 +1350,22 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       const ny = 1 - ((y - rect.top) / rect.height) * 2
       if (!pose || nx < -1 || nx > 1 || ny < -1 || ny > 1) return null
       // On the wall, where the scale, the strike's line and the bars' base are drawn (lib/futures/camera.ts).
-      return wallPrice(pose, cssW / Math.max(1, cssH), nx, ny, zEdge())
+      const aspect = cssW / Math.max(1, cssH)
+      const p = wallPrice(pose, aspect, nx, ny, zEdge())
+      if (p == null) return null
+      // Only near the wall itself: the price's line across the wall, projected, within 40px of the pointer. A pointer
+      // resting on today or the paths' middle names no strike (the whole stage once did, and rewrote the price shown).
+      const vpm = viewProjection(pose, aspect)
+      const px = (z: number) => {
+        const c = project(vpm, X1, wy(p), z)
+        return [((c[0] + 1) / 2) * rect.width, ((1 - c[1]) / 2) * rect.height] as const
+      }
+      const [ax, ay] = px(0), [bx, by] = px(zEdge())
+      const qx = x - rect.left, qy = y - rect.top
+      const L = Math.hypot(bx - ax, by - ay) || 1
+      const u = Math.max(0, Math.min(1, ((qx - ax) * (bx - ax) + (qy - ay) * (by - ay)) / (L * L)))
+      const far = Math.hypot(qx - (ax + u * (bx - ax)), qy - (ay + u * (by - ay)))
+      return far <= 40 ? p : null
     },
     debug() {
       const i = pricer.info()

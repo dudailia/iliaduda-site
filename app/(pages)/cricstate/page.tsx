@@ -18,8 +18,8 @@ function MaterialityTable() {
   return (
     <table>
       <caption>
-        Relative improvement in negative log-likelihood over a marginal baseline, T1/T20, after
-        calibration.
+        Relative improvement in negative log-likelihood over the rung below (match state over a marginal
+        baseline; player identity over match state; the per-match latent on validation), T1/T20, after calibration.
       </caption>
       <thead>
         <tr>
@@ -137,7 +137,7 @@ export default function Cricstate() {
           id="fig-materiality"
           number="Fig. 2"
           title="What each enrichment adds beyond match state"
-          subtitle="relative NLL improvement over a marginal baseline · next ball, T20 · calibrated"
+          subtitle="relative NLL improvement over the rung below · next ball, T20 · calibrated"
           description={materialityBar.description}
           arrangements={materialityArrangements}
           table={<MaterialityTable />}
@@ -154,8 +154,8 @@ export default function Cricstate() {
           <p>
             Identity is worth {fact('crIdentityGain').value}% in log-likelihood and a per-match
             latent for pitch and conditions {fact('crLatentGain').value}%, both below the
-            materiality bar, so the per-player model was ruled out by measurement rather than
-            built on instinct.
+            materiality bar, so the per-player model was not built: the measurement fell short of the
+            bar that would justify it, rather than instinct deciding.
           </p>
           <p>
             The evaluation protocol was fixed before the test split was read; the verdict bands

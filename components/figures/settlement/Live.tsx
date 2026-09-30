@@ -72,22 +72,23 @@ export function SettlementLive({
     setTyped('')
   }
   // What an amount typed chooses, in words: shown under the field as it is typed, and said once the typing stops.
-  const termWords = (t: (typeof offered)[number]) => `${t.months === 1 ? 'one payment' : `${t.months} months`}, ${rub(t.s.monthly)} a month`
+  const termWords = (t: (typeof offered)[number]) => (t.months === 1 ? `one payment of ${rub(t.s.monthly)}` : `${t.months} months, ${rub(t.s.monthly)} a month`)
   const typedFor = (v: string): { text: string; invalid: boolean } => {
     if (!v.trim()) return { text: '', invalid: false }
-    const roubles = Number.parseInt(v.replace(/[^\d]/g, ''), 10)
-    if (!/\d/.test(v) || !(roubles > 0)) return { text: 'An amount in roubles, in figures.', invalid: true }
+    const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
+    if (!/\d/.test(v)) return { text: 'An amount in roubles, in figures.', invalid: true }
+    if (!(roubles > 0)) return { text: 'More than 0 ₽ a month.', invalid: true }
     const t = offered.find((o) => o.months === termForMonthly(debt, roubles * 100))!
     const longest = offered.reduce((a, o) => (o.months > a.months ? o : a))
     return roubles * 100 < longest.s.monthly
       ? { text: `No offered term is that low: the longest, ${termWords(longest)}.`, invalid: false }
-      : { text: `Closest offered term: ${termWords(t)}.`, invalid: false }
+      : { text: `Fits: ${termWords(t)}.`, invalid: false }
   }
   const typedNote = typedFor(typed)
   const onTyped = (v: string) => {
     setTyped(v)
     clearTimeout(heardTimer.current)
-    const roubles = Number.parseInt(v.replace(/[^\d]/g, ''), 10)
+    const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
     if (Number.isFinite(roubles) && roubles > 0) {
       const months = termForMonthly(debt, roubles * 100)
       setIndex(offered.findIndex((t) => t.months === months))
@@ -275,12 +276,37 @@ export function SettlementLive({
                 aria-hidden
                 title={t.offered ? `${t.months} months: ${rub(t.s.monthly)} a month` : `${t.months} months: hidden, costs more a month than a shorter term`}
                 className={`absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-                  t.months === s.months ? 'bg-ink' : t.offered ? 'bg-indigo' : 'border border-graphite bg-paper'
+                  t.months === s.months ? 'bg-ink' : t.offered ? 'bg-indigo' : 'size-2.5 border-2 border-ink bg-paper'
                 }`}
                 style={{ left: `${px(t.months)}%`, top: `${py(t.s.monthly)}%` }}
               />
             ))}
-            <span aria-hidden className="text-meta absolute right-1.5 top-1.5 bg-paper px-0.5 font-mono text-graphite">{rub(maxPay)} a month</span>
+            {/* Beside the point it names, the one-month payment, not in the far corner. */}
+            <span
+              aria-hidden
+              className="text-meta absolute -translate-y-1/2 bg-paper px-0.5 font-mono text-graphite"
+              style={{ left: `calc(${px(1)}% + 0.75rem)`, top: `${py(maxPay)}%` }}
+            >
+              {all.length > 1 ? `${rub(maxPay)} in one payment` : `${rub(maxPay)} a month`}
+            </span>
+            {/* The figure's claim, named where it is: the first hidden term and what it would cost, against the shorter
+                term that costs less. */}
+            {(() => {
+              const h = all.find((t) => !t.offered)
+              const before = h && all.filter((t) => t.offered && t.months < h.months).at(-1)
+              if (!h || !before) return null
+              const right = px(h.months) > 60
+              return (
+                <span
+                  aria-hidden
+                  data-hidden-term=""
+                  className={`text-meta absolute -translate-y-[calc(100%+0.6rem)] bg-paper px-0.5 font-mono whitespace-nowrap text-ink ${right ? '-translate-x-full' : ''}`}
+                  style={{ left: `${px(h.months)}%`, top: `${py(h.s.monthly)}%` }}
+                >
+                  {`hidden: ${h.months} months, ${rub(h.s.monthly)}, more than ${before.months}`}
+                </span>
+              )
+            })()}
             {/* Above the line's low end, not on it: the last terms' dots sit there. */}
             <span
               aria-hidden
@@ -310,7 +336,8 @@ export function SettlementLive({
       caption={loginCaption}
       table={loginTable}
       rail={loginRail}
-      railBelow={false}
+      // On a phone its clock and the interaction state show under it: they are what +10 minutes and +1 day change.
+      railBelow
       hint="Request a code, move the simulated clock, and request again: the meters show what each code spends"
     >
         <section aria-labelledby="st-b">

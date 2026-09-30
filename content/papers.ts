@@ -72,12 +72,12 @@ export const papers: readonly Paper[] = [
     slug: 'cricstate',
     href: '/cricstate',
     title: 'What ball-by-ball cricket predicts beyond the scoreboard',
-    abstract: `A leakage-audited model of T20 cricket over ${n('crDeliveries')} deliveries. Gradient boosting on match state cuts log-loss on win probability ${Math.round(fact('crT2Skill').value)}% below the base rate (${fact('crT2Nll').value.toFixed(3)} against ${fact('crT2Base').value.toFixed(3)}) on held-out matches, and the study measured what player identity adds before building on it: ${fact('crIdentityGain').value}%, under the bar.`,
-    dek: `A leakage-audited model of T20 cricket over ${n('crDeliveries')} deliveries: gradient boosting on match state cuts win-probability log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate on held-out matches.`,
+    abstract: `A leakage-audited model of T20 cricket, built on ${n('crDeliveries')} T20 and ODI deliveries. Gradient boosting on match state cuts log-loss on win probability ${Math.round(fact('crT2Skill').value)}% below the base rate (${fact('crT2Nll').value.toFixed(3)} against ${fact('crT2Base').value.toFixed(3)}) on held-out matches, and the study measured what player identity adds before building on it: ${fact('crIdentityGain').value}%, under the bar.`,
+    dek: `A leakage-audited model of T20 cricket, built on ${n('crDeliveries')} T20 and ODI deliveries: gradient boosting on match state cuts win-probability log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate on held-out matches.`,
     byline: 'Independent research · July 2026',
     status: 'published',
     cvName: 'cricstate',
-    cv: `Leakage-audited T20 win-probability model over ${n('crDeliveries')} deliveries: gradient boosting on match state cuts held-out log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate; temporal splits, leakage canaries in CI, paired bootstrap.`,
+    cv: `Leakage-audited T20 win-probability model, built on ${n('crDeliveries')} T20 and ODI deliveries: gradient boosting on match state cuts held-out log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate; temporal splits, leakage canaries in CI, paired bootstrap.`,
   },
   {
     slug: 'order-book',
@@ -138,14 +138,16 @@ export const otherWork: readonly OtherWork[] = [
     href: '/nucarbon',
     name: 'nucarbon',
     what: 'A dashboard estimating the carbon cost of AI use across a university campus',
-    status: 'Northeastern Sustainability Incubator · deployed',
+    // From the public repository (github.com/dudailia/nucarbon): its only contributor, built on 6 May 2026 (a later
+    // commit only replaced the README).
+    status: 'Developer · May 2026 · Northeastern Sustainability Incubator · deployed',
   },
   {
     slug: 'adconfirm',
     href: '/adconfirm',
     name: 'AdConfirm',
     what: `Advertising inside invoices and receipts, across ${n('acIntegrations')} accounting and point-of-sale integrations, with metered billing`,
-    status: 'AdConfirm · Co-Founder · May 2026 – present',
+    status: 'Co-Founder · May 2026 – present',
   },
 ]
 

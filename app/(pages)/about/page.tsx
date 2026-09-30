@@ -32,7 +32,9 @@ function MonitoRounds() {
   // Result, region, date. On a phone the region folds under its result: three
   // columns at 390px broke "Worcestershire and Warwickshire" over three lines.
   return (
-    <table className="text-note mt-4 w-full border-y border-rule">
+    // The rules on a wrapper: WebKit cut the table's own top border short where its hidden header cell sits.
+    <div className="mt-4 border-y border-rule">
+    <table className="text-note w-full">
       <caption className="sr-only">Monito in the Young Enterprise company programme, round by round</caption>
       <thead className="sr-only">
         <tr>
@@ -56,6 +58,7 @@ function MonitoRounds() {
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
 

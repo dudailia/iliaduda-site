@@ -45,6 +45,7 @@ const person = {
     addressRegion: 'MA',
     addressCountry: 'US',
   },
+  jobTitle: 'Quantitative Analyst and Engineer',
   affiliation: { '@type': 'CollegeOrUniversity', name: PERSON.school },
   knowsAbout: [
     'Quantitative finance',

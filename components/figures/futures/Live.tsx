@@ -865,9 +865,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             Black–Scholes. A call pays whatever the stock finishes above the strike, and its price is that payoff averaged
             over every path and discounted to today: the indigo bars, what each ending pays weighted by how often it
             happens, add up to it. The readouts show the estimate closing in on the formula as the paths pile up. The
-            volatility starts at the simulated market&rsquo;s own: its realised volatility where
-            its figure opens, {(market.sigma * 100).toFixed(1)}%, rounded to the slider&rsquo;s 1% step, worked out by the
-            server for the still frame and again by your browser where this figure runs live.
+            volatility starts at the simulated market&rsquo;s own realised volatility,{' '}
+            {(market.sigma * 100).toFixed(1)}% (to the slider&rsquo;s 1% step), computed again by your browser.
           </>
         }
         table={tableView}

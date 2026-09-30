@@ -708,7 +708,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       {/* The slider first: it is there in every mode, so the buttons a live figure adds arrive after it, moving nothing. */}
       <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3">
         <label className="text-meta flex items-center gap-3 font-mono text-graphite">
-          <span>Shock</span>
+          {/* The reader's own shock: while the story plays its shock, this one still reads 0.00×, and says whose it is. */}
+          <span>Your shock</span>
           <input
             type="range"
             min={0}

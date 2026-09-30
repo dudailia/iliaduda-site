@@ -1,5 +1,3 @@
-import { Items } from '@/components/Layout'
-import { SITE } from '@/lib/site'
 import { CaseStudyTitle, Meta, Section } from '@/components/CaseStudy'
 import { Figure } from '@/components/Figure'
 import { Shell } from '@/components/Layout'
@@ -20,18 +18,7 @@ export default function Nucarbon() {
       <article>
         <CaseStudyTitle
           figure={false}
-          // TODO(owner): the role and the dates on nucarbon are not in the sources; say them and this line goes. Shown on
-          // previews only, never on production, so nothing unconfirmed ships.
-          byline={
-            SITE.isProduction ? (
-              otherWork.find((o) => o.slug === 'nucarbon')!.status
-            ) : (
-              <>
-                <Items items={otherWork.find((o) => o.slug === 'nucarbon')!.status} />
-                <span className="block text-indigo">TODO(owner): your role and the dates on nucarbon</span>
-              </>
-            )
-          }
+          byline={otherWork.find((o) => o.slug === 'nucarbon')!.status}
           level="h1"
           title="A carbon model for campus AI use, built to be argued with"
           standfirst={

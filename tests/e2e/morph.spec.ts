@@ -22,7 +22,8 @@ async function openFromContents(page: Page, slug: string) {
   await page.waitForURL(`**/${slug}`)
 }
 
-test('through the contents, the order book’s figure arrives finished: its story does not play over the morph', async ({ page }) => {
+test('through the contents, the order book’s figure arrives finished: its story does not play over the morph', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'on a phone a paper opens at its title, with no morph')
   await openFromContents(page, 'order-book')
   expect(await mark(page, 'vtArrival')).toBe('1')
   expect(await mark(page, 'orderbookSeq')).toBe(null)
@@ -32,23 +33,26 @@ test('through the contents, the order book’s figure arrives finished: its stor
   expect(await page.locator('#fig-order-book [data-seq]').getAttribute('data-seq')).toBe('off')
 })
 
-test('through the contents, the IV surface arrives finished too', async ({ page }) => {
+test('through the contents, the IV surface arrives finished too', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'on a phone a paper opens at its title, with no morph')
   await openFromContents(page, 'iv-surface')
   expect(await mark(page, 'vtArrival')).toBe('1')
   expect(await mark(page, 'surfaceSeq')).toBe(null)
   await expect.poll(() => page.locator('#fig-iv-surface [data-iv-poster]').evaluate((e) => Number(getComputedStyle(e).opacity))).toBe(1)
 })
 
-test('through the contents, /market keeps its story: the morph lands on its calm, and the shock plays after it', async ({ page }) => {
+test('through the contents, /market keeps its story: the morph lands on its calm, and the shock plays after it', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'on a phone a paper opens at its title, with no morph')
   await openFromContents(page, 'market')
   expect(await mark(page, 'vtArrival')).toBe('1')
   expect(await mark(page, 'marketSeq')).toBe('1')
 })
 
-test('on a phone the thumbnail grows into the paper’s figure too, the figure’s top only needing to be on screen', async ({ page, isMobile }) => {
+test('on a phone the paper opens at its title, not pulled down to its figure: no morph there', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'a phone')
   await openFromContents(page, 'iv-surface')
-  expect(await mark(page, 'vtArrival')).toBe('1')
+  expect(await mark(page, 'vtArrival')).toBe(null)
+  expect(await page.evaluate(() => scrollY)).toBe(0)
 })
 
 test('arriving from the footer is no morph: nothing is marked as one, and the story is still to come', async ({ page }) => {
@@ -102,7 +106,8 @@ test('a morph mark left by a click that never became a transition does not make 
   expect(await mark(page, 'vtArrival')).toBe(null)
 })
 
-test('the morph lands on the figure in view: the paper opens scrolled just far enough for 70% of a screen of it', async ({ page }) => {
+test('the morph lands on the figure in view: the paper opens scrolled just far enough for 70% of a screen of it', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'on a phone a paper opens at its title, with no morph')
   await openFromContents(page, 'order-book')
   expect(await mark(page, 'vtArrival')).toBe('1')
   const seen = await page.evaluate(() => {
