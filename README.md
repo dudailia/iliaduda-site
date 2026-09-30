@@ -161,7 +161,7 @@ each of twelve routes, against each page's budget (`lighthouserc.prod.json`):
 | Performance | 93–100 |
 | Accessibility | 100 |
 | CLS | 0 |
-| Transfer, home | 260,162–260,197 B (budget 275,000) |
+| Transfer, home | 269,405 B on the preview, 277,286 B on production with Web Analytics (budget 280,000) |
 | Transfer, `/market` | 304,270–304,384 B (budget 335,000) |
 | Transfer, `/order-book`, `/iv-surface` | 278,039–283,906 B (budget 300,000) |
 | Transfer, every other page | 222,053–246,243 B (budget 261,000) |
