@@ -9,7 +9,7 @@ import { pageMeta } from '@/lib/meta'
 
 const paper = papers.find((p) => p.slug === 'cricstate')!
 
-export const metadata = pageMeta('/cricstate', 'Ball-by-ball cricket beyond the scoreboard', paper.abstract)
+export const metadata = pageMeta('/cricstate', paper.title, paper.abstract)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
@@ -18,13 +18,13 @@ function MaterialityTable() {
   return (
     <table>
       <caption>
-        Relative improvement in negative log-likelihood over the rung below (match state over a marginal
+        Relative improvement in negative log-likelihood over the level below (match state over a marginal
         baseline; player identity over match state; the per-match latent on validation), T1/T20, after calibration.
       </caption>
       <thead>
         <tr>
           <th scope="col">Predictor</th>
-          <th scope="col">Improvement over baseline</th>
+          <th scope="col">Improvement over the level below</th>
         </tr>
       </thead>
       <tbody>
@@ -137,7 +137,7 @@ export default function Cricstate() {
           id="fig-materiality"
           number="Fig. 2"
           title="What each enrichment adds beyond match state"
-          subtitle="relative NLL improvement over the rung below · next ball, T20 · calibrated"
+          subtitle="relative NLL improvement over the level below · next ball, T20 · calibrated"
           description={materialityBar.description}
           arrangements={materialityArrangements}
           table={<MaterialityTable />}

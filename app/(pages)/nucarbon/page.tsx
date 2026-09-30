@@ -24,8 +24,8 @@ export default function Nucarbon() {
           standfirst={
             <p>
               A modelling and visualisation tool for Northeastern&rsquo;s Sustainability
-              Incubator that estimates the carbon cost of AI use across a campus. Every figure on
-              its nine pages derives from {fact('ncConstants').value} constants and{' '}
+              Incubator that estimates the carbon cost of AI use across a campus. Every figure in
+              the application derives from {fact('ncConstants').value} constants and{' '}
               {fact('ncTools').value} tools with adoption rates, so changing one assumption moves
               every chart consistently.
             </p>
@@ -58,8 +58,8 @@ export default function Nucarbon() {
           arrangements={constantsDerivation.arrangements}
           caption={
             <>
-              One derivation for the whole application: change a constant and the nine pages move
-              together, which is what makes the model auditable.
+              One derivation for the whole application: change a constant and every chart moves
+              with it, which is what makes the model auditable.
             </>
           }
         />

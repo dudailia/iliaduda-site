@@ -336,7 +336,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             ))}
           </div>
           <div
-            className="relative aspect-[5/3] min-w-0 flex-1 cursor-ew-resize [container-type:size] sm:aspect-[16/7]"
+            className="relative aspect-[5/3] min-w-0 flex-1 cursor-ew-resize [container-type:size] sm:aspect-[16/7] [@media(max-height:30rem)]:aspect-[16/5]"
             // A finger scrolls the page up and down over the chart; sideways, it moves along the match.
             style={{ touchAction: 'pan-y pinch-zoom' }}
             onPointerDown={onPlotDown}
@@ -393,24 +393,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
           </span>
         </div>
 
-        <p aria-hidden className="text-meta mt-1 ml-11 font-mono text-graphite">
-          <span className="mr-1 inline-block h-2.5 w-px translate-y-0.5 bg-ink" /> a wicket falls
-        </p>
-
-        <div className="mt-3 flex items-center gap-3 pl-11">
-          <button
-            type="button"
-            onClick={() => {
-              if (armed.current) release()
-              if (playing) stop()
-              else if (at >= n - 1) replay()
-              // On from where the playhead stands, between balls if a pause caught it there.
-              else play(at + frac)
-            }}
-            className={`${CONTROL} w-[4.5rem] shrink-0 motion-reduce:hidden`}
-          >
-            {playing ? 'Pause' : at >= n - 1 ? 'Replay' : 'Play'}
-          </button>
+        {/* The slider under the plot, on its time axis: its thumb stands where the playhead does (the thumb's 16px is
+            let out past the plot's edges, so the first and last balls sit at them). */}
+        <div className="mt-2 ml-11">
           <input
             type="range"
             min={0}
@@ -430,9 +415,27 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               keep()
               if (playing) stop()
             }}
-            className="h-6 w-full"
+            className="-mx-2 block h-6 w-[calc(100%+1rem)]"
             style={rangeFill(at, 0, n - 1)}
           />
+        </div>
+        <div className="mt-2 ml-11 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p aria-hidden className="text-meta font-mono text-graphite">
+            <span className="mr-1 inline-block h-2.5 w-px translate-y-0.5 bg-ink" /> a wicket falls
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (armed.current) release()
+              if (playing) stop()
+              else if (at >= n - 1) replay()
+              // On from where the playhead stands, between balls if a pause caught it there.
+              else play(at + frac)
+            }}
+            className={`${CONTROL} w-[4.5rem] shrink-0 motion-reduce:hidden`}
+          >
+            {playing ? 'Pause' : at >= n - 1 ? 'Replay' : 'Play'}
+          </button>
         </div>
         {/* The slider speaks for itself (aria-valuetext); this says only what the reader did not do there. */}
         <p className="sr-only" aria-live="polite">

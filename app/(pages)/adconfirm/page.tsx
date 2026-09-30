@@ -65,9 +65,9 @@ export default function AdConfirm() {
           arrangements={schemaReconciliation.arrangements}
           caption={
             <>
-              There is no central reconciler. The seam is the target interface, and each adapter
-              owns a private mapper that lands on it — which is why the shared type is a lowest
-              common denominator rather than a union.
+              Each vendor&rsquo;s adapter maps its payload onto the one shared invoice type. The
+              marks in indigo are the vendors that cannot supply line items, so the shared type
+              leaves line items out.
             </>
           }
         />
@@ -75,18 +75,24 @@ export default function AdConfirm() {
         <Section heading="The hard part">
           <p>
             Every one of the eight vendors disagrees with the others somewhere, and never in the
-            same place twice. One sends field names in Pascal case and carries an explicit tenant
-            identifier. One pins an API minor version in the URL and returns a second, separate
-            expiry for the refresh token itself. One sends money as strings, under two different
-            field names for the same concept. One sends a money object in minor units and exposes
-            no line items at all. One authenticates with a static token header rather than an
-            OAuth refresh, and uses the shop domain as its tenant id. One supplies a currency{' '}
-            <em>symbol</em> where every other adapter supplies an ISO code. One&rsquo;s webhook
-            signature header still carries the company&rsquo;s previous brand name. And one is the
-            only integration with no webhook at all, so it is polled, with its payload keys read
-            defensively in four capitalisations because it uses them inconsistently.
+            same place twice:
           </p>
-          <p>
+          <ul className="mt-2 grid list-disc gap-y-1 pl-5 marker:text-graphite">
+            <li>field names in Pascal case, with an explicit tenant identifier;</li>
+            <li>an API minor version pinned in the URL, and a second, separate expiry for the refresh token itself;</li>
+            <li>money as strings, under two different field names for the same concept;</li>
+            <li>a money object in minor units, and no line items at all;</li>
+            <li>a static token header rather than an OAuth refresh, with the shop domain as the tenant id;</li>
+            <li>
+              a currency <em>symbol</em> where every other adapter supplies an ISO code;
+            </li>
+            <li>a webhook signature header that still carries the company&rsquo;s previous brand name;</li>
+            <li>
+              no webhook at all, so it is polled, with its payload keys read defensively in four capitalisations because it
+              uses them inconsistently.
+            </li>
+          </ul>
+          <p className="mt-[1.1em]">
             Six different signature headers, all HMAC over the raw body, which is why the router
             takes the body as bytes rather than parsed JSON — a detail that carries the whole
             verification step and is commented as such, because the first person to add a JSON
@@ -100,6 +106,9 @@ export default function AdConfirm() {
             {fact('acIntegrations').value} cannot supply line items — so downstream code never
             depends on a field one vendor quietly omits.
           </p>
+        </Section>
+
+        <Section heading="The money">
           <p>
             The best code in the project is the money. Billing at a two-pound cost per thousand
             impressions means one impression costs a fifth of a penny, and there is no way to hold

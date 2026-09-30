@@ -1,6 +1,9 @@
 import { PERSON, resumeLink } from '@/lib/site'
 import { Shell } from './Layout'
 
+// The page a reader is on, marked as the footer marks it (the About link on /about).
+const CURRENT = `document.currentScript.closest('header').querySelectorAll('nav a[href]').forEach(function(a){if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page')})`
+
 /**
  * A journal's running head: whose paper this is and the way back to the
  * contents, on every page except the one that already has the masthead. A
@@ -38,7 +41,7 @@ export function RunningHead() {
               </li>
               {/* Who this is, from any page: a reader landing on a paper from a link reaches it without the footer. */}
               <li>
-                <a href="/about" className="inline-block py-2.5">
+                <a href="/about" className="inline-block py-2.5 aria-[current=page]:text-ink aria-[current=page]:no-underline">
                   About
                 </a>
               </li>
@@ -54,6 +57,7 @@ export function RunningHead() {
               </li>
             </ul>
           </nav>
+          <script dangerouslySetInnerHTML={{ __html: CURRENT }} />
         </div>
       </Shell>
     </header>

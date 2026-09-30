@@ -9,7 +9,7 @@ import { pageMeta } from '@/lib/meta'
 
 const paper = papers.find((p) => p.slug === 'closebooks')!
 
-export const metadata = pageMeta('/closebooks', 'CloseBooks', paper.abstract)
+export const metadata = pageMeta('/closebooks', paper.title, paper.abstract)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 

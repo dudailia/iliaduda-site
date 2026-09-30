@@ -39,6 +39,21 @@ test('Pause holds the figure, so nothing is drawn; the pause lasts the visit, an
   expect(errors).toEqual([])
 })
 
+test('Replay while paused plays: the figure resumes, so its numbers and its convergence strip start over together', async ({ page }) => {
+  test.setTimeout(60_000)
+  await seen(page)
+  await page.goto('/')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await expect(page.locator(`${STAGE} [data-camera]`)).toHaveAttribute('data-camera', 'rest', { timeout: 6_000 })
+  const fig = page.locator('#fig-futures')
+  await fig.getByRole('button', { name: 'Pause' }).click()
+  await fig.getByRole('button', { name: 'Replay' }).click()
+  await expect(fig.getByRole('button', { name: 'Pause' })).toBeVisible()
+  const before = await draws(page)
+  await page.waitForTimeout(1000)
+  expect((await draws(page)) - before).toBeGreaterThan(10)
+})
+
 test('the live controls arrive in turn, rising into place, while press and hover stay instant', async ({ page }) => {
   await seen(page)
   await page.goto('/')

@@ -57,8 +57,9 @@ exponential, checked statistically instead), the drawing, and how many frames
 a device shows.
 
 The figures are hand-authored SVG and WebGL, with no chart library. Every
-number in them comes from `content/facts.ts`, where each entry names the file
-it was verified against.
+sourced number in them comes from `content/facts.ts`, where each entry names
+the file it was verified against; the rest are computed on the page from the
+model the figure describes.
 
 The visual system is written down in [`DESIGN.md`](DESIGN.md), and the product
 brief in [`PRODUCT.md`](PRODUCT.md).

@@ -1,6 +1,7 @@
 /**
- * Every number rendered anywhere on this site lives here, and every entry
- * carries the file it was verified against.
+ * Every sourced number on this site lives here, and every entry carries the
+ * file it was verified against; everything else is computed on the page from
+ * the model it describes.
  *
  * tests/facts.test.ts fails the build if any entry has an empty `source`, and
  * tests/figures.test.ts fails the build if a figure component contains a
@@ -53,7 +54,7 @@ const facts = {
 
   // ── cricstate ──────────────────────────────────────────────────────────────
   // The figure axis. One unit throughout: relative NLL improvement over the
-  // rung below on the T1/T20 cell, post-calibration (match state over the B0 marginal baseline; identity over match
+  // level below on the T1/T20 cell, post-calibration (match state over the B0 marginal baseline; identity over match
   // state; the latent on validation).
   crIdentityGain: {
     value: 0.31,

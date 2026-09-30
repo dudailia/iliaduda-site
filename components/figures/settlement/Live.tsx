@@ -77,7 +77,8 @@ export function SettlementLive({
     if (!v.trim()) return { text: '', invalid: false }
     const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
     if (!/\d/.test(v)) return { text: 'An amount in roubles, in figures.', invalid: true }
-    if (!(roubles > 0)) return { text: 'More than 0 ₽ a month.', invalid: true }
+    // A minus is not a payment: "-5" is not 5 ₽.
+    if (!(roubles > 0) || /-\s*\d/.test(v)) return { text: 'More than 0 ₽ a month.', invalid: true }
     const t = offered.find((o) => o.months === termForMonthly(debt, roubles * 100))!
     const longest = offered.reduce((a, o) => (o.months > a.months ? o : a))
     return roubles * 100 < longest.s.monthly
@@ -89,7 +90,7 @@ export function SettlementLive({
     setTyped(v)
     clearTimeout(heardTimer.current)
     const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
-    if (Number.isFinite(roubles) && roubles > 0) {
+    if (Number.isFinite(roubles) && roubles > 0 && !/-\s*\d/.test(v)) {
       const months = termForMonthly(debt, roubles * 100)
       setIndex(offered.findIndex((t) => t.months === months))
     }
@@ -259,7 +260,7 @@ export function SettlementLive({
             </div>
           </dl>
 
-          <div className="relative mt-5 h-36" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
+          <div className="relative mt-5 h-36 sm:h-44" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
               <rect x={0} y={0} width={100} height={100} fill="none" stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
               {LADDER.slice(0, -1)
@@ -290,21 +291,43 @@ export function SettlementLive({
               {all.length > 1 ? `${rub(maxPay)} in one payment` : `${rub(maxPay)} a month`}
             </span>
             {/* The figure's claim, named where it is: the first hidden term and what it would cost, against the shorter
-                term that costs less. */}
+                term that costs less. The step is tens of roubles on an axis of tens of thousands, a fraction of a
+                pixel, so from a phone's width up it is drawn magnified in the empty corner above it, on a scale of its
+                own; on a phone, where the corner is too small, a line under the axis names it (below). */}
             {(() => {
               const h = all.find((t) => !t.offered)
               const before = h && all.filter((t) => t.offered && t.months < h.months).at(-1)
               if (!h || !before) return null
-              const right = px(h.months) > 60
+                            // The step and its two sides only: the shorter term, the hidden one, and the next (a wider window's own fall
+              // from month to month was larger than the step, and shrank it back to a few pixels).
+              const win = all.filter((t) => t.months >= before.months && t.months <= h.months + 1)
+              const lo = Math.min(...win.map((t) => t.s.monthly))
+              const hi = Math.max(...win.map((t) => t.s.monthly))
+              const wx = (m: number) => 10 + ((m - win[0]!.months) / Math.max(1, win.at(-1)!.months - win[0]!.months)) * 80
+              const wy = (v: number) => (hi === lo ? 50 : 18 + (1 - (v - lo) / (hi - lo)) * 64)
+              const line = win.filter((t) => t.offered).map((t, k) => `${k ? 'L' : 'M'}${wx(t.months).toFixed(2)} ${wy(t.s.monthly).toFixed(2)}`).join('')
               return (
-                <span
-                  aria-hidden
-                  data-hidden-term=""
-                  className={`text-meta absolute -translate-y-[calc(100%+0.6rem)] bg-paper px-0.5 font-mono whitespace-nowrap text-ink ${right ? '-translate-x-full' : ''}`}
-                  style={{ left: `${px(h.months)}%`, top: `${py(h.s.monthly)}%` }}
-                >
-                  {`hidden: ${h.months} months, ${rub(h.s.monthly)}, more than ${before.months}`}
-                </span>
+                <>
+                  <div aria-hidden data-hidden-term="" className="text-meta absolute top-1.5 right-1.5 hidden h-[7rem] w-[17rem] flex-col border border-rule bg-paper px-2 py-1 font-mono sm:flex">
+                    <span className="whitespace-nowrap text-ink">{`hidden: ${h.months} months, ${rub(h.s.monthly)}`}</span>
+                    <div className="relative min-h-0 flex-1">
+                      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
+                        <path d={line} fill="none" stroke="var(--color-indigo)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                      </svg>
+                      {win.map((t) => (
+                        <span
+                          key={t.months}
+                          data-inset-term={t.months}
+                          className={`absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ${
+                            t.months === s.months ? 'bg-ink' : t.offered ? 'bg-indigo' : 'size-2.5 border-2 border-ink bg-paper'
+                          }`}
+                          style={{ left: `${wx(t.months)}%`, top: `${wy(t.s.monthly)}%` }}
+                        />
+                      ))}
+                    </div>
+                    <span className="whitespace-nowrap text-graphite">{`${before.months} months costs less: ${rub(before.s.monthly)}`}</span>
+                  </div>
+                </>
               )
             })()}
             {/* Above the line's low end, not on it: the last terms' dots sit there. */}
@@ -320,10 +343,34 @@ export function SettlementLive({
             <span>1 month</span>
             <span>{maxM} months</span>
           </div>
+          {/* On a phone the hidden term is named here, under the plot, in a sentence (in the plot it ran off its left edge
+              and over the lowest payment's label). */}
+          {(() => {
+            const h = all.find((t) => !t.offered)
+            const before = h && all.filter((t) => t.offered && t.months < h.months).at(-1)
+            if (!h || !before) return null
+            return (
+              <p aria-hidden data-hidden-term-line="" className="text-meta mt-1 font-mono text-ink sm:hidden">
+                {`Hollow: ${h.months} months at ${rub(h.s.monthly)}, more a month than ${before.months} months at ${rub(before.s.monthly)}.`}
+              </p>
+            )
+          })()}
           <p className="text-meta mt-1.5 max-w-[36rem] font-mono text-graphite">
             {all.length === 1
               ? 'Under the monthly floor at any longer term: settles in one payment.'
-              : `Monthly payment by term. ${offered.length} terms offered up to ${all.length} months${hidden ? `; ${hidden} hidden (hollow): at a step in the discount ladder a longer term would cost more a month` : ''}. Dashed lines are the ladder’s steps.`}
+              : (
+                <>
+                  {`Monthly payment by term. ${offered.length} terms offered up to ${all.length} months`}
+                  {hidden ? (
+                    <>
+                      {`; ${hidden} hidden (hollow`}
+                      <span className="hidden sm:inline">, the first magnified in the corner</span>
+                      {'): at a step in the discount ladder a longer term would cost more a month'}
+                    </>
+                  ) : null}
+                  {'. Dashed lines are the ladder’s steps.'}
+                </>
+              )}
           </p>
         </section>
     </FigureFrame>

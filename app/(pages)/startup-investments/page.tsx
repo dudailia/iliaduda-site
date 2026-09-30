@@ -11,7 +11,7 @@ import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'startup-investments')!
 
-export const metadata = pageMeta('/startup-investments', 'Startup segment ranking under uncertainty', paper.abstract)
+export const metadata = pageMeta('/startup-investments', paper.title, paper.abstract)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 

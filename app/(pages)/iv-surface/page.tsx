@@ -11,7 +11,7 @@ import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'iv-surface')!
 
-export const metadata = pageMeta('/iv-surface', 'An implied-volatility surface free of static arbitrage', paper.abstract)
+export const metadata = pageMeta('/iv-surface', paper.title, paper.abstract)
 
 const SRC = SOURCE
 

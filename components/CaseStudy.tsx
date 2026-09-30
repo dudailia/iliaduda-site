@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Items, Row } from './Layout'
+import { Items, Row, Whole } from './Layout'
 
 /**
  * Section headings live in the rail, right-aligned, rather than stacked above
@@ -33,7 +33,9 @@ export function CaseStudyTitle({
   // less this block's 1.5rem), so a laptop's first screen shows more of Fig. 1's stage.
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'}>{title}</Heading>
+      <Heading className={`text-balance ${level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'}`}>
+        <Whole text={title} />
+      </Heading>
       {byline ? (
         <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>
       ) : null}
@@ -65,8 +67,9 @@ export function Section({
   const Heading = level
   return (
     <section {...(id ? { id } : {})} className="mt-10 lg:mt-14">
-      <div className="grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0">
-        <Heading className="text-meta font-mono font-normal tracking-normal text-ink lg:col-start-1 lg:row-start-1 lg:self-start lg:pt-1 lg:text-right">
+      {/* On paper, a block: a grid row gives the printer nowhere to hold a heading with the text under it. */}
+      <div className="grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 print:block">
+        <Heading className="text-meta font-mono font-normal tracking-normal text-ink print:mb-2 print:break-after-avoid lg:col-start-1 lg:row-start-1 lg:self-start lg:pt-1 lg:text-right">
           {heading}
         </Heading>
         {/* When a section opens with an annotated paragraph, that note wants

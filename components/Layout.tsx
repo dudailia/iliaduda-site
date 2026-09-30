@@ -16,7 +16,7 @@ export function Shell({ children }: { children: ReactNode }) {
       {children}
       {/* The running head and footer do not print, so a printed page carries its author here (the CV's sheet has its own). */}
       <p className="text-meta mt-10 hidden font-mono text-graphite print:block">
-        {`${PERSON.name} · ${PERSON.email} · ${SITE.public.replace(/^https?:\/\//, '')}`}
+        {[PERSON.name, PERSON.email, SITE.public, PERSON.linkedin, PERSON.github].map((v) => v.replace(/^https?:\/\/(www\.)?/, '')).join(' · ')}
       </p>
     </div>
   )
@@ -139,5 +139,21 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
         )
       })}
     </>
+  )
+}
+
+/**
+ * Text whose hyphenated words stay on one line ("off-cycle" split as "off- / cycle" on a phone, "Hawkes- / driven" in a
+ * title): the fonts carry no no-break hyphen, so each such word is held in a nowrap span.
+ */
+export function Whole({ text }: { text: string }) {
+  return text.split(/(\S+-\S+)/).map((part, i) =>
+    i % 2 ? (
+      <span key={i} className="whitespace-nowrap">
+        {part}
+      </span>
+    ) : (
+      part
+    ),
   )
 }

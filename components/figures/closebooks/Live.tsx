@@ -222,7 +222,8 @@ export function CategorisationLive({
           <span className="whitespace-nowrap">exportable {lit(`${counts.out} of ${feed.length}`, 'out')}</span>
         </p>
         <p className="text-meta mb-2 font-mono text-graphite lg:hidden print:hidden">{HINT}</p>
-        <ol role="list" className="grid list-none border-t border-rule" aria-label="Categorised bank lines">
+        {/* The title's rule is the top rule on a laptop; below lg the gate and hint come between, and the rows have their own. */}
+        <ol role="list" className="grid list-none border-t border-rule lg:border-t-0" aria-label="Categorised bank lines">
           {feed.map((l, i) => {
             const r = results[i]!
             const st = status(i)
@@ -357,7 +358,18 @@ export function CategorisationLive({
         <p className="sr-only" aria-live="polite">
           {said}
         </p>
-        <div className="mt-3 flex justify-end">
+        {/* The export gate as a state, at the foot of the batch: held while any line waits or is blocked, open once every
+            line has cleared (its word swaps through the site's blur). */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p data-export-gate="" aria-hidden className="text-meta font-mono text-graphite">
+            Export:{' '}
+            <span
+              key={settled && counts.out === feed.length ? 'open' : 'held'}
+              className="text-ink transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none"
+            >
+              {settled && counts.out === feed.length ? `open, all ${feed.length} lines` : `held, ${counts.out} of ${feed.length} lines ready`}
+            </span>
+          </p>
           <button
             type="button"
             onClick={() => {

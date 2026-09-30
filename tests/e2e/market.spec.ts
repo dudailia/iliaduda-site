@@ -189,6 +189,33 @@ test('reduced motion turned on and off while the page is open: still frames, the
   expect(errors).toEqual([])
 })
 
+test('a moment pointed at in the book is the moment every readout shows: one moment on the page, never two', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'a mouse')
+  test.setTimeout(60_000)
+  await seenStory(page)
+  await page.goto('/market')
+  if (!(await goLive(page))) return test.skip(true, 'no GPU here')
+  await page.getByRole('button', { name: 'Liquidity shock' }).click()
+  await page.waitForTimeout(6000)
+  const book = page.locator('[data-market-book]')
+  await book.scrollIntoViewIfNeeded()
+  // Back before the shock, in the calm: the book's label and the readouts must agree on the stress then.
+  await expect(async () => {
+    const box = (await book.boundingBox())!
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2)
+    await page.mouse.move(box.x + box.width * 0.08, box.y + box.height / 2, { steps: 5 })
+    await expect(page.locator('[data-market-book-title]')).toContainText('s ago', { timeout: 1000 })
+  }).toPass({ timeout: 15_000 })
+  await page.waitForTimeout(400)
+  const label = (await page.locator('[data-market-book-title]').textContent()) ?? ''
+  const stressThen = /stress (\d\.\d\d)/.exec(label)![1]!
+  const shown = await page.locator('dd', { has: page.locator('[data-market-value]') }).evaluateAll((dds) =>
+    dds.map((d) => [d.previousElementSibling?.textContent ?? '', d.textContent ?? '']),
+  )
+  const stressRow = shown.find(([k]) => k.startsWith('Stress'))
+  expect(stressRow?.[1]).toBe(stressThen)
+})
+
 test('the book reads the market at a moment by keyboard, and the surface turns with the arrow keys', async ({ page, isMobile }) => {
   test.skip(isMobile, 'a keyboard')
   test.setTimeout(60_000)

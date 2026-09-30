@@ -1,9 +1,9 @@
 import { Section } from '@/components/CaseStudy'
-import { Items, Row, Shell } from '@/components/Layout'
+import { Items, Row, Shell, Whole } from '@/components/Layout'
 import { ContactLinks } from '@/components/Masthead'
 import { OfzCurve } from '@/components/figures/OfzCurve'
 import { certifications, education, monitoRounds, roles, SKILLS } from '@/content/experience'
-import { papers } from '@/content/papers'
+import { otherWork, papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 import { AVAILABILITY, PERSON, POSITIONING, SITE } from '@/lib/site'
 import avif176 from './headshot-176.avif'
@@ -17,8 +17,9 @@ export const metadata = pageMeta(
   `Experience, education and coursework. ${AVAILABILITY.line}.`,
 )
 
-/** The research papers, in the Contents' order: the record's research, as the CV has it. */
+/** The research papers, the market's three first (the record's quantitative work leads, as on the CV). */
 const RESEARCH = ['market', 'order-book', 'iv-surface', 'cricstate', 'startup-investments']
+const other = otherWork.filter((o) => !roles.some((r) => r.href === o.href))
 const research = RESEARCH.map((slug) => papers.find((p) => p.slug === slug && p.status === 'published')).filter((p) => p !== undefined)
 
 /**
@@ -114,17 +115,19 @@ export default function About() {
           <ol className="grid list-none gap-y-8">
             {roles.map((r) => (
               <li key={r.id} id={r.id}>
-                <h3 className="text-body font-semibold tracking-normal">
+                <h3 className="text-body font-semibold tracking-normal print:break-after-avoid">
                   {r.org}
                   <span className="font-normal text-graphite">, {r.orgNote}</span>
                 </h3>
-                <p className="text-meta mt-0.5 font-mono text-graphite">
+                <p className="text-meta mt-0.5 font-mono text-graphite print:break-after-avoid">
                   <Items items={[r.title, r.place, r.dates]} />
                 </p>
                 {r.draft && SITE.isProduction ? null : (
                   <ul className="mt-2 grid list-disc gap-y-1 pl-5 marker:text-graphite">
                     {r.detail.map((d) => (
-                      <li key={d}>{d}</li>
+                      <li key={d}>
+                        <Whole text={d} />
+                      </li>
                     ))}
                   </ul>
                 )}
@@ -161,13 +164,32 @@ export default function About() {
           </ol>
         </Section>
 
+        {/* Work the Experience entries do not already link, so the footer is not its only mention. */}
+        {other.length ? (
+          <Section heading="Other work">
+            <ol className="grid list-none gap-y-5">
+              {other.map((o) => (
+                <li key={o.slug}>
+                  <h3 className="text-body font-semibold tracking-normal">
+                    <a href={o.href}>{o.name}</a>
+                  </h3>
+                  <p className="text-meta mt-0.5 font-mono text-graphite">
+                    <Items items={o.status} />
+                  </p>
+                  <p className="mt-1.5">{o.what}.</p>
+                </li>
+              ))}
+            </ol>
+          </Section>
+        ) : null}
+
         <Section heading="Education" id="education">
           <h3 className="text-body font-semibold tracking-normal">{education.school}</h3>
           <p className="text-meta mt-0.5 font-mono text-graphite">
             <Items items={[education.degree, education.dates]} />
           </p>
           <p className="mt-2">{education.honours}.</p>
-          <p className="text-meta mt-5 font-mono text-graphite">Quantitative coursework</p>
+          <p className="text-meta mt-5 font-mono text-graphite">Coursework</p>
           <ul className="mt-1.5 grid list-none gap-y-0.5 sm:grid-cols-2 sm:gap-x-8">
             {education.coursework.map((c) => (
               <li key={c}>{c}</li>

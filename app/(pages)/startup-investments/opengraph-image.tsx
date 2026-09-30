@@ -1,6 +1,7 @@
+import { papers } from '@/content/papers'
 import { OG_SIZE, paperOg } from '@/lib/og'
 
-export const alt = 'Ilia Duda — working paper: startup-investments'
+export const alt = `Ilia Duda — working paper: ${papers.find((p) => p.slug === 'startup-investments')!.title}`
 export const size = OG_SIZE
 export const contentType = 'image/png'
 

@@ -68,7 +68,8 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
             { label: 'Curvature η', value: eta.toFixed(2) },
             { label: 'η(1 + |ρ|)', value: `${(eta * (1 + Math.abs(P.rho))).toFixed(2)} ${sufficient ? '≤' : '>'} 2` },
             { label: 'Sufficient condition', value: sufficient ? 'holds' : 'no longer guarantees' },
-            { label: 'Lowest g', value: `${minus(minG.toFixed(3))} at k = ${minus(at.toFixed(2))}` },
+            // Over the drawn window of k: with no dip, the lowest is at its edge, and g falls further out.
+            { label: 'Lowest g drawn', value: `${minus(minG.toFixed(3))} at k = ${minus(at.toFixed(2))}` },
             { label: 'Butterfly arbitrage', value: arbitrage ? 'present' : 'none' },
           ]}
         />
@@ -121,7 +122,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
           step={0.01}
           value={eta}
           onChange={(e) => setEta(Number(e.currentTarget.value))}
-          aria-valuetext={`eta ${eta.toFixed(2)}; ${arbitrage ? `butterfly arbitrage, lowest g ${minG.toFixed(3)}` : 'no butterfly arbitrage'}`}
+          aria-valuetext={`eta ${eta.toFixed(2)}; ${arbitrage ? `butterfly arbitrage, lowest g drawn ${minG.toFixed(3)}` : 'no butterfly arbitrage'}`}
           className="mt-1 h-6 w-full"
           style={rangeFill(eta, 0.4, ETA_MAX)}
         />

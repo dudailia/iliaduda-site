@@ -3,7 +3,7 @@ import { ACCENT, DIAGRAM_W, GRAPHITE, INK, RULE, WASH } from '../figureKit'
 
 /**
  * Every number nucarbon displays, traced back to where it comes from: six
- * constants and a set of adoption rates produce every figure on nine pages.
+ * constants and a set of adoption rates produce every figure in the application.
  * The accent marks the two inputs taken from published sources — the grid's
  * carbon intensity and the energy per query — so the figure separates cited
  * inputs from adjustable assumptions without a sentence to do it.
@@ -21,7 +21,7 @@ export const CONSTANTS: readonly Constant[] = [
   { name: 'faculty and staff', display: fact('ncFaculty').value.toLocaleString('en-US'), sourced: false },
   { name: 'queries a person a day', display: String(value('ncQueriesPerDay')), sourced: false },
   { name: 'kWh per query', display: String(value('ncEnergyPerQuery')), sourced: true },
-  { name: 'kg CO2 per kWh', display: String(value('ncCo2PerKwh')), sourced: true },
+  { name: 'kg CO₂ per kWh', display: String(value('ncCo2PerKwh')), sourced: true },
   { name: 'semester start', display: 'per term', sourced: false },
 ]
 
@@ -89,7 +89,7 @@ function Marks() {
         fontSize="12"
         fill={INK}
       >
-        on nine
+        in the
       </text>
       <text
         x={BOX_X + BOX_W / 2}
@@ -99,7 +99,7 @@ function Marks() {
         fontSize="12"
         fill={INK}
       >
-        pages
+        app
       </text>
 
       <line x1="0" y1={lastY + 18} x2={W} y2={lastY + 18} stroke={RULE} strokeWidth="1" />
@@ -128,7 +128,7 @@ export const constantsDerivation = {
     { key: 'only', viewBox: `0 0 ${W} ${H}`, width: W, height: H, Marks, className: 'max-w-[336px]' },
   ],
   description:
-    `Every number displayed across nine pages derives from ${value('ncConstants')} constants: a ` +
+    `Every number the application displays derives from ${value('ncConstants')} constants: a ` +
     `student population, a faculty and staff count, an assumed number of AI queries per person ` +
     `per day, an energy figure per query, a carbon intensity per kilowatt hour, and a semester ` +
     `start date — plus ${value('ncTools')} tools with adjustable adoption rates. The carbon ` +

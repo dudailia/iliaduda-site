@@ -1,5 +1,5 @@
 import { AVAILABILITY, PERSON, POSITIONING, resumeLink } from '@/lib/site'
-import { Items, Row } from './Layout'
+import { Items, Row, Whole } from './Layout'
 
 /**
  * The home page's first screen, and the only place every hiring essential is
@@ -61,7 +61,7 @@ export function Masthead() {
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
             <dt className="text-meta pt-0.5 font-mono text-graphite lg:text-right">{k}</dt>
-            <dd className="text-note min-w-0 text-ink">{k === 'Roles' ? <Items items={v} /> : v}</dd>
+            <dd className="text-note min-w-0 text-ink">{k === 'Roles' ? <Items items={v} /> : k === 'Seeking' ? <Whole text={v} /> : v}</dd>
           </div>
         ))}
         <dt className="text-meta pt-2.5 font-mono text-graphite lg:text-right">Contact</dt>

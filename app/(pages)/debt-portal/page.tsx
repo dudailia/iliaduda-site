@@ -7,7 +7,7 @@ import { pageMeta } from '@/lib/meta'
 
 const paper = papers.find((p) => p.slug === 'debt-portal')!
 
-export const metadata = pageMeta('/debt-portal', 'Debt-settlement portal', paper.abstract)
+export const metadata = pageMeta('/debt-portal', paper.title, paper.abstract)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
@@ -22,7 +22,7 @@ export default function DebtPortal() {
         <Section heading="The product">
           <p>
             People in debt avoid the phone call, so the product is the opposite of one: look the
-            debt up, see what a settlement would cost and over what schedule, and pay by SBP — without
+            debt up, see what a settlement would cost and over what schedule, and reach an SBP payment screen whose amount the server recomputes — without
             speaking to anyone. I am the only developer, building it
             end to end for a licensed collection organisation: the debtor flow, the arithmetic, the
             statutory limits, the disclosures, and the build gates that keep them true.

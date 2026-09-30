@@ -48,6 +48,29 @@ test('debt portal: the login spends the statutory allowance and stops at the cap
   await expect(page.locator('#fig-login [aria-live="polite"]').last()).toHaveText(/Not sent: 2 of 2 in the last 24 hours/)
 })
 
+test('debt portal: the hidden term is drawn where it can be seen, above the shorter term that costs less', async ({ page, isMobile }) => {
+  await page.goto('/debt-portal')
+  if (isMobile) {
+    // On a phone a line under the plot names it, inside the column (in the plot, its label ran off the left edge).
+    const line = page.locator('#fig-settlement [data-hidden-term-line]')
+    await expect(line).toHaveText(/^Hollow: \d+ months at .+, more a month than \d+ months at .+\.$/)
+    const [l, r, vw] = await line.evaluate((el) => [el.getBoundingClientRect().left, el.getBoundingClientRect().right, innerWidth])
+    expect(l).toBeGreaterThanOrEqual(0)
+    expect(r).toBeLessThanOrEqual(vw)
+    return
+  }
+  const inset = page.locator('#fig-settlement [data-hidden-term]')
+  await expect(inset).toBeVisible()
+  await expect(inset).toContainText(/hidden: \d+ months/)
+  const [hid, before] = await inset.evaluate((el) => {
+    const m = Number(/hidden: (\d+)/.exec(el.textContent ?? '')![1])
+    const at = (n: number) => el.querySelector<HTMLElement>(`[data-inset-term="${n}"]`)!.getBoundingClientRect()
+    return [at(m).top, at(m - 1).top]
+  })
+  // On the chart's own scale the step is under a pixel; magnified, it is plain.
+  expect(before - hid).toBeGreaterThan(10)
+})
+
 test('debt portal: refusing interaction, after the login has been used, holds the next code and can be undone', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(String(e)))

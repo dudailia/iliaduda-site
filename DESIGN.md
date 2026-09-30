@@ -207,7 +207,7 @@ Square and ruled. Text blocks have no containers at all. The one rounded shape i
 - **Devices:** the live figures run on one stage kit (`components/stage/useStage.ts`): a quality governor (`lib/stage/governor.ts`) judges frames against the display's own refresh, which it learns (120 Hz, 60 Hz, or a 30 Hz clock such as an iPhone's Low Power Mode, which no lighter quality would speed up), and steps down only on frames missed against it. Every stage fits a phone turned sideways. A browser that draws WebGL in software keeps the still frames and says so.
 - **Motion:** four rules, then every moment that plays by itself, listed.
   - A live figure animates its data, not its chrome, and waits off screen (and while the tab is hidden).
-  - Interface motion is state feedback, 200ms or less on the ease-out: a press scales to 0.97, a label swaps through a blur. What arrives with a figure takes the figure's own 240ms crossfade: its controls rise into place with it, 40ms apart.
+  - Interface motion is state feedback, 200ms or less on the ease-out: a press scales to 0.97, a status line's label swaps through a blur. A figure control's own label (Pause and Resume, Fly through and Stop) changes at once: the button is pressed from the keyboard as often as by pointer, and its word is the state. What arrives with a figure takes the figure's own 240ms crossfade: its controls rise into place with it, 40ms apart.
   - One signature moment a page, once a visit, on a figure; everything around it is calm, and Pause (WCAG 2.2.2) holds all of it.
   - Reduced motion means still frames everywhere, and every control still works on them.
   - Nothing else moves unless the reader acts. The exceptions:

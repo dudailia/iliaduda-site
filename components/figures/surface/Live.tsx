@@ -872,9 +872,10 @@ function glideDetails(e: MouseEvent<HTMLElement>) {
   if (opening) {
     details.open = true
     const to = rows.offsetHeight
-    anim = rows.animate([{ height: `${from}px`, opacity: seen, ...clip }, { height: `${to}px`, opacity: 1, ...clip }], { duration: 200, easing: ease })
+    // The rows' top margin (mt-2) glides with them: left out, the text under them jumped 8px before the glide began.
+    anim = rows.animate([{ height: `${from}px`, marginTop: from ? '0.5rem' : '0px', opacity: seen, ...clip }, { height: `${to}px`, marginTop: '0.5rem', opacity: 1, ...clip }], { duration: 200, easing: ease })
   } else {
-    anim = rows.animate([{ height: `${from}px`, opacity: seen, ...clip }, { height: '0px', opacity: 0, ...clip }], { duration: 150, easing: ease })
+    anim = rows.animate([{ height: `${from}px`, marginTop: '0.5rem', opacity: seen, ...clip }, { height: '0px', marginTop: '0px', opacity: 0, ...clip }], { duration: 150, easing: ease })
     anim.onfinish = () => {
       details.open = false
     }

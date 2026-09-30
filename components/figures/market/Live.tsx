@@ -198,7 +198,7 @@ export function MarketLive({
   const lastResets = useRef(0)
   const mirrorRef = useRef<Mirror | null>(null)
   /** The moment the reader points at in the book, in simulated seconds, and what the market was then. */
-  const pointed = useRef<{ t: number; stress: number; sigma: number; mid: number } | null>(null)
+  const pointed = useRef<{ t: number; stress: number; sigma: number; mid: number; spread: number } | null>(null)
   /** The reading, in seconds before now, taken again every frame (null: none); and the reader, set below. */
   const readingAgo = useRef<number | null>(null)
   const readRef = useRef<((ago: number | null, input?: boolean) => void) | null>(null)
@@ -528,7 +528,6 @@ export function MarketLive({
       })
       // The fan's: a year's prices at halvings and doublings of $100, where they fall from its root, the price now, or
       // the price then while the reader points at a moment (the fan is drawn from there, at the volatility then).
-      const mid$ = m.h.mid * TICK
       const root$ = (pointed.current?.mid ?? m.h.mid) * TICK
       const fl = v.fan.layout()
       const marks = logTicks(root$, FAN_RANGE.lo, FAN_RANGE.hi)
@@ -551,16 +550,19 @@ export function MarketLive({
       if (flat && now - lastText.current > 100) {
         lastText.current = now
         const h = m.h
-        write('time', clock(h.t))
-        write('mid', usd(h.mid))
-        write('spread', `${h.spread} ${h.spread === 1 ? 'tick' : 'ticks'}`)
-        write('sigma', pct(h.sigma))
-        write('stress', h.stress.toFixed(2))
-        write('atm', pct(atmOf(h.stress)))
-        // The year's range once the fan has been drawn; until then the still frame's own, never a range of nothing. While
-        // a past moment is pointed at, the fan is that moment's, and the readouts all stay at now (the pointed moment's
-        // own numbers are in the book's label): one moment across the seven, never two.
-        if (v.fan.band(4, 64) > 0 && readingAgo.current === null) write('range', `${dollars(v.fan.band(0, 64) * mid$)}–${dollars(v.fan.band(4, 64) * mid$)}`)
+        // While a past moment is pointed at, every readout is that moment's, as the book's label and the fan are: one
+        // moment across the page, never the book at one time and the numbers at another.
+        const p = pointed.current
+        const r = p ? { t: p.t, mid: p.mid, spread: p.spread, sigma: p.sigma, stress: p.stress } : h
+        write('time', clock(r.t))
+        write('mid', usd(r.mid))
+        write('spread', `${r.spread} ${r.spread === 1 ? 'tick' : 'ticks'}`)
+        write('sigma', pct(r.sigma))
+        write('stress', r.stress.toFixed(2))
+        write('atm', pct(atmOf(r.stress)))
+        // The year's range once the fan has been drawn (the pointed moment's fan, while one is); until then the still
+        // frame's own, never a range of nothing.
+        if (v.fan.band(4, 64) > 0) write('range', `${dollars(v.fan.band(0, 64) * root$)}–${dollars(v.fan.band(4, 64) * root$)}`)
         // For the specs: the market's own clock.
         if (stage.current) {
           stage.current.dataset.marketT = h.t.toFixed(3)
@@ -673,7 +675,7 @@ export function MarketLive({
     // The row written at that moment (twelve a second): the market as the book shows it there.
     const age = Math.min(m.rows - 1, Math.max(0, Math.round((m.time(m.row(0)) - t) * PROTOCOL.hz)))
     const i = m.row(age)
-    pointed.current = { t, stress: m.stress(i), sigma: m.sigma(i), mid: m.mid(i) }
+    pointed.current = { t, stress: m.stress(i), sigma: m.sigma(i), mid: m.mid(i), spread: Math.max(1, Math.round(m.ask(i) - m.bid(i))) }
     const lay = v.book.layout()
     v.book.hover = lay.x1 - (a / SPAN) * lay.x1
     const text = `${a.toFixed(1)} s ago · vol ${pct(m.sigma(i))} · stress ${m.stress(i).toFixed(2)}`

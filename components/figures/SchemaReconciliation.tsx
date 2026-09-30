@@ -27,7 +27,7 @@ export const SOURCES: readonly Source[] = [
   { name: 'Square', auth: 'oauth', lineItems: false },
   { name: 'Zettle', auth: 'oauth', lineItems: true },
   { name: 'Shopify', auth: 'static', lineItems: true },
-  { name: 'EposNow', auth: 'static', lineItems: false },
+  { name: 'Epos Now', auth: 'static', lineItems: false },
 ]
 
 const W = DIAGRAM_W
@@ -70,7 +70,7 @@ function Marks() {
             <path
               d={`M ${LABEL_X + 78} ${y + 4} C ${HUB_X - 24} ${y + 4}, ${HUB_X - 24} ${midY}, ${HUB_X - 4} ${midY}`}
               fill="none"
-              stroke={RULE}
+              stroke={GRAPHITE}
               strokeWidth="1"
             />
           </g>
@@ -129,7 +129,7 @@ export const schemaReconciliation = {
   ],
   description:
     `Eight accounting and point-of-sale integrations — Xero, QuickBooks, FreeAgent, Sage, Square, ` +
-    `Zettle, Shopify and EposNow — each map onto one internal interface called InvoiceData. Six ` +
+    `Zettle, Shopify and Epos Now — each map onto one internal interface called InvoiceData. Six ` +
     `authenticate by OAuth refresh and two by a static key. ` +
     `${value('acAdaptersWithoutLineItems')} of the ${value('acIntegrations')} cannot supply line ` +
     `items at all, so the shared type is a lowest common denominator rather than a union of what ` +

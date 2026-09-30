@@ -13,6 +13,8 @@ import { fact, type FactKey } from './facts'
  */
 
 const n = (k: FactKey) => fact(k).value.toLocaleString('en-US')
+/** A count under ten in words, as prose sets it ("eight integrations"), from the same fact. */
+const words = (k: FactKey) => ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][fact(k).value] ?? n(k)
 
 export interface Paper {
   readonly slug: string
@@ -116,7 +118,7 @@ export const papers: readonly Paper[] = [
     slug: 'debt-portal',
     href: '/debt-portal',
     title: 'A debt-settlement portal built to Russian federal law',
-    abstract: `A self-service portal where people settle a debt without a phone call, built end to end as sole developer for a licensed Russian collection organisation. Federal law set the architecture: personal data stays in the country, and the login code itself spends a legal contact allowance, so both are enforced in code and at build time.`,
+    abstract: `A self-service portal where people settle a debt without a phone call, built end to end as sole developer for a licensed Russian collection organisation. Federal law set the architecture: personal data stays in the country, and every login code is counted against a legal contact allowance, the conservative reading of an unsettled question; both are enforced in code and at build time.`,
     dek: 'A self-service portal for settling a debt without a phone call, built end to end as sole developer for a licensed Russian collection organisation, with federal law enforced in code.',
     figureNote: 'illustrative terms',
     byline: 'Sole Developer and Project Lead · July 2026 – present',
@@ -146,7 +148,7 @@ export const otherWork: readonly OtherWork[] = [
     slug: 'adconfirm',
     href: '/adconfirm',
     name: 'AdConfirm',
-    what: `Advertising inside invoices and receipts, across ${n('acIntegrations')} accounting and point-of-sale integrations, with metered billing`,
+    what: `Advertising inside invoices and receipts, across ${words('acIntegrations')} accounting and point-of-sale integrations, with metered billing`,
     status: 'Co-Founder · May 2026 – present',
   },
 ]

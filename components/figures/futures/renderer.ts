@@ -725,10 +725,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     // A phone's stage packs the same futures into a fraction of the area, so the gain comes down with it; at night the
     // glow saturates sooner, so it gives up more. A stream in motion carries a little less ink than the whole picture
     // the burst ends on, and is lifted by that much, so the weight of the picture holds.
-    const areaK = Math.min(1, (cssW * cssH) / REF_AREA) ** (palette.dark ? 1 : 0.7)
+    const areaK = Math.min(1, (cssW * cssH) / REF_AREA) ** (palette.dark ? 0.85 : 0.7)
     // Seen in depth the paths are looked along, not across, and lie over one another far more than in the composed
     // frame: as the camera swings into depth the gain comes down, so the picture keeps its weight.
-    const depthK = 1 - (palette.dark ? 0.62 : 0.4) * depthU
+    // (At night 0.45: 0.62 left the resting view's fan a faint smudge on a phone, only the bars reading.)
+    const depthK = 1 - (palette.dark ? 0.45 : 0.4) * depthU
     const gain = ((palette.dark ? 0.17 : 0.13) * Math.sqrt(2048 / pathN) * areaK * depthK * focus.x) / Math.max(0.5, Math.min(1, ink * 1.08))
     // Near and far, from the eye to today and to the wall, for the ribbons' width and fade.
     const eye = pose!.eye

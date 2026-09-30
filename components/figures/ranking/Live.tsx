@@ -33,7 +33,8 @@ export interface Row {
 }
 
 // The top fifteen, the reach of the paper's conclusion: the segments that stay in it under all three treatments are
-// the claim, in indigo; the rest are context, in graphite.
+// the claim, in indigo; the rest are context, in a pale graphite (full graphite and indigo were near in lightness, by
+// day and at night, so the claim was carried by hue alone).
 const SHOWN = 15
 const survives = (r: { a: { rank: number }; b: { rank: number }; c: { rank: number } }) => r.a.rank <= SHOWN && r.b.rank <= SHOWN && r.c.rank <= SHOWN
 const MOVE = `transform 280ms ${EASE_IN_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
@@ -94,8 +95,9 @@ export function RankingLive({
     beforeH.current = el?.getBoundingClientRect().height ?? 0
     setV(next)
     if (leaving.length) {
-      setGone(leaving)
-      window.setTimeout(() => setGone((g) => g.filter((x) => !leaving.includes(x))), 300)
+      // Added to any still fading from the last switch, which finish rather than vanish.
+      setGone((g) => [...g, ...leaving])
+      window.setTimeout(() => setGone((g) => g.filter((x) => !leaving.includes(x))), 220)
     }
   }
 
@@ -217,7 +219,7 @@ export function RankingLive({
 
       {/* The key before the rows: what indigo marks is read before the list, not after fifteen of them. */}
       <p className="text-meta mt-3 font-mono text-graphite">
-        <Items items="indigo: in the top fifteen under all three treatments · ∅ absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written" />
+        <Items items="indigo, and set bold: in the top fifteen under all three treatments · ∅ absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written" />
       </p>
       <ol ref={list} role="list" aria-label={`Top ${SHOWN} segments, ${current.label.toLowerCase()}`} className="relative mt-3 grid list-none border-t border-rule">
         {shown.map((r) => {
@@ -233,7 +235,9 @@ export function RankingLive({
               <span className="text-meta tabular text-graphite">{now}</span>
               {/* The whole name, wrapping if it must (at a phone's width, or enlarged): a row's height is its name's,
                   the same under every treatment, so a switch still moves rows without resizing them. */}
-              <span className="text-note min-w-0 leading-snug [overflow-wrap:anywhere]">
+              {/* A survivor's name is set semibold too: the claim is not carried by hue alone (at night indigo and
+                  graphite bars are close in lightness). Survivors are the same under every treatment, so no row resizes. */}
+              <span className={`text-note min-w-0 leading-snug [overflow-wrap:anywhere] ${survives(r) ? 'font-semibold' : ''}`}>
                 {r.name}
                 {v === 'a' && r.zeroed ? (
                   <span className="text-meta ml-1.5 font-mono text-graphite" title="Absent from the growth table: growth and CAGR scored zero">
@@ -245,7 +249,7 @@ export function RankingLive({
                   a 0–100 scale) the treatments' scores drew twelve identical bars. */}
               <span className="relative col-[2/-1] row-start-2 h-2.5 sm:col-auto sm:row-auto" aria-hidden>
                 <span
-                  className={`absolute inset-y-0 left-0 w-full origin-left ${survives(r) ? 'bg-indigo' : 'bg-graphite'}`}
+                  className={`absolute inset-y-0 left-0 w-full origin-left ${survives(r) ? 'bg-indigo' : 'bg-graphite/45'}`}
                   style={{ transform: `scaleX(${r[v].score / max})`, transition: reduced ? 'none' : `transform 280ms ${EASE_IN_OUT_CSS}` }}
                 />
               </span>
@@ -258,18 +262,19 @@ export function RankingLive({
             </li>
           )
         })}
-        {/* The rows that just left the top, fading where they stood. */}
+        {/* The rows that just left the top, fading where they stood: on the ease-out, so a leaving row is faint before the
+            rows gliding in cross its place (an in-out held it near full ink while they did). */}
         {gone.map((g) => (
           <li
             key={`gone-${g.key}`}
             aria-hidden
-            className="absolute inset-x-0 grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_2.5rem_2.25rem] items-center gap-x-2.5 gap-y-1 border-b border-rule py-1.5 opacity-0 transition-opacity duration-[280ms] ease-(--ease-in-out) starting:opacity-100 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
+            className="absolute inset-x-0 grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_2.5rem_2.25rem] items-center gap-x-2.5 gap-y-1 border-b border-rule py-1.5 opacity-0 transition-opacity duration-200 ease-out starting:opacity-100 sm:grid-cols-[2rem_12rem_1fr_3rem_3rem] sm:gap-x-3"
             style={{ top: g.top, height: g.height }}
           >
             <span className="text-meta tabular text-graphite">{g.rank}</span>
-            <span className="text-note min-w-0 leading-snug [overflow-wrap:anywhere]">{g.row.name}</span>
+            <span className={`text-note min-w-0 leading-snug [overflow-wrap:anywhere] ${survives(g.row) ? 'font-semibold' : ''}`}>{g.row.name}</span>
             <span className="relative col-[2/-1] row-start-2 h-2.5 sm:col-auto sm:row-auto">
-              <span className={`absolute inset-y-0 left-0 w-full origin-left ${survives(g.row) ? 'bg-indigo' : 'bg-graphite'}`} style={{ transform: `scaleX(${g.frac})` }} />
+              <span className={`absolute inset-y-0 left-0 w-full origin-left ${survives(g.row) ? 'bg-indigo' : 'bg-graphite/45'}`} style={{ transform: `scaleX(${g.frac})` }} />
             </span>
             <span className="text-meta tabular text-right text-graphite">{g.score.toFixed(1)}</span>
             <span className="text-meta tabular text-right text-ink">↓</span>

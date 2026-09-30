@@ -62,7 +62,8 @@ const person = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${sourceSerif.variable} ${sourceCodePro.variable}`}>
-      <body>
+      {/* The site's address for print: a printed link carries its full target (globals.css, print). */}
+      <body style={{ ['--print-origin' as string]: JSON.stringify(SITE.public.replace(/^https?:\/\//, '')) }}>
         <SkipLink />
         {children}
         <Footer />

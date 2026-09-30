@@ -138,7 +138,7 @@ export default function OrderBook() {
             <li>
               Time rescaling: if the simulation is exact, each kind’s intensity integrated between its events is
               exponential with mean one. A Kolmogorov–Smirnov test holds that for every kind and for all of them together,
-              over five seeds, at a 1% family-wise level; the intensity it integrates is rebuilt from the event times and
+              over five seeds, each family (per kind, and pooled) at a 1% family-wise level; the intensity it integrates is rebuilt from the event times and
               the model alone, so a simulation that drifted from the model would fail it.
             </li>
             <li>Over ten seeds: the event rate, the realised volatility and the spread stay in the calm market’s range.</li>

@@ -26,7 +26,8 @@ export function Footer() {
         <div className="h-10" />
         <Row rail="Papers">
           <nav aria-label="Papers">
-            <ul className="text-note grid gap-y-1.5 sm:grid-cols-2 sm:gap-x-8">
+            {/* Down each column, in Contents order: row by row, the order zig-zagged. */}
+            <ul className="text-note grid gap-y-1.5 sm:block sm:columns-2 sm:gap-x-8 sm:[&>li]:mb-1.5 sm:[&>li]:break-inside-avoid">
               {papers.map((p) => (
                 <li key={p.href}>
                   <a href={p.href} className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
@@ -48,6 +49,11 @@ export function Footer() {
         <Row rail="Pages">
           <nav aria-label="Pages">
             <ul className="text-note flex flex-wrap gap-x-8 gap-y-1.5">
+              <li>
+                <a href="/#contents" className="inline-block py-1">
+                  Contents
+                </a>
+              </li>
               <li>
                 <a href="/about" className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
                   About

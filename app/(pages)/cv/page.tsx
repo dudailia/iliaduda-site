@@ -1,4 +1,5 @@
 import { certifications, education, roles, SKILLS } from '@/content/experience'
+import { Whole } from '@/components/Layout'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 import { AVAILABILITY, PERSON, RESUME, SITE } from '@/lib/site'
@@ -121,7 +122,9 @@ export default function Cv() {
                 </div>
                 <ul className="cv-bullets">
                   {(r.cv ?? r.detail).map((b) => (
-                    <li key={b}>{b}</li>
+                    <li key={b}>
+                      <Whole text={b} />
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -146,7 +149,7 @@ export default function Cv() {
         <section className="cv-section">
           <Head>Skills</Head>
           <dl className="cv-skills">
-            {[...SKILLS, ['Certifications', `${certifications.join('; ')}.`] as const].map(([k, v]) => (
+            {[...SKILLS, ['Certifications', `${certifications.join('; ').replace(/ — /g, '\u00a0— ')}.`] as const].map(([k, v]) => (
               <div key={k}>
                 <dt>{k}</dt>
                 <dd>{v}</dd>
