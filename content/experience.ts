@@ -148,16 +148,22 @@ export const education = {
   degree: 'B.S. Mathematics and Business Administration, Fintech concentration',
   dates: 'Expected May 2028',
   honours: 'Dean’s List, Fall 2025',
+  // From the owner's unofficial transcript of 2026-09-16, in the owner's order (the most relevant to quant and finance
+  // first), with the names the owner gave; no grades.
   coursework: [
-    'MATH 4581 Statistics and Stochastic Processes',
-    'MATH 3081 Probability and Statistics',
-    'MATH 2331 Linear Algebra',
-    'MATH 4545 Fourier Series and Partial Differential Equations',
-    'FINA 4335 Computational Methods in Finance',
+    'MATH 4581 Statistics & Stochastic Processes',
+    'MATH 4545 Fourier Series and PDEs',
+    'FINA 4335 Computational Methods & Applications in Finance',
     'FINA 3303 Investments',
-    'FINA 2730 Fintech',
-    'ACCT 1201 Financial Accounting',
+    'FINA 4320 International Financial Management',
+    'FINA 4340 Blockchain Applications',
+    'FINA 2730 Fintech and Financial Innovation',
+    'MATH 3081 Probability and Statistics',
+    'MATH 2321 Calculus 3',
+    'MATH 2331 Linear Algebra (A-Level transfer credit)',
   ],
+  /** Courses of the current term, Fall 2026. */
+  inProgress: ['MATH 4682 Interest Theory and Life Insurance', 'STRT 4501 Strategy in Action'],
   school2: 'Bromsgrove School and The King’s School, Canterbury',
   school2Note: 'A-Levels including Further Mathematics',
 } as const

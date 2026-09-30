@@ -93,7 +93,8 @@ export default function Cv() {
               {education.degree}. <span className="cv-honours">{education.honours}.</span>
             </p>
             <p className="cv-muted">
-              Coursework: {education.coursework.map((c) => c.replace(/^[A-Z]{4} \d{4} /, '')).join(', ')}.
+              Coursework: {education.coursework.map((c) => c.replace(/^[A-Z]{4} \d{4} /, '')).join(', ')}; in progress
+              (Fall 2026): {education.inProgress.map((c) => c.replace(/^[A-Z]{4} \d{4} /, '')).join(', ')}.
             </p>
             <p className="cv-muted">
               {education.school2}. {education.school2Note}.
