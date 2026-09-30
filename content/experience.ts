@@ -66,7 +66,7 @@ export const roles: readonly Role[] = [
     ],
     cv: [
       'Only developer: debt lookup, a settlement calculator in integer kopecks, SMS login, an SBP payment screen.',
-      'Built to 152-FZ data localisation and the 230-FZ contact cap, enforced in code and by build gates; Next.js 16, Yandex Cloud.',
+      'Built to 152-FZ data localisation and the 230-FZ contact cap, both enforced in code; Next.js 16, Yandex Cloud.',
     ],
     href: '/debt-portal',
   },
@@ -182,7 +182,7 @@ export const monitoRounds = [
 export const SKILLS = [
   [
     'Quantitative',
-    'Options pricing and Black–Scholes, Greeks, volatility surface modelling, calibration, temporal cross-validation, bootstrap confidence intervals, hypothesis testing, Fama–French and CAPM regression.',
+    'Options pricing and Black–Scholes, Greeks, volatility surface modelling, calibration, temporal cross-validation, bootstrap intervals, hypothesis testing, Fama–French and CAPM regression.',
   ],
   [
     'Languages',

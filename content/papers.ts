@@ -56,7 +56,7 @@ export const papers: readonly Paper[] = [
     standfirst:
       'One simulated market, drawn three ways in the same frame as it runs in your browser: its order book, a year of its futures and the volatility surface its stress drives. A liquidity shock lands in all three at once; what follows is the model’s own.',
     dek: 'One simulated market runs in your browser, drawn three ways in one frame: its order book, a year of futures, its vol surface. A liquidity shock hits all three.',
-    cv: 'A deterministic Hawkes limit order book in a Web Worker, bit-identical in Chromium, WebKit, Firefox and Node, driving Monte Carlo price paths and an arbitrage-free SSVI surface in the same frame.',
+    cv: 'A deterministic Hawkes limit order book in a Web Worker, bit-identical in Chromium, WebKit, Firefox and Node, driving Monte Carlo price paths and an arbitrage-free SSVI surface.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
   },
