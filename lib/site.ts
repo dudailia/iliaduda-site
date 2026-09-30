@@ -40,10 +40,10 @@ export const RESUME = {
 export const resumeLink = { href: RESUME.pdf, label: 'CV (PDF)' } as const
 
 /**
- * The site's own source, as the papers link it file by file. It names the branch the code is on: `redesign` until the
- * pull request is merged, then `main` (one change here moves every paper's links).
+ * The site's own source, as the papers link it file by file: the `main` branch, which production is built from (one
+ * change here moves every paper's links).
  */
-export const SOURCE = 'https://github.com/dudailia/iliaduda-site/blob/redesign'
+export const SOURCE = 'https://github.com/dudailia/iliaduda-site/blob/main'
 
 /**
  * The canonical origin. Vercel exposes VERCEL_PROJECT_PRODUCTION_URL on every
