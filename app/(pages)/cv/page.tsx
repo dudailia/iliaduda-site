@@ -1,7 +1,7 @@
 import { certifications, education, roles, SKILLS } from '@/content/experience'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
-import { AVAILABILITY, PERSON, RESUME, SITE } from '@/lib/site'
+import { AVAILABILITY, CV_PHONE, PERSON, RESUME, SITE } from '@/lib/site'
 
 export const metadata = pageMeta(
   '/cv',
@@ -47,11 +47,16 @@ function Head({ children }: { children: string }) {
 export default function Cv() {
   const contact = [
     { href: `mailto:${PERSON.email}`, label: PERSON.email },
+    { href: CV_PHONE.href, label: CV_PHONE.label },
     { href: PERSON.linkedin, label: bare(PERSON.linkedin) },
     { href: PERSON.github, label: bare(PERSON.github) },
     { href: url(), label: bare(url()) },
   ]
-  const places = `${AVAILABILITY.locations.slice(0, -1).join(', ')} or ${AVAILABILITY.locations.at(-1)}`
+  // The base leads the places (so the contact line keeps one row with the phone number in it): based in Boston, open to
+  // the others.
+  const base = PERSON.base.split(',')[0]!
+  const others = AVAILABILITY.locations.filter((l) => l !== base)
+  const places = `based in ${base}, open to ${others.slice(0, -1).join(', ')} or ${others.at(-1)}`
 
   return (
     <div className="mx-auto w-full max-w-[872px] px-6 pt-8 sm:px-8 min-[936px]:px-0 lg:pt-12 print:max-w-none print:p-0">
@@ -71,7 +76,6 @@ export default function Cv() {
             {AVAILABILITY.roles.at(-1)!.toLowerCase()}; {places}.
           </p>
           <ul className="cv-contact">
-            <li>{PERSON.base}</li>
             {contact.map((c) => (
               <li key={c.href}>
                 <a href={c.href}>{c.label}</a>
