@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react'
+import { PERSON, SITE } from '@/lib/site'
 
 /**
  * The whole site is one asymmetric grid: a 710px text column with a 15rem rail
@@ -13,6 +14,10 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">
       {children}
+      {/* The running head and footer do not print, so a printed page carries its author here (the CV's sheet has its own). */}
+      <p className="text-meta mt-10 hidden font-mono text-graphite print:block">
+        {`${PERSON.name} · ${PERSON.email} · ${SITE.public.replace(/^https?:\/\//, '')}`}
+      </p>
     </div>
   )
 }

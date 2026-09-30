@@ -59,7 +59,7 @@ export function MarketFigure() {
         stillAfter={SHOCK_FRAME_S}
         hashes={{ start: m.hash(), shocked: shockedHash(SEED, POSTER_T) }}
         stillSurface={{ calm: calm.surface, shock: shock.surface }}
-        title="Its vol surface, the last twenty seconds of its order book and a year of its futures, each drawn from the same copy of the market in the same frame."
+        title="One market’s vol surface, the last twenty seconds of its order book and a year of its futures, each drawn from the same copy of the market in the same frame."
         subtitle={`Simulated · one seed · Hawkes order flow · realised volatility · SSVI · tick ${usd(1)} · not market data`}
         caption={
           <>

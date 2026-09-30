@@ -838,7 +838,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         number="Fig. 1"
         className="mt-10 mb-12 lg:mt-6 lg:mb-16"
         title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
-        subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)}${sigma === MODEL.sigma ? ', the market’s realised vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
         railBelow={false}
         hint={hint}
@@ -848,7 +848,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             counter-based hash, so any path can be regenerated on the CPU, where the tests check the estimator against
             Black–Scholes. A call pays whatever the stock finishes above the strike, and its price is that payoff averaged
             over every path and discounted to today: the indigo bars, what each ending pays weighted by how often it
-            happens, add up to it. The margin shows the estimate closing in on the formula as the paths pile up. The
+            happens, add up to it. The readouts show the estimate closing in on the formula as the paths pile up. The
             volatility starts at the simulated market&rsquo;s own: its realised volatility where
             its figure opens, {(market.sigma * 100).toFixed(1)}%, rounded to the slider&rsquo;s 1% step, worked out by the
             server for the still frame and again by your browser where this figure runs live.

@@ -383,7 +383,7 @@
 :root[data-cricket-seq] #fig-replay [data-played] {
   opacity: 0;
 }
-:root[data-cricket-seq] #fig-replay [data-played-rail] dd {
+:root[data-cricket-seq] #fig-replay [data-played-rail] :is(dt, dd) {
   visibility: hidden;
 }
 
@@ -392,7 +392,7 @@
   opacity: 0 !important;
   transform: translateY(6px) !important;
 }
-:root[data-closebooks-seq] #fig-pipeline [data-batch-rail] dd,
+:root[data-closebooks-seq] #fig-pipeline [data-batch-rail] :is(dt, dd),
 :root[data-closebooks-seq] #fig-pipeline [data-batch-gate] {
   visibility: hidden;
 }
@@ -473,7 +473,7 @@
    any layer, so it wins over the panes' own sizes. */
 @media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem) {
   [data-market-views] {
-    --h: clamp(16rem, calc(100svh - 34rem), 24rem);
+    --h: clamp(15rem, calc(100svh - 34.75rem), 24rem);
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas: 'surface lower' 'story story';
@@ -508,6 +508,20 @@
 @media (min-width: 40rem) and (max-width: 63.99rem) and (max-height: 30rem) {
   [data-market-views] {
     --h: calc(100svh - 7rem);
+  }
+}
+/* On a laptop the controls share the story line's row, at its right end (the line keeps their room), so Liquidity
+   shock and the story's Pause are on the first screen with the three views, at 1280×800 as at 1440×900. */
+@media (min-width: 80rem) {
+  [data-market-views] > [data-market-story] {
+    display: flex;
+    align-items: center;
+    min-height: 2rem;
+    padding-right: 19.5rem;
+  }
+  [data-market-controls] {
+    margin-top: -2rem;
+    justify-content: flex-end;
   }
 }
 /* The Contents' Pause arrives with the miniatures it holds, rising 4px into place over 240ms, as the figures' controls
@@ -645,6 +659,7 @@
   .cv-contact {
     display: flex;
     flex-wrap: wrap;
+    align-items: baseline;
     gap: 0 1.4em;
     margin-top: 0.3em;
     font-family: var(--font-mono);

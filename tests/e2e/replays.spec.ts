@@ -26,7 +26,9 @@ test('the cricket line is still to be drawn on a first look, then draws from the
   // Before the figure plays: nothing of the match drawn yet.
   expect(await page.evaluate(() => (window as unknown as { __first: unknown }).__first)).toEqual({ mark: '1', opacity: 0 })
   await page.locator('#fig-replay').scrollIntoViewIfNeeded()
-  await expect.poll(async () => Number(await ball(page).inputValue()), { timeout: 3_000 }).toBeGreaterThan(0)
+  // The slider rests at the last ball until the replay starts, then runs from the first.
+  const max0 = Number(await ball(page).getAttribute('max'))
+  await expect.poll(async () => Number(await ball(page).inputValue()), { timeout: 5_000 }).toBeLessThan(max0)
   // It started from the first ball, and the line was never shown whole first.
   const max = Number(await ball(page).getAttribute('max'))
   expect(Number(await ball(page).inputValue())).toBeLessThan(max)
@@ -38,7 +40,9 @@ test('the cricket line is still to be drawn on a first look, then draws from the
 test('a second look this visit is the finished match', async ({ page }) => {
   await page.goto('/cricstate')
   await page.locator('#fig-replay').scrollIntoViewIfNeeded()
-  await expect.poll(async () => Number(await ball(page).inputValue()), { timeout: 3_000 }).toBeGreaterThan(0)
+  // The replay has started (the slider leaves the last ball, where it rests before), so this visit's is spent.
+  const max0 = Number(await ball(page).getAttribute('max'))
+  await expect.poll(async () => Number(await ball(page).inputValue()), { timeout: 5_000 }).toBeLessThan(max0)
   await page.reload()
   expect(await page.evaluate(() => document.documentElement.dataset.cricketSeq)).toBeUndefined()
   await page.locator('#fig-replay').scrollIntoViewIfNeeded()

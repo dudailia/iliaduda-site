@@ -58,8 +58,8 @@ export type Phase = 'shock' | 'relax' | 'calm'
 export const PHASE_TEXT: Record<Phase, { name: string; line: string; short: string }> = {
   calm: {
     name: 'Calm',
-    line: 'Options price in modest swings. Insurance against a crash already costs a little more than the rest.',
-    short: 'Options price in modest swings.',
+    line: 'Options are priced for modest swings. Insurance against a crash already costs a little more than the rest.',
+    short: 'Options are priced for modest swings.',
   },
   shock: {
     name: 'Shock',

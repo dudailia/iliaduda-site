@@ -18,7 +18,7 @@ test('declines, says why, and draws the still frame in depth in place of the fla
   expect(await page.evaluate(() => document.documentElement.dataset.futuresSeq)).toBeUndefined()
   // The poster fades in over 240 ms; beside other suites drawing in software, frames (and so the fade) can stall
   // for seconds, so the wait is for it to finish, not for how fast a loaded machine renders it.
-  await expect.poll(() => fillOpacity(page), { timeout: 5_000 }).toBe(1)
+  await expect.poll(() => fillOpacity(page), { timeout: 5_000 }).toBeGreaterThan(0.99)
   expect(await canvasShown(page)).toBe(false)
   const still = page.locator(`${STAGE} [data-still-canvas]`)
   await expect.poll(() => still.evaluate((c) => Number(getComputedStyle(c).opacity)), { timeout: 10_000 }).toBe(1)

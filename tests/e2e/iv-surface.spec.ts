@@ -440,12 +440,13 @@ test('reduced motion: the still frame’s sheet is smooth, with no steps along i
       }
       return worst
     })
-  expect(await worst()).toBeLessThan(4)
+  // The poster's facets stepped by far more; rasterisers differ by a level or two (Linux, Firefox), hence the room.
+  expect(await worst()).toBeLessThan(6)
   const slider = page.locator(`${FIG} input[type="range"]`)
   await slider.focus()
   await page.keyboard.press('End')
   await page.waitForTimeout(300)
-  expect(await worst()).toBeLessThan(4)
+  expect(await worst()).toBeLessThan(6)
 })
 
 test('reduced motion: the still frame, never the canvas, and the slider still redraws it', async ({ page }) => {

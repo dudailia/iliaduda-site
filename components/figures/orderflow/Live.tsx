@@ -455,9 +455,11 @@ function Stats({ initial, set, suffix, across = false }: { initial: Initial; set
 /** What set an order off, by the kind of earlier order, likeliest first: the three likeliest kinds, and the rest. */
 function setOff(x: Read): string {
   if (!x.byKind.length) return 'no earlier order'
-  const kinds = x.byKind.slice(0, 3).map((k) => `${LANE_NAMES[LANE_OF[k.type]!]!.toLowerCase()} ${fmt.pct(k.p)}`)
+  // Each kind held to its share by no-break spaces, and each dot to the item before it: a line breaks between items only.
+  const whole = (t: string) => t.replace(/ /g, '\u00a0')
+  const kinds = x.byKind.slice(0, 3).map((k) => whole(`${LANE_NAMES[LANE_OF[k.type]!]!.toLowerCase()} ${fmt.pct(k.p)}`))
   const rest = x.byKind.slice(3).reduce((s, k) => s + k.p, 0)
-  return [...kinds, ...(rest >= 0.0005 ? [`others ${fmt.pct(rest)}`] : [])].join(' · ')
+  return [...kinds, ...(rest >= 0.0005 ? [whole(`others ${fmt.pct(rest)}`)] : [])].join('\u00a0· ')
 }
 
 /**
@@ -485,13 +487,13 @@ function Labels() {
 
       {/* One line where there is room; on a phone two, so none runs off the frame. */}
       <span className={`${text} hidden text-ink @min-[520px]:block @min-[520px]:left-(--g)`} style={top(Y.intensity - 17)}>
-        Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/35" /> set off
+        Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off
         <span className="hidden @min-[600px]:inline"> by earlier orders</span>
       </span>
       <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-1.5 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 34)}>
         Market orders a second:
         <br />
-        <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/35" /> set off by others
+        <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off by others
       </span>
       <span className={gutter} style={top(lamY(0, LAM_MAX / 2) - 6.5)}>
         Buys

@@ -114,10 +114,14 @@ export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dp
     set.lineTo(x0 + pw, lamY(d, E.last[cols - 1]!))
     set.lineTo(x0 + pw, muY)
     set.closePath()
+    // The claim at 3:1 or more against the page (0.35 read 1.3–2.1:1), so it carries without the caption.
     ctx.fillStyle = look.indigo
-    ctx.globalAlpha = 0.35
+    ctx.globalAlpha = 0.7
     ctx.fill(set)
     ctx.globalAlpha = 1
+    // μ, the rate orders arrive at on their own, as a graphite line: the band under it is context.
+    ctx.fillStyle = look.graphite
+    ctx.fillRect(x0, Math.round(muY) - 0.5, pw, 1)
     ctx.strokeStyle = look.ink
     ctx.lineWidth = 1
     ctx.lineJoin = 'round'

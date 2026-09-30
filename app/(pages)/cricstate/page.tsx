@@ -144,7 +144,7 @@ export default function Cricstate() {
           caption={
             <>
               Match state carries the signal. Player identity adds a real, reproducible{' '}
-              {fact('crIdentityGain').value}% — its interval excludes zero — but under the{' '}
+              {fact('crIdentityGain').value}%, but under the{' '}
               {fact('crJustifyBar').value.toFixed(0)}% bar for further work.
             </>
           }

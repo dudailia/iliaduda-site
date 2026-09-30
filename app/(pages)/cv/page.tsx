@@ -48,10 +48,11 @@ export default function Cv() {
 
   return (
     <div className="mx-auto w-full max-w-[872px] px-6 pt-8 sm:px-8 min-[936px]:px-0 lg:pt-12 print:max-w-none print:p-0">
-      <p className="text-meta mb-4 flex flex-wrap justify-between gap-x-6 gap-y-1 font-mono text-graphite print:hidden">
+      <p className="text-meta mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-graphite print:hidden">
         <span>One page · prints to Letter or A4</span>
-        <a href={RESUME.pdf} className="inline-block py-2.5 text-ink" download>
-          Download the PDF
+        {/* Opened, not downloaded: on a phone a download files it away unseen; the reader can save it from the viewer. */}
+        <a href={RESUME.pdf} className="inline-block py-2.5 text-ink">
+          Open the PDF
         </a>
       </p>
 
@@ -101,9 +102,13 @@ export default function Cv() {
                 <div className="cv-entry-head">
                   <p>
                     <strong>{r.org}</strong>
-                    <span className="cv-muted">, {r.orgNote}</span>
-                    <span className="cv-muted"> · </span>
-                    <span>{r.title}</span>
+                    {/* The dot is held to the note before it (a line never starts with it), and the title is one item: it
+                        moves to the next line whole rather than breaking inside itself. */}
+                    <span className="cv-muted">
+                      , {r.orgNote}
+                      {'\u00a0· '}
+                    </span>
+                    <span className="whitespace-nowrap">{r.title}</span>
                   </p>
                   <p className="cv-date">{shortDates(r.dates)}</p>
                 </div>

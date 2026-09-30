@@ -19,7 +19,7 @@ export type SignatureState = 'off' | 'pending' | 'playing' | 'done'
  * The sequence's clock itself is advanced by the figure, on drawn frames, and
  * `onFrame` is called after each.
  */
-export function useSignature<P extends string>(name: string, box: RefObject<HTMLElement | null>, seq: RefObject<Sequence<P>>, { start = 0.35, hold = 0.2 }: { start?: number; hold?: number } = {}) {
+export function useSignature<P extends string>(name: string, box: RefObject<HTMLElement | null>, seq: RefObject<Sequence<P>>, { start = 0.35, hold = 0.2, fit = false }: { start?: number; hold?: number; fit?: boolean } = {}) {
   const armed = useRef(false)
   const [state, setState] = useState<SignatureState>('off')
   const stateRef = useRef<SignatureState>('off')
@@ -48,7 +48,14 @@ export function useSignature<P extends string>(name: string, box: RefObject<HTML
     }
     const io = new IntersectionObserver(
       ([e]) => {
-        const seen = e?.isIntersecting ? e.intersectionRatio : 0
+        // With `fit`, "seen" is of what can be seen at once: a box taller than the screen (a phone in portrait) counts
+        // as wholly seen when as much of it as the screen holds is on it, so a story that waits for all of its views
+        // still plays there.
+        const seen = !e?.isIntersecting
+          ? 0
+          : fit && e.rootBounds
+            ? e.intersectionRect.height / Math.max(1, Math.min(e.boundingClientRect.height, e.rootBounds.height))
+            : e.intersectionRatio
         if (seen >= start || seen < hold) {
           clearTimeout(wait)
           wait = 0
@@ -59,14 +66,15 @@ export function useSignature<P extends string>(name: string, box: RefObject<HTML
             go()
           }, 1200)
       },
-      { threshold: [0, hold, start] },
+      // Measured against the screen, the fraction moves between the box's own thresholds: fine steps then.
+      { threshold: fit ? Array.from({ length: 51 }, (_, i) => i / 50) : [0, hold, start] },
     )
     io.observe(el)
     return () => {
       io.disconnect()
       clearTimeout(wait)
     }
-  }, [box, seq, start, hold])
+  }, [box, seq, start, hold, fit])
 
   useEffect(() => {
     const onInput = (e: Event) => {

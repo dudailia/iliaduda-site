@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og'
 import { fonts, OG, OG_SIZE } from '@/lib/og'
 import { AVAILABILITY, PERSON } from '@/lib/site'
 
-export const alt = 'Ilia Duda — quantitative finance and the systems around it'
+export const alt = 'Ilia Duda — Quantitative Analyst and Engineer at a proprietary options trading firm; Mathematics and Business Administration at Northeastern'
 export const size = OG_SIZE
 export const contentType = 'image/png'
 
@@ -31,8 +31,8 @@ export default async function OpengraphImage() {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 92, letterSpacing: '-0.02em' }}>{PERSON.name}</div>
           <div style={{ fontSize: 36, color: OG.graphite, marginTop: 18, maxWidth: 880 }}>
-            Mathematics and Business Administration at Northeastern. Quantitative finance and the systems
-            around it.
+            Quantitative Analyst and Engineer at a proprietary options trading firm. Mathematics and Business
+            Administration at Northeastern, class of 2028.
           </div>
         </div>
         <div

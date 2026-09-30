@@ -52,7 +52,7 @@ export const papers: readonly Paper[] = [
     abstract:
       'One simulated market runs in your browser, and its Hawkes order book, a year of its futures and an arbitrage-free SSVI vol surface are drawn from it in the same frame. Press Liquidity shock: a sell sweeps the bids, and all three views take it at once.',
     standfirst:
-      'One simulated market, drawn three ways in the same frame as it runs in your browser: its order book, a year of its futures and the vol surface its stress sets. A liquidity shock lands in all three at once; what follows is the model’s own.',
+      'One simulated market, drawn three ways in the same frame as it runs in your browser: its order book, a year of its futures and the volatility surface its stress drives. A liquidity shock lands in all three at once; what follows is the model’s own.',
     dek: 'One simulated market runs in your browser, drawn three ways in one frame: its order book, a year of futures, its vol surface. A liquidity shock hits all three.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
@@ -61,8 +61,8 @@ export const papers: readonly Paper[] = [
     slug: 'closebooks',
     href: '/closebooks',
     title: 'CloseBooks: a multi-tenant month-end close with an LLM in the loop',
-    abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} API routes over Postgres with row-level isolation, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn before anything is exported.`,
-    dek: 'A multi-tenant month-end close for CPA firms that I built alone: an LLM pipeline maps every bank line to the client’s accounts, and nothing exports until its confidence is earned.',
+    abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} tenant-isolated API routes over Postgres, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn, or a reviewer’s approval, before it is exported.`,
+    dek: 'A multi-tenant month-end close for CPA firms that I built alone: an LLM pipeline maps every bank line to the client’s accounts, and only confident or reviewer-approved lines export.',
     figureNote: 'synthetic feed',
     byline: 'Founder and sole engineer · January 2026 – present',
     status: 'published',
@@ -81,10 +81,10 @@ export const papers: readonly Paper[] = [
   {
     slug: 'order-book',
     href: '/order-book',
-    title: 'Order flow that remembers: a limit order book driven by a Hawkes process',
+    title: 'Order flow that remembers: a Hawkes-driven limit order book',
     standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig. 2 shows what set off any one.`,
     abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
-    dek: 'A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser and drawn as terrain: read which earlier order set off any market order.',
+    dek: 'A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser and drawn as terrain: read the odds of what set off any market order.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
   },

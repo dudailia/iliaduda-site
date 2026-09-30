@@ -33,7 +33,19 @@ function message(o: Outcome | null): string {
   return `Not sent: ${o.window.cap} of ${o.window.cap} in the last ${o.window.label}. The allowance reopens at ${clock(o.nextAt)}, when the oldest of them ages out.`
 }
 
-export function SettlementLive({ caption, table, callCaps }: { caption: ReactNode; table: ReactNode; callCaps: string }) {
+export function SettlementLive({
+  caption,
+  table,
+  loginCaption,
+  loginTable,
+  callCaps,
+}: {
+  caption: ReactNode
+  table: ReactNode
+  loginCaption: ReactNode
+  loginTable: ReactNode
+  callCaps: string
+}) {
   // ── calculator ──────────────────────────────────────────────────────────
   const [debt, setDebt] = useState(DEBTS[1]!)
   const offered = offeredTerms(debt)
@@ -109,10 +121,23 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
         { label: 'Pays in total', value: rub(s.payable) },
         { label: s.months === 1 ? 'Single payment' : 'Monthly', value: rub(s.monthly) },
         { label: 'Last payment', value: rub(s.last) },
-        ...WINDOWS.map((w) => ({ label: `Contacts, ${w.label}`, value: `${used(allowance, now, w.ms)} of ${w.cap}` })),
       ]}
     />
   )
+  // The login's own margin: the simulated clock and the state of the allowance, which the meters draw.
+  const loginRail = (
+    <Readouts
+      rows={[
+        { label: 'Simulated clock', value: clock(now) },
+        { label: 'Interaction', value: allowance.refused ? 'refused (art. 8)' : 'allowed' },
+      ]}
+    />
+  )
+  // A refusal to send goes stale once the clock passes the time it named: then it says the allowance has reopened.
+  const said =
+    outcome && !outcome.ok && outcome.reason !== 'refused' && now >= outcome.nextAt
+      ? `The allowance reopened at ${clock(outcome.nextAt)}: the next code can be sent.`
+      : message(outcome)
 
   // Monthly payment against term: every term up to the floor, the offered ones
   // joined, the pruned ones left hanging above the line where a longer term
@@ -126,19 +151,18 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
   const stepPath = offered.map((t, k) => `${k ? 'L' : 'M'}${px(t.months).toFixed(2)} ${py(t.s.monthly).toFixed(2)}`).join('')
 
   return (
+    <>
     <FigureFrame
       id="fig-settlement"
       number="Fig. 1"
       vt="debt-portal"
-      title="A settlement, and what the login that shows it may cost"
-      subtitle="the portal’s arithmetic and contact rules · illustrative discount ladder, not the client’s terms"
+      title="A settlement, with only the terms worth choosing"
+      subtitle="the portal’s arithmetic · illustrative discount ladder, not the client’s terms"
       caption={caption}
       table={table}
       rail={rail}
       railBelow={false}
     >
-      <div className="grid gap-y-8">
-        {/* Panel A — the calculator */}
         <section aria-labelledby="st-a">
           <h2 id="st-a" className="text-meta font-mono font-normal tracking-normal text-graphite">
             Settlement calculator
@@ -276,11 +300,22 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
               : `Monthly payment by term. ${offered.length} terms offered up to ${all.length} months${hidden ? `; ${hidden} hidden (hollow): at a step in the discount ladder a longer term would cost more a month` : ''}. Dashed lines are the ladder’s steps.`}
           </p>
         </section>
+    </FigureFrame>
 
-        {/* Panel B — the contact allowance */}
+    <FigureFrame
+      id="fig-login"
+      number="Fig. 2"
+      title="What the login that shows it may cost"
+      subtitle="230-FZ, Russia’s debt-collection law: article 7 caps the messages a debtor receives, article 8 lets them refuse contact"
+      caption={loginCaption}
+      table={loginTable}
+      rail={loginRail}
+      railBelow={false}
+      hint="Request a code, move the simulated clock, and request again: the meters show what each code spends"
+    >
         <section aria-labelledby="st-b">
           <h2 id="st-b" className="text-meta font-mono font-normal tracking-normal text-graphite">
-            The login’s statutory cost · 230-FZ art. 7, messages
+            The login’s statutory cost, in messages
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {/* Both labels in one cell, the one not shown kept invisible: the press changes its own words, never its
@@ -314,8 +349,12 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
               <input
                 type="checkbox"
                 checked={allowance.refused}
-                onChange={(e) => setAllowance((a) => ({ ...a, refused: e.currentTarget.checked }))}
-                className="size-5 accent-[var(--color-indigo)]"
+                onChange={(e) => {
+                  // Read now: the updater runs later, when the event's currentTarget is already gone.
+                  const refused = e.currentTarget.checked
+                  setAllowance((a) => ({ ...a, refused }))
+                }}
+                className="size-5 accent-[var(--color-ink)]"
               />
               Interaction refused (art. 8)
             </label>
@@ -343,12 +382,12 @@ export function SettlementLive({ caption, table, callCaps }: { caption: ReactNod
           <p className="text-note mt-3 min-h-[3em]" aria-live="polite">
             {/* Through the blur only once an answer arrives: the page's first sentence is there when it loads. */}
             <span key={asked} className={`block ${asked ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}>
-              {message(outcome)}
+              {said}
             </span>
           </p>
           <p className="text-meta mt-1 max-w-[36rem] font-mono text-graphite">{callCaps}</p>
         </section>
-      </div>
     </FigureFrame>
+    </>
   )
 }

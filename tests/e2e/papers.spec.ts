@@ -45,7 +45,21 @@ test('debt portal: the login spends the statutory allowance and stops at the cap
   await request.click()
   await page.getByRole('button', { name: '+10 minutes' }).click()
   await page.getByRole('button', { name: /Request a login code/ }).click()
-  await expect(page.locator('#fig-settlement [aria-live="polite"]').last()).toHaveText(/Not sent: 2 of 2 in the last 24 hours/)
+  await expect(page.locator('#fig-login [aria-live="polite"]').last()).toHaveText(/Not sent: 2 of 2 in the last 24 hours/)
+})
+
+test('debt portal: refusing interaction, after the login has been used, holds the next code and can be undone', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(String(e)))
+  await page.goto('/debt-portal')
+  await page.getByRole('button', { name: /Request a login code/ }).click()
+  const refused = page.getByRole('checkbox', { name: /Interaction refused/ })
+  await refused.check()
+  await page.getByRole('button', { name: /Request a login code|Send the code again/ }).click()
+  await expect(page.locator('#fig-login [aria-live="polite"]').last()).toHaveText(/refused interaction/)
+  await refused.uncheck()
+  await expect(refused).not.toBeChecked()
+  expect(errors).toEqual([])
 })
 
 test('opening a paper names exactly its own thumbnail and its own figure', async ({ page }) => {

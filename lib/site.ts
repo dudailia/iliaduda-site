@@ -17,14 +17,14 @@ export const PERSON = {
 } as const
 
 export const AVAILABILITY = {
-  line: 'Open to a 6-month co-op from January 2027',
+  line: 'Open to a 6-month co-op (an off-cycle internship) from January 2027',
   roles: ['Quant and risk', 'Investments', 'Investment banking', 'Data science in finance'],
   locations: ['Boston', 'New York', 'San Francisco', 'London'],
 } as const
 
 /** One line, used by the masthead and the metadata description. */
 export const POSITIONING =
-  'Mathematics and Business Administration at Northeastern, class of 2028, and Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026. I work on quantitative finance and the systems around it: research stacks, market tooling and applied LLM infrastructure.'
+  'Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026, and Mathematics and Business Administration at Northeastern, class of 2028. I build research stacks, market tooling and applied LLM infrastructure.'
 
 /**
  * The CV is a page (/cv) and a PDF printed from it at build time by

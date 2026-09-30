@@ -104,11 +104,14 @@ export function cssColor(name: string): [number, number, number] {
 }
 
 /**
- * Call `fn` once, the first time the element is at least `threshold` visible.
- * The call comes from the observer itself — an external event — so a figure
- * can start its one-time motion there without setting state in an effect.
+ * Call `fn` once, the first time the element is at least `threshold` visible,
+ * or `hold` of it has stayed visible for 1.2s (the signatures' rule: a tall
+ * figure whose top is on a short laptop's first screen starts there, rather
+ * than waiting under the fold for a scroll). The call comes from the observer
+ * itself, or its timer — an external event — so a figure can start its
+ * one-time motion there without setting state in an effect.
  */
-export function useOnceSeen(ref: RefObject<Element | null>, threshold: number, fn: () => void): void {
+export function useOnceSeen(ref: RefObject<Element | null>, threshold: number, fn: () => void, hold?: number): void {
   const cb = useRef(fn)
   useEffect(() => {
     cb.current = fn
@@ -116,16 +119,29 @@ export function useOnceSeen(ref: RefObject<Element | null>, threshold: number, f
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    let timer = 0
+    const go = () => {
+      clearTimeout(timer)
+      io.disconnect()
+      cb.current()
+    }
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e && e.isIntersecting && e.intersectionRatio >= threshold) {
-          io.disconnect()
-          cb.current()
+        const r = e && e.isIntersecting ? e.intersectionRatio : 0
+        if (r >= threshold) return go()
+        if (hold !== undefined && r >= hold) {
+          if (!timer) timer = window.setTimeout(go, 1200)
+        } else {
+          clearTimeout(timer)
+          timer = 0
         }
       },
-      { threshold },
+      { threshold: hold !== undefined ? [hold, threshold] : threshold },
     )
     io.observe(el)
-    return () => io.disconnect()
-  }, [ref, threshold])
+    return () => {
+      clearTimeout(timer)
+      io.disconnect()
+    }
+  }, [ref, threshold, hold])
 }

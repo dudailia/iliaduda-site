@@ -90,7 +90,8 @@ export function FigureFrame({
             {children}
           </div>
           {rail && (railBelow || inline) ? <div className={`mt-5 ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
-          {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite print:hidden">{hint}</p> : null}
+          {/* A hint written as items (" · ") wraps between them, never inside one or before its dot. */}
+          {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite print:hidden">{typeof hint === 'string' ? <Items items={hint} /> : hint}</p> : null}
           <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{caption}</figcaption>
           {table ? <div className="sr-only">{table}</div> : null}
         </div>

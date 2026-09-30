@@ -6,6 +6,7 @@ import { FigureFrame } from '@/components/FigureFrame'
 import { CONTROL } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
+import { Items } from '@/components/Layout'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2, useColorScheme, whenIdle } from '@/components/stage/env'
 import { useLean } from '@/components/stage/useLean'
@@ -559,13 +560,16 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   // Said for the pointer this reader has: a phone's finger taps to read and drags sideways to turn (vertical drags
   // scroll the page); a mouse points. A still frame keeps its instructions after its reason.
   const coarse = mounted && matchMedia('(pointer: coarse)').matches
+  const readHow = `${coarse ? 'Tap' : 'Click'} or tab to the surface to read a point; the Shock slider still redraws it.`
   const hint = why
-    ? `${why} ${coarse ? 'Tap' : 'Click'} the surface, or tab to it and use the arrow keys, to read a point; the Shock slider still redraws it.`
+    ? `${why} ${readHow}`
     : live
       ? coarse
         ? 'Tap to read a point · drag sideways to turn · the Shock slider applies the shock'
         : 'Point to read a point · drag to turn · arrow keys move the point · Space pauses'
-      : 'Tab to the figure and use the arrow keys to read a point'
+      : coarse
+        ? 'Tap or tab to the surface to read a point'
+        : 'Tab to the figure and use the arrow keys to read a point'
 
   const rail = <Margin initial={initial} rows={initialRows} set={ref} suffix="" />
 
@@ -578,8 +582,16 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       rail={rail}
       railBelow={false}
       vt="iv-surface"
-      // Room kept for the longest hint, so going live never moves the page below.
-      hint={<span className="block min-h-[3lh] sm:min-h-[2lh]">{hint}</span>}
+      // Room kept for the longest hint (a still frame's longest reason and its instructions), in one cell with the one
+      // shown, so neither going live nor keeping a still frame after all moves the page below, at any width.
+      hint={
+        <span className="grid">
+          <span aria-hidden className="invisible [grid-area:1/1]">{`${DECLINED_TEXT.load} ${readHow}`}</span>
+          <span className="[grid-area:1/1]">
+            <Items items={hint} />
+          </span>
+        </span>
+      }
       caption={caption}
       table={table}
     >
@@ -720,8 +732,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         </label>
         {/* Pause and Replay's place, kept from the first paint as wide as they are, so on a phone the row they wrap onto
             is there before they are and going live moves nothing under the figure; they arrive in it, rising (the
-            stylesheet). A figure that will not go live keeps no room for them, and neither does reduced motion. */}
-        <div data-live-buttons="" className="flex min-h-8 min-w-[9.5rem] gap-2 motion-reduce:hidden" style={why !== null ? { display: 'none' } : undefined}>
+            stylesheet). Reduced motion keeps no room for them (it is known at first paint); a figure that turns out not to
+            go live keeps the room, empty, so its still frame moves nothing either. */}
+        <div data-live-buttons="" className="flex min-h-8 min-w-[9.5rem] gap-2 motion-reduce:hidden" style={why !== null ? { visibility: 'hidden' } : undefined}>
           {live ? (
             <>
               <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>

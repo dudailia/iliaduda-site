@@ -26,7 +26,8 @@ const STAGES = [
 ]
 
 const W = DIAGRAM_W
-const X0 = 0
+// Two units in: a glyph's side bearing at x = 0 reaches past the frame in some engines (Firefox measured 2).
+const X0 = 2
 const BAR_W = 300
 const TOP = 22
 const PITCH = 64

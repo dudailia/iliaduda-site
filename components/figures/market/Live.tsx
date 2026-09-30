@@ -371,8 +371,9 @@ export function MarketLive({
   const { box, canvas, live: surfaceLive, eligible, reduced, tier, quality, fps } = useStage(create, stageOpts)
   // The story waits until all three views are wholly in view (on a laptop and a phone turned sideways they sit side by
   // side, one screen tall at most: app/globals.css), so the shock lands where all three can be seen; never on a partial
-  // view held for a moment.
-  const sig = useSignature('market', viewsBox, seq, { start: 0.98, hold: 0.98 })
+  // view held for a moment. On a phone in portrait the three stacked views are taller than the screen: then as much of
+  // them as the screen holds (fit).
+  const sig = useSignature('market', viewsBox, seq, { start: 0.98, hold: 0.98, fit: true })
   const sigRef = useRef(sig)
   const lean = useLean(surfaceLive, reduced, pausedRef)
   const fallback = useFallback(canvas, surfaceLive, () => {})
@@ -956,7 +957,8 @@ export function MarketLive({
     ['sigma', 'Realised vol'],
     ['stress', 'Stress, 0 to 1'],
     ['atm', '1-month ATM vol'],
-    ['range', 'A year out, 5–95%'],
+    // The fan is drawn at the realised vol of the moment, and says so: it is not the surface's one-year implied.
+    ['range', 'A year out at realised vol, 5–95%'],
   ] as const
   // Rendered with the still frame's numbers on the server, so the rail arrives full and nothing below it moves.
   const first: Record<(typeof READOUTS)[number][0], string> = {

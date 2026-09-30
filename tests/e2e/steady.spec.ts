@@ -40,7 +40,7 @@ for (const { route, figures, seen } of PAGES)
       const fig = page.locator(f)
       await fig.scrollIntoViewIfNeeded()
       const live = await expect
-        .poll(() => fig.locator('canvas:not([data-still-canvas])').first().evaluate((c) => Number(getComputedStyle(c).opacity) > 0.5), { timeout: 20_000 })
+        .poll(() => fig.locator('canvas:not([data-still-canvas]):not([data-still-sheet])').first().evaluate((c) => Number(getComputedStyle(c).opacity) > 0.5), { timeout: 20_000 })
         .toBe(true)
         .then(() => true, () => false)
       if (!live) return test.skip(true, 'no GPU here')

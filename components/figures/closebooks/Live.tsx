@@ -51,7 +51,7 @@ export function CategorisationLive({
   const [arrived, setArrived] = useState(feed.length)
   const [settled, setSettled] = useState(true)
   const [human, setHuman] = useState<Record<number, Human>>({})
-  const [before, setBefore] = useState<{ auto: number; review: number; blocked: number; out: number } | null>(null)
+  const [before, setBefore] = useState<{ auto: number; reviewed: number; review: number; blocked: number; out: number } | null>(null)
   /** The batch leaving before it runs again, so a new run does not cut the list to nothing in one frame. */
   const [leaving, setLeaving] = useState(false)
   /** This visit's batch is still to come: the pre-paint mark hides the rows until it starts. */
@@ -113,14 +113,20 @@ export function CategorisationLive({
 
   // The batch arrives once a visit, when the figure is first properly on screen, but never under a reader who is
   // already inside it: replaying would unmount the very button they have focused.
-  useOnceSeen(box, 0.3, () => {
+  useOnceSeen(
+    box,
+    0.3,
+    () => {
     // The browser's own answer (hydration reads reduced motion as on: the server cannot know).
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!armed.current || still || arrivedByMorph() || box.current?.contains(document.activeElement)) return release()
     release(false)
     setArrived(0)
     setSettled(false)
-  })
+    },
+    // Or a sixth of it held for 1.2s: on a 13-inch laptop the list's top is on the first screen, and it arrives there.
+    0.16,
+  )
 
   useEffect(() => {
     if (settled) return
@@ -143,6 +149,8 @@ export function CategorisationLive({
   const done = (i: number) => settled || i < arrived - 3
   const counts = {
     auto: results.filter((r, i) => done(i) && r.status === 'approved' && !human[i]).length,
+    // Cleared by a reviewer (approved, or remapped to an account in the chart), so the counts add up to the batch.
+    reviewed: feed.filter((_, i) => done(i) && human[i]).length,
     review: feed.filter((_, i) => done(i) && status(i) === 'pending').length,
     blocked: feed.filter((_, i) => done(i) && status(i) === 'flagged').length,
     out: feed.filter((_, i) => done(i) && exportable(status(i), accountOf(i))).length,
@@ -168,6 +176,7 @@ export function CategorisationLive({
     { label: 'Batch', value: `${feed.length} lines, indexed 0–${feed.length - 1}` },
     { label: 'Approval threshold', value: threshold.toFixed(2) },
     { label: 'Approved by the rules', value: String(counts.auto) },
+    { label: 'Cleared by a reviewer', value: lit(String(counts.reviewed), 'reviewed') },
     { label: 'Waiting for a reviewer', value: lit(String(counts.review), 'review') },
     { label: 'Blocked: account not in chart', value: lit(String(counts.blocked), 'blocked') },
     { label: 'Exportable', value: lit(`${counts.out} of ${feed.length}`, 'out') },
@@ -196,8 +205,12 @@ export function CategorisationLive({
         {/* The gate, where a phone reader can see it change: above the rows,
             pinned while they scroll past. The rail carries it on wide screens. */}
         <p data-batch-gate="" className="text-meta sticky top-0 z-10 -mx-1 mb-2 bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
-          approved {counts.auto} · waiting {lit(String(counts.review), 'review')} · blocked {lit(String(counts.blocked), 'blocked')} · exportable{' '}
-          {lit(`${counts.out} of ${feed.length}`, 'out')}
+          {/* Each count kept whole, its dot held to it, so a wrapped line never starts with the separator. */}
+          <span className="whitespace-nowrap">by the rules {counts.auto}{'\u00a0·'}</span>{' '}
+          <span className="whitespace-nowrap">by a reviewer {lit(String(counts.reviewed), 'reviewed')}{'\u00a0·'}</span>{' '}
+          <span className="whitespace-nowrap">waiting {lit(String(counts.review), 'review')}{'\u00a0·'}</span>{' '}
+          <span className="whitespace-nowrap">blocked {lit(String(counts.blocked), 'blocked')}{'\u00a0·'}</span>{' '}
+          <span className="whitespace-nowrap">exportable {lit(`${counts.out} of ${feed.length}`, 'out')}</span>
         </p>
         <ol role="list" className="grid list-none border-t border-rule" aria-label="Categorised bank lines">
           {feed.map((l, i) => {

@@ -22,8 +22,8 @@ export default function DebtPortal() {
         <Section heading="The product">
           <p>
             People in debt avoid the phone call, so the product is the opposite of one: look the
-            debt up, see what a settlement would cost and over what schedule, pay, and get a
-            closure certificate — without speaking to anyone. I am the only developer, building it
+            debt up, see what a settlement would cost and over what schedule, and pay by SBP — without
+            speaking to anyone. I am the only developer, building it
             end to end for a licensed collection organisation: the debtor flow, the arithmetic, the
             statutory limits, the disclosures, and the build gates that keep them true.
           </p>
@@ -81,7 +81,7 @@ export default function DebtPortal() {
             Standards are build gates rather than intentions: types, lint, contrast computed from
             the design tokens, origin compliance, a JavaScript size ratchet, and accessibility 100
             as a hard failure. The layout-shift gate is {fact('dgClsGate').value} and the measured
-            value is {fact('dgClsMeasured').value} on every audited route, over {n('dgUnitTests')}{' '}
+            value is {fact('dgClsMeasured').value} on every audited route; the suite runs {n('dgUnitTests')}{' '}
             unit tests and {n('dgE2eCases')} end-to-end cases.
           </p>
           <p>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
@@ -213,14 +213,20 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
 
   // The one self-drawing replay, once a visit, when the figure is actually seen, and not if the reader has already
   // taken the scrubber.
-  useOnceSeen(box, 0.6, () => {
+  useOnceSeen(
+    box,
+    0.6,
+    () => {
     // The browser's own answer (hydration reads reduced motion as on: the server cannot know).
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!armed.current || still || arrivedByMorph() || box.current?.contains(document.activeElement)) return release()
     release(false)
     setAt(0)
     play(0)
-  })
+    },
+    // Or a third of it held for 1.2s: on a 13-inch laptop the plot's top half is on the first screen, and it plays there.
+    0.3,
+  )
 
   // Reduced motion asked for while it plays: the whole match, at once. (The browser's own answer: hydration reads
   // reduced motion as on, which is not the reader asking.)
@@ -259,6 +265,46 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     { label: 'Result', value: done ? result : '—' },
   ]
 
+  // Reading the match by pointer: a mouse drags or clicks along the chart; a finger scrubs once its drag is plainly
+  // sideways (a vertical one scrolls the page), and a tap reads the ball under it. The slider stays the keyboard's.
+  const drag = useRef<{ id: number; x: number; y: number; on: boolean; touch: boolean } | null>(null)
+  const ballAt = (e: PointerEvent<HTMLDivElement>) => {
+    const b = e.currentTarget.getBoundingClientRect()
+    return Math.round(Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)) * (n - 1))
+  }
+  const scrubTo = (i: number) => {
+    if (armed.current) release()
+    stop()
+    setAt(i)
+    setFrac(0)
+  }
+  const onPlotDown = (e: PointerEvent<HTMLDivElement>) => {
+    const touch = e.pointerType === 'touch'
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, on: !touch, touch }
+    if (!touch) {
+      e.currentTarget.setPointerCapture(e.pointerId)
+      scrubTo(ballAt(e))
+    }
+  }
+  const onPlotMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current
+    if (!d || d.id !== e.pointerId) return
+    if (!d.on) {
+      const dx = Math.abs(e.clientX - d.x), dy = Math.abs(e.clientY - d.y)
+      if (dy > 10 && dy > dx) return void (drag.current = null)
+      if (dx < 8 || dx < dy * 1.5) return
+      d.on = true
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }
+    scrubTo(ballAt(e))
+  }
+  const onPlotUp = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current
+    drag.current = null
+    // A tap: the ball under the finger.
+    if (d && d.touch && !d.on && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 8) scrubTo(ballAt(e))
+  }
+
   const valueText = `${batting} ${runs} for ${wkts}, over ${over}.${ball}; probability ${first} wins ${pct(p)}`
 
   return (
@@ -275,7 +321,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       }
       caption={caption}
       table={table}
-      hint="Scrub or use the arrow keys to move ball by ball · Home and End jump · the line is the model’s output before each ball"
+      hint="Drag across the chart, or use the slider or the arrow keys, to move ball by ball · Home and End jump · the line is the model’s output before each ball"
     >
       <div ref={box} className="relative">
         <div className="flex">
@@ -286,7 +332,15 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               </span>
             ))}
           </div>
-          <div className="relative aspect-[5/3] min-w-0 flex-1 [container-type:size] sm:aspect-[16/7]">
+          <div
+            className="relative aspect-[5/3] min-w-0 flex-1 cursor-ew-resize [container-type:size] sm:aspect-[16/7]"
+            // A finger scrolls the page up and down over the chart; sideways, it moves along the match.
+            style={{ touchAction: 'pan-y pinch-zoom' }}
+            onPointerDown={onPlotDown}
+            onPointerMove={onPlotMove}
+            onPointerUp={onPlotUp}
+            onPointerCancel={() => (drag.current = null)}
+          >
             <svg
               role="img"
               aria-labelledby="fig-replay-svg-title"

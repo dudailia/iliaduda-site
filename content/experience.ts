@@ -54,7 +54,7 @@ export const roles: readonly Role[] = [
   {
     id: 'debt-portal',
     org: 'Debt-settlement portal',
-    orgNote: 'licensed Russian collection agency',
+    orgNote: 'licensed Russian collection organisation',
     title: 'Sole Developer and Project Lead',
     place: 'Remote',
     dates: 'July 2026 – present',
@@ -65,7 +65,7 @@ export const roles: readonly Role[] = [
       'Next.js 16 with Turbopack and Tailwind 4, hosted on Yandex Cloud.',
     ],
     cv: [
-      'Only developer, end to end: debt lookup, a settlement calculator in integer kopecks, SMS authentication.',
+      'Only developer: debt lookup, a settlement calculator in integer kopecks, SMS login, an SBP payment screen.',
       'Built to 152-FZ data localisation and the 230-FZ contact cap, enforced in code and by build gates; Next.js 16, Yandex Cloud.',
     ],
     href: '/debt-portal',
@@ -80,7 +80,7 @@ export const roles: readonly Role[] = [
     detail: [
       'Built and deployed a multi-tenant month-end close product for CPA firms on my own: Next.js and TypeScript, Supabase Postgres with row-level security, and Stripe billing across three subscription tiers.',
       'Wrote the categorisation pipeline on the Anthropic Claude API: it parses bank statements from CSV and PDF, maps each line to the client’s chart of accounts with a confidence score, and routes low-confidence rows to an exception queue for a human to approve.',
-      'Gated export behind chart-of-accounts validation, so a suggested account that does not resolve against the client’s chart cannot leave the system.',
+      'Gated the export behind chart-of-accounts validation: a suggested account that does not resolve against the client’s chart is held back until a reviewer maps it.',
     ],
     cv: [
       'Built and deployed alone a multi-tenant month-end close for CPA firms: Next.js, TypeScript, Supabase Postgres with row-level security, Stripe billing in three tiers.',
@@ -115,11 +115,11 @@ export const roles: readonly Role[] = [
     detail: [
       'Covered the Russian energy, metals and banking sectors.',
       'Built DCF, comparable-company and sensitivity models.',
-      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate increases in five weeks.',
+      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate increases in under four weeks, the second an extraordinary 350 bp.',
     ],
     cv: [
       'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models.',
-      'Wrote daily briefings on OFZ, index activity and Bank of Russia policy through two rate rises in five weeks.',
+      'Wrote daily briefings on OFZ, index activity and Bank of Russia policy through two rate rises in 25 days.',
     ],
     figure: '/about#fig-ofz-curve',
   },

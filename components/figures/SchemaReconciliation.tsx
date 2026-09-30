@@ -8,7 +8,7 @@ import { ACCENT, DIAGRAM_W, GRAPHITE, INK, RULE, SMALL, WASH } from '../figureKi
  * one: the seam is the target interface, and each adapter owns a private mapper
  * that lands on it. So the honest drawing is a convergence, not a pipeline.
  *
- * The marks record what the convergence costs. A hollow square means the
+ * The marks record what the convergence costs. A filled (indigo) square means the
  * adapter cannot populate line items at all, so the shared type is a lowest
  * common denominator rather than a union.
  */
@@ -62,8 +62,9 @@ function Marks() {
               y={y}
               width="8"
               height="8"
-              fill={s.lineItems ? ACCENT : 'none'}
-              stroke={ACCENT}
+              // The claim is the three that cannot supply line items: they carry the indigo, the rest are context.
+              fill={s.lineItems ? 'none' : ACCENT}
+              stroke={s.lineItems ? GRAPHITE : ACCENT}
             />
             <text x={LABEL_X + 22} y={y + 8} className="font-mono" fontSize="12" fill={GRAPHITE}>
               {s.auth === 'static' ? 'static' : 'oauth'}
@@ -109,11 +110,11 @@ function Marks() {
         strokeWidth="1"
       />
       <g className="font-mono" fontSize="12" fill={GRAPHITE}>
-        <rect x="0" y={H - 44} width="8" height="8" fill="none" stroke={ACCENT} />
-        <text x="14" y={H - 36}>
+        <rect x="0" y={H - 46} width="8" height="8" fill={ACCENT} stroke={ACCENT} />
+        <text x="14" y={H - 38}>
           {`${value('acAdaptersWithoutLineItems')} of ${value('acIntegrations')} cannot supply line items,`}
         </text>
-        <text x="14" y={H - 24}>
+        <text x="14" y={H - 25}>
           so the shared type is a lowest common
         </text>
         <text x="14" y={H - 12}>

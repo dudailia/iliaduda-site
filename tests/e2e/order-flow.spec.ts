@@ -15,6 +15,15 @@ test.use({ launchOptions: { args: GPU } })
 const FIG = '#fig-order-flow'
 const canvas = (page: Page) => page.locator(`${FIG} canvas`)
 const simT = async (page: Page) => Number(await canvas(page).getAttribute('data-sim-t'))
+/** Whether the strips stream (Fig. 1 went live), or both figures keep their still moment (software WebGL, as on CI). */
+async function streams(page: Page): Promise<boolean> {
+  for (let i = 0; i < 100; i++) {
+    if (Number(await canvas(page).getAttribute('data-draws')) > 10) return true
+    if (await page.locator('#fig-order-book').getByText(/Still frame/).first().isVisible()) return false
+    await page.waitForTimeout(150)
+  }
+  return false
+}
 const reading = (page: Page) => page.locator('#fig-order-flow-reading')
 const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('orderbook-seq', '1'))
 const pct = (s: string) => [...s.matchAll(/(\d+\.\d)%/g)].map((m) => Number(m[1]))
@@ -49,7 +58,7 @@ test('goes live on the market Fig. 1 draws, and one Pause holds both figures', a
   await seen(page)
   await page.goto('/order-book')
   await page.locator(FIG).scrollIntoViewIfNeeded()
-  await expect.poll(() => canvas(page).getAttribute('data-draws').then(Number), { timeout: 10_000 }).toBeGreaterThan(10)
+  if (!(await streams(page))) return test.skip(true, 'no GPU here: Fig. 1 keeps its still frame, and Fig. 2 draws the same still moment')
   const t0 = await simT(page)
   await page.waitForTimeout(1_500)
   expect(await simT(page)).toBeGreaterThan(t0 + 0.8)
@@ -107,7 +116,7 @@ test('pointing at the strips holds them still to read, and moving away lets the 
   await seen(page)
   await page.goto('/order-book')
   await page.locator(FIG).scrollIntoViewIfNeeded()
-  await expect.poll(() => canvas(page).getAttribute('data-draws').then(Number), { timeout: 10_000 }).toBeGreaterThan(10)
+  if (!(await streams(page))) return test.skip(true, 'no GPU here: Fig. 1 keeps its still frame, and Fig. 2 draws the same still moment')
   const box = (await canvas(page).boundingBox())!
   await page.mouse.move(box.x + box.width * 0.6, box.y + 40)
   await page.waitForTimeout(300)
@@ -123,6 +132,8 @@ test('a pinned order stays readable after the strips move past it, and says so',
   test.setTimeout(60_000)
   await seen(page)
   await page.goto('/order-book')
+  await page.locator(FIG).scrollIntoViewIfNeeded()
+  if (!(await streams(page))) return test.skip(true, 'no GPU here: the strips do not move past a pinned order')
   const stage = page.locator(`${FIG} [role="group"]`)
   await stage.focus()
   await expect(reading(page)).toContainText(/Market buy · \d+ shares? at \$\d+\.\d{2}/)

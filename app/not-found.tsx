@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { Row, Shell } from '@/components/Layout'
 import { RunningHead } from '@/components/RunningHead'
+
+export const metadata: Metadata = { title: 'Not found' }
 
 export default function NotFound() {
   return (
@@ -13,7 +16,7 @@ export default function NotFound() {
               <p className="mt-4 max-w-[34rem]">
                 Everything on the site is listed in the{' '}
                 <a href="/#contents">contents</a>, and the <a href="/cv">CV</a> is one
-                page.
+                page away.
               </p>
             </Row>
           </div>

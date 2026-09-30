@@ -32,7 +32,7 @@ export function SurfaceFigure() {
             highest at low strikes and short expiries: insurance against a fall costs more than the rest, and most of all
             for the near term. On a first visit it forms, then takes one simulated shock, the textbook shape of a
             sell-off: one-month at-the-money volatility jumps from {pct(iv(CALM, 0, 1 / 12))} to {pct(iv(full, 0, 1 / 12))},
-            the skew steepens and the term structure inverts, and then it relaxes. Every frame on the way is a complete
+            the skew steepens and the near term climbs far above the long, and then it relaxes. Every frame on the way is a complete
             surface that the margin checks for static arbitrage; the slider applies the shock yourself.
           </>
         }

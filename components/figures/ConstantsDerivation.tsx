@@ -15,19 +15,20 @@ interface Constant {
   readonly sourced: boolean
 }
 
+// Named as a reader says them; the model's own identifiers are in its repository.
 export const CONSTANTS: readonly Constant[] = [
-  { name: 'studentPopulation', display: fact('ncStudents').value.toLocaleString('en-US'), sourced: false },
-  { name: 'facultyStaff', display: fact('ncFaculty').value.toLocaleString('en-US'), sourced: false },
-  { name: 'queriesPerPersonPerDay', display: String(value('ncQueriesPerDay')), sourced: false },
-  { name: 'energyPerQueryKwh', display: String(value('ncEnergyPerQuery')), sourced: true },
-  { name: 'co2PerKwhKg', display: String(value('ncCo2PerKwh')), sourced: true },
-  { name: 'semesterStartDate', display: 'a date', sourced: false },
+  { name: 'students', display: fact('ncStudents').value.toLocaleString('en-US'), sourced: false },
+  { name: 'faculty and staff', display: fact('ncFaculty').value.toLocaleString('en-US'), sourced: false },
+  { name: 'queries a person a day', display: String(value('ncQueriesPerDay')), sourced: false },
+  { name: 'kWh per query', display: String(value('ncEnergyPerQuery')), sourced: true },
+  { name: 'kg CO2 per kWh', display: String(value('ncCo2PerKwh')), sourced: true },
+  { name: 'semester start', display: 'per term', sourced: false },
 ]
 
 const W = DIAGRAM_W
 const TOP = 16
 const PITCH = 19
-const H = TOP + CONSTANTS.length * PITCH + 96
+const H = TOP + CONSTANTS.length * PITCH + 108
 const BRACKET_X = 208
 const BOX_X = BRACKET_X + 22
 const BOX_W = W - BOX_X - 5
@@ -47,7 +48,7 @@ function Marks() {
               width="8"
               height="8"
               fill={c.sourced ? ACCENT : 'none'}
-              stroke={c.sourced ? ACCENT : RULE}
+              stroke={c.sourced ? ACCENT : GRAPHITE}
             />
             <text x="14" y={y} fontSize="12" fill={INK}>
               {c.name}
@@ -112,10 +113,14 @@ function Marks() {
         <text x="14" y={lastY + 38}>
           taken from a published source
         </text>
-        <text x="14" y={lastY + 52}>
-          {`plus ${value('ncTools')} tools with adjustable adoption rates;`}
+        <rect x="0.5" y={lastY + 46.5} width="7" height="7" fill="none" stroke={GRAPHITE} />
+        <text x="14" y={lastY + 54}>
+          an adjustable assumption
         </text>
-        <text x="14" y={lastY + 64}>
+        <text x="14" y={lastY + 70}>
+          {`plus ${value('ncTools')} tools, each with an adoption rate;`}
+        </text>
+        <text x="14" y={lastY + 86}>
           {`uncertainty reported on the page: ±${value('ncSelfReportedError')}%`}
         </text>
       </g>

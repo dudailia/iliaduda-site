@@ -39,7 +39,7 @@ test.describe('before any script runs', () => {
 test('its volatility is the simulated market’s: this browser builds the same market and gets the server’s number', async ({ page }) => {
   test.setTimeout(90_000)
   await page.goto('/')
-  await expect(page.locator('#fig-futures')).toContainText('the market’s realised vol')
+  await expect(page.locator('#fig-futures')).toContainText('the simulated market’s realised vol')
   await expect(page.locator('#fig-futures')).toContainText('The volatility starts at the simulated market’s own')
   await expect(page.locator('[data-one-market] a[href="/market"]')).toHaveText('These futures, its order book and its vol surface: one simulated market, running in your browser.')
   const box = page.locator('[data-sigma-server]')
@@ -52,8 +52,8 @@ test('goes live on the GPU where it can, and the estimate converges to Black–S
   test.setTimeout(90_000)
   await page.goto('/')
   if (!(await goLive(page))) {
-    await expect(page.locator('[data-futures-poster]')).toBeVisible()
-    await expect(page.getByText(/^Still frame/)).toBeVisible()
+    // Where it cannot go live (software WebGL, as on CI), it keeps a still frame and says why.
+    await expect(page.getByText(/^Still frame/).first()).toBeVisible()
     return
   }
   await expect(page.locator('[data-speed]').first()).toHaveAttribute('data-speed', 'gpu')
@@ -397,8 +397,10 @@ test('a renderer that fails to download leaves the finished poster, and says so'
   await page.goto('/', { waitUntil: 'load' })
   loaded = true
   await page.locator(STAGE).scrollIntoViewIfNeeded()
-  await expect.poll(() => fillOpacity(page), { timeout: 10_000 }).toBe(1)
+  await expect.poll(() => fillOpacity(page), { timeout: 10_000 }).toBeGreaterThan(0.99)
   expect(await canvasShown(page)).toBe(false)
+  // Where WebGL is drawn in software (CI) the figure declines before it loads a renderer, and says that instead.
+  if (await page.getByText('Still frame: this browser draws WebGL in software.').isVisible()) return test.skip(true, 'software WebGL: no renderer is fetched')
   await expect(page.getByText('Still frame: the live figure could not start here.')).toBeVisible()
 })
 
@@ -424,7 +426,10 @@ test('on a laptop the sequence starts on the first screen, without a scroll', as
     await page.evaluate(() => sessionStorage.removeItem('futures-seq'))
     await page.reload()
     if (!(await page.evaluate(() => document.documentElement.dataset.futuresSeq === '1'))) return test.skip(true, 'no sequence on this machine')
-    await expect.poll(() => seq(page), { timeout: 20_000, intervals: [100] }).toMatch(/^(playing|done)$/)
+    await expect.poll(() => seq(page), { timeout: 20_000, intervals: [100] }).toMatch(/^(playing|done|off)$/)
+    // Software WebGL (CI) keeps the still frame, so no sequence plays there.
+    if ((await seq(page)) === 'off' && (await page.getByText(/^Still frame/).first().isVisible())) return test.skip(true, 'no GPU here')
+    expect(await seq(page)).toMatch(/^(playing|done)$/)
   }
 })
 

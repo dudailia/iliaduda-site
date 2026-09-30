@@ -3,6 +3,7 @@ import { Items, Row, Shell } from '@/components/Layout'
 import { ContactLinks } from '@/components/Masthead'
 import { OfzCurve } from '@/components/figures/OfzCurve'
 import { certifications, education, monitoRounds, roles, SKILLS } from '@/content/experience'
+import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 import { AVAILABILITY, PERSON, POSITIONING, SITE } from '@/lib/site'
 import avif176 from './headshot-176.avif'
@@ -15,6 +16,10 @@ export const metadata = pageMeta(
   'About',
   `Experience, education and coursework. ${AVAILABILITY.line}.`,
 )
+
+/** The research papers, in the Contents' order: the record's research, as the CV has it. */
+const RESEARCH = ['market', 'order-book', 'iv-surface', 'cricstate', 'startup-investments']
+const research = RESEARCH.map((slug) => papers.find((p) => p.slug === slug && p.status === 'published')).filter((p) => p !== undefined)
 
 /**
  * The long form of the CV: every role with its detail, the figure that goes
@@ -78,7 +83,7 @@ export default function About() {
                 height={160}
                 alt={PERSON.name}
                 decoding="async"
-                className="h-auto w-[5.5rem] border border-rule lg:ml-auto lg:w-32"
+                className="h-auto w-[5.5rem] border border-rule lg:ml-auto lg:w-32 dark:brightness-90"
               />
             </picture>
           }
@@ -131,6 +136,20 @@ export default function About() {
                 ) : null}
                 {r.id === 'bcs' ? <OfzCurve inline /> : null}
                 {r.id === 'monito' ? <MonitoRounds /> : null}
+              </li>
+            ))}
+          </ol>
+        </Section>
+
+        <Section heading="Research">
+          <ol className="grid list-none gap-y-5">
+            {research.map((p) => (
+              <li key={p.slug}>
+                <h3 className="text-body font-semibold tracking-normal">
+                  <a href={p.href}>{p.title}</a>
+                </h3>
+                <p className="text-meta mt-0.5 font-mono text-graphite">{p.byline}</p>
+                <p className="mt-1.5">{p.dek}</p>
               </li>
             ))}
           </ol>
