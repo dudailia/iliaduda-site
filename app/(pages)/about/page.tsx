@@ -195,6 +195,10 @@ export default function About() {
               <li key={c}>{c}</li>
             ))}
           </ul>
+          <p className="mt-4">
+            Directed study, {education.directedStudy.code} ({education.directedStudy.term}):{' '}
+            {education.directedStudy.title}. {education.directedStudy.detail}
+          </p>
           <p className="text-meta mt-4 font-mono text-graphite">In progress, Fall 2026</p>
           <ul className="mt-1.5 grid list-none gap-y-0.5 sm:grid-cols-2 sm:gap-x-8">
             {education.inProgress.map((c) => (

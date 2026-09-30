@@ -32,6 +32,9 @@ const bare = (href: string) => href.replace(/^https?:\/\/(www\.)?/, '').replace(
  * three: the market (the Hawkes order book, the determinism, the fan and the surface in one frame) took the startup
  * ranking's place, which stays on the site (TODO(owner): the swap is revertible, here).
  */
+/** Courses /about lists that the one printed page leaves out, the least quantitative first (the owner's rule: keep the
+ * strongest when the sheet is full); the sheet also leaves out /about's notes in brackets (the A-Level transfer credit). */
+const CV_DROP = ['MATH 2321', 'FINA 4340', 'FINA 4320']
 const CV_ORDER = ['iv-surface', 'cricstate', 'market']
 const PROJECTS = papers
   .filter((p) => p.status === 'published' && p.cv && CV_ORDER.includes(p.slug))
@@ -93,7 +96,8 @@ export default function Cv() {
               {education.degree}. <span className="cv-honours">{education.honours}.</span>
             </p>
             <p className="cv-muted">
-              Coursework: {education.coursework.map((c) => c.replace(/^[A-Z]{4} \d{4} /, '')).join(', ')}; in progress
+              Coursework: {education.coursework.filter((c) => !CV_DROP.some((d) => c.startsWith(d))).map((c) => c.replace(/^[A-Z]{4} \d{4} /, '').replace(/ \(.*\)$/, '')).join(', ')}; directed study (
+              {education.directedStudy.term}): {education.directedStudy.title}; in progress
               (Fall 2026): {education.inProgress.map((c) => c.replace(/^[A-Z]{4} \d{4} /, '')).join(', ')}.
             </p>
             <p className="cv-muted">

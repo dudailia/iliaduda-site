@@ -162,6 +162,14 @@ export const education = {
     'MATH 2321 Calculus 3',
     'MATH 2331 Linear Algebra (A-Level transfer credit)',
   ],
+  /** A directed study, Spring 2026 (MATH 4992 on the transcript): coursework, not research. */
+  directedStudy: {
+    code: 'MATH 4992',
+    term: 'Spring 2026',
+    title: 'Fourier–Bessel series and the vibrating circular membrane',
+    detail:
+      'Solved boundary-value problems for the wave equation in polar coordinates, expanding initial conditions in Bessel-function modes and computing coefficients from orthogonality.',
+  },
   /** Courses of the current term, Fall 2026. */
   inProgress: ['MATH 4682 Interest Theory and Life Insurance', 'STRT 4501 Strategy in Action'],
   school2: 'Bromsgrove School and The King’s School, Canterbury',
