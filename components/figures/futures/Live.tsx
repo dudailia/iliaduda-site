@@ -846,8 +846,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         number="Fig. 1"
         className="mt-10 mb-12 lg:mt-6 lg:mb-16"
         title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
-        subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
-        subtitleRoom={`Simulated · geometric Brownian motion · σ ${pct(MODEL.sigma)}, the simulated market’s realised vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitle={`Simulated · geometric Brownian motion · σ\u00a0${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised\u00a0vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitleRoom={`Simulated · geometric Brownian motion · σ\u00a0${pct(MODEL.sigma)}, the simulated market’s realised\u00a0vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
         railBelow={false}
         // Room kept for the longest of its hints (a still frame's longest reason, and the live figure's), in one cell with
@@ -984,10 +984,10 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2">
           {live && (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem] max-sm:min-w-[4rem]`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem] max-sm:min-w-[4.125rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
-              <button type="button" onClick={toggleFlight} className={`${CONTROL} min-w-[6.75rem] max-sm:min-w-[6.25rem]`}>
+              <button type="button" onClick={toggleFlight} className={`${CONTROL} min-w-[6.75rem] max-sm:min-w-[6.5rem]`}>
                 {flying ? 'Stop' : 'Fly through'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>

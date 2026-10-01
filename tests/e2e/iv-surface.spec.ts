@@ -24,7 +24,8 @@ const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('su
 const value = (page: Page, label: string) =>
   page
     .locator(`${FIG} dl:visible div`)
-    .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) })
+    // A label's phrases are held whole with no-break spaces: any space matches either.
+    .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '[\\s\\u00a0]')}$`) }) })
     .locator('dd')
     .first()
 async function goLive(page: Page) {

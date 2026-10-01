@@ -420,8 +420,9 @@ export function MarketLive({
       // The landing is stamped on the message's clock and drawn on the frame's, which can run a few ms behind it: the
       // first frame to draw it is its first, so the streak has its front from that frame.
       if (landing.current && landing.current.at > now) landing.current.at = now
-      // On a phone the flat views run to the screen's edges, and their words keep the page's margin (1.5rem).
-      v.book.inset = v.fan.inset = kindRef.current === 'tall' ? 24 : 0
+      // The flat views sit inside the column at every width (on a phone side by side, under the surface,
+      // app/globals.css): no edge inset to keep for the page's margin.
+      v.book.inset = v.fan.inset = 0
       const dt = lastDraw.current ? Math.min(0.1, (now - lastDraw.current) / 1000) : 1 / 60
       lastDraw.current = now
       // Paused, a landing's envelopes stand still: their start moves on with every paused frame, so they pick up on
@@ -1047,7 +1048,7 @@ export function MarketLive({
                 ))}
               </div>
             </div>
-            <span className="text-meta pointer-events-none absolute top-2 left-6 font-mono text-graphite sm:left-0">Vol surface</span>
+            <span className="text-meta pointer-events-none absolute top-2 left-6 font-mono text-graphite sm:top-0 sm:left-0">Vol surface</span>
           </div>
           <FocusRing />
         </div>
@@ -1119,7 +1120,7 @@ export function MarketLive({
                 <canvas ref={bookCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
                 <div data-market-words="" className="pointer-events-none absolute inset-0" style={fade(live)} aria-hidden="true">
                   {Array.from({ length: 6 }, (_, i) => (
-                    <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-6 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite sm:left-1" />
+                    <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-1 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite" />
                   ))}
                 </div>
                 {/* Over the words too, so the old market's prices fade with its picture and the new ones are revealed under it. */}
@@ -1140,11 +1141,11 @@ export function MarketLive({
               <canvas ref={fanCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
               <div data-market-words="" className="pointer-events-none absolute inset-0" style={fade(live)} aria-hidden="true">
                 {Array.from({ length: 4 }, (_, i) => (
-                  <span key={i} ref={(el) => void (fanEls.current[i] = el)} className="text-meta absolute top-0 right-7 font-mono leading-none text-graphite sm:right-1" />
+                  <span key={i} ref={(el) => void (fanEls.current[i] = el)} className="text-meta absolute top-0 right-1 font-mono leading-none text-graphite" />
                 ))}
               </div>
             </div>
-            <div className="text-meta mt-1 flex justify-between pr-[4.25rem] pl-8 font-mono whitespace-nowrap text-graphite sm:pr-11 sm:pl-2" aria-hidden="true">
+            <div className="text-meta mt-1 flex justify-between gap-x-3 pr-11 pl-2 font-mono whitespace-nowrap text-graphite" aria-hidden="true">
               <span>now</span>
               <span>a year</span>
             </div>

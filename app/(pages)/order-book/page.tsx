@@ -168,7 +168,12 @@ export default function OrderBook() {
                 <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/orderbook-flowview.test.ts`}>tests/orderbook-flowview.test.ts</a>
               </span>,
             ],
-            ['renderer', <a key="r" href={`${SRC}/components/figures/orderbook/renderer.ts`}>components/figures/orderbook/renderer.ts</a>],
+            ['renderer', <a key="r" href={`${SRC}/components/figures/orderbook/renderer.ts`}>
+                {/* The line may break after the last slash, never inside the file's name. */}
+                components/figures/orderbook/<wbr />
+                <span className="whitespace-nowrap">renderer.ts</span>
+              </a>,
+            ],
             ['data', 'synthetic; parameters set by hand'],
             ['references', 'Hawkes, Spectra of some self-exciting and mutually exciting point processes, Biometrika 58(1), 1971 · Ogata, On Lewis’ simulation method for point processes, IEEE Transactions on Information Theory 27(1), 1981 · Bacry, Mastromatteo and Muzy, Hawkes processes in finance, Market Microstructure and Liquidity 1(1), 2015'],
           ]}

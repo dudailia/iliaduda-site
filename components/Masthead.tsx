@@ -54,7 +54,8 @@ export function Masthead() {
         <h1 className="text-h1 lg:text-display">{PERSON.name}</h1>
         {/* The full measure at lg: three lines instead of four, so the front matter and Fig. 1 share a laptop's first screen;
             on a short screen (a phone turned sideways) too, so the contact links are on its first. */}
-        <p className="mt-4 max-w-[36rem] lg:max-w-none [@media(max-height:30rem)]:max-w-none">{POSITIONING}</p>
+        {/* Wrapped, not balanced: pretty shortened its last lines into a notch on the first screen. */}
+        <p className="mt-4 max-w-[36rem] [text-wrap:wrap] lg:max-w-none [@media(max-height:30rem)]:max-w-none">{POSITIONING}</p>
       </Row>
 
       <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 lg:mt-6 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">

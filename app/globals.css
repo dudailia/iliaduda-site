@@ -654,6 +654,7 @@
 [data-contents-pause]:focus-visible {
   transition-duration: 0ms, 150ms, 240ms, 240ms, 240ms;
 }
+
 :root[data-futures-still] [data-futures-controls] {
   min-height: 0;
 }
@@ -675,6 +676,13 @@
     line-height: 1.3;
     font-variant-numeric: lining-nums proportional-nums;
     hyphens: manual;
+  }
+
+  /* On a phone's screen there is no sheet to keep to: the résumé reads at the site's leading (print is untouched). */
+  @media screen and (max-width: 47.99rem) {
+    .cv {
+      line-height: 1.45;
+    }
   }
 
   @media (min-width: 48rem) {
@@ -871,10 +879,12 @@
     font-size: 10.5pt;
   }
 
-  /* A figure prints whole, its title with its plot, where it fits on a sheet; a slider prints as nothing (its track is
-     a background, which printing drops, leaving a floating thumb); the day or value it set is in the readouts. */
+  /* A figure's title prints with its plot, never cut from it or through it; its readouts, hint and caption may follow
+     on the next sheet, so a paper's first page is not left two-thirds blank before a tall figure. A slider prints as
+     nothing (its track is a background, which printing drops, leaving a floating thumb); the day or value it set is in
+     the readouts. */
   figure {
-    break-inside: avoid;
+    break-inside: auto;
   }
   input[type='range'] {
     display: none;

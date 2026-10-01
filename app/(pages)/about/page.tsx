@@ -158,7 +158,9 @@ export default function About() {
                 <p className="text-meta mt-0.5 font-mono text-graphite">
                   <Items items={p.byline} />
                 </p>
-                <p className="mt-1.5">{p.dek}</p>
+                <p className="mt-1.5">
+                  <Whole text={p.dek} />
+                </p>
               </li>
             ))}
           </ol>
@@ -185,7 +187,8 @@ export default function About() {
 
         <Section heading="Education" id="education">
           <h3 className="text-body font-semibold tracking-normal">{education.school}</h3>
-          <p className="text-meta mt-0.5 font-mono text-graphite">
+          {/* Wrapped between its items, not balanced (pretty pulled the degree's last word down onto the dates). */}
+          <p className="text-meta mt-0.5 font-mono text-graphite [text-wrap:wrap]">
             <Items items={[education.degree, education.dates]} />
           </p>
           <p className="mt-2">{education.honours}.</p>

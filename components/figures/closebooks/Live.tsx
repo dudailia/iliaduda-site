@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { categorise, exportable, type Account, type Line, type Result, type Status } from '@/lib/closebooks'
@@ -33,6 +33,8 @@ const SETTLE = 240
 /** The site's ease-out (app/globals.css, --ease-out). */
 const EASE_OUT = 'var(--ease-out)'
 
+const noop = () => () => {}
+
 export function CategorisationLive({
   chart,
   feed,
@@ -50,6 +52,7 @@ export function CategorisationLive({
 }) {
   const box = useRef<HTMLDivElement>(null)
   const reduced = useReducedMotion()
+  const hydrated = useSyncExternalStore(noop, () => true, () => false)
   const [run, setRun] = useState(0)
   const [arrived, setArrived] = useState(feed.length)
   const [settled, setSettled] = useState(true)
@@ -256,8 +259,9 @@ export function CategorisationLive({
             const final = settled || i < arrived - 3
             // A reviewer changes the status, not the model's confidence.
             const conf = final ? r.confidence : l.stated
+            // The arrow and its value are held to the word before them: a line never ends on "→" or starts with it.
             const finalNote = r.steps.length
-              ? r.steps.map((s) => `${s.why} → ${s.to.toFixed(2)}`).join(' · ')
+              ? r.steps.map((s) => `${s.why}\u00a0→\u00a0${s.to.toFixed(2)}`).join(' · ')
               : r.status === 'pending'
                 ? `below the ${threshold.toFixed(2)} threshold`
                 : ''
@@ -266,7 +270,7 @@ export function CategorisationLive({
                 ? 'remapped by a reviewer'
                 : 'approved by a reviewer'
               : final && r.steps.length
-                ? r.steps.map((s) => `${s.why} → ${s.to.toFixed(2)}`).join(' · ')
+                ? r.steps.map((s) => `${s.why}\u00a0→\u00a0${s.to.toFixed(2)}`).join(' · ')
                 : final && r.status === 'pending'
                   ? `below the ${threshold.toFixed(2)} threshold`
                   : ''
@@ -338,24 +342,31 @@ export function CategorisationLive({
                       key={final ? 'settled' : 'waiting'}
                       className={`inline-flex items-center ${!settled && final ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}
                     >
+                    {/* On paper, where the actions do not print, a row waiting for one says where it stands. */}
                     {st === 'pending' && final ? (
-                      <button
-                        type="button"
-                        onClick={() => act(i, 'approved-by-reviewer')}
-                        aria-label={`Approve line ${i}, ${l.description}`}
-                        className={CONTROL}
-                      >
-                        Approve
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => act(i, 'approved-by-reviewer')}
+                          aria-label={`Approve line ${i}, ${l.description}`}
+                          className={CONTROL}
+                        >
+                          Approve
+                        </button>
+                        <span className="text-meta hidden font-mono text-graphite print:inline">waiting</span>
+                      </>
                     ) : st === 'flagged' && final && remap[l.suggested.code] ? (
-                      <button
-                        type="button"
-                        onClick={() => act(i, 'remapped')}
-                        aria-label={`Map to ${remap[l.suggested.code]}: line ${i}, ${l.description}`}
-                        className={CONTROL}
-                      >
-                        Map to {remap[l.suggested.code]}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => act(i, 'remapped')}
+                          aria-label={`Map to ${remap[l.suggested.code]}: line ${i}, ${l.description}`}
+                          className={CONTROL}
+                        >
+                          Map to {remap[l.suggested.code]}
+                        </button>
+                        <span className="text-meta hidden font-mono text-graphite print:inline">blocked</span>
+                      </>
                     ) : (
                       <span
                         ref={(el) => {
@@ -387,7 +398,8 @@ export function CategorisationLive({
             Export:{' '}
             <span
               key={settled && counts.out === feed.length ? 'open' : 'held'}
-              className="text-ink transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none"
+              // Through the blur only once the page is running: the server's word is simply there when it loads.
+              className={`text-ink ${hydrated ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}
             >
               {settled && counts.out === feed.length ? `open, all ${feed.length} lines` : `held, ${counts.out} of ${feed.length} lines ready`}
             </span>

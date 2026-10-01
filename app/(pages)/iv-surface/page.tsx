@@ -61,7 +61,7 @@ export default function IvSurface() {
               This one uses SSVI, the surface parametrisation Gatheral and Jacquier published in
               2014. Total implied variance w = σ²T is written as a function of log-moneyness k and
               the at-the-money total variance θ(T), with a correlation-like skew ρ and a curvature
-              function φ(θ) = <span className="whitespace-nowrap">η / (θ<sup>γ</sup>(1 + θ)<sup>1−γ</sup>)</span>. The at-the-money term
+              function <span className="whitespace-nowrap">φ(θ) = η / (θ<sup>γ</sup>(1 + θ)<sup>1−γ</sup>)</span>. The at-the-money term
               structure decays from a short-end volatility to a long-run one at rate κ, the shape a
               variance term structure takes under mean reversion.
             </p>
@@ -130,7 +130,7 @@ export default function IvSurface() {
             Because the parameters are chosen rather than fitted, the tests hold the surface to
             the standard real quotes would face. Durrleman&rsquo;s g is evaluated across the drawn expiries at strikes well beyond the drawn range and
             must stay positive; <span className="whitespace-nowrap">∂w/∂T</span> must stay positive everywhere the figure draws. Each Greek is
-            compared with a finite difference of the price, and put–call parity is checked away
+            compared with a finite difference of the price, and <span className="whitespace-nowrap">put–call</span> parity is checked away
             from the money.
           </p>
           <p>
@@ -174,7 +174,12 @@ export default function IvSurface() {
                 <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/surface-greeks.test.ts`}>tests/surface-greeks.test.ts</a>
               </span>,
             ],
-            ['renderer', <a key="r" href={`${SRC}/components/figures/surface/renderer.ts`}>components/figures/surface/renderer.ts</a>],
+            ['renderer', <a key="r" href={`${SRC}/components/figures/surface/renderer.ts`}>
+                {/* The line may break after the last slash, never inside the file's name. */}
+                components/figures/surface/<wbr />
+                <span className="whitespace-nowrap">renderer.ts</span>
+              </a>,
+            ],
             ['data', 'synthetic; parameters set by hand'],
             ['reference', 'Gatheral and Jacquier, Arbitrage-free SVI volatility surfaces, Quantitative Finance 14(1), 2014'],
           ]}

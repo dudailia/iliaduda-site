@@ -324,7 +324,8 @@ export const LABELS: readonly Label[] = [
   })),
   { id: 'tt', text: 'expiry', at: [XW + 0.3, 0, ZW * 0.1], align: 'left', kind: 'title', only: 'wide' },
   { id: 'tts', text: 'expiry', at: [XW + 0.12, 0, ZW + 0.36], align: 'left', kind: 'title', only: 'tall' },
-  ...VOL_TICKS.map((v): Label => ({
+  // Not the 20% tick: at the post's foot it meets the 1M expiry tick (as on a phone's frame).
+  ...VOL_TICKS.filter((v) => v !== 0.2).map((v): Label => ({
     id: `v${v}`, text: `${Math.round(v * 100)}%`, at: [POST[0] + 0.06, wy(v), POST[1]], align: 'left', kind: 'tick', only: 'wide',
   })),
   // A phone's frame ends at the post: its ticks read inward from it, so none runs past the right edge.

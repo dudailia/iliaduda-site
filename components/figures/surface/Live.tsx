@@ -69,9 +69,10 @@ function phaseOf(story: Sequence<SurfacePhase> | null, level: number, drawn = le
 }
 
 const HEADLINE = [
-  ['atm', '1-month vol, at the money'],
-  ['premium', 'Crash premium, 80% strike'],
-  ['put', '1-month put, 10% down'],
+  // Each phrase held whole (no-break spaces): a label breaks only at its comma.
+  ['atm', '1-month vol, at\u00a0the\u00a0money'],
+  ['premium', 'Crash premium, 80%\u00a0strike'],
+  ['put', '1-month put, 10%\u00a0down'],
 ] as const
 
 export function SurfaceLive({ poster, title, subtitle, caption, table }: { poster: ReactNode; title: string; subtitle: string; caption: ReactNode; table: ReactNode }) {
@@ -818,7 +819,7 @@ function Margin({
         ))}
         {/* The two volatilities side by side: the comparison is the point (local runs above implied on the downside). */}
         <div className="min-w-0">
-          <dt className="text-graphite">Implied · local vol</dt>
+          <dt className="text-graphite">Implied · local{'\u00a0'}vol</dt>
           <dd className="tabular text-ink">
             <span ref={set(`iv${suffix}`)}>{row('iv').value}</span> · <span ref={set(`lv${suffix}`)}>{row('lv').value}</span>
           </dd>

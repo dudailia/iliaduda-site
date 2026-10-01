@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Items } from './Layout'
+import { Items, Whole } from './Layout'
 
 /**
  * The layout every live figure shares: number and readouts in the rail, title
@@ -99,7 +99,7 @@ export function FigureFrame({
               </span>
             </span>
           </div>
-          <div className="mt-5" style={vt ? vtStyle(vt) : undefined}>
+          <div className="mt-5 print:break-inside-avoid" style={vt ? vtStyle(vt) : undefined}>
             {children}
           </div>
           {rail && (railBelow || inline) ? <div className={`mt-5 ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
@@ -131,10 +131,12 @@ export function Readouts({
 }) {
   if (across) {
     return (
-      <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3">
+      <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:grid-cols-4">
         {rows.map((r) => (
           <div key={r.label} className="min-w-0">
-            <dt className="text-graphite">{r.label}</dt>
+            <dt className="text-graphite">
+              <Whole text={r.label} />
+            </dt>
             <dd className="tabular text-ink">{r.value}</dd>
           </div>
         ))}

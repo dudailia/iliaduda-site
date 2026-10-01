@@ -2,6 +2,7 @@ import { certifications, education, roles, SKILLS } from '@/content/experience'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 import { AVAILABILITY, CV_PHONE, PERSON, RESUME, SITE } from '@/lib/site'
+import { Whole } from '@/components/Layout'
 
 export const metadata = pageMeta(
   '/cv',
@@ -131,7 +132,9 @@ export default function Cv() {
                 </div>
                 <ul className="cv-bullets">
                   {(r.cv ?? r.detail).map((b) => (
-                    <li key={b}>{b}</li>
+                    <li key={b}>
+                      <Whole text={b} />
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -147,7 +150,7 @@ export default function Cv() {
                 <strong>
                   <a href={url(p.href)}>{p.cvName ?? p.title}</a>.
                 </strong>{' '}
-                {p.cv}
+                {p.cv ? <Whole text={p.cv} /> : null}
               </p>
             ))}
           </div>
@@ -159,7 +162,9 @@ export default function Cv() {
             {[...SKILLS, ['Certifications', `${certifications.map((c) => c.replace(' — ', '\u00a0— ')).join('; ')}.`] as const].map(([k, v]) => (
               <div key={k}>
                 <dt>{k}</dt>
-                <dd>{v}</dd>
+                <dd>
+                  <Whole text={v} />
+                </dd>
               </div>
             ))}
           </dl>

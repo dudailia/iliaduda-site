@@ -161,7 +161,9 @@ export function SettlementLive({
       title="A settlement, with only the terms worth choosing"
       subtitle="the portal’s arithmetic · illustrative discount ladder, not the client’s terms"
       caption={caption}
-      table={table}
+      // The sr-only table and live line in the mono face: their ₽ is then the mono supplement this page fetches anyway,
+      // not a serif one for text no one sees (7,217 B).
+      table={<div className="font-mono">{table}</div>}
       rail={rail}
       railBelow={false}
     >
@@ -196,7 +198,8 @@ export function SettlementLive({
             ))}
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_12rem] sm:items-end sm:gap-6">
+          {/* The two labels share a top; the slider sits on the amount box's middle line. */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_12rem] sm:items-start sm:gap-6">
             <label className="block">
               <span className="text-meta font-mono text-graphite">
                 Term: {s.months === 1 ? 'one payment' : `${s.months} months`}
@@ -215,7 +218,7 @@ export function SettlementLive({
                   clearTimeout(heardTimer.current)
                   setHeard('')
                 }}
-                className="mt-1 h-6 w-full"
+                className="mt-1 h-6 w-full sm:my-[calc((2.3125rem-1.5rem)/2+0.25rem)]"
                 style={rangeFill(i, 0, offered.length - 1)}
               />
             </label>
@@ -235,7 +238,7 @@ export function SettlementLive({
             <p id="settlement-typed" className="text-meta mt-1 min-h-[1lh] font-mono text-graphite">
               {typedNote.text}
             </p>
-            <p className="sr-only" aria-live="polite">
+            <p className="sr-only font-mono" aria-live="polite">
               {heard}
             </p>
           </div>
@@ -381,7 +384,7 @@ export function SettlementLive({
       title="What each login code costs the debtor’s legal allowance"
       subtitle="230-FZ, Russia’s debt-collection law: article 7 caps the messages a debtor receives, article 8 lets them refuse contact"
       caption={loginCaption}
-      table={loginTable}
+      table={<div className="font-mono">{loginTable}</div>}
       rail={loginRail}
       // On a phone its clock and the interaction state show under the meters (below): they are what +10 minutes and
       // +1 day change, so they are read with the meters, before the note on calls.
@@ -421,16 +424,23 @@ export function SettlementLive({
               Reset
             </button>
             <label className="text-meta ml-1 inline-flex min-h-9 cursor-pointer items-center gap-2 py-1 font-mono text-ink">
-              <input
-                type="checkbox"
-                checked={allowance.refused}
-                onChange={(e) => {
-                  // Read now: the updater runs later, when the event's currentTarget is already gone.
-                  const refused = e.currentTarget.checked
-                  setAllowance((a) => ({ ...a, refused }))
-                }}
-                className="size-5 cursor-pointer accent-[var(--color-ink)]"
-              />
+              {/* The site's own box, in its tokens (the browser's was a 2.4:1 grey by day and a grey slab by night): a
+                  graphite border on paper, ink with a paper tick when checked. */}
+              <span className="relative inline-grid size-5 shrink-0">
+                <input
+                  type="checkbox"
+                  checked={allowance.refused}
+                  onChange={(e) => {
+                    // Read now: the updater runs later, when the event's currentTarget is already gone.
+                    const refused = e.currentTarget.checked
+                    setAllowance((a) => ({ ...a, refused }))
+                  }}
+                  className="peer size-5 cursor-pointer appearance-none rounded-sm border border-graphite bg-paper transition-colors duration-150 ease-out checked:border-ink checked:bg-ink hover:border-ink focus-visible:transition-none forced-colors:appearance-auto"
+                />
+                <svg aria-hidden viewBox="0 0 20 20" className="pointer-events-none invisible absolute inset-0 size-5 peer-checked:visible forced-colors:hidden">
+                  <path d="M5 10.5l3.2 3.2L15 7" fill="none" stroke="var(--color-paper)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
               Interaction refused (art. 8)
             </label>
           </div>
@@ -441,9 +451,10 @@ export function SettlementLive({
               return (
                 <div key={w.key} className="grid grid-cols-[5.5rem_1fr_3rem] items-center gap-3">
                   <span className="text-meta font-mono text-graphite">{w.label}</span>
-                  <span className="flex flex-wrap gap-1" aria-hidden>
+                  {/* One row at any width: on a phone the thirty-day meter's sixteen boxes are a little smaller. */}
+                  <span className="flex gap-0.5 sm:flex-wrap sm:gap-1" aria-hidden>
                     {Array.from({ length: w.cap }, (_, k) => (
-                      <span key={k} className={`size-3 border ${k < n ? 'border-indigo bg-indigo' : 'border-rule'} transition-colors duration-150 ease-out`} />
+                      <span key={k} className={`size-[9px] shrink-0 border sm:size-3 ${k < n ? 'border-indigo bg-indigo' : 'border-rule'} transition-colors duration-150 ease-out`} />
                     ))}
                   </span>
                   <span className="text-meta tabular text-right text-ink">

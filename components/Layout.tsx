@@ -15,8 +15,10 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">
       {children}
       {/* The running head and footer do not print, so a printed page carries its author here (the CV's sheet has its own). */}
-      <p className="text-meta mt-10 hidden font-mono text-graphite print:block print:break-before-avoid">
-        {[PERSON.name, PERSON.email, SITE.public, PERSON.linkedin, PERSON.github].map((v) => v.replace(/^https?:\/\/(www\.)?/, '')).join(' · ')}
+      {/* As items, so a line never starts with the dot; on one line on paper (7pt), so it stays with the page's last lines
+          and can never split across two sheets. */}
+      <p className="text-meta mt-10 hidden font-mono text-graphite print:block print:break-before-avoid print:text-[7pt]">
+        <Items items={[PERSON.name, PERSON.email, SITE.public, PERSON.linkedin, PERSON.github].map((v) => v.replace(/^https?:\/\/(www\.)?/, ''))} />
       </p>
     </div>
   )

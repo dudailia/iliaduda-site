@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { Row, Shell } from '@/components/Layout'
 import { RunningHead } from '@/components/RunningHead'
 
-export const metadata: Metadata = { title: 'Not found' }
+// Not indexed, its links followed: said once (the layout's index, follow would otherwise stand beside Next's noindex).
+export const metadata: Metadata = { title: 'Not found', robots: { index: false, follow: true } }
 
 export default function NotFound() {
   return (

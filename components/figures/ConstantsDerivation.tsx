@@ -73,7 +73,7 @@ function Marks() {
       <rect x={BOX_X} y={midY - 29} width={BOX_W} height="58" fill={WASH} stroke={ACCENT} />
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY - 11}
+        y={midY - 3}
         textAnchor="middle"
         className="font-mono"
         fontSize="12"
@@ -81,25 +81,16 @@ function Marks() {
       >
         every figure
       </text>
+      {/* Two lines, not three: "app" alone on the last read as an orphan. */}
       <text
         x={BOX_X + BOX_W / 2}
-        y={midY + 4}
+        y={midY + 13}
         textAnchor="middle"
         className="font-mono"
         fontSize="12"
         fill={INK}
       >
-        in the
-      </text>
-      <text
-        x={BOX_X + BOX_W / 2}
-        y={midY + 19}
-        textAnchor="middle"
-        className="font-mono"
-        fontSize="12"
-        fill={INK}
-      >
-        app
+        in the app
       </text>
 
       <line x1="0" y1={lastY + 18} x2={W} y2={lastY + 18} stroke={RULE} strokeWidth="1" />

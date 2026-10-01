@@ -124,7 +124,7 @@ export function Register({
   columns: readonly { readonly heading: string; readonly items: readonly string[] }[]
 }) {
   return (
-    <div className="mt-6 grid gap-x-10 gap-y-6 border-y border-rule py-6 sm:grid-cols-2">
+    <div className="mt-6 grid gap-x-10 gap-y-6 border-t border-rule pt-6 sm:grid-cols-2">
       {columns.map((c) => (
         <div key={c.heading}>
           <p className="text-meta font-mono text-ink">{c.heading}</p>

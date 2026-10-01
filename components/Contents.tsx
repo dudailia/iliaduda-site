@@ -63,7 +63,9 @@ export function Contents() {
               <p className="text-meta mt-1.5 min-w-0 font-mono text-graphite [grid-area:byline]">
                 <Items items={[...p.byline.split(' · '), p.figureNote, p.status === 'pending' && 'pending publication']} />
               </p>
-              <p className="text-note mt-3 max-w-[38rem] min-w-0 [grid-area:dek]">{p.dek}</p>
+              <p className="text-note mt-3 max-w-[38rem] min-w-0 [grid-area:dek]">
+                <Whole text={p.dek} />
+              </p>
               <div className="mt-4 [grid-area:thumb] sm:mt-0 sm:self-start sm:pt-1.5">
                 <PaperThumb slug={p.slug} href={p.href} />
               </div>

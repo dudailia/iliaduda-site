@@ -416,7 +416,24 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   // One list with the poster (lib/orderbook/labels.ts), kept by id: a label that stops applying (a price tick
   // scrolled out of the window) fades where it last stood, and one that starts fades in; none is retexted in place.
   type Kind = LabelKind | 'probe'
-  type Label = { el: HTMLSpanElement; kind: Kind; text: string; w: number; h: number; o: number; want: number; seen: boolean }
+  type Label = { el: HTMLSpanElement; kind: Kind; text: string; w: number; h: number; o: number; want: number; seen: boolean; gx?: { x: number; v: number }; gy?: { x: number; v: number } }
+  /**
+   * A label's place glides on the site's quick spring (ω 30): the front ridge it rides takes a new row of the market
+   * twelve times a second, and a label snapped to each would step at 12 fps beside the terrain's glide. It snaps where
+   * the picture itself jumps or the reader is turning it: its first place, a jump of more than 60px (a Replay, a new
+   * size), a drag or a turn, a pause, a still frame.
+   */
+  const GLIDE_W = 30
+  const glide = (l: Label, at: [number, number], dt: number, snap: boolean): [number, number] => {
+    if (!l.gx || !l.gy || snap || Math.abs(at[0] - l.gx.x) + Math.abs(at[1] - l.gy.x) > 60) {
+      l.gx = { x: at[0], v: 0 }
+      l.gy = { x: at[1], v: 0 }
+    } else {
+      spring(l.gx, at[0], dt, GLIDE_W)
+      spring(l.gy, at[1], dt, GLIDE_W)
+    }
+    return [l.gx.x, l.gy.x]
+  }
   const LOOK: Record<Kind, string> = {
     // As wide as its longest price ("Price $100.215", 14 of the mono face's 0.6em characters, and its padding), so it
     // does not jump a few pixels each way as the mid passes between whole and half cents.
@@ -943,7 +960,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         t.l.w = t.l.el.offsetWidth
         t.l.h = t.l.el.offsetHeight
       }
-    for (const t of todo) place(t.l, t.text, t.at, t.anchor)
+    const snap = sh.paused || !(dt > 0) || drag !== null || Math.abs(turn.yaw.v) + Math.abs(turn.pitch.v) > 1e-3 || sinking !== null
+    // The probe's tag is the reader's own hand: it follows it at once.
+    for (const t of todo) place(t.l, t.text, t.at && t.text ? glide(t.l, t.at, dt, snap || t.l.kind === 'probe') : t.at, t.anchor)
 
     const fading = fadeLabels(dt, labelsK)
     settling =
