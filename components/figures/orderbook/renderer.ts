@@ -960,7 +960,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         t.l.w = t.l.el.offsetWidth
         t.l.h = t.l.el.offsetHeight
       }
-    const snap = sh.paused || !(dt > 0) || drag !== null || Math.abs(turn.yaw.v) + Math.abs(turn.pitch.v) > 1e-3 || sinking !== null
+    // A redraw with no time passing (a quality step's) leaves each label where it is: a spring stepped by 0 does not move.
+    const snap = sh.paused || drag !== null || Math.abs(turn.yaw.v) + Math.abs(turn.pitch.v) > 1e-3 || sinking !== null
     // The probe's tag is the reader's own hand: it follows it at once.
     for (const t of todo) place(t.l, t.text, t.at && t.text ? glide(t.l, t.at, dt, snap || t.l.kind === 'probe') : t.at, t.anchor)
 

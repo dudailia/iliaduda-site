@@ -130,7 +130,9 @@ export function Register({
           <p className="text-meta font-mono text-ink">{c.heading}</p>
           <ul className="text-note mt-2.5 grid list-none gap-y-2 text-graphite">
             {c.items.map((i) => (
-              <li key={i}>{i}</li>
+              <li key={i}>
+                <Whole text={i} />
+              </li>
             ))}
           </ul>
         </div>

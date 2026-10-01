@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
 import { CONTROL } from '@/components/stage/controls'
-import { saveData, supportsWebGL2 } from '@/components/stage/env'
+import { saveData, supportsWebGL2, whenIdle } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
@@ -122,7 +122,8 @@ export function OrderBookLive({
       last.current = r
       if (!r) {
         write('p-price', '—')
-        write('p-side', 'point at the terrain')
+        // A finger taps (the hint under the figure says so too).
+        write('p-side', `${(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'tap' : 'point at')} the terrain`)
         write('p-queue', '—')
         write('p-cum', '')
         write('p-ago', '—')
@@ -170,6 +171,19 @@ export function OrderBookLive({
         fallbackApi.current?.fail(why)
       }
       const unwatch = fallbackApi.current?.watch()
+      let askedAt = 0
+      let cancelBuild = () => {}
+      const build = () => {
+        if (inner || dead || broken || !mod || !shared.current) return
+        try {
+          inner = mod.createBookRenderer({ ...env, palette: pal }, shared.current)
+          book.current = inner
+          if (size) inner.resize(...size)
+          inner.setQuality?.(q)
+        } catch {
+          fail('error')
+        }
+      }
       void import('./renderer').then(
         (m) => (mod = m),
         () => fail('load'),
@@ -210,10 +224,17 @@ export function OrderBookLive({
           try {
             if (!inner) {
               if (!mod || !shared.current) return false
-              inner = mod.createBookRenderer({ ...env, palette: pal }, shared.current)
-              book.current = inner
-              if (size) inner.resize(...size)
-              inner.setQuality?.(q)
+              // Built while the browser is idle, then drawn from the next frame: building it in the frame that draws
+              // first was a 90–130ms frame on a phone, the rise's very first. Half a second without idle time, and it
+              // is built here after all.
+              if (!askedAt) {
+                askedAt = performance.now()
+                cancelBuild = whenIdle(build)
+                return false
+              }
+              if (performance.now() - askedAt < 500) return false
+              build()
+              if (!inner) return false
             }
             return inner.frame(t, dt)
           } catch {
@@ -235,6 +256,7 @@ export function OrderBookLive({
         },
         dispose() {
           dead = true
+          cancelBuild()
           unwatch?.()
           if (book.current === inner) book.current = null
           inner?.dispose()
@@ -486,6 +508,8 @@ export function OrderBookLive({
   return (
     <FigureFrame
       id="fig-order-book"
+      // On paper the stage may break: its poster keeps itself whole (app/globals.css, print).
+      breakable
       number="Fig. 1"
       title={title}
       subtitle={subtitle}
@@ -563,7 +587,7 @@ export function OrderBookLive({
               —
             </span>{' '}
             <span ref={ref('p-side')} className="text-graphite">
-              point at the terrain
+              {mounted && matchMedia('(pointer: coarse)').matches ? 'tap the terrain' : 'point at the terrain'}
             </span>
           </dd>
           <dt className="text-graphite">Queue</dt>

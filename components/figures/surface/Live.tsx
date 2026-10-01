@@ -580,6 +580,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   return (
     <FigureFrame
       id="fig-iv-surface"
+      // On paper the stage may break: its poster keeps itself whole (app/globals.css, print).
+      breakable
       number="Fig. 1"
       title={title}
       subtitle={subtitle}
@@ -832,7 +834,8 @@ function Margin({
         </div>
       </dl>
       {/* The Greeks, one step away: the margin leads with what the figure shows. */}
-      <details className={`text-meta font-mono ${across ? '' : 'mt-2 lg:text-right'}`}>
+      {/* Closed, it would print a summary with nothing under it. */}
+      <details className={`text-meta font-mono print:hidden ${across ? '' : 'mt-2 lg:text-right'}`}>
         <summary onClick={glideDetails} className="cursor-pointer py-1 text-graphite marker:text-graphite hover:text-ink">
           Greeks at the point
         </summary>

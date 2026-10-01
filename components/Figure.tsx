@@ -56,7 +56,7 @@ export function Figure({
 }: FigureProps) {
   return (
     // A quiet diagram is short: it prints whole, never cut between its title and its picture.
-    <figure id={id} className="my-12 lg:my-16 print:break-inside-avoid" aria-labelledby={`${id}-title`} aria-describedby={`${id}-caption`}>
+    <figure id={id} className="my-12 lg:my-16 print:break-inside-avoid!" aria-labelledby={`${id}-title`} aria-describedby={`${id}-caption`}>
       <Row rail={number}>
         <div className="text-note border-b border-rule pb-2">
           <span id={`${id}-title`} className="block text-pretty text-ink">{title}</span>

@@ -90,7 +90,7 @@ function Legend({
   const secondY = stacked ? y + size * 1.6 : y
   return (
     <g className="font-mono" fontSize={size} fill={GRAPHITE}>
-      <rect x={x} y={y - size + 2} width="13" height={size} fill={RULE} opacity="0.85" />
+      <rect x={x} y={y - size + 2} width="13" height={size} fill={RULE} />
       <text x={x + 19} y={y}>
         {`ambiguous ${threshold(AMBIG_LO)} to ${threshold(JUSTIFY)}`}
       </text>
@@ -124,8 +124,9 @@ function Wide() {
         width={wScale(JUSTIFY - AMBIG_LO)}
         height={W.axisY - W.top}
         fill={RULE}
-        opacity="0.5"
       />
+      {/* The band's low edge, marked as its high one is (the 1% line): the band is the argument. */}
+      <line x1={W.x0 + wScale(AMBIG_LO)} y1={W.top} x2={W.x0 + wScale(AMBIG_LO)} y2={W.axisY} stroke={GRAPHITE} strokeWidth="0.75" />
       <line
         x1={W.x0 + wScale(JUSTIFY)}
         y1={W.top}
@@ -204,7 +205,8 @@ function Narrow() {
     <>
       {spans.map(([y0, y1]) => (
         <g key={y0}>
-          <rect x={N.x0 + nScale(AMBIG_LO)} y={y0} width={nScale(JUSTIFY - AMBIG_LO)} height={y1 - y0} fill={RULE} opacity="0.5" />
+          <rect x={N.x0 + nScale(AMBIG_LO)} y={y0} width={nScale(JUSTIFY - AMBIG_LO)} height={y1 - y0} fill={RULE} />
+          <line x1={N.x0 + nScale(AMBIG_LO)} y1={y0} x2={N.x0 + nScale(AMBIG_LO)} y2={y1} stroke={GRAPHITE} strokeWidth="0.75" />
           <line x1={N.x0 + nScale(JUSTIFY)} y1={y0} x2={N.x0 + nScale(JUSTIFY)} y2={y1} stroke={INK} strokeWidth="1" strokeDasharray="3 3" />
         </g>
       ))}

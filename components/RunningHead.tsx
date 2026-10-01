@@ -23,7 +23,7 @@ export function RunningHead() {
       <Shell>
         <div className="text-meta flex flex-wrap items-baseline justify-between gap-x-6 font-mono">
           <p className="flex items-baseline gap-x-3">
-            <a href="/" className="inline-block py-2.5 font-serif focus-visible:outline-offset-[-2px] underline decoration-transparent hover:decoration-ink text-note text-ink">
+            <a href="/" className="inline-block py-2.5 font-serif -mx-1 px-1 focus-visible:outline-offset-[-2px] underline decoration-transparent hover:decoration-ink text-note text-ink">
               {PERSON.name}
             </a>
             {/* The one thing a recruiter on a phone most needs, in the room a phone has: the head takes two lines there. */}
@@ -35,23 +35,23 @@ export function RunningHead() {
           <nav aria-label="Site">
             <ul className="flex flex-wrap justify-end gap-x-4">
               <li>
-                <a href="/#contents" className="inline-block py-2.5 focus-visible:outline-offset-[-2px]">
+                <a href="/#contents" className="inline-block py-2.5 -mx-1 px-1 focus-visible:outline-offset-[-2px]">
                   Contents
                 </a>
               </li>
               {/* Who this is, from any page: a reader landing on a paper from a link reaches it without the footer. */}
               <li>
-                <a href="/about" className="inline-block py-2.5 focus-visible:outline-offset-[-2px] aria-[current=page]:text-ink aria-[current=page]:no-underline">
+                <a href="/about" className="inline-block py-2.5 -mx-1 px-1 focus-visible:outline-offset-[-2px] aria-[current=page]:text-ink aria-[current=page]:no-underline">
                   About
                 </a>
               </li>
               <li>
-                <a href={resumeLink.href} className="inline-block min-w-6 py-2.5 text-center focus-visible:outline-offset-[-2px]">
+                <a href={resumeLink.href} className="inline-block min-w-6 py-2.5 text-center -mx-1 px-1 focus-visible:outline-offset-[-2px]">
                   {resumeLink.label}
                 </a>
               </li>
               <li>
-                <a href={`mailto:${PERSON.email}`} className="inline-block py-2.5 focus-visible:outline-offset-[-2px]">
+                <a href={`mailto:${PERSON.email}`} className="inline-block py-2.5 -mx-1 px-1 focus-visible:outline-offset-[-2px]">
                   Email
                 </a>
               </li>

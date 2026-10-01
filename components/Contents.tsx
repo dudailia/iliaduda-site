@@ -87,10 +87,11 @@ export function OtherWork() {
               <a href={o.href} className="text-body underline decoration-transparent hover:decoration-ink">
                 {o.name}
               </a>
-              <span className="text-note mt-1 block max-w-[38rem]">{o.what}</span>
-              <span className="text-meta mt-1 block font-mono text-graphite">
+              {/* Title, its meta, then what it is: the order of every entry above it. */}
+              <span className="text-meta mt-0.5 block font-mono text-graphite">
                 <Items items={o.status} />
               </span>
+              <span className="text-note mt-1.5 block max-w-[38rem]">{o.what}</span>
             </li>
           ))}
         </ul>

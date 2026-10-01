@@ -86,7 +86,7 @@ export const SITE = {
    * page that exists only on this branch still resolves; locally, the public
    * host rather than localhost.
    */
-  public: deployment ?? production ?? https(FALLBACK)!,
+  public: deployment ?? production ?? https(DOMAIN_LIVE ? 'iliaduda.com' : FALLBACK)!,
   origin: deployment ?? production ?? 'http://localhost:3000',
   /** Previews render pending work; production never does. */
   isProduction: process.env.VERCEL_ENV === 'production',

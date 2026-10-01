@@ -14,8 +14,8 @@ export const ARC = 8
 export const LANE_H = 18
 export const LANE_GAP = 5
 export const ORDERS_H = LANES.length * (LANE_H + LANE_GAP) - LANE_GAP
-/** A strip's title line. */
-export const TITLE_H = 34
+/** A strip's title: room for a phone's two-line legend under the lanes, with paper above it. */
+export const TITLE_H = 40
 export const INTENSITY_H = 88
 export const QUEUE_H = 96
 export const AXIS_H = 24

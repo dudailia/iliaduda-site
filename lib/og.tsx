@@ -139,7 +139,7 @@ export async function shareCard({
         >
           <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 22, color: OG.muted }}>{above}</div>
           {/* 20px inside the square on each side, so no line of the title reaches the safe zone's edge. */}
-          <div style={{ display: 'flex', fontSize: titleSize, lineHeight: 1.12, letterSpacing: '-0.015em', marginTop: 22, maxWidth: SAFE.w - 40 }}>
+          <div style={{ display: 'flex', fontSize: titleSize, lineHeight: 1.12, letterSpacing: '-0.015em', marginTop: 22, maxWidth: SAFE.w - 40, textWrap: 'balance' }}>
             {title}
           </div>
           {below ? (

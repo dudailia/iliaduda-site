@@ -185,6 +185,10 @@
     outline-offset: 3px;
     border-radius: 1px;
   }
+  /* A link inside running text: the ring stays clear of the next word's glyphs and the stop after it. */
+  :is(p, li, dd) > a:focus-visible {
+    outline-offset: 1px;
+  }
 
   /* The site's slider, the same in every browser (iOS Safari ignores accent-color): a 4px track in the context tone,
      indigo as far as the value (--fill, which each input sets from its own value: components/stage/range.ts), and a
@@ -233,6 +237,25 @@
     border-radius: 50%;
     background: var(--color-indigo);
     box-shadow: 0 0 0 1px var(--color-indigo);
+  }
+  /* A scrubber whose input runs 8px past its column on each side, so the thumb's centre lands on the first and last
+     points (the cricket replay's): its track is painted only across the column. */
+  input[type='range'].range-inset::-webkit-slider-runnable-track {
+    background: linear-gradient(
+      to right,
+      transparent 8px,
+      var(--color-indigo) 8px,
+      var(--color-indigo) calc(8px + (100% - 16px) * var(--frac, 0)),
+      var(--track) calc(8px + (100% - 16px) * var(--frac, 0)),
+      var(--track) calc(100% - 8px),
+      transparent calc(100% - 8px)
+    );
+  }
+  input[type='range'].range-inset::-moz-range-track {
+    background: linear-gradient(to right, transparent 8px, var(--track) 8px, var(--track) calc(100% - 8px), transparent calc(100% - 8px));
+  }
+  input[type='range'].range-inset::-moz-range-progress {
+    background: linear-gradient(to right, transparent 8px, var(--color-indigo) 8px);
   }
   /* Under a fine pointer the thumb answers the hover: a wash ring, as the other controls' borders darken. */
   @media (hover: hover) and (pointer: fine) {
@@ -716,7 +739,8 @@
     margin-top: 0.45em;
   }
 
-  @media screen {
+  /* On a phone's screen only: the sheet (from 48rem) breaks its lines where the PDF does. */
+  @media screen and (max-width: 47.99rem) {
     .cv-honours {
       display: block;
     }
@@ -954,13 +978,13 @@
   }
   /* A figure's marks drawn as backgrounds (the ranking's bars, the batch's confidence, a chosen option's fill) print:
      printing drops backgrounds unless asked. */
-  figure :is(.bg-indigo, .bg-indigo-wash, [class*='bg-graphite'], [class*='bg-ink'], [aria-pressed='true'], [aria-checked='true']) {
+  figure :is(.bg-indigo, .bg-indigo-wash, [class*='bg-graphite'], [class*='bg-ink'], [aria-pressed='true'], [aria-checked='true'], [type='checkbox']) {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   /* A figure's actions (Replay, Approve, Run the batch again, Reset, a typed amount) do nothing on paper; its chosen
      options stay, since they say what is shown. */
-  figure :is(button:not([role='radio'], [aria-pressed]), input:not([type='range'], [type='radio'])) {
+  figure :is(button:not([role='radio'], [aria-pressed]), input:not([type='range'], [type='radio'], [type='checkbox'])) {
     display: none !important;
   }
   /* CloseBooks' batch is taller than a sheet: it breaks between rows rather than leaving a page blank before it. */
@@ -976,7 +1000,7 @@
   }
   /* A figure's views are not cut across two sheets: each prints whole on one (/market's surface, then its book and futures
      together, may each move to the next). */
-  [data-market-stage] > div,
+  [data-market-views] > div,
   div:has(> :is([data-futures-poster], [data-orderbook-poster], [data-orderflow-still], [data-surface-poster])) {
     break-inside: avoid;
   }

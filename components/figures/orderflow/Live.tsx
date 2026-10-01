@@ -105,7 +105,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       const r = alive(f, hovered.current) ? hovered.current : alive(f, pinned.current) ? pinned.current : null
       if (!r) {
         write('ev', '—')
-        write('ev-more', 'point at an order')
+        // A finger taps (the hint under the figure says so too).
+        write('ev-more', `${(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'tap' : 'point at')} an order`)
         write('par', '—')
         write('own-one', '—')
         market.highlight = null
@@ -408,7 +409,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           <dd className="text-ink">
             <span ref={ref('ev')}>—</span>{' '}
             <span ref={ref('ev-more')} className="text-graphite">
-              point at an order
+              {mounted && matchMedia('(pointer: coarse)').matches ? 'tap an order' : 'point at an order'}
             </span>
           </dd>
           <dt className="text-graphite">Set off by</dt>
@@ -471,7 +472,7 @@ function Labels() {
   const text = 'pointer-events-none absolute whitespace-nowrap font-mono text-meta leading-none'
   const gutter = `${text} hidden @min-[520px]:block right-[calc(100%-var(--g)+0.5rem)] text-right text-graphite`
   // On a phone the strips run to the screen's edges; their labels keep to the page's gutter.
-  const inside = `${text} left-6 rounded-sm bg-paper px-1 text-graphite @min-[520px]:hidden`
+  const inside = `${text} left-6 rounded-sm bg-paper px-1 py-px text-graphite @min-[520px]:hidden`
   const top = (y: number) => ({ top: Math.round(y) })
   return (
     // Clipped to the stage: enlarged text (the strips' geometry is the canvas's, in pixels) never widens the page.

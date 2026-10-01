@@ -436,7 +436,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               keep()
               if (playing) stop()
             }}
-            className="-mx-2 block h-6 w-[calc(100%+1rem)]"
+            className="range-inset -mx-2 block h-6 w-[calc(100%+1rem)]"
             style={rangeFill(at, 0, n - 1)}
           />
         </div>

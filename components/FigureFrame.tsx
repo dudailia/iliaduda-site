@@ -29,6 +29,7 @@ export function FigureFrame({
   railBelow = true,
   inline = false,
   span = false,
+  breakable = false,
   className,
   children,
 }: {
@@ -44,6 +45,8 @@ export function FigureFrame({
   caption: ReactNode
   table?: ReactNode
   vt?: string
+  /** On paper, a stage taller than a sheet may break inside (between its rows): its own parts keep themselves whole. */
+  breakable?: boolean
   /** Repeat the rail under the figure on narrow screens. Off when the figure
    *  already shows its state inline where a phone reader needs it. */
   railBelow?: boolean
@@ -99,7 +102,7 @@ export function FigureFrame({
               </span>
             </span>
           </div>
-          <div className="mt-5 print:break-inside-avoid" style={vt ? vtStyle(vt) : undefined}>
+          <div className={`mt-5 ${breakable ? '' : 'print:break-inside-avoid'}`} style={vt ? vtStyle(vt) : undefined}>
             {children}
           </div>
           {rail && (railBelow || inline) ? <div className={`mt-5 ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
@@ -133,7 +136,7 @@ export function Readouts({
     return (
       <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:grid-cols-4">
         {rows.map((r) => (
-          <div key={r.label} className="min-w-0">
+          <div key={r.label} className="min-w-0 break-inside-avoid">
             <dt className="text-graphite">
               <Whole text={r.label} />
             </dt>
@@ -144,7 +147,7 @@ export function Readouts({
     )
   }
   return (
-    <dl className="text-meta grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono lg:grid-cols-1 lg:gap-y-px lg:[&_dd]:mb-2">
+    <dl className="text-meta grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono lg:grid-cols-1 lg:gap-y-px print:break-inside-avoid lg:[&_dd]:mb-2">
       {rows.map((r) => (
         <div key={r.label} className="contents">
           <dt className="text-graphite">{r.label}</dt>

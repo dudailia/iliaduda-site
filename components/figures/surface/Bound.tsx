@@ -114,7 +114,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
       </div>
 
       <label className="mt-4 block">
-        <span className="text-meta font-mono text-graphite">Curvature η — the surface uses {P.eta}; the sufficient bound is {ETA_BOUND.toFixed(2)}</span>
+        <span className="text-meta block font-mono text-graphite">Curvature η — the surface uses {P.eta}; the sufficient bound is {ETA_BOUND.toFixed(2)}</span>
         <input
           type="range"
           min={0.4}

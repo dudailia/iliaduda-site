@@ -13,6 +13,8 @@ import { Items, Row, Whole } from './Layout'
  * landing-page hero.
  */
 
+const whole = (place: string) => place.replace(/ /g, '\u00a0')
+
 export function contactLinks() {
   return [
     { href: resumeLink.href, label: resumeLink.label },
@@ -44,7 +46,8 @@ export function Masthead() {
     ['Roles', AVAILABILITY.roles.join(' · ')],
     [
       'Location',
-      `Based in ${PERSON.base}; open to ${AVAILABILITY.locations.slice(0, -1).join(', ')} or ${AVAILABILITY.locations.at(-1)}`,
+      // A city's name is never split across two lines ("San / Francisco").
+      `Based in ${PERSON.base}; open to ${AVAILABILITY.locations.slice(0, -1).map(whole).join(', ')} or ${whole(AVAILABILITY.locations.at(-1)!)}`,
     ],
   ] as const
 

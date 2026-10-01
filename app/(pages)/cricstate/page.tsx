@@ -154,7 +154,7 @@ export default function Cricstate() {
           <p>
             Identity is worth {fact('crIdentityGain').value}% in log-likelihood and a per-match
             latent for pitch and conditions {fact('crLatentGain').value}%, both below the
-            materiality bar, so the per-player model was not built: the measurement fell short of the
+            materiality bar, so the <span className="whitespace-nowrap">per-player</span> model was not built: the measurement fell short of the
             bar that would justify it, rather than instinct deciding.
           </p>
           <p>

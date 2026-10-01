@@ -48,7 +48,7 @@ export function Footer() {
         <div className="h-6" />
         <Row rail="Pages">
           <nav aria-label="Pages">
-            <ul className="text-note flex flex-wrap gap-x-8 gap-y-1.5">
+            <ul className="text-note flex flex-wrap gap-x-5 gap-y-1.5">
               <li>
                 <a href="/#contents" className="inline-block py-1">
                   Contents
@@ -72,7 +72,10 @@ export function Footer() {
           <p className="text-note max-w-[36rem] text-graphite">
             Set in Source Serif 4 and Source Code Pro, both self-hosted. No third-party requests;
             visits are counted by Vercel Web Analytics, from this site&rsquo;s own address and without cookies.{' '}
-            <a href="https://github.com/dudailia/iliaduda-site">Source on GitHub</a>.
+            <a href="https://github.com/dudailia/iliaduda-site" className="whitespace-nowrap">
+              Source on GitHub
+            </a>
+            .
           </p>
         </Row>
         {/* The page the reader is on is marked in the footer's lists: the footer is the same on every page, so the

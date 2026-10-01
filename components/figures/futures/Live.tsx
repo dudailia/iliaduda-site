@@ -216,7 +216,12 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       const was = f.flying
       f.advance(dtMs)
       if (was && !f.flying) setFlying(false)
-      if (armed.current && t.started) setSeqState(t.done ? 'done' : 'playing')
+      if (armed.current && t.started) {
+        setSeqState(t.done ? 'done' : 'playing')
+        // The story is over: the mark that hid the poster for it goes, as the other figures' do, so a still frame
+        // later (a lost context) shows.
+        if (t.done) delete document.documentElement.dataset.futuresSeq
+      }
     },
     [setSeqState],
   )

@@ -156,6 +156,7 @@ export function SettlementLive({
     <>
     <FigureFrame
       id="fig-settlement"
+      breakable
       number="Fig. 1"
       vt="debt-portal"
       title="A settlement, with only the terms worth choosing"
@@ -222,7 +223,8 @@ export function SettlementLive({
                 style={rangeFill(i, 0, offered.length - 1)}
               />
             </label>
-            <label className="block">
+            {/* A typed amount does nothing on paper; the term above it says what is shown. */}
+            <label className="block print:hidden">
               <span className="text-meta font-mono text-graphite">Can pay per month, ₽</span>
               <input
                 inputMode="numeric"
@@ -263,7 +265,7 @@ export function SettlementLive({
             </div>
           </dl>
 
-          <div className="relative mt-5 h-36 sm:h-44" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
+          <div className="relative mt-5 h-36 sm:h-44 print:break-inside-avoid" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
               <rect x={0} y={0} width={100} height={100} fill="none" stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
               {LADDER.slice(0, -1)

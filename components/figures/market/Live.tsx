@@ -983,6 +983,8 @@ export function MarketLive({
   return (
     <FigureFrame
       id="fig-1"
+      // On paper the stage may break: its poster keeps itself whole (app/globals.css, print).
+      breakable
       number="Fig. 1"
       title={title}
       subtitle={subtitle}
@@ -1129,7 +1131,10 @@ export function MarketLive({
               <FocusRing />
             </div>
             <div className="text-meta relative mt-1 flex justify-between pr-14 pl-0 font-mono whitespace-nowrap text-graphite" aria-hidden="true">
-              <span>20 s ago</span>
+              {/* At 360px "ago" would run into "now". */}
+              <span>
+                20 s<span className="max-[379px]:hidden"> ago</span>
+              </span>
               <span>now</span>
             </div>
           </div>

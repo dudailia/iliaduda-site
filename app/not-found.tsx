@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { Row, Shell } from '@/components/Layout'
 import { RunningHead } from '@/components/RunningHead'
 
-// Not indexed, its links followed: said once (the layout's index, follow would otherwise stand beside Next's noindex).
-export const metadata: Metadata = { title: 'Not found', robots: { index: false, follow: true } }
+// Next marks a 404 noindex itself; the layout says nothing on production, so the page says it once.
+export const metadata: Metadata = { title: 'Not found' }
 
 export default function NotFound() {
   return (
