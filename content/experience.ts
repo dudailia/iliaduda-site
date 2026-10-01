@@ -4,9 +4,9 @@
  * disagree — except where it carries Glacier internals, which stay off. Shared by the home page (brief) and /about (full).
  *
  * Glacier Capital Systems is a proprietary options trading firm. Cleared by the
- * owner (2026-09-30): the tools that automate its traders' investment
- * workflows, the real-time dashboards, the analysis and research tooling, and
- * the stack. Never strategies, parameters, performance, data, internal names,
+ * owner (2026-09-30): the tools that automate the firm's investment workflows
+ * for its traders, real-time dashboards, analysis tooling, and research tooling
+ * around the firm's proprietary options model, and the stack (no model details). Never strategies, parameters, performance, data, internal names,
  * paths or code — and tests/copy.test.ts fails the build on the obvious ways
  * that could slip in.
  */
@@ -41,14 +41,14 @@ export const roles: readonly Role[] = [
     title: 'Quantitative Analyst and Engineer',
     place: 'Remote',
     dates: 'January 2026 – present',
-    brief: 'Building the tools that automate the firm’s traders’ investment workflows: real-time dashboards, and the Python research and analysis tooling behind them.',
+    brief: 'Building the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model.',
     detail: [
-      'Sole engineer building the tools that automate the traders’ investment workflows, starting with the firm’s Python research and analysis tooling for options: volatility modelling, options-chain analysis, candidate scoring and market scanning.',
+      'I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model.',
       'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
       'Built the real-time dashboards the traders work from — Next.js on Vercel, Supabase, and a Python worker on Fly.io — replacing a cron-and-email pipeline, and moved strategy configuration out of code so non-engineers can tune it without a deploy.',
     ],
     cv: [
-      'Sole engineer building tools that automate the traders’ investment workflows: Python research and analysis tooling for options (volatility modelling, options-chain analysis, candidate scoring, market scanning).',
+      'Build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model.',
       'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
       'Built the traders’ real-time dashboards (Next.js, Supabase, a Python worker on Fly.io), replacing a cron-and-email pipeline; moved strategy configuration out of code.',
     ],

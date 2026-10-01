@@ -58,16 +58,21 @@ export function Masthead() {
       </Row>
 
       <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 lg:mt-6 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
+        {/* Contact second, under Seeking: what a recruiter acts on, on a phone's first screen under the positioning line. */}
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
             <dt className="text-meta pt-0.5 font-mono text-graphite lg:text-right">{k}</dt>
             <dd className="text-note min-w-0 text-ink">{k === 'Roles' ? <Items items={v} /> : k === 'Seeking' ? <Whole text={v} /> : v}</dd>
+            {k === 'Seeking' ? (
+              <>
+                <dt className="text-meta pt-2.5 font-mono text-graphite lg:text-right">Contact</dt>
+                <dd className="text-note min-w-0 -mt-1">
+                  <ContactLinks />
+                </dd>
+              </>
+            ) : null}
           </div>
         ))}
-        <dt className="text-meta pt-2.5 font-mono text-graphite lg:text-right">Contact</dt>
-        <dd className="text-note min-w-0 -mt-1">
-          <ContactLinks />
-        </dd>
       </dl>
     </header>
   )

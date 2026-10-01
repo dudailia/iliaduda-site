@@ -24,7 +24,7 @@ export const AVAILABILITY = {
 
 /** One line, used by the masthead and the metadata description. */
 export const POSITIONING =
-  'Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026, building tools that automate its traders’ investment workflows: real-time dashboards and research tooling. Mathematics and Business Administration at Northeastern, class of 2028.'
+  'Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class of 2028.'
 
 /**
  * The CV is a page (/cv) and a PDF printed from it at build time by
@@ -58,11 +58,10 @@ export const SOURCE = 'https://github.com/dudailia/iliaduda-site/blob/main'
  * resolve at all: registered (RU-CENTER, since 2013) with no nameservers
  * delegated, so NXDOMAIN. A canonical URL on a host that does not answer is
  * worse than none, so until DOMAIN_LIVE is flipped the canonical falls back to
- * the vercel.app host that does.
- *
- * TODO(owner): set DOMAIN_LIVE to true once iliaduda.com resolves.
+ * the vercel.app host that does. Delegated to Vercel's nameservers on 2026-09-30 and answering over HTTPS, so the
+ * canonical is iliaduda.com.
  */
-const DOMAIN_LIVE = false
+const DOMAIN_LIVE = true
 const FALLBACK = 'iliaduda-site.vercel.app'
 
 function https(host: string | undefined): string | undefined {

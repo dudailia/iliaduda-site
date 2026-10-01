@@ -6,5 +6,5 @@ export const size = OG_SIZE
 export const contentType = 'image/png'
 
 export default function Image() {
-  return paperOg('debt-portal', 'Fig. 1 · a settlement schedule · illustrative terms')
+  return paperOg('debt-portal')
 }

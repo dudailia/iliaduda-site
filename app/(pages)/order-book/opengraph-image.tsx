@@ -6,5 +6,5 @@ export const size = OG_SIZE
 export const contentType = 'image/png'
 
 export default function Image() {
-  return paperOg('order-book', 'Fig. 1 · a synthetic order book · Hawkes order flow')
+  return paperOg('order-book')
 }

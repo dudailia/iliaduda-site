@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ReactNode } from 'react'
 import { ImageResponse } from 'next/og'
-import { AVAILABILITY, PERSON } from './site'
+import { PERSON } from './site'
 import { thumbFor, TH, TW } from './thumbs'
 
 /**
@@ -14,9 +14,24 @@ import { thumbFor, TH, TW } from './thumbs'
  * these must not sit in public/ as a second copy of the site's typefaces.
  */
 
-export const OG_SIZE = { width: 1200, height: 630 } as const
+/**
+ * 1200 × 627, LinkedIn's share size. LinkedIn crops the card in places (a Featured tile is near square), so
+ * everything that must be read sits in the centred 600 × 600 square: SAFE. The figure fills the whole card behind it.
+ */
+export const OG_SIZE = { width: 1200, height: 627 } as const
+const SAFE = { x: (OG_SIZE.width - 600) / 2, y: (OG_SIZE.height - 600) / 2, w: 600, h: 600 } as const
 
+/**
+ * The share cards are night cards: the site's dark palette, with each figure's own lines glowing across the card.
+ * A dark card with light type reads in a light feed and a dark one alike, where a paper card blurred into a light one.
+ */
 export const OG = {
+  night: '#0F1220',
+  text: '#F2F0EB',
+  muted: '#AEB3C4',
+  glow: '#A3ADF5',
+  dim: '#5A6396',
+  // The light palette, kept for the site's printable cards.
   paper: '#FAF9F7',
   ink: '#16181C',
   graphite: '#5B6068',
@@ -36,65 +51,100 @@ export async function fonts() {
   ]
 }
 
-/** The figure box on the card, for callers drawing into it. */
-export const OG_FIG = { width: 460, height: 380 } as const
+/** A glowing stroke: a wide faint line under a thin bright one (the rasteriser has no blur filter to rely on). */
+function glowPath(d: string, key: string, color: string, bright: number, w: number) {
+  return [
+    <path key={`${key}h`} d={d} fill="none" stroke={color} strokeOpacity={bright * 0.16} strokeWidth={w * 7} strokeLinecap="round" />,
+    <path key={`${key}m`} d={d} fill="none" stroke={color} strokeOpacity={bright * 0.32} strokeWidth={w * 3} strokeLinecap="round" />,
+    <path key={`${key}c`} d={d} fill="none" stroke={color} strokeOpacity={bright} strokeWidth={w} strokeLinecap="round" />,
+  ]
+}
 
-export async function paperCard({
-  kicker,
+/** The home figure's fan: its poster's own futures, glowing, those that pay brighter. `strength` dims it. */
+export async function ogFan(strength = 1): Promise<ReactNode> {
+  const { strands } = await import('./futures/poster')
+  const { MODEL } = await import('./futures/mc')
+  const { VB } = await import('./futures/world')
+  const all = strands(MODEL.sigma, MODEL.strike)
+  return (
+    <svg width={OG_SIZE.width} height={OG_SIZE.height} viewBox={`0 0 ${VB.w} ${VB.h}`} preserveAspectRatio="xMidYMid slice">
+      {all.flatMap((st, i) => glowPath(st.d, `s${i}`, st.pays ? OG.glow : OG.dim, (st.pays ? 0.75 : 0.5) * strength, 2.2))}
+    </svg>
+  )
+}
+
+/** A paper's miniature figure as the card's art: context dim, the claim glowing. */
+export function ogThumb(slug: string, strength = 1): ReactNode {
+  const t = thumbFor(slug)
+  if (!t) return null
+  return (
+    // Whole, inset from the edges (a crop cut the cricket line off at the top); the card's centre is the words'.
+    <svg width={OG_SIZE.width} height={OG_SIZE.height} viewBox={`${-TW * 0.06} ${-TH * 0.08} ${TW * 1.12} ${TH * 1.16}`} preserveAspectRatio="xMidYMid meet">
+      {t.quiet?.map(([x, y, w, h], i) => <rect key={`q${i}`} x={x} y={y} width={w} height={h} fill={OG.dim} fillOpacity={0.35 * strength} />)}
+      {t.bars?.map(([x, y, w, h], i) => <rect key={`b${i}`} x={x} y={y} width={w} height={h} fill={OG.glow} fillOpacity={0.8 * strength} />)}
+      {t.context.flatMap((d, i) => glowPath(d, `c${i}`, OG.dim, 0.8 * strength, 1.8))}
+      {t.claim.flatMap((d, i) => glowPath(d, `p${i}`, OG.glow, 0.95 * strength, 2.6))}
+    </svg>
+  )
+}
+
+/**
+ * The card: the art across it, a dark well behind the words so they read over any line, and the words in SAFE —
+ * a mono line above, the title, a mono line below, and the site's address.
+ */
+export async function shareCard({
+  above,
   title,
-  byline,
-  figure,
+  titleSize = 54,
+  below,
+  art,
 }: {
-  /** Mono line above the byline, e.g. "Fig. 1 · synthetic data". */
-  kicker: string
+  above: string
   title: string
-  byline: string
-  /** An <svg> sized OG_FIG. */
-  figure: ReactNode
+  titleSize?: number
+  below?: string
+  art: ReactNode
 }) {
+  const { SITE } = await import('./site')
+  const host = SITE.public.replace(/^https?:\/\//, '')
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          backgroundColor: OG.paper,
-          color: OG.ink,
-          padding: '64px 72px',
-          fontFamily: 'Source Serif 4',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: 560 }}>
-          <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 22, color: OG.graphite }}>
-            {PERSON.name} · working papers
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', backgroundColor: OG.night, fontFamily: 'Source Serif 4' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, width: OG_SIZE.width, height: OG_SIZE.height, display: 'flex' }}>{art}</div>
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: OG_SIZE.width,
+            height: OG_SIZE.height,
+            display: 'flex',
+            backgroundImage: `radial-gradient(ellipse 380px 300px at 50% 50%, ${OG.night}F2 0%, ${OG.night}C8 55%, ${OG.night}00 100%)`,
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: SAFE.x,
+            top: SAFE.y,
+            width: SAFE.w,
+            height: SAFE.h,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            color: OG.text,
+          }}
+        >
+          <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 22, color: OG.muted }}>{above}</div>
+          <div style={{ display: 'flex', fontSize: titleSize, lineHeight: 1.12, letterSpacing: '-0.015em', marginTop: 22, maxWidth: SAFE.w }}>
+            {title}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: 50, lineHeight: 1.1, letterSpacing: '-0.015em' }}>{title}</div>
-            <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 20, color: OG.graphite, marginTop: 22 }}>
-              {byline}
-            </div>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              fontFamily: 'Source Code Pro',
-              fontSize: 20,
-              color: OG.ink,
-              borderTop: `1px solid ${OG.rule}`,
-              paddingTop: 18,
-            }}
-          >
-            {AVAILABILITY.line}
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', marginLeft: 40, width: OG_FIG.width }}>
-          <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 18, color: OG.graphite, marginBottom: 14 }}>
-            {kicker}
-          </div>
-          <div style={{ display: 'flex', width: OG_FIG.width, height: OG_FIG.height, borderTop: `1px solid ${OG.rule}`, paddingTop: 16 }}>
-            {figure}
-          </div>
+          {below ? (
+            <div style={{ display: 'flex', fontSize: 28, color: OG.text, marginTop: 22, maxWidth: SAFE.w, lineHeight: 1.3 }}>{below}</div>
+          ) : null}
+          <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 22, color: OG.glow, marginTop: 30 }}>{host}</div>
         </div>
       </div>
     ),
@@ -102,50 +152,14 @@ export async function paperCard({
   )
 }
 
-/** A paper's miniature figure as a plain SVG for the card (no vector-effect:
- *  the rasteriser does not support it, so strokes are sized for the box). */
-export function ogThumb(slug: string): ReactNode {
-  const t = thumbFor(slug)
-  if (!t) return null
-  const sx = OG_FIG.width / TW
-  return (
-    <svg width={OG_FIG.width} height={Math.round(OG_FIG.width * (TH / TW))} viewBox={`0 0 ${TW} ${TH}`}>
-      {t.context.map((d, i) => (
-        <path key={`c${i}`} d={d} fill="none" stroke={OG.rule} strokeWidth={2 / sx} />
-      ))}
-      {t.quiet?.map(([x, y, w, h], i) => <rect key={`q${i}`} x={x} y={y} width={w} height={h} fill={OG.wash} />)}
-      {t.bars?.map(([x, y, w, h], i) => <rect key={`b${i}`} x={x} y={y} width={w} height={h} fill={OG.indigo} />)}
-      {t.claim.map((d, i) => (
-        <path key={`p${i}`} d={d} fill="none" stroke={OG.indigo} strokeWidth={3 / sx} />
-      ))}
-    </svg>
-  )
+/** A card for a page that is not a paper: its own title over the art given. */
+export async function paperCard({ kicker, title, art }: { kicker: string; title: string; art: ReactNode }) {
+  return shareCard({ above: `${PERSON.name} · ${kicker}`, title, art })
 }
 
-/**
- * A figure box that is a register rather than a chart: for pages whose figure
- * is a list (the CV's roles, AdConfirm's adapters, nucarbon's constants). The
- * rows are the page's own data, so the card still shows the thing itself.
- */
-export function ogRegister(rows: readonly (readonly [string, string, boolean?])[], fontSize = 21): ReactNode {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: OG_FIG.width, fontFamily: 'Source Code Pro', fontSize }}>
-      {rows.map(([k, v, claim]) => (
-        <div
-          key={k}
-          style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '9px 0', borderBottom: `1px solid ${OG.rule}` }}
-        >
-          <span style={{ color: claim ? OG.indigo : OG.ink }}>{k}</span>
-          <span style={{ color: OG.graphite, flexShrink: 0 }}>{v}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** The whole card for a paper, from its contents entry. */
-export async function paperOg(slug: string, kicker: string) {
+/** The whole card for a paper, from its contents entry: its title over its own figure. */
+export async function paperOg(slug: string) {
   const { papers } = await import('@/content/papers')
   const p = papers.find((x) => x.slug === slug)!
-  return paperCard({ kicker, title: p.title, byline: p.byline, figure: ogThumb(slug) })
+  return shareCard({ above: `${PERSON.name} · working paper`, title: p.title, titleSize: p.title.length > 48 ? 46 : 54, art: ogThumb(slug) })
 }

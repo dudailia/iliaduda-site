@@ -6,5 +6,5 @@ export const size = OG_SIZE
 export const contentType = 'image/png'
 
 export default function Image() {
-  return paperOg('iv-surface', 'Fig. 1 · implied volatility · synthetic SSVI')
+  return paperOg('iv-surface')
 }

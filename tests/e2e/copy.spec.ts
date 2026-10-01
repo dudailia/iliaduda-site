@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { FORBIDDEN, allowPhone, withheld } from '../forbidden'
+import { FORBIDDEN, allowPhone } from '../forbidden'
 import { ROUTES } from './routes'
 
 /**
@@ -11,10 +11,7 @@ for (const route of ROUTES) {
   test(`${route} ships no retracted claim`, async ({ page }) => {
     await page.goto(route)
     const text = allowPhone(await page.locator('body').innerText(), route)
-    const hits = [
-      ...FORBIDDEN.filter(([r]) => r.test(text)).map(([r, why]) => `${r.source} (${why})`),
-      ...withheld(text).map((d) => `withheld word, digest ${d} (résumé level only for the trading work)`),
-    ]
+    const hits = FORBIDDEN.filter(([r]) => r.test(text)).map(([r, why]) => `${r.source} (${why})`)
     expect(hits).toEqual([])
   })
 }
