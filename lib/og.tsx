@@ -138,8 +138,26 @@ export async function shareCard({
           }}
         >
           <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 22, color: OG.muted }}>{above}</div>
-          <div style={{ display: 'flex', fontSize: titleSize, lineHeight: 1.12, letterSpacing: '-0.015em', marginTop: 22, maxWidth: SAFE.w }}>
-            {title}
+          {/* Word by word, so a line breaks only at a space: the renderer would break after the en dash of
+              "Fourier–Bessel", and the browser does not. */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              columnGap: '0.25em',
+              fontSize: titleSize,
+              lineHeight: 1.12,
+              letterSpacing: '-0.015em',
+              marginTop: 22,
+              maxWidth: SAFE.w,
+            }}
+          >
+            {title.split(' ').map((w, i) => (
+              <div key={i} style={{ display: 'flex' }}>
+                {w}
+              </div>
+            ))}
           </div>
           {below ? (
             <div style={{ display: 'flex', fontSize: 28, color: OG.text, marginTop: 22, maxWidth: SAFE.w, lineHeight: 1.3 }}>{below}</div>
@@ -161,5 +179,7 @@ export async function paperCard({ kicker, title, art }: { kicker: string; title:
 export async function paperOg(slug: string) {
   const { papers } = await import('@/content/papers')
   const p = papers.find((x) => x.slug === slug)!
-  return shareCard({ above: `${PERSON.name} · working paper`, title: p.title, titleSize: p.title.length > 48 ? 46 : 54, art: ogThumb(slug) })
+  // Coursework is named as coursework, on the card as on the page.
+  const kind = p.byline.startsWith('Directed study') ? 'directed study' : 'working paper'
+  return shareCard({ above: `${PERSON.name} · ${kind}`, title: p.title, titleSize: p.title.length > 48 ? 46 : 54, art: ogThumb(slug) })
 }

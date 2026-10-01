@@ -328,7 +328,8 @@
 
   /* A figure that arrived by the morph is finished from the morph's first frame: its poster does not fade in under it. */
   :root[data-vt-arrival] [data-fill],
-  :root[data-vt-arrival] [data-iv-poster] {
+  :root[data-vt-arrival] [data-iv-poster],
+  :root[data-vt-arrival] [data-membrane-poster] svg {
     transition: none;
   }
 
@@ -436,8 +437,17 @@
 :root[data-surface-seq] .iv-fig [data-fill] {
   opacity: 0;
 }
-/* Its live controls arrive as the others' do: rising 4px into place, 40ms apart, into the room kept for them. */
-[data-surface-controls] [data-live-buttons] > button {
+/* The drum's poster: on a first visit the stage is empty paper, and the drum rises out of it on the canvas; if the live
+   drum declines, the finished drawing fades in on the site's ease-out. */
+[data-membrane-poster] svg {
+  transition: opacity 240ms var(--ease-out);
+}
+:root[data-membrane-seq] [data-membrane-poster] svg {
+  opacity: 0;
+}
+/* Its live controls arrive as the others' do: rising 4px into place, 40ms apart, into the room kept for them (the
+   drum's too). */
+:is([data-surface-controls], [data-membrane-controls]) [data-live-buttons] > button {
   transition:
     border-color 150ms var(--ease-out),
     scale 150ms var(--ease-out),
@@ -448,7 +458,7 @@
     translate: 0 4px;
   }
 }
-[data-surface-controls] [data-live-buttons] > button:nth-child(2) {
+:is([data-surface-controls], [data-membrane-controls]) [data-live-buttons] > button:nth-child(2) {
   --arrive: 40ms;
 }
 
@@ -636,7 +646,7 @@
 }
 /* The keyboard's focus arrives at once (keyboard actions never animate, components/stage/controls.ts): only the
    border's fade is cut; the press and the arrival keep theirs. In each rule's own property order. */
-:is([data-surface-controls] [data-live-buttons], [data-orderbook-controls], [data-orderflow-controls], [data-market-controls], [data-futures-controls]) > button:focus-visible {
+:is([data-surface-controls] [data-live-buttons], [data-membrane-controls] [data-live-buttons], [data-orderbook-controls], [data-orderflow-controls], [data-market-controls], [data-futures-controls]) > button:focus-visible {
   transition-duration: 0ms, 150ms, 240ms, 240ms;
 }
 [data-futures-controls] > button[data-reset]:focus-visible {
@@ -908,7 +918,8 @@
   [data-futures-poster] ~ *,
   [data-orderbook-poster] ~ *,
   [data-orderflow-still] ~ canvas,
-  [data-surface-poster] ~ * {
+  [data-surface-poster] ~ *,
+  [data-membrane-poster] ~ * {
     display: none !important;
   }
   [data-market-stage] [data-market-still],
@@ -916,12 +927,14 @@
   [data-orderbook-poster],
   [data-orderflow-still],
   [data-surface-poster],
+  [data-membrane-poster],
+  [data-membrane-poster] svg,
   :is([data-futures-poster], [data-orderbook-poster], [data-surface-poster]) :is([data-fill], [data-iv-poster]) {
     visibility: visible !important;
     opacity: 1 !important;
   }
   /* Controls and the hints that say how to use them do nothing on paper. */
-  :is([data-futures-controls], [data-orderbook-controls], [data-orderflow-controls], [data-surface-controls]) {
+  :is([data-futures-controls], [data-orderbook-controls], [data-orderflow-controls], [data-surface-controls], [data-membrane-controls]) {
     display: none !important;
   }
   /* A figure's views are not cut across two sheets: each prints whole on one (/market's surface, then its book and futures

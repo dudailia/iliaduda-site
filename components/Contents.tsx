@@ -4,6 +4,7 @@ import { SITE } from '@/lib/site'
 import { Items, Row } from './Layout'
 import { PaperThumb } from './PaperThumb'
 import { ContentsLive } from './thumbs/ContentsLive'
+import { keepCompounds } from '@/components/keep'
 
 /**
  * The issue's table of contents. Deliberately a typeset list separated by
@@ -57,7 +58,7 @@ export function Contents() {
             >
               <h3 className="text-h3 min-w-0 [grid-area:title]">
                 <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
-                  {p.title}
+                  {keepCompounds(p.title)}
                 </a>
               </h3>
               <p className="text-meta mt-1.5 min-w-0 font-mono text-graphite [grid-area:byline]">

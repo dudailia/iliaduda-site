@@ -4,6 +4,7 @@ const CURRENT = `document.currentScript.closest('footer').querySelectorAll('nav 
 import { AVAILABILITY, SITE } from '@/lib/site'
 import { Row, Shell } from './Layout'
 import { ContactLinks } from './Masthead'
+import { keepCompounds } from '@/components/keep'
 
 /**
  * Every page ends on the ask, not on a colophon: the end of a visit is the
@@ -31,7 +32,7 @@ export function Footer() {
               {papers.map((p) => (
                 <li key={p.href}>
                   <a href={p.href} className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
-                    {p.title}
+                    {keepCompounds(p.title)}
                   </a>
                 </li>
               ))}
