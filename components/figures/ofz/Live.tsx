@@ -231,7 +231,7 @@ export function OfzLive({
                   }}
                   aria-pressed={at === m.index}
                   // A hairline box: without it the decision days read as axis labels, not as something to press.
-                  className={`absolute ${align} rounded-sm border px-1 py-1 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out ${
+                  className={`absolute ${align} rounded-sm border px-1 py-1 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
                     at === m.index ? 'border-ink text-ink forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink'
                   }`}
                   style={{ left: end ? `${f * 100}%` : `calc(8px + (100% - 16px) * ${f})` }}

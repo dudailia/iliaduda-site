@@ -55,6 +55,12 @@ export interface Renderer {
   setPalette?(p: Palette): void
   /** The display's refresh interval as the governor has learned it, in seconds (1/60, 1/120, 1/30 in Low Power Mode). */
   refresh?(interval: number): void
+  /**
+   * The last frame moved only by itself, at rest: its drift or its stream, no story, flight, drag, spring or input. On a
+   * 120 Hz display the kit then draws every other frame, as smooth to the eye at half the heat; any of those brings
+   * every frame back.
+   */
+  calm?(): boolean
   dispose(): void
 }
 
@@ -173,9 +179,20 @@ export function useStage(
       if (changed && first && t0) renderer.frame((last - t0) / 1000, 0)
     }
 
+    let skip = false
+    let calmFor = 0
     const tick = (now: number) => {
       raf = 0
       if (!renderer || !visible || document.hidden) return
+      // Calm on a 120 Hz display, a dozen drawn frames running: every other frame (see Renderer.calm). Any input ends
+      // it on the next frame; the run keeps a figure that is calm only now and then from alternating 8 and 16ms frames.
+      calmFor = renderer.calm?.() ? calmFor + 1 : 0
+      const halve = gov.refresh < 12 && calmFor > 12
+      skip = halve && !skip
+      if (skip) {
+        raf = requestAnimationFrame(tick)
+        return
+      }
       if (!t0) t0 = now
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60
       last = now
@@ -195,7 +212,8 @@ export function useStage(
       // The governor (lib/stage/governor.ts), against this display's own refresh, which it learns: 120 Hz, 60 Hz, or a
       // 30 Hz clock (Low Power Mode) that no lighter quality would speed up. The renderer is told the refresh too, so
       // its own pacing (the home figure's pricing) judges its frames by the same clock.
-      if (gov.frame(dt, now, !!hold.current?.())) {
+      // Halved, a frame spans two of the display's: the governor judges each against the display's own interval.
+      if (gov.frame(halve ? dt / 2 : dt, now, !!hold.current?.())) {
         q = gov.q
         renderer.setQuality?.(q)
         size()

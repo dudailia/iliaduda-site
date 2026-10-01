@@ -45,6 +45,8 @@ export interface Sim {
 
 export interface Hooks {
   sim: Sim
+  /** The kit may draw every other frame at rest on a 120 Hz display: only where no other view draws in step with this. */
+  halveAtRest?: boolean
   /** Which framing the stage shows (a phone's, or the wide one): its camera, and its labels. */
   frame(): FrameKind
   /** The signature's phases while it waits or plays; null once it is over, or on a visit without one. */
@@ -457,8 +459,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   let flash = 0
   const reads = () => hooks.reading?.() ?? true
   let lastZoom = 1
+  let calmNow = false
 
   return {
+    calm: () => calmNow,
     frame(_t, dt) {
       if (!linked) {
         if (!progs.every((p) => p.ready())) return false
@@ -566,6 +570,19 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const story = ph ? ph.lines + ph.rise + ph.labels + ph.shock + ph.relax : -1
       const storyMoved = story !== lastStory
       lastStory = story
+      // At rest: only the drift moving, no story, drag, lowering, spring, lean, shock, reading or flash.
+      calmNow =
+        !!hooks.halveAtRest &&
+        !ph &&
+        !drag &&
+        sinking === null &&
+        Math.abs(spring.yaw - spring.ty) + Math.abs(spring.pitch - spring.tp) + Math.abs(spring.vy) + Math.abs(spring.vp) < 1e-4 &&
+        Math.abs(lean.vy) + Math.abs(lean.vp) < 1e-5 &&
+        Math.abs(shock.v) < 1e-5 &&
+        Math.abs(hooks.level() - shock.x) < 1e-4 &&
+        !sim.hover &&
+        !hooks.pinned() &&
+        flash <= 0
       if (drawnOnce && paused && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return 'idle'
       sim.dirty = false
       resized = false

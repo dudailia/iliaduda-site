@@ -1060,7 +1060,8 @@ export function MarketLive({
           {line ? (
             <span
               key={line}
-              className={`inline-block transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none ${going && live ? 'blur-[3px]' : ''}`}
+              // The shock's words cut in with the shock, in its frame (DESIGN.md); the others arrive through the 3px blur.
+              className={`inline-block transition-[filter] duration-[120ms] ease-out motion-reduce:transition-none ${line === 'shock' ? '' : 'starting:blur-[3px]'} ${going && live ? 'blur-[3px]' : ''}`}
             >
               <span className="font-semibold">{STORY[line].name}.</span> <span className="hidden sm:inline">{STORY[line].text}</span>
               <span className="sm:hidden">{STORY[line].short}</span>

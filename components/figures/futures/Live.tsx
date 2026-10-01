@@ -316,6 +316,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           interval = s
           real?.refresh?.(s)
         },
+        calm: () => !!real?.calm?.(),
         dispose: () => {
           gone = true
           window.clearTimeout(slow)

@@ -234,6 +234,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
             shown: () => shownAmplitude(seq.current),
             playing: () => !!sigApi.current?.armed.current && seq.current.started && !seq.current.done,
+            // The paper's own surface, alone on its stage: at rest the kit may halve its rate on a 120 Hz display.
+            halveAtRest: true,
             tick: (dtMs) => {
               seq.current.advance(dtMs)
               sigApi.current?.onFrame()
@@ -281,6 +283,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           q = level
           inner?.setQuality?.(level)
         },
+        calm: () => !!inner?.calm?.(),
         setPalette(p) {
           pal = p
           inner?.setPalette?.(p)

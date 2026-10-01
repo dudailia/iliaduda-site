@@ -1143,7 +1143,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     return next
   }
 
+  let calmNow = false
   const r: FuturesRenderer = {
+    calm: () => calmNow,
     frame(t, dt) {
       if (!ready) {
         if (!programs.every((p) => p.ready())) return false
@@ -1248,6 +1250,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       if (!arrived(morph, morphTarget, 1e-5)) why.push('morph')
       drawnFor = why
       const still = why.length === 0
+      // At rest, only the stream and the drift moving, the lean settled: the kit may draw every other frame at 120 Hz.
+      calmNow = cam === 'rest' && why.every((w) => w === 'moving') && Math.abs(par.x.v) + Math.abs(par.y.v) < 1e-4
       if (!still) {
         vp = viewProjection(pose, aspect)
         const ink = writeSlots()
@@ -1282,7 +1286,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         }
         dirty = placeLabels(dt) || histSwapAt >= 0
         o.labels.dataset.draws = String(++draws)
-        o.labels.dataset.camera = cam
+        if (o.labels.dataset.camera !== cam) o.labels.dataset.camera = cam
       }
       // Waiting for its reader, the figure prices one batch, which builds and warms everything pricing uses (so the
       // burst does not stall on it), then holds until the sequence restarts the run from nothing. Paused, it holds
