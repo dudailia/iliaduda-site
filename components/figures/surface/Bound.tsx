@@ -69,7 +69,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
             { label: 'η(1 + |ρ|)', value: `${(eta * (1 + Math.abs(P.rho))).toFixed(2)} ${sufficient ? '≤' : '>'} 2` },
             { label: 'Sufficient condition', value: sufficient ? 'holds' : 'no longer guarantees' },
             // Over the drawn window of k: with no dip, the lowest is at its edge, and g falls further out.
-            { label: 'Lowest g drawn', value: `${minus(minG.toFixed(3))} at k = ${minus(at.toFixed(2))}` },
+            { label: 'Lowest g drawn', value: `${minus(minG.toFixed(3))} at k\u00a0=\u00a0${minus(at.toFixed(2))}` },
             { label: 'Butterfly arbitrage', value: arbitrage ? 'present' : 'none' },
           ]}
         />

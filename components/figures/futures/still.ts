@@ -1,6 +1,7 @@
 import { cssColor } from '@/components/stage/env'
 import { BAR_D, ZWALL, project, restPose, viewProjection, type M4, type V3 } from '@/lib/futures/camera'
 import { HIST, MODEL, binWidth, lane, path } from '@/lib/futures/mc'
+import { histLift } from '@/lib/futures/histLift'
 import { AXIS, HLEN, HX0, LABELS, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
 import { LABEL } from './Poster'
 
@@ -121,7 +122,14 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
 
   // The futures, a slice at a time. Ink absorbs by day; light adds by night.
   const n = stillCount(cssW)
-  const pays = css(pal.indigo), not = css(pal.graphite)
+  // Each stroke fades toward the stage's top, as the live figure's do: a high volatility's upper tail runs past it.
+  const topFade = (c: RGB) => {
+    const gr = g.createLinearGradient(0, 0, 0, 0.1 * H)
+    gr.addColorStop(0, css(c, 0))
+    gr.addColorStop(1, css(c, 1))
+    return gr
+  }
+  const pays = topFade(pal.indigo), not = topFade(pal.graphite)
   g.globalCompositeOperation = dark ? 'lighter' : 'multiply'
   g.lineJoin = 'round'
   g.lineCap = 'round'
@@ -242,6 +250,19 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     }
     const layout = () => {
       const sizes = placed.map(({ el }) => [el.offsetWidth, el.offsetHeight] as const)
+      // The histogram's name and price, the last two placed, rise clear of any bar grown under them, as the live ones do.
+      const [hw, hh] = sizes[placed.length - 2]!, [vw, vh] = sizes[placed.length - 1]!
+      const toCss = (x: number, y: number, z: number) => {
+        const [sx, sy] = project(vp, x, y, z)
+        return [((sx + 1) / 2) * cssW, ((1 - sy) / 2) * cssH] as const
+      }
+      const lift = histLift(toCss, (b) => (input.payoff[b]! / maxPay < minLen ? 0 : input.payoff[b]! / maxPay), Math.max(hw, vw), hh + vh)
+      if (lift > 0)
+        for (const p of placed.slice(-2)) {
+          const [sx, sy] = project(vp, LABELS.hist.at[0], LABELS.hist.at[1] + lift, 0)
+          p.sx = sx
+          p.sy = sy
+        }
       placed.forEach(({ el, cls, sx, sy }, i) => {
         const [ew, eh] = sizes[i]!
         const side = cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0

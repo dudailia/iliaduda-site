@@ -181,9 +181,13 @@ export function useStage(
 
     let skip = false
     let calmFor = 0
+    // Leaving the page, the loop stops: the way back to the Contents takes the old page's picture after pageswap, and
+    // a live canvas drawing on into it was caught blank about half the time (a paused one, drawing nothing, never was).
+    // A page the back-forward cache restores runs again.
+    let gone = false
     const tick = (now: number) => {
       raf = 0
-      if (!renderer || !visible || document.hidden) return
+      if (!renderer || !visible || document.hidden || gone) return
       // Calm on a 120 Hz display, a dozen drawn frames running: every other frame (see Renderer.calm). Any input ends
       // it on the next frame; the run keeps a figure that is calm only now and then from alternating 8 and 16ms frames.
       calmFor = renderer.calm?.() ? calmFor + 1 : 0
@@ -234,7 +238,7 @@ export function useStage(
     }
 
     const run = () => {
-      if (!raf && renderer && visible && !document.hidden) {
+      if (!raf && renderer && visible && !document.hidden && !gone) {
         last = 0
         raf = requestAnimationFrame(tick)
       }
@@ -296,6 +300,18 @@ export function useStage(
     ro.observe(cv)
     const onVis = () => run()
     document.addEventListener('visibilitychange', onVis)
+    const onSwap = () => {
+      gone = true
+      cancelAnimationFrame(raf)
+      raf = 0
+    }
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return
+      gone = false
+      run()
+    }
+    addEventListener('pageswap', onSwap)
+    addEventListener('pageshow', onShow)
     const onLost = (e: Event) => {
       e.preventDefault()
       cancelAnimationFrame(raf)
@@ -329,6 +345,8 @@ export function useStage(
       io.disconnect()
       ro.disconnect()
       document.removeEventListener('visibilitychange', onVis)
+      removeEventListener('pageswap', onSwap)
+      removeEventListener('pageshow', onShow)
       cv.removeEventListener('webglcontextlost', onLost)
       cv.removeEventListener('webglcontextrestored', onRestored)
       renderer?.dispose()

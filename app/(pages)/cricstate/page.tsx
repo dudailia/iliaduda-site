@@ -86,7 +86,7 @@ export default function Cricstate() {
             against {fact('crT2Base').value.toFixed(3)} for the base rate — {Math.round(fact('crT2Skill').value)}%
             lower, over {n('crT2TestMatches')} held-out matches. On the far harder next-ball task,
             eleven outcome classes, it is {fact('crStateGain').value}% better than the baseline.
-            Fig. 1 is that model, unchanged, scoring a match from the test period.
+            Fig.{'\u00a0'}1 is that model, unchanged, scoring a match from the test period.
           </p>
         </Section>
 

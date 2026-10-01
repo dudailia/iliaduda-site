@@ -235,6 +235,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
             shown: () => shownAmplitude(seq.current),
             playing: () => !!sigApi.current?.armed.current && seq.current.started && !seq.current.done,
+            waiting: () => !!sigApi.current?.armed.current && !seq.current.started,
             // The paper's own surface, alone on its stage: at rest the kit may halve its rate on a 120 Hz display.
             halveAtRest: true,
             tick: (dtMs) => {

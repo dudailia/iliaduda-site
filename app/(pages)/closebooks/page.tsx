@@ -50,7 +50,7 @@ export default function CloseBooks() {
             fails outright flags only its own rows and the run moves on.
           </p>
           <p>
-            What comes back is treated as evidence, not an answer. The rules in Fig. 1 are the
+            What comes back is treated as evidence, not an answer. The rules in Fig.{'\u00a0'}1 are the
             product&rsquo;s: confidence comes down for small amounts and uninformative
             descriptions; the suggested account is resolved against the client&rsquo;s chart by
             code and then by name, and the category written is always the chart&rsquo;s own, never

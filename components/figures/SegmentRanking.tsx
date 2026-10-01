@@ -115,6 +115,8 @@ export function SegmentRanking() {
         subtitle: `composite score 0–100 · ${value('siMassSegments')} mass segments · growth ${w('siWeightGrowth')} · CAGR ${w('siWeightCagr')} · funding ${w('siWeightFunding')} · companies ${w('siWeightCompanies')}`,
         caption: CAPTION(rho.b),
         table: TABLE,
+        // Fifteen rows are taller than what a sheet has left under the abstract: on paper the list breaks between rows.
+        breakable: true,
       }}
     />
   )

@@ -33,6 +33,8 @@ export function ContactLinks({ className = '' }: { className?: string }) {
               meta size without moving a single glyph. */}
           <a href={l.href} className="inline-block max-w-full min-w-6 py-2 text-center leading-5 [overflow-wrap:anywhere]">
             {l.label}
+            {/* On paper a profile link says where it goes, as the site's own links do. */}
+            {l.href.startsWith('http') ? <span className="hidden text-graphite print:inline"> ({l.href.replace(/^https?:\/\/(www\.)?/, '')})</span> : null}
           </a>
         </li>
       ))}

@@ -75,6 +75,9 @@ export function setNoteRise(el: HTMLElement, dy: number, align: string) {
     words.style.top = '0px'
     const a = dy > 0 ? NOTE_ALIGN[align]!.replace('-100%)', '0)') : NOTE_ALIGN[align]!
     words.style.transform = `translate3d(0, ${dy.toFixed(1)}px, 0) ${a}`
+    // Below its point the words lie on the sheet: no paper plate there, which laid a band across the very lift a shock
+    // had raised; a paper halo keeps them legible on it.
+    words.toggleAttribute('data-below', dy > 0)
   }
   lead?.setAttribute('y2', String(dy))
 }
@@ -117,7 +120,7 @@ export function NoteMark({
       </svg>
       <span
         data-note-words=""
-        className="absolute block w-max max-w-[12rem] rounded-sm bg-paper/90 px-1.5 py-0.5 text-note leading-snug text-ink sm:max-w-[16rem]"
+        className="absolute block w-max max-w-[12rem] rounded-sm bg-paper/90 px-1.5 py-1 text-note leading-snug text-ink data-[below]:bg-transparent data-[below]:[text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper),0_0_6px_var(--color-paper)] sm:max-w-[16rem]"
         style={{ left: dx, top: dy, transform: NOTE_ALIGN[align] }}
       >
         <span className="font-semibold">{lead}:</span> {text}

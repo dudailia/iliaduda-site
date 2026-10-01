@@ -455,9 +455,10 @@ export function SettlementLive({
           <div className="mt-3 grid gap-2">
             {WINDOWS.map((w) => {
               const n = used(allowance, now, w.ms)
-              // The count beside its squares, not at the far end of the row.
+              // The count beside its squares, not at the far end of the row. On a phone the label and count columns are
+              // as wide as "24 hours" and "16/16", so the thirty-day row fits a 312px column.
               return (
-                <div key={w.key} className="grid grid-cols-[5.5rem_auto_3rem] items-center justify-start gap-3">
+                <div key={w.key} className="grid grid-cols-[4.25rem_auto_2.5rem] items-center sm:grid-cols-[5.5rem_auto_3rem] justify-start gap-3">
                   <span className="text-meta font-mono text-graphite">{w.label}</span>
                   {/* One row at any width: on a phone the thirty-day meter's sixteen boxes are a little smaller. */}
                   <span className="flex gap-0.5 sm:flex-wrap sm:gap-1" aria-hidden>

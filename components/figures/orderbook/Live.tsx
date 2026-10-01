@@ -98,7 +98,7 @@ export function OrderBookLive({
   const putStats = useCallback(
     (s: Pick<Stats, 'rate' | 'trades' | 'shares' | 'mid' | 'spread'>) => {
       statsAt.current = performance.now()
-      write('rate', `${s.rate.toFixed(1)} a second`)
+      write('rate', `${s.rate.toFixed(1)}\u00a0a\u00a0second`)
       write('mid', fmt.mid(s.mid))
       write('spread', fmt.spread(s.spread))
       write('trades', `${s.trades} · ${fmt.shares(s.shares)}`)
@@ -554,7 +554,7 @@ export function OrderBookLive({
             lean.onTap()
             onStillPick(e)
           }}
-          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)]"
+          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)] print:h-[26rem]"
         >
           <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
@@ -640,9 +640,9 @@ function Readouts({ initial, set, suffix = '', across = false }: { initial: Init
   const rows: [string, string, string][] = [
     ['mid', 'Mid', fmt.mid(initial.mid)],
     ['spread', 'Spread', fmt.spread(initial.spread)],
-    ['trades', 'Trades, 10 s', `${initial.trades} · ${fmt.shares(initial.shares)}`],
-    ['rate', 'Events, 10 s', `${initial.rate.toFixed(1)} a second`],
-    ['expected', 'Stationary rate', `${initial.expected.toFixed(1)} a second`],
+    ['trades', 'Trades, 10\u00a0s', `${initial.trades} · ${fmt.shares(initial.shares)}`],
+    ['rate', 'Events, 10\u00a0s', `${initial.rate.toFixed(1)}\u00a0a\u00a0second`],
+    ['expected', 'Stationary rate', `${initial.expected.toFixed(1)}\u00a0a\u00a0second`],
     ['rho', 'Branching ratio', initial.rho.toFixed(2)],
   ]
   return (

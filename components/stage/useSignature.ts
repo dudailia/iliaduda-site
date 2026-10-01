@@ -101,11 +101,16 @@ export function useSignature<P extends string>(name: string, box: RefObject<HTML
       } catch {}
     const next: SignatureState = s.done ? 'done' : 'playing'
     if (next !== stateRef.current) {
-      set(next)
+      // Known at once; drawn into React on the next task, so the re-render it brings (rail, labels) never shares the
+      // drawing frame: each hand-over cost that frame 18–24ms.
+      stateRef.current = next
+      setTimeout(() => {
+        if (stateRef.current === next) setState(next)
+      }, 0)
       // The story is over: the mark that hid the poster for it goes, so a still frame later (a lost context) shows.
       if (next === 'done') delete document.documentElement.dataset[`${name}Seq`]
     }
-  }, [name, seq, set])
+  }, [name, seq])
 
   /** The figure will not go live here: show the finished picture. */
   const release = useCallback(() => {

@@ -53,7 +53,7 @@ export function RankingLive({
   variants: readonly { key: Variant; label: string; note: string }[]
   rho: Record<Variant, number>
   description: string
-  frame: { id: string; number: string; vt: string; title: string; subtitle: string; caption: ReactNode; table: ReactNode }
+  frame: { id: string; number: string; vt: string; title: string; subtitle: string; caption: ReactNode; table: ReactNode; breakable?: boolean }
 }) {
   const [v, setV] = useState<Variant>('a')
   const reduced = useReducedMotion()

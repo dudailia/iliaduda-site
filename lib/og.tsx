@@ -138,9 +138,10 @@ export async function shareCard({
           }}
         >
           <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 22, color: OG.muted }}>{above}</div>
-          {/* 20px inside the square on each side, so no line of the title reaches the safe zone's edge. */}
+          {/* 20px inside the square on each side, so no line of the title reaches the safe zone's edge. A compound keeps
+              its hyphen with both halves (U+2011, which the serif carries): "multi-" never ends a line. */}
           <div style={{ display: 'flex', fontSize: titleSize, lineHeight: 1.12, letterSpacing: '-0.015em', marginTop: 22, maxWidth: SAFE.w - 40, textWrap: 'balance' }}>
-            {title}
+            {title.replace(/(?<=\p{L})-(?=\p{L})/gu, '\u2011')}
           </div>
           {below ? (
             <div style={{ display: 'flex', fontSize: 28, color: OG.text, marginTop: 22, maxWidth: SAFE.w, lineHeight: 1.3 }}>{below}</div>

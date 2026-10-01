@@ -88,7 +88,7 @@ export default function IvSurface() {
             SSVI makes both checkable in closed form. θ(T) here is strictly increasing, which
             settles the calendar condition at the money, and with γ = ½ the inequality η(1 + |ρ|)
             ≤ 2 is sufficient for no butterfly arbitrage at any strike. For the calm parameters it is{' '}
-            {(eta * (1 + Math.abs(rho))).toFixed(2)}. The shock in Fig. 1 steepens ρ, so η is capped as it does: the
+            {(eta * (1 + Math.abs(rho))).toFixed(2)}. The shock in Fig.{'\u00a0'}1 steepens ρ, so η is capped as it does: the
             product never passes {ETA_CAP.toFixed(2)}, and every frame of the shock is checked directly.
           </p>
         </Section>

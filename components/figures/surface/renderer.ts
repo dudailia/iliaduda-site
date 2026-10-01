@@ -53,6 +53,8 @@ export interface Hooks {
   sequence(): { lines: number; rise: number; labels: number; shock: number; relax: number } | null
   /** The story has started and is not over: every frame of it is drawn, paused or not. */
   playing(): boolean
+  /** The story is armed and waits to be seen: the stage is paper until it starts, so a frame need not be redrawn. */
+  waiting?(): boolean
   /** The shock the signature shows now: its own, or, while a reader's skip plays, draining from where it stood. */
   shown(): number
   /** A drawn frame took this long: the signature's clock moves on it. */
@@ -574,6 +576,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       calmNow =
         !!hooks.halveAtRest &&
         !ph &&
+        // Not through the sway's coast or ramp (Pause, Resume, a reading taken up or let go): drawn at every frame.
+        (swayK === 0 || swayK === 1) &&
         !drag &&
         sinking === null &&
         Math.abs(spring.yaw - spring.ty) + Math.abs(spring.pitch - spring.tp) + Math.abs(spring.vy) + Math.abs(spring.vp) < 1e-4 &&
@@ -584,6 +588,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         !hooks.pinned() &&
         flash <= 0
       if (drawnOnce && paused && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return 'idle'
+      // Waiting for the reader to bring the stage on screen, the paper on it is already drawn (a phone held a third of
+      // it in view for as long as it liked, at 120 frames a second).
+      if (drawnOnce && hooks.waiting?.() && !moving && !storyMoved && !sim.dirty && !resized) return 'idle'
       sim.dirty = false
       resized = false
 

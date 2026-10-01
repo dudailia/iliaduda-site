@@ -6,6 +6,7 @@ import { DENSITY_SCALE, densityFormat, glOverride, type Density } from '@/lib/fu
 import { Director, type CamMode } from '@/lib/futures/director'
 import { RNG } from '@/lib/futures/glsl'
 import { aggregate, binnedPrice } from '@/lib/futures/hist'
+import { histLift } from '@/lib/futures/histLift'
 import { GROUPS, HIST, MODEL, binWidth, stepCoefficients } from '@/lib/futures/mc'
 import { type Phases } from '@/lib/futures/sequence'
 import { Stream, burstSlot } from '@/lib/futures/stream'
@@ -189,6 +190,8 @@ void main() {
   // In among the futures (a flight), they fade out toward the stage's edges, so the frame never shows as a rectangle.
   vec2 ndc = abs(c.xy / depth);
   float edge = mix(1.0, smoothstep(1.0, 0.8, max(ndc.x, ndc.y)), uEdge);
+  // And always toward the stage's top: a high volatility carries the upper tail past it, which cut on a ruler line.
+  edge *= 1.0 - smoothstep(0.8, 1.0, c.y / depth);
   float w = clamp(uWidth * uRef / depth, 0.85, 2.6);
   float reach = past ? 0.0 : w * 0.5 + 1.0;
   c.xy += n * side * reach * 2.0 / uPx * c.w;
@@ -559,7 +562,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   const strikeEl = label('', LABELS.strike.cls, () => [LABELS.strike.label, wy(kv.x), zEdge()], () => 1)
   // One label for the histogram. Its words change halfway through the morph, through a 3px blur at full opacity (the
   // swap below), so one text never crossfades into another.
-  const histEl = label('Where the paths end', `${LABELS.hist.cls} text-ink`, () => [LABELS.hist.at[0], LABELS.hist.at[1], 0], () => labelU * landing(), true)
+  /** How far the histogram's words have risen clear of bars grown under them (lib/futures/histLift.ts), world y. */
+  let histUp = 0
+  const histEl = label('Where the paths end', `${LABELS.hist.cls} text-ink`, () => [LABELS.hist.at[0], LABELS.hist.at[1] + histUp, 0], () => labelU * landing(), true)
   let histText = 0
   // The words the histogram is to say, and when their swap began (seconds on the clock; −1: none under way).
   let histWant = 0
@@ -573,7 +578,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // The number is the live Monte Carlo estimate, not a restatement of the formula.
   // In the composed frame it stands under the strike line, where the payoff bars are empty; in depth, a point further
   // along the time axis rises on screen, so it moves under the strike's own name on the wall's edge, stacked.
-  const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.hist.at[0], LABELS.hist.at[1], 0], () =>
+  const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.hist.at[0], LABELS.hist.at[1] + histUp, 0], () =>
     est.n > 0 || held ? labelU * smooth(0.55, 1, morph.x) * (inSeq() ? EASE_OUT(clamp01(ph!.price / 0.24)) : 1) : 0,
     true,
   )
@@ -1077,6 +1082,26 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         l.h = l.el.offsetHeight
       }
     const follow = 1 - Math.exp(-dt / 0.06)
+    // The histogram's name and price rise clear of any drawn bar (two pixels and longer) grown under them, followed
+    // over the same 60ms.
+    const hl = labels.find((l) => l.el === histEl)!, vl = labels.find((l) => l.el === valueEl)!
+    let want = 0
+    if (barsReady && hl.w > 0) {
+      const toCss = (x: number, y: number, z: number) => {
+        const s = project(vp, x, y, z)
+        return [((s[0] + 1) / 2) * cssW, ((1 - s[1]) / 2) * cssH] as const
+      }
+      const pxPerLen = Math.abs(toCss(HX0 + HLEN, 0, 0)[0] - toCss(HX0, 0, 0)[0])
+      const minLen = 2 / Math.max(1, pxPerLen)
+      const m = morph.x, land = landing()
+      const len = (b: number) => {
+        const l = land * ((1 - m) * cLen[b]! + m * gLen[b]!)
+        return l < minLen ? 0 : l
+      }
+      want = histLift(toCss, len, Math.max(hl.w, vl.w), hl.h + Math.max(0, vl.h))
+    }
+    histUp = Math.abs(want - histUp) < 1e-4 ? want : histUp + (want - histUp) * follow
+    if (histUp !== want) following = true
     for (const l of labels) {
       const [x, y, z] = l.at()
       const s = project(vp, x, y, z)
@@ -1251,7 +1276,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       drawnFor = why
       const still = why.length === 0
       // At rest, only the stream and the drift moving, the lean settled: the kit may draw every other frame at 120 Hz.
-      calmNow = cam === 'rest' && why.every((w) => w === 'moving') && Math.abs(par.x.v) + Math.abs(par.y.v) < 1e-4
+      // Not through Pause's coast or Resume's ramp (timeK on its way): a control's answer is drawn at every frame.
+      calmNow = cam === 'rest' && (timeK === 0 || timeK === 1) && why.every((w) => w === 'moving') && Math.abs(par.x.v) + Math.abs(par.y.v) < 1e-4
       if (!still) {
         vp = viewProjection(pose, aspect)
         const ink = writeSlots()

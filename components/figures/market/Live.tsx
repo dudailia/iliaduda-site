@@ -1121,8 +1121,10 @@ export function MarketLive({
                 <div data-market-still="" style={underlay(live)}>{stillsOf('book')}</div>
                 <canvas ref={bookCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
                 <div data-market-words="" className="pointer-events-none absolute inset-0" style={fade(live)} aria-hidden="true">
+                  {/* On a phone the strip is 165px wide and three paper plates covered half its twenty seconds: there the
+                      prices are words with a paper halo, and the history reads through them. */}
                   {Array.from({ length: 6 }, (_, i) => (
-                    <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-1 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite" />
+                    <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-1 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite max-sm:bg-transparent max-sm:text-ink max-sm:[text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper),0_0_6px_var(--color-paper)]" />
                   ))}
                 </div>
                 {/* Over the words too, so the old market's prices fade with its picture and the new ones are revealed under it. */}

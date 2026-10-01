@@ -914,7 +914,8 @@
     display: none;
   }
   /* On paper a link says where it goes (the CV's sheet, a printed page of its own, keeps its links as they are). */
-  main a[href^='/']:not([href^='/#'], [data-vt-thumb])::after {
+  main a[href^='/']:not([href^='/#'], [data-vt-thumb])::after,
+  main a[data-print-href]::after {
     content: ' (' var(--print-origin, '') attr(href) ')';
     color: var(--color-graphite);
   }
@@ -982,9 +983,12 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* A heading or a label never ends a sheet without what it names; a label and its value print together. */
-  :is(h2, h3, dt) {
+  /* A heading never ends a sheet without what it names, nor splits across two; a label and its value print together
+     (by their row: a dt's own break-after:avoid inside a grid list held the home masthead's whole front matter off
+     page 1). */
+  :is(h2, h3) {
     break-after: avoid;
+    break-inside: avoid;
   }
   dl > div {
     break-inside: avoid;

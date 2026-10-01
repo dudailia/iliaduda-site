@@ -57,7 +57,7 @@ export default function Market() {
             Stress runs from 0 to 1 and combines four signals a trader watches, each 0 across the calm market&rsquo;s range and
             1 at its extreme: the intensity of market sells against its stationary rate (0 at {STRESS.pressureFrom} times it, 1
             at {STRESS.pressureTo}); realised volatility against a calm {(STRESS.sigma0 * 100).toFixed(1)}% (0 at{' '}
-            {STRESS.volFrom} times, 1 at {STRESS.volTo}); the spread (0 at {STRESS.spreadFrom} ticks, 1 at {STRESS.spreadTo});
+            {STRESS.volFrom} times, 1 at {STRESS.volTo}); the spread (0 at {STRESS.spreadFrom}{'\u00a0'}ticks, 1 at {STRESS.spreadTo});
             and the shares within three ticks of the touch on the book&rsquo;s thinner side (0 at {STRESS.touchFloor}, 1 at
             none). They combine as an &ldquo;or&rdquo;,
             <span className="my-3 block text-center whitespace-nowrap">s = 1 − (1 − p)(1 − a)(1 − b)(1 − c),</span>

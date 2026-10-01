@@ -402,7 +402,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         {/* Room kept for the longest reading, so choosing an order never moves the page below it. */}
         <dl
           id="fig-order-flow-reading"
-          className="text-meta grid min-h-[6.6rem] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh]"
+          className="text-meta grid min-h-[6.6rem] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh] print:hidden"
           aria-label="Reading"
         >
           <dt className="text-graphite">Order</dt>
@@ -439,17 +439,18 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
   )
 }
 
-const perSecond = (n: number) => `${n} · ${(n / SECONDS).toFixed(1)} a second`
+// No-break spaces: a phone's narrow value column never leaves "second" (or "s" in a label) on a line of its own.
+const perSecond = (n: number) => `${n} · ${(n / SECONDS).toFixed(1)}\u00a0a\u00a0second`
 
 /** The margin's readouts, written live from the drawing loop (the "-m" copy is the phone's, below the figure). */
 function Stats({ initial, set, suffix, across = false }: { initial: Initial; set: (id: string) => (el: HTMLElement | null) => void; suffix: string; across?: boolean }) {
   const rows = [
     // In the strips' own order, top to bottom: sells above buys.
-    { label: 'Market sells, 10 s', value: <span ref={set(`sells${suffix}`)}>{perSecond(initial.sells)}</span> },
-    { label: 'Market buys, 10 s', value: <span ref={set(`buys${suffix}`)}>{perSecond(initial.buys)}</span> },
-    { label: 'Market orders set off, 10 s', value: <span ref={set(`own${suffix}`)}>{fmt.pct(initial.setOff)}</span> },
+    { label: 'Market sells, 10\u00a0s', value: <span ref={set(`sells${suffix}`)}>{perSecond(initial.sells)}</span> },
+    { label: 'Market buys, 10\u00a0s', value: <span ref={set(`buys${suffix}`)}>{perSecond(initial.buys)}</span> },
+    { label: 'Market orders set off, 10\u00a0s', value: <span ref={set(`own${suffix}`)}>{fmt.pct(initial.setOff)}</span> },
     { label: 'In theory', value: fmt.pct(initial.theory) },
-    { label: 'Queues emptied, 10 s', value: <span ref={set(`emptied${suffix}`)}>{String(initial.emptied)}</span> },
+    { label: 'Queues emptied, 10\u00a0s', value: <span ref={set(`emptied${suffix}`)}>{String(initial.emptied)}</span> },
   ]
   return <Readouts rows={rows} across={across} />
 }
