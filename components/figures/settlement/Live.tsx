@@ -286,7 +286,7 @@ export function SettlementLive({
             <span
               aria-hidden
               className="text-meta absolute -translate-y-1/2 bg-paper px-0.5 font-mono text-graphite"
-              style={{ left: `calc(${px(1)}% + 0.75rem)`, top: `${py(maxPay)}%` }}
+              style={{ left: `calc(${px(1)}% + 0.5rem)`, top: `${py(maxPay)}%` }}
             >
               {all.length > 1 ? `${rub(maxPay)} in one payment` : `${rub(maxPay)} a month`}
             </span>
@@ -383,8 +383,9 @@ export function SettlementLive({
       caption={loginCaption}
       table={loginTable}
       rail={loginRail}
-      // On a phone its clock and the interaction state show under it: they are what +10 minutes and +1 day change.
-      railBelow
+      // On a phone its clock and the interaction state show under the meters (below): they are what +10 minutes and
+      // +1 day change, so they are read with the meters, before the note on calls.
+      railBelow={false}
       hint="Request a code, move the simulated clock, and request again: the meters show what each code spends"
     >
         <section aria-labelledby="st-b">
@@ -419,7 +420,7 @@ export function SettlementLive({
             >
               Reset
             </button>
-            <label className="text-meta ml-1 inline-flex min-h-9 items-center gap-2 py-1 font-mono text-ink">
+            <label className="text-meta ml-1 inline-flex min-h-9 cursor-pointer items-center gap-2 py-1 font-mono text-ink">
               <input
                 type="checkbox"
                 checked={allowance.refused}
@@ -428,7 +429,7 @@ export function SettlementLive({
                   const refused = e.currentTarget.checked
                   setAllowance((a) => ({ ...a, refused }))
                 }}
-                className="size-5 accent-[var(--color-ink)]"
+                className="size-5 cursor-pointer accent-[var(--color-ink)]"
               />
               Interaction refused (art. 8)
             </label>
@@ -458,7 +459,8 @@ export function SettlementLive({
               {said}
             </span>
           </p>
-          <p className="text-note mt-1 max-w-[36rem] text-graphite">{callCaps}</p>
+          <div className="mt-3 lg:hidden">{loginRail}</div>
+          <p className="text-note mt-3 max-w-[36rem] text-graphite lg:mt-1">{callCaps}</p>
         </section>
     </FigureFrame>
     </>

@@ -74,7 +74,7 @@ function Marks() {
         strokeDasharray="3 3"
       />
       <text
-        x={BYPASS - 4}
+        x={BYPASS - 8}
         y={136}
         textAnchor="end"
         className="font-mono"

@@ -323,7 +323,7 @@ export const LABELS: readonly Label[] = [
     ...(TALL_EXPIRIES.has(s) ? {} : { only: 'wide' as const }),
   })),
   { id: 'tt', text: 'expiry', at: [XW + 0.3, 0, ZW * 0.1], align: 'left', kind: 'title', only: 'wide' },
-  { id: 'tts', text: 'expiry', at: [XW + 0.12, 0, ZW + 0.3], align: 'left', kind: 'title', only: 'tall' },
+  { id: 'tts', text: 'expiry', at: [XW + 0.12, 0, ZW + 0.36], align: 'left', kind: 'title', only: 'tall' },
   ...VOL_TICKS.map((v): Label => ({
     id: `v${v}`, text: `${Math.round(v * 100)}%`, at: [POST[0] + 0.06, wy(v), POST[1]], align: 'left', kind: 'tick', only: 'wide',
   })),

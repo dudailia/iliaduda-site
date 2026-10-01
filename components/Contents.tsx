@@ -1,7 +1,7 @@
 import { otherWork, visiblePapers } from '@/content/papers'
 import { roles } from '@/content/experience'
 import { SITE } from '@/lib/site'
-import { Items, Row } from './Layout'
+import { Items, Row, Whole } from './Layout'
 import { PaperThumb } from './PaperThumb'
 import { ContentsLive } from './thumbs/ContentsLive'
 
@@ -57,7 +57,7 @@ export function Contents() {
             >
               <h3 className="text-h3 min-w-0 [grid-area:title]">
                 <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
-                  {p.title}
+                  <Whole text={p.title} />
                 </a>
               </h3>
               <p className="text-meta mt-1.5 min-w-0 font-mono text-graphite [grid-area:byline]">
@@ -112,7 +112,7 @@ export function ExperienceBrief() {
                 <Items items={[r.title, r.place, r.dates]} />
               </p>
               <p className="text-note mt-1.5 max-w-[38rem]">
-                {r.brief}
+                <Whole text={r.brief} />
                 {r.href ? (
                   <>
                     {' '}

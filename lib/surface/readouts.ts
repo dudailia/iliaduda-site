@@ -43,7 +43,7 @@ export function text(n: Numbers, c: Check): Text {
     premium: `+${(n.premium * 100).toFixed(1)} vol pts`,
     put: `${pct(n.put, 2)} of price`,
     arb: c.passes ? 'passes' : 'fails',
-    arbDetail: `min g ${c.minG.toFixed(3)}, on ${c.points.toLocaleString('en-US')} grid points`,
+    arbDetail: `min g ${c.minG.toFixed(3)}, on ${c.points.toLocaleString('en-US')} grid\u00a0points`,
   }
 }
 

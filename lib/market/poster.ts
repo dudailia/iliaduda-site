@@ -58,6 +58,8 @@ function root() {
   return `:root{${tokens(light)}}@media (prefers-color-scheme:dark){:root{${tokens(dark)}}}`
 }
 const r3 = (x: number) => Math.round(x * 1000) / 1000
+/** The book's own box is 240 × 73 units: a tenth of one is under any screen's pixel, and every digit ships. */
+const r1 = (x: number) => Math.round(x * 10) / 10
 
 /** The book's still frame: its window, centred on the price, with its price ticks as fractions of its height from the top. */
 export function bookFrame(moment: Moment = 'calm') {
@@ -102,13 +104,13 @@ export function bookSvg(moment: Moment = 'calm'): string {
   for (let a = 254; a >= 0; a--) {
     const r = f.row(a)
     if (r < 0) continue
-    pts.push(`${r3(x(f.times[r]!))},${r3(yv(f.mids[r]!))}`)
+    pts.push(`${r1(x(f.times[r]!))},${r1(yv(f.mids[r]!))}`)
   }
-  pts.push(`${COLS},${r3(yv(f.book.mid))}`)
+  pts.push(`${COLS},${r1(yv(f.book.mid))}`)
   // Every trade in the window, a dot that does not stretch with the image.
   const dots = f.trades
     .filter((tr) => tr.t >= now - 20)
-    .map((tr) => `M${r3(x(tr.t))} ${r3(yv(tr.price))}h0`)
+    .map((tr) => `M${r1(x(tr.t))} ${r1(yv(tr.price))}h0`)
     .join('')
   // The heat's image starts fifteen columns before the window (21.3 seconds of rows, twenty shown) and its
   // `centre − base` fraction of a tick above, as the live strip draws it.

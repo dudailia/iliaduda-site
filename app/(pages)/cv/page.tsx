@@ -58,8 +58,9 @@ export default function Cv() {
   const others = AVAILABILITY.locations.filter((l) => l !== base)
   const places = `based in ${base}, open to ${others.slice(0, -1).join(', ')} or ${others.at(-1)}`
 
+  // From lg the sheet is Letter at screen scale (68em at 13.5px, 918px), so its lines break where the printed page's do.
   return (
-    <div className="mx-auto w-full max-w-[872px] px-6 pt-8 sm:px-8 min-[936px]:px-0 lg:pt-12 print:max-w-none print:p-0">
+    <div className="mx-auto w-full max-w-[918px] px-6 pt-8 sm:px-8 lg:px-0 lg:pt-12 print:max-w-none print:p-0">
       <p className="text-meta mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-graphite print:hidden">
         <span>One page · prints to Letter or A4</span>
         {/* Opened, not downloaded: on a phone a download files it away unseen; the reader can save it from the viewer. */}
@@ -155,7 +156,7 @@ export default function Cv() {
         <section className="cv-section">
           <Head>Skills</Head>
           <dl className="cv-skills">
-            {[...SKILLS, ['Certifications', `${certifications.join('; ')}.`] as const].map(([k, v]) => (
+            {[...SKILLS, ['Certifications', `${certifications.map((c) => c.replace(' — ', '\u00a0— ')).join('; ')}.`] as const].map(([k, v]) => (
               <div key={k}>
                 <dt>{k}</dt>
                 <dd>{v}</dd>

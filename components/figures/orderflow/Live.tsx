@@ -469,7 +469,8 @@ function setOff(x: Read): string {
 function Labels() {
   const text = 'pointer-events-none absolute whitespace-nowrap font-mono text-meta leading-none'
   const gutter = `${text} hidden @min-[520px]:block right-[calc(100%-var(--g)+0.5rem)] text-right text-graphite`
-  const inside = `${text} left-1.5 rounded-sm bg-paper px-1 text-graphite @min-[520px]:hidden`
+  // On a phone the strips run to the screen's edges; their labels keep to the page's gutter.
+  const inside = `${text} left-6 rounded-sm bg-paper px-1 text-graphite @min-[520px]:hidden`
   const top = (y: number) => ({ top: Math.round(y) })
   return (
     // Clipped to the stage: enlarged text (the strips' geometry is the canvas's, in pixels) never widens the page.
@@ -490,7 +491,7 @@ function Labels() {
         Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off
         <span className="hidden @min-[600px]:inline"> by earlier orders</span>
       </span>
-      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-1.5 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 34)}>
+      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-6 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 34)}>
         Market orders a second:
         <br />
         <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off by others
@@ -509,7 +510,7 @@ function Labels() {
       </span>
       <div className="absolute right-2 left-(--g) border-t border-graphite/60" style={top(LAM_MID)} />
 
-      <span className={`${text} left-1.5 text-ink @min-[520px]:left-(--g)`} style={top(Y.queue - 17)}>
+      <span className={`${text} left-6 text-ink @min-[520px]:left-(--g)`} style={top(Y.queue - 17)}>
         Shares at the touch: <Swatch className="bg-ink" /> ran out<span className="hidden @min-[520px]:inline">, the price stepped</span>
       </span>
       <span className={gutter} style={top(QUEUE_MID - 26)}>
@@ -526,7 +527,7 @@ function Labels() {
       </span>
       <div className="absolute right-2 left-(--g) border-t border-graphite/60" style={top(QUEUE_MID)} />
 
-      <div className="absolute right-2 left-(--g) flex justify-between pl-1.5 font-mono text-meta leading-none text-graphite @min-[520px]:pl-0" style={top(Y.axis + 7)}>
+      <div className="absolute right-6 left-(--g) flex justify-between pl-6 font-mono text-meta leading-none text-graphite @min-[520px]:right-2 @min-[520px]:pl-0" style={top(Y.axis + 7)}>
         <span>{`${SECONDS} s ago`}</span>
         <span>{`${SECONDS / 2} s ago`}</span>
         <span>now</span>

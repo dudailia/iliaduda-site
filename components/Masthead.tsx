@@ -65,8 +65,10 @@ export function Masthead() {
             <dd className="text-note min-w-0 text-ink">{k === 'Roles' ? <Items items={v} /> : k === 'Seeking' ? <Whole text={v} /> : v}</dd>
             {k === 'Seeking' ? (
               <>
-                <dt className="text-meta pt-2.5 font-mono text-graphite lg:text-right">Contact</dt>
-                <dd className="text-note min-w-0 -mt-1">
+                <dt className="text-meta pt-0.5 font-mono text-graphite lg:text-right">Contact</dt>
+                {/* -my-2 takes back the links' own py-2 above and below: the row sits on its label's line, and keeps
+                    its tap height. */}
+                <dd className="text-note min-w-0 -my-2">
                   <ContactLinks />
                 </dd>
               </>

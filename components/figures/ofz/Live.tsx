@@ -169,7 +169,8 @@ export function OfzLive({
               ))}
             <span
               aria-hidden
-              className={`text-meta pointer-events-none absolute right-1.5 font-mono text-ink ${
+              // On paper, as a label over a plot is: at a phone's width the line's label falls among the bonds.
+              className={`text-meta pointer-events-none absolute right-1.5 rounded-sm bg-paper/85 px-1 font-mono text-ink ${
                 sy(rate) / H < 0.12 ? 'pt-0.5' : '-translate-y-full pb-0.5'
               }`}
               style={{ top: `${(sy(rate) / H) * 100}%` }}
@@ -230,8 +231,8 @@ export function OfzLive({
                   }}
                   aria-pressed={at === m.index}
                   // A hairline box: without it the decision days read as axis labels, not as something to press.
-                  className={`absolute ${align} rounded-sm border px-1 py-0.5 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out ${
-                    at === m.index ? 'border-ink text-ink forced-colors:[outline:2px_solid_Highlight]' : 'border-rule text-graphite hover:border-graphite hover:text-ink'
+                  className={`absolute ${align} rounded-sm border px-1 py-1 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out ${
+                    at === m.index ? 'border-ink text-ink forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink'
                   }`}
                   style={{ left: end ? `${f * 100}%` : `calc(8px + (100% - 16px) * ${f})` }}
                 >

@@ -560,12 +560,12 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   // Said for the pointer this reader has: a phone's finger taps to read and drags sideways to turn (vertical drags
   // scroll the page); a mouse points. A still frame keeps its instructions after its reason.
   const coarse = mounted && matchMedia('(pointer: coarse)').matches
-  const readHow = `${coarse ? 'Tap' : 'Click'} or tab to the surface to read a point; the Shock slider still redraws it.`
+  const readHow = `${coarse ? 'Tap' : 'Click'} or tab to the surface to read a point; the shock slider still redraws it.`
   const hint = why
     ? `${why} ${readHow}`
     : live
       ? coarse
-        ? 'Tap to read a point · drag sideways to turn · the Shock slider applies the shock'
+        ? 'Tap to read a point · drag sideways to turn · the shock slider applies the shock'
         : 'Point to read a point · drag to turn · arrow keys move the point · Space pauses'
       : coarse
         ? 'Tap or tab to the surface to read a point'

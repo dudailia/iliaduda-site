@@ -24,7 +24,7 @@ export const AVAILABILITY = {
 
 /** One line, used by the masthead and the metadata description. */
 export const POSITIONING =
-  'Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class of 2028.'
+  'Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class\u00a0of\u00a02028.'
 
 /**
  * The CV is a page (/cv) and a PDF printed from it at build time by

@@ -81,7 +81,8 @@ export function FigureFrame({
         </div>
         <div className={`min-w-0 ${wide ? 'lg:col-start-2 lg:row-span-2 lg:row-start-1' : ''}`}>
           <div className="text-note border-b border-rule pb-2 print:break-inside-avoid print:break-after-avoid">
-            <span id={`${id}-title`} className="block text-pretty text-ink">
+            {/* At the text's measure, even where the figure spans the rail too: a title is read as a line. */}
+            <span id={`${id}-title`} className="block max-w-(--measure) text-pretty text-ink">
               {title}
             </span>
             {/* A subtitle wraps between its items, never inside one (DESIGN.md, the Whole Item Rule). */}

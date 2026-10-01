@@ -190,9 +190,11 @@ export default function About() {
           </p>
           <p className="mt-2">{education.honours}.</p>
           <p className="text-meta mt-5 font-mono text-graphite">Coursework</p>
-          <ul className="mt-1.5 grid list-none gap-y-0.5 sm:grid-cols-2 sm:gap-x-8">
+          <ul className="mt-1.5 grid list-none gap-y-2 sm:grid-cols-2 sm:gap-x-8">
             {education.coursework.map((c) => (
-              <li key={c}>{c}</li>
+              <li key={c}>
+                <Whole text={c} />
+              </li>
             ))}
           </ul>
           <p className="mt-4">
@@ -200,7 +202,7 @@ export default function About() {
             {education.directedStudy.title}. {education.directedStudy.detail}
           </p>
           <p className="text-meta mt-4 font-mono text-graphite">In progress, Fall 2026</p>
-          <ul className="mt-1.5 grid list-none gap-y-0.5 sm:grid-cols-2 sm:gap-x-8">
+          <ul className="mt-1.5 grid list-none gap-y-2 sm:grid-cols-2 sm:gap-x-8">
             {education.inProgress.map((c) => (
               <li key={c}>{c}</li>
             ))}

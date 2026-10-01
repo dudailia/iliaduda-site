@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
@@ -213,6 +214,26 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     }
   }, [])
 
+  // Printed before this visit's replay has come, or while it plays: the whole match goes on the paper, as a reader
+  // who had watched it to the end would have it. A reader's own scrub prints where they left it.
+  const toPrint = useRef<() => void>(() => {})
+  useEffect(() => {
+    toPrint.current = () => {
+      if (!armed.current && !playing) return
+      flushSync(() => {
+        stop()
+        setAt(n - 1)
+        setFrac(0)
+      })
+      release()
+    }
+  })
+  useEffect(() => {
+    const onPrint = () => toPrint.current()
+    addEventListener('beforeprint', onPrint)
+    return () => removeEventListener('beforeprint', onPrint)
+  }, [])
+
   // The one self-drawing replay, once a visit, when the figure is actually seen, and not if the reader has already
   // taken the scrubber.
   useOnceSeen(
@@ -328,9 +349,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     >
       <div ref={box} className="relative">
         <div className="flex">
-          <div aria-hidden className="text-meta relative w-11 shrink-0 font-mono text-graphite">
+          <div aria-hidden className="text-meta relative w-12 shrink-0 font-mono text-graphite">
             {TICKS.map((v) => (
-              <span key={v} className="absolute right-2 -translate-y-1/2" style={{ top: `${(y(v) / H) * 100}%` }}>
+              <span key={v} className="absolute right-1.5 -translate-y-1/2" style={{ top: `${(y(v) / H) * 100}%` }}>
                 {tickLabel(v)}
               </span>
             ))}
@@ -384,7 +405,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
 
         {/* Innings, named under the axis rather than over the curve: each name centred under its own innings and kept
             to its width, so on a narrow screen it wraps rather than running into the other. */}
-        <div aria-hidden className="text-meta mt-1.5 ml-11 flex font-mono text-graphite">
+        <div aria-hidden className="text-meta mt-1.5 ml-12 flex font-mono text-graphite">
           <span className="px-1 text-center text-balance" style={{ width: `${(x(breakAt) / W) * 100}%` }}>
             {first} batting
           </span>
@@ -395,7 +416,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
 
         {/* The slider under the plot, on its time axis: its thumb stands where the playhead does (the thumb's 16px is
             let out past the plot's edges, so the first and last balls sit at them). */}
-        <div className="mt-2 ml-11">
+        <div className="mt-2 ml-12">
           <input
             type="range"
             min={0}
@@ -419,7 +440,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             style={rangeFill(at, 0, n - 1)}
           />
         </div>
-        <div className="mt-2 ml-11 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="mt-2 ml-12 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <p aria-hidden className="text-meta font-mono text-graphite">
             <span className="mr-1 inline-block h-2.5 w-px translate-y-0.5 bg-ink" /> a wicket falls
           </p>

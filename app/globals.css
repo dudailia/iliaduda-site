@@ -191,7 +191,7 @@
      16px indigo thumb ringed in paper, inside the input's 24px to the touch. Forced colours keep the system's own. */
   input[type='range'] {
     --fill: 0%;
-    --track: color-mix(in oklab, var(--color-graphite) 45%, var(--color-paper));
+    --track: color-mix(in oklab, var(--color-graphite) 70%, var(--color-paper));
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
@@ -233,6 +233,15 @@
     border-radius: 50%;
     background: var(--color-indigo);
     box-shadow: 0 0 0 1px var(--color-indigo);
+  }
+  /* Under a fine pointer the thumb answers the hover: a wash ring, as the other controls' borders darken. */
+  @media (hover: hover) and (pointer: fine) {
+    input[type='range']:hover::-webkit-slider-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 4px var(--color-indigo-wash);
+    }
+    input[type='range']:hover::-moz-range-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 4px var(--color-indigo-wash);
+    }
   }
   @media (forced-colors: active) {
     input[type='range'] {
@@ -810,7 +819,8 @@
     content: '';
     display: inline-block;
     width: 0.45em;
-    margin: 0 0.5em 0 0.1em;
+    /* 0.1 + 0.45 + 0.4 = 0.95em, the hanging indent: a first line's text sits on the wrapped lines' edge. */
+    margin: 0 0.4em 0 0.1em;
     vertical-align: 0.3em;
     border-top: 1px solid var(--color-graphite);
   }
@@ -870,7 +880,7 @@
     display: none;
   }
   /* On paper a link says where it goes (the CV's sheet, a printed page of its own, keeps its links as they are). */
-  main a[href^='/']:not([href^='/#'])::after {
+  main a[href^='/']:not([href^='/#'], [data-vt-thumb])::after {
     content: ' (' var(--print-origin, '') attr(href) ')';
     color: var(--color-graphite);
   }
@@ -919,6 +929,36 @@
   :is([data-futures-poster], [data-orderbook-poster], [data-surface-poster]) :is([data-fill], [data-iv-poster]) {
     visibility: visible !important;
     opacity: 1 !important;
+  }
+  /* The first-look replays print their finished figure (each also finishes on beforeprint): whatever the pre-paint mark
+     hides, and whatever is mid-transition, prints as it ends. */
+  :root[data-cricket-seq] #fig-replay [data-played],
+  #fig-pipeline ol > li {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  :root[data-cricket-seq] #fig-replay [data-played-rail] :is(dt, dd),
+  :root[data-closebooks-seq] #fig-pipeline :is([data-batch-rail] :is(dt, dd), [data-batch-gate]) {
+    visibility: visible;
+  }
+  /* A figure's marks drawn as backgrounds (the ranking's bars, the batch's confidence, a chosen option's fill) print:
+     printing drops backgrounds unless asked. */
+  figure :is(.bg-indigo, .bg-indigo-wash, [class*='bg-graphite'], [class*='bg-ink'], [aria-pressed='true'], [aria-checked='true']) {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* A figure's actions (Replay, Approve, Run the batch again, Reset, a typed amount) do nothing on paper; its chosen
+     options stay, since they say what is shown. */
+  figure :is(button:not([role='radio'], [aria-pressed]), input:not([type='range'], [type='radio'])) {
+    display: none !important;
+  }
+  /* CloseBooks' batch is taller than a sheet: it breaks between rows rather than leaving a page blank before it. */
+  #fig-pipeline {
+    break-inside: auto;
+  }
+  #fig-pipeline li {
+    break-inside: avoid;
   }
   /* Controls and the hints that say how to use them do nothing on paper. */
   :is([data-futures-controls], [data-orderbook-controls], [data-orderflow-controls], [data-surface-controls]) {

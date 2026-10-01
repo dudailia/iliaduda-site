@@ -556,7 +556,7 @@ export function OrderBookLive({
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
         {/* The reading wraps rather than lose its end (enlarged text included), in room kept for its longest: four lines,
             in the reading's own line height, so the room grows with the text. */}
-        <dl id="fig-order-book-probe" className="text-meta grid min-h-[4lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono" aria-label="Probe reading">
+        <dl id="fig-order-book-probe" className="text-meta grid min-h-[4lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono print:hidden" aria-label="Probe reading">
           <dt className="text-graphite">Probe</dt>
           <dd className="text-ink">
             <span ref={ref('p-price')} className="tabular">

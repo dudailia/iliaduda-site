@@ -76,4 +76,13 @@ describe('the axes', () => {
     expect(logTicks(100, 0.25, 4)).toEqual([25, 50, 100, 200, 400])
     expect(logTicks(100, 0.5, 2)).toEqual([50, 100, 200])
   })
+  it('marks fewer prices when asked, on a coarser round step, for a pane too short for five', () => {
+    const five = priceTicks(9900, 10100)
+    const three = priceTicks(9900, 10100, 3)
+    expect(three.length).toBeLessThanOrEqual(3)
+    expect(three.length).toBeLessThan(five.length)
+    // Still round prices, evenly stepped.
+    const step = three[1]! - three[0]!
+    three.forEach((p) => expect(p % step).toBe(0))
+  })
 })

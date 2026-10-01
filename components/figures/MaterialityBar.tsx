@@ -186,7 +186,7 @@ function Wide() {
         </g>
       ))}
 
-      <Legend x={W.x0} y={W.axisY + 46} gapX={215} size={11.5} stacked={false} />
+      <Legend x={W.x0} y={W.axisY + 46} gapX={230} size={13} stacked={false} />
     </>
   )
 }
@@ -197,32 +197,24 @@ const nScale = (v: number) => ((N.x1 - N.x0) / AXIS_MAX) * v
 const nRowY = (i: number) => N.top + i * (N.barH + N.gap)
 
 function Narrow() {
+  // The ambiguous band and the 1% line run across each bar and down to the axis, never through the labels stacked
+  // above the bars (a dash between a label's letters read as a broken word).
+  const spans = [...SERIES.map((_, i) => [nRowY(i) - 3, nRowY(i) + N.barH + 3] as const), [N.axisY - 8, N.axisY] as const]
   return (
     <>
-      <rect
-        x={N.x0 + nScale(AMBIG_LO)}
-        y={N.top}
-        width={nScale(JUSTIFY - AMBIG_LO)}
-        height={N.axisY - N.top}
-        fill={RULE}
-        opacity="0.5"
-      />
-      <line
-        x1={N.x0 + nScale(JUSTIFY)}
-        y1={N.top}
-        x2={N.x0 + nScale(JUSTIFY)}
-        y2={N.axisY}
-        stroke={INK}
-        strokeWidth="1"
-        strokeDasharray="3 3"
-      />
+      {spans.map(([y0, y1]) => (
+        <g key={y0}>
+          <rect x={N.x0 + nScale(AMBIG_LO)} y={y0} width={nScale(JUSTIFY - AMBIG_LO)} height={y1 - y0} fill={RULE} opacity="0.5" />
+          <line x1={N.x0 + nScale(JUSTIFY)} y1={y0} x2={N.x0 + nScale(JUSTIFY)} y2={y1} stroke={INK} strokeWidth="1" strokeDasharray="3 3" />
+        </g>
+      ))}
 
       {SERIES.map((s, i) => {
         const y = nRowY(i)
         const w = Math.max(nScale(s.gain), 1.5)
         return (
           <g key={s.key} className="font-mono">
-            <text x={N.x0} y={y - 7} fontSize="12" fill={INK} stroke="var(--color-paper)" strokeWidth={4} paintOrder="stroke">
+            <text x={N.x0} y={y - 8} fontSize="13" fill={INK}>
               {`${s.label}  ${gain(s.gain)}`}
             </text>
             <rect
@@ -251,10 +243,10 @@ function Narrow() {
           />
           <text
             x={N.x0 + nScale(t)}
-            y={N.axisY + 19}
+            y={N.axisY + 20}
             textAnchor={anchorFor(t)}
             className="font-mono"
-            fontSize="12"
+            fontSize="13"
             fill={GRAPHITE}
           >
             {t}%
@@ -262,7 +254,7 @@ function Narrow() {
         </g>
       ))}
 
-      <Legend x={N.x0} y={N.axisY + 46} gapX={0} size={11} stacked />
+      <Legend x={N.x0} y={N.axisY + 46} gapX={0} size={13} stacked />
     </>
   )
 }

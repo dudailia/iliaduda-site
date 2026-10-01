@@ -15,7 +15,7 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">
       {children}
       {/* The running head and footer do not print, so a printed page carries its author here (the CV's sheet has its own). */}
-      <p className="text-meta mt-10 hidden font-mono text-graphite print:block">
+      <p className="text-meta mt-10 hidden font-mono text-graphite print:block print:break-before-avoid">
         {[PERSON.name, PERSON.email, SITE.public, PERSON.linkedin, PERSON.github].map((v) => v.replace(/^https?:\/\/(www\.)?/, '')).join(' · ')}
       </p>
     </div>
@@ -143,11 +143,12 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
 }
 
 /**
- * Text whose hyphenated words stay on one line ("off-cycle" split as "off- / cycle" on a phone, "Hawkes- / driven" in a
- * title): the fonts carry no no-break hyphen, so each such word is held in a nowrap span.
+ * Text whose hyphenated words and en-dash compounds stay on one line ("off-cycle" split as "off- / cycle" on a phone,
+ * "Hawkes- / driven" in a title, "Fourier– / Bessel"): the fonts carry no no-break hyphen, so each such word is held in
+ * a nowrap span.
  */
 export function Whole({ text }: { text: string }) {
-  return text.split(/(\S+-\S+)/).map((part, i) =>
+  return text.split(/(\S+[-–]\S+)/).map((part, i) =>
     i % 2 ? (
       <span key={i} className="whitespace-nowrap">
         {part}

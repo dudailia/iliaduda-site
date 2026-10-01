@@ -11,7 +11,8 @@ export default function NotFound() {
       <main id="main">
         <Shell>
           <div className="pt-16 lg:pt-24">
-            <Row rail="404">
+            {/* The number in the margin at lg, at the heading's first line; on a phone no label above the heading. */}
+            <Row rail={<span className="hidden lg:inline-block lg:pt-[0.55rem]">404</span>}>
               <h1 className="text-h2">That page is not here</h1>
               <p className="mt-4 max-w-[34rem]">
                 Everything on the site is listed in the{' '}

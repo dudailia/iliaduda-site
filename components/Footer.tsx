@@ -2,7 +2,7 @@ import { otherWork, visiblePapers } from '@/content/papers'
 
 const CURRENT = `document.currentScript.closest('footer').querySelectorAll('nav a[href]').forEach(function(a){if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page')})`
 import { AVAILABILITY, SITE } from '@/lib/site'
-import { Row, Shell } from './Layout'
+import { Row, Shell, Whole } from './Layout'
 import { ContactLinks } from './Masthead'
 
 /**
@@ -31,7 +31,7 @@ export function Footer() {
               {papers.map((p) => (
                 <li key={p.href}>
                   <a href={p.href} className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
-                    {p.title}
+                    <Whole text={p.title} />
                   </a>
                 </li>
               ))}
@@ -60,7 +60,7 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/cv" className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
+                <a href="/cv" className="-mx-1 inline-block px-1 py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
                   CV
                 </a>
               </li>

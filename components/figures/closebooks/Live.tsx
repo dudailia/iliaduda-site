@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { categorise, exportable, type Account, type Line, type Result, type Status } from '@/lib/closebooks'
 import { arrivedByMorph } from '@/lib/arrival'
@@ -112,6 +113,27 @@ export function CategorisationLive({
   useEffect(() => {
     if (!settled) delete document.documentElement.dataset.closebooksSeq
   }, [settled])
+
+  // Printed before this visit's batch has come, or while it arrives: the whole batch goes on the paper, settled.
+  const toPrint = useRef<() => void>(() => {})
+  useEffect(() => {
+    toPrint.current = () => {
+      if (!armed.current && settled && !leaving) return
+      clearTimeout(letTimer.current)
+      letting.current = false
+      flushSync(() => {
+        setArrived(feed.length)
+        setSettled(true)
+        setLeaving(false)
+      })
+      release()
+    }
+  })
+  useEffect(() => {
+    const onPrint = () => toPrint.current()
+    addEventListener('beforeprint', onPrint)
+    return () => removeEventListener('beforeprint', onPrint)
+  }, [])
 
   // The batch arrives once a visit, when the figure is first properly on screen, but never under a reader who is
   // already inside it: replaying would unmount the very button they have focused.

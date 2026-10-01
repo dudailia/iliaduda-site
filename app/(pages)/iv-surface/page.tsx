@@ -61,7 +61,7 @@ export default function IvSurface() {
               This one uses SSVI, the surface parametrisation Gatheral and Jacquier published in
               2014. Total implied variance w = σ²T is written as a function of log-moneyness k and
               the at-the-money total variance θ(T), with a correlation-like skew ρ and a curvature
-              function φ(θ) = η / (θ<sup>γ</sup>(1 + θ)<sup>1−γ</sup>). The at-the-money term
+              function φ(θ) = <span className="whitespace-nowrap">η / (θ<sup>γ</sup>(1 + θ)<sup>1−γ</sup>)</span>. The at-the-money term
               structure decays from a short-end volatility to a long-run one at rate κ, the shape a
               variance term structure takes under mean reversion.
             </p>
@@ -129,7 +129,7 @@ export default function IvSurface() {
           <p>
             Because the parameters are chosen rather than fitted, the tests hold the surface to
             the standard real quotes would face. Durrleman&rsquo;s g is evaluated across the drawn expiries at strikes well beyond the drawn range and
-            must stay positive; ∂w/∂T must stay positive everywhere the figure draws. Each Greek is
+            must stay positive; <span className="whitespace-nowrap">∂w/∂T</span> must stay positive everywhere the figure draws. Each Greek is
             compared with a finite difference of the price, and put–call parity is checked away
             from the money.
           </p>

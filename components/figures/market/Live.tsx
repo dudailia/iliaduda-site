@@ -500,7 +500,8 @@ export function MarketLive({
 
       // The book's words: prices up its side, where the window has them now.
       const lay = v.book.layout()
-      const ticks = priceTicks(lay.centre - WINDOW.half, lay.centre + WINDOW.half)
+      // A pane under 90px (the book at 1280×800) marks two or three prices, so their labels never crowd.
+      const ticks = priceTicks(lay.centre - WINDOW.half, lay.centre + WINDOW.half, lay.h < 90 ? 3 : 5)
       priceEls.current.forEach((el, i) => {
         if (!el) return
         const p0 = ticks[i]
@@ -1046,7 +1047,7 @@ export function MarketLive({
                 ))}
               </div>
             </div>
-            <span className="text-meta pointer-events-none absolute top-2 left-6 font-mono text-graphite sm:left-2">Vol surface</span>
+            <span className="text-meta pointer-events-none absolute top-2 left-6 font-mono text-graphite sm:left-0">Vol surface</span>
           </div>
           <FocusRing />
         </div>
@@ -1142,7 +1143,7 @@ export function MarketLive({
                 ))}
               </div>
             </div>
-            <div className="text-meta mt-1 flex justify-between pr-[3.25rem] pl-2 font-mono whitespace-nowrap text-graphite sm:pr-11" aria-hidden="true">
+            <div className="text-meta mt-1 flex justify-between pr-[4.25rem] pl-8 font-mono whitespace-nowrap text-graphite sm:pr-11 sm:pl-2" aria-hidden="true">
               <span>now</span>
               <span>a year</span>
             </div>

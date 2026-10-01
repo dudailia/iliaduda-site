@@ -103,9 +103,10 @@ export const LADDER = 56
 export const FAN_RANGE = { lo: 1 / 3, hi: 3 } as const
 
 /** Price ticks (in ticks) across `lo`…`hi` at a round step: three to six of them. */
-export function priceTicks(lo: number, hi: number): number[] {
+export function priceTicks(lo: number, hi: number, most = 5): number[] {
   const span = hi - lo
-  const step = [10, 20, 25, 50, 100, 200, 250, 500].find((s) => span / s <= 5) ?? 1000
+  // At most `most` marks, on the finest round step that keeps to it: a short pane asks for fewer, further apart.
+  const step = [10, 20, 25, 50, 100, 200, 250, 500].find((s) => span / s <= most) ?? 1000
   const out: number[] = []
   for (let p = Math.ceil(lo / step) * step; p <= hi; p += step) out.push(p)
   return out
