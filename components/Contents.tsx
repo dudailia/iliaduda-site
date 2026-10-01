@@ -120,14 +120,14 @@ export function ExperienceBrief() {
                   <>
                     {' '}
                     <a href={r.href} className="whitespace-nowrap">
-                      Read the paper
+                      Read the paper<span className="sr-only">: {r.org}</span>
                     </a>
                   </>
                 ) : r.figure ? (
                   <>
                     {' '}
                     <a href={r.figure} className="whitespace-nowrap">
-                      See the curve
+                      See the curve<span className="sr-only">: {r.org}</span>
                     </a>
                   </>
                 ) : null}

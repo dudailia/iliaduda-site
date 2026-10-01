@@ -99,10 +99,12 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
             360px it does not fit beside a label. `break-words` lets the mono
             values wrap rather than push the document wider than the viewport,
             which is what they did before. */}
-        <dl className="text-note grid gap-y-3 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2">
+        {/* On a phone each label sits on its value (a pair per row, further apart from the next); from sm, two columns.
+            On paper the list stays on one sheet. */}
+        <dl className="text-note grid gap-y-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2 print:break-inside-avoid">
           {rows.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-meta font-mono text-graphite sm:pt-0.5">{k}</dt>
+            <div key={k} className="sm:contents">
+              <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5">{k}</dt>
               {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
                   long address still wraps at 360px. */}
               <dd className="min-w-0 break-words font-mono [&_a]:py-1">{typeof v === 'string' ? <Items items={v} /> : v}</dd>

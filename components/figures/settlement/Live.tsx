@@ -385,7 +385,12 @@ export function SettlementLive({
       number="Fig. 2"
       title="What each login code costs the debtor’s legal allowance"
       subtitle="230-FZ, Russia’s debt-collection law: article 7 caps the messages a debtor receives, article 8 lets them refuse contact"
-      caption={loginCaption}
+      // The note on calls closes the caption: before the hint, it read as a second caption over the figure.
+      caption={
+        <>
+          {loginCaption} {callCaps}
+        </>
+      }
       table={<div className="font-mono">{loginTable}</div>}
       rail={loginRail}
       // On a phone its clock and the interaction state show under the meters (below): they are what +10 minutes and
@@ -450,8 +455,9 @@ export function SettlementLive({
           <div className="mt-3 grid gap-2">
             {WINDOWS.map((w) => {
               const n = used(allowance, now, w.ms)
+              // The count beside its squares, not at the far end of the row.
               return (
-                <div key={w.key} className="grid grid-cols-[5.5rem_1fr_3rem] items-center gap-3">
+                <div key={w.key} className="grid grid-cols-[5.5rem_auto_3rem] items-center justify-start gap-3">
                   <span className="text-meta font-mono text-graphite">{w.label}</span>
                   {/* One row at any width: on a phone the thirty-day meter's sixteen boxes are a little smaller. */}
                   <span className="flex gap-0.5 sm:flex-wrap sm:gap-1" aria-hidden>
@@ -473,7 +479,6 @@ export function SettlementLive({
             </span>
           </p>
           <div className="mt-3 lg:hidden">{loginRail}</div>
-          <p className="text-note mt-3 max-w-[36rem] text-graphite lg:mt-1">{callCaps}</p>
         </section>
     </FigureFrame>
     </>

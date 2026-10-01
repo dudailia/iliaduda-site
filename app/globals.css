@@ -982,6 +982,13 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  /* A heading or a label never ends a sheet without what it names; a label and its value print together. */
+  :is(h2, h3, dt) {
+    break-after: avoid;
+  }
+  dl > div {
+    break-inside: avoid;
+  }
   /* A figure's actions (Replay, Approve, Run the batch again, Reset, a typed amount) do nothing on paper; its chosen
      options stay, since they say what is shown. */
   figure :is(button:not([role='radio'], [aria-pressed]), input:not([type='range'], [type='radio'], [type='checkbox'])) {

@@ -51,7 +51,7 @@ function MonitoRounds() {
           <tr key={r.round} className="border-b border-rule last:border-b-0">
             <th scope="row" className="py-1.5 pr-4 text-left align-baseline font-normal">
               {r.result}
-              <span className="text-meta block font-mono text-graphite sm:hidden">{r.round}</span>
+              <span className="text-meta block text-graphite sm:hidden">{r.round}</span>
             </th>
             <td className="hidden py-1.5 pr-4 align-baseline text-graphite sm:table-cell">{r.round}</td>
             <td className="text-meta py-1.5 text-right align-baseline font-mono whitespace-nowrap text-graphite">{r.date}</td>

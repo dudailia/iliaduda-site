@@ -150,7 +150,8 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
  * a nowrap span.
  */
 export function Whole({ text }: { text: string }) {
-  return text.split(/(\S+[-–]\S+)/).map((part, i) =>
+  // A spaced em dash stays at the end of its line, never opening the next.
+  return text.replace(/ — /g, '\u00a0— ').split(/(\S+[-–]\S+)/).map((part, i) =>
     i % 2 ? (
       <span key={i} className="whitespace-nowrap">
         {part}

@@ -187,7 +187,7 @@ export default function Cricstate() {
         <Meta
           rows={[
             ['repo', <a key="r" href="https://github.com/dudailia/cricstate">github.com/dudailia/cricstate</a>],
-            ['data', 'Cricsheet ball-by-ball, snapshot of 2 July 2026, pinned by hash'],
+            ['data', 'Cricsheet ball-by-ball, snapshot of 2 July 2026, pinned by\u00a0hash'],
             ['stack', 'Python · polars · scikit-learn · scipy · uv · GitHub Actions'],
           ]}
         />
