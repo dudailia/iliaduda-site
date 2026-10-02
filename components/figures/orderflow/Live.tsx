@@ -402,11 +402,11 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
-        {/* Room kept for the longest reading, so choosing an order never moves the page below it: on a phone seven
-            lines, the length a reading reaches once its order passes ten seconds and is said to be off the strip. */}
+        {/* Room kept for the longest reading, so choosing an order never moves the page below it: on a phone eight
+            lines, an order off the strip with three lines of what set it off. */}
         <dl
           id="fig-order-flow-reading"
-          className="text-meta grid min-h-[7lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh] print:hidden"
+          className="text-meta grid min-h-[8lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh] print:hidden"
           aria-label="Reading"
         >
           <dt className="text-graphite">Order</dt>

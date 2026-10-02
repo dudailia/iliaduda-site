@@ -51,7 +51,7 @@ export default function Market() {
           </Annotated>
           <p>
             Realised volatility is the square root of an exponentially weighted mean of squared one-second log-returns of the
-            mid, with a sixty-second half-life, annualised over 252 trading days of 6.5 hours. The futures are drawn at it.
+            mid, with a sixty-second half-life, annualised over 252 trading days of 6.5{'\u00a0'}hours. The futures are drawn at it.
           </p>
           <p>
             Stress runs from 0 to 1 and combines four signals a trader watches, each 0 across the calm market&rsquo;s range and

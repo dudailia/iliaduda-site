@@ -80,7 +80,7 @@ export default function IvSurface() {
           <p>
             Static arbitrage comes in two kinds and the surface has to rule out both. Across
             strikes, the smile at one expiry must imply a non-negative probability density —
-            Durrleman&rsquo;s condition g(k) ≥ 0 — or a butterfly spread prices below zero. Across
+            Durrleman&rsquo;s condition g(k){'\u00a0'}≥{'\u00a0'}0 — or a butterfly spread prices below zero. Across
             expiries, total variance must not fall as maturity lengthens, or a calendar spread
             does.
           </p>

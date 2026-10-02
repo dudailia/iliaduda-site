@@ -115,7 +115,7 @@ export default function OrderBook() {
           <p>
             It is calibrated to look like a busy stock opened at {open}. Measured over ten simulated minutes on the seed
             Fig.{'\u00a0'}1 draws: {m.rate.toFixed(1)} events a second, a realised volatility of {(m.vol * 100).toFixed(1)}% a
-            year (one-second returns of the mid, over 252 trading days of 6.5 hours), and a spread of one or two ticks{' '}
+            year (one-second returns of the mid, over 252 trading days of 6.5{'\u00a0'}hours), and a spread of one or two ticks{' '}
             {(m.narrow * 100).toFixed(1)}% of the time.
           </p>
         </Section>

@@ -462,6 +462,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     // them gives way (held at a drag's limit, the dot sat on "implied vol").
     const kept: number[] = noteBox.flatMap((b) => (b ? [b[0], b[1], b[2], b[3]] : []))
     if (dotAt) kept.push(dotAt[0] - 8, dotAt[1] - 8, dotAt[0] + 8, dotAt[1] + 8)
+    if (tagAt) kept.push(tagAt[0], tagAt[1], tagAt[2], tagAt[3])
     /** Each kept tick's axis, by its box's index in `kept` (a note or the dot has none). */
     const axisOf: (string | null)[] = kept.map(() => null)
     const order = [...LABELS.keys()].sort((a, b) => (LABELS[a]!.kind === 'title' ? 0 : 1) - (LABELS[b]!.kind === 'title' ? 0 : 1))
@@ -486,7 +487,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         const ox = Math.min(x1, kept[k + 2]!) - Math.max(x0, kept[k]!)
         const stacked = axis !== null && axisOf[k] === axis && ox > 0.5 * Math.min(x1 - x0, kept[k + 2]! - kept[k]!)
         const slack = stacked ? -1 : 3
-        if (x0 < kept[k + 2]! + 1 && x1 > kept[k]! - 1 && y0 < kept[k + 3]! - slack && y1 > kept[k + 1]! + slack) clear = false
+        // Across, a gap of 4px: words of two axes closer than that read as one ("130%2Y").
+        if (x0 < kept[k + 2]! + 4 && x1 > kept[k]! - 4 && y0 < kept[k + 3]! - slack && y1 > kept[k + 1]! + slack) clear = false
       }
       if (clear) {
         axisOf[kept.length] = axis
@@ -506,6 +508,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const noteBox: (readonly [number, number, number, number] | null)[] = []
   /** Where the reading point stood last frame, on the stage (an obstacle the axis labels give way to too). */
   let dotAt: readonly [number, number] | null = null
+  /** Where the reading's tag stood last frame, and its size (measured once a text). */
+  let tagAt: readonly [number, number, number, number] | null = null
+  let tagSize: [number, number] | null = null
   const noteDy: (number | undefined)[] = []
   // A note mid-way through its word swap to the other side of its point.
   const noteSwap: boolean[] = []
@@ -826,7 +831,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         tagK += ((sim.hover || hooks.pinned() ? 1 : 0) - tagK) * (1 - Math.exp(-dt / 0.05))
         if (tagK < 0.005) tagK = 0
         const text = `vol ${(at * 100).toFixed(1)}%`
-        if (text !== tagText) tag.textContent = tagText = text
+        if (text !== tagText) {
+          tag.textContent = tagText = text
+          tagSize = null
+        }
         // Over to the left past 96px from the edge, and back only under 120px, so a dot at the edge never flips it.
         const left = tagLeft ? dotX > cssW - 120 : dotX > cssW - 96
         if (left !== tagLeft) {
@@ -834,7 +842,15 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
           tag.style.transform = left ? 'translateX(calc(-100% - 1.25rem))' : ''
         }
         tag.style.opacity = (tagK * labelsK).toFixed(3)
-      }
+        // Where it stands (it hangs 10px right of the dot and 8px above it, or as far left), for the axis labels to give
+        // way to next frame: held at a drag's limit it covered "implied vol" and the 60% tick.
+        if (tagK * labelsK > 0.05) {
+          tagSize ??= [tag.offsetWidth, tag.offsetHeight]
+          const [tw, th] = tagSize
+          const x0 = tagLeft ? dotX - 10 - tw : dotX + 10
+          tagAt = [x0, placed[1]! - 8 - th, x0 + tw, placed[1]! - 8]
+        } else tagAt = null
+      } else tagAt = null
 
       hooks.sync(p, x)
       drawnOnce = true

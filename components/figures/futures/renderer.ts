@@ -190,8 +190,6 @@ void main() {
   // In among the futures (a flight), they fade out toward the stage's edges, so the frame never shows as a rectangle.
   vec2 ndc = abs(c.xy / depth);
   float edge = mix(1.0, smoothstep(1.0, 0.8, max(ndc.x, ndc.y)), uEdge);
-  // And always toward the stage's top: a high volatility carries the upper tail past it, which cut on a ruler line.
-  edge *= 1.0 - smoothstep(0.8, 1.0, c.y / depth);
   float w = clamp(uWidth * uRef / depth, 0.85, 2.6);
   float reach = past ? 0.0 : w * 0.5 + 1.0;
   c.xy += n * side * reach * 2.0 / uPx * c.w;
@@ -210,11 +208,15 @@ void main() {
 // adds its share on average instead of rounding away.
 const RIBBON_FS = `${HEAD}${RNG}
 in float vD; in float vHalf; in float vA; flat in int vPays; flat in uint vId;
-uniform float uGain, uScale, uDither; uniform uint uFrame;
+uniform float uGain, uScale, uDither, uTopH; uniform uint uFrame;
 out vec4 o;
 void main() {
   float cov = 1.0 - smoothstep(vHalf - 0.5, vHalf + 0.5, abs(vD));
-  float w = uGain * vA * cov;
+  // Toward the stage's top every path fades out, by where the fragment is on screen: a high volatility carries the
+  // upper tail past the top, which cut on a ruler line. (Faded at its vertices, a segment from inside the stage to
+  // far above it still kept two thirds of its ink at the edge.)
+  float top = 1.0 - smoothstep(0.88 * uTopH, uTopH, gl_FragCoord.y);
+  float w = uGain * vA * cov * top;
   vec4 c = (vPays == 1 ? vec4(w, 0.0, 0.0, 0.0) : vec4(0.0, w, 0.0, 0.0)) * uScale;
   if (uDither > 0.5) {
     uvec4 h = pcg4d(uvec4(uvec2(gl_FragCoord.xy), vId, uFrame));
@@ -770,6 +772,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform1f(P.ribbon.u('uFar'), palette.dark ? 0.6 : DAY.far)
     gl.uniform1f(P.ribbon.u('uEdge'), edgeK.x)
     gl.uniform1f(P.ribbon.u('uDither'), density === 'rgba8' ? 1 : 0)
+    gl.uniform1f(P.ribbon.u('uTopH'), den.h)
     gl.uniform1ui(P.ribbon.u('uFrame'), clock.frameNo)
     gl.bindVertexArray(empty)
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 130, pathN)

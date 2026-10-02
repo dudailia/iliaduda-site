@@ -172,11 +172,14 @@ export function SettlementLive({
       ]}
     />
   )
-  // A refusal to send goes stale once the clock passes the time it named: then it says the allowance has reopened.
+  // A refusal to send goes stale once the clock passes the time it named: then it says the allowance has reopened. One
+  // for the debtor's refusal goes stale when the refusal is withdrawn (the rail said "allowed" beside it).
   const said =
-    outcome && !outcome.ok && outcome.reason !== 'refused' && now >= outcome.nextAt
-      ? `The allowance reopened at ${clock(outcome.nextAt)}: the next code can be sent.`
-      : message(outcome)
+    outcome && !outcome.ok && outcome.reason === 'refused' && !allowance.refused
+      ? 'The refusal is withdrawn: a code can be requested again.'
+      : outcome && !outcome.ok && outcome.reason !== 'refused' && now >= outcome.nextAt
+        ? `The allowance reopened at ${clock(outcome.nextAt)}: the next code can be sent.`
+        : message(outcome)
 
   // Monthly payment against term: every term up to the floor, the offered ones
   // joined, the pruned ones left hanging above the line where a longer term
@@ -273,9 +276,10 @@ export function SettlementLive({
                 className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite aria-invalid:border-ink aria-invalid:shadow-[inset_0_0_0_1px_var(--color-ink)] pointer-coarse:text-small"
               />
             </label>
-            {/* What the amount chose, for the eye at once (two lines kept, the longest answer's, so the page does not move as
-                it appears or as an answer changes while the amount is typed). */}
-            <p id="settlement-typed" className="text-meta mt-1 min-h-[2lh] font-mono text-graphite">
+            {/* What the amount chose, for the eye at once, under the field it answers (beside the slider it sat under the
+                term, a column away from what was typed): the longest answer's lines kept, two under a phone's full-width
+                field and four in the narrow column, so the page does not move as it appears or changes. */}
+            <p id="settlement-typed" className="text-meta mt-1 min-h-[2lh] font-mono text-graphite sm:col-start-2 sm:-mt-4 sm:min-h-[4lh]">
               {typedNote.text}
             </p>
             <p className="sr-only font-mono" aria-live="polite">

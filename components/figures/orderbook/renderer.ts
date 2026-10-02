@@ -465,6 +465,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   /** Boxes already placed this frame: a label that would cover one, or leave the frame, is not shown. */
   const placed: Box[] = []
   const place = (l: Label, text: string, at: [number, number] | null, anchor: Anchor = 'c') => {
+    // The probe's tag keeps the widest it has been while a reading stands: its age ticks ("2.0 s" to "10.0 s"), and a
+    // box that grew and shrank a character at a time crowded its neighbour out and back in, a flicker.
+    const keep = l.kind === 'probe' && !!text && !!l.text ? l.w : 0
     if (l.text !== text) {
       l.el.textContent = text
       l.text = text
@@ -472,7 +475,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     }
     if (at && text) {
       if (!l.w) {
-        l.w = l.el.offsetWidth
+        l.w = Math.max(keep, l.el.offsetWidth)
         l.h = l.el.offsetHeight
       }
       const b = boxAt(at[0], at[1], l.w, l.h, anchor)

@@ -101,10 +101,11 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
             values wrap rather than push the document wider than the viewport,
             which is what they did before. */}
         {/* On a phone each label sits on its value (a pair per row, further apart from the next); from sm, two columns.
-            On paper the list stays on one sheet. */}
-        <dl className="text-note grid gap-y-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2 print:break-inside-avoid">
+            On paper a block of whole rows, which may break between rows: kept whole as a list, it jumped onto a sheet
+            of its own with only the colophon under it. */}
+        <dl className="text-note grid gap-y-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2 print:block">
           {rows.map(([k, v]) => (
-            <div key={k} className="sm:contents">
+            <div key={k} className="sm:contents print:mb-2 print:grid! print:grid-cols-[7.5rem_minmax(0,1fr)] print:break-inside-avoid">
               <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5">{k}</dt>
               {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
                   long address still wraps at 360px. */}

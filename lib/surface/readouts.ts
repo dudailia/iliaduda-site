@@ -43,7 +43,8 @@ export function text(n: Numbers, c: Check): Text {
     premium: `+${(n.premium * 100).toFixed(1)} vol pts`,
     put: `${pct(n.put, 2)} of price`,
     arb: c.passes ? 'passes' : 'fails',
-    arbDetail: `min g ${c.minG.toFixed(3)}, on\u00a0${c.points.toLocaleString('en-US')}\u00a0grid\u00a0points`,
+    // It may break after the count (held whole, it ran 12px past a phone's half column).
+    arbDetail: `min g ${c.minG.toFixed(3)}, on\u00a0${c.points.toLocaleString('en-US')} grid\u00a0points`,
   }
 }
 

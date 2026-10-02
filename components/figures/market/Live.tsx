@@ -509,10 +509,11 @@ export function MarketLive({
       stillTick.current?.(m, now)
       // Drawn while Fig. 1 is on screen; with only Fig. 2 in view the market runs on for its rates, and nothing here
       // is drawn that no one sees.
-      if (stageOn.current && v.book.draw(m, p, now, landing.current, dt)) drewOnce.current.book = true
-      // The fan's breathing toward the market's volatility coasts to rest with the market on Pause (240ms) and picks up
-      // with it on Resume (400ms): Pause holds every view. A moment the reader points at is answered at once, paused or not.
+      // How fast the views' own follows run: the book's price window and the fan's breathing coast to rest with the
+      // market on Pause (240ms) and pick up with it on Resume (400ms), so Pause holds every view.
       fanRate.current = pausedRef.current ? Math.max(0, fanRate.current - dt / 0.24) : Math.min(1, fanRate.current + dt / 0.4)
+      if (stageOn.current && v.book.draw(m, p, now, landing.current, dt, fanRate.current)) drewOnce.current.book = true
+      // A moment the reader points at is answered at once, paused or not.
       if (stageOn.current && v.fan.draw(m, p, now, landing.current, dt, fanRate.current)) drewOnce.current.fan = true
       if (!flat && drewOnce.current.book && drewOnce.current.fan) setFlat(true)
 
@@ -1080,7 +1081,10 @@ export function MarketLive({
               asks on the first tap); a drag, or the arrow keys, turn it. */}
           <div
             ref={box}
-            {...(surfaceLive
+            // Reachable by the keyboard before it is live too (until the figure says it will not run): the controls arrive
+            // with the live figure, so a figure that loaded below the first screen had nothing to Tab to, and focus on
+            // the prose after it scrolled it away before it could start. Focus here brings it on screen, which starts it.
+            {...(surfaceLive || (mounted && !why)
               ? { role: 'group', tabIndex: 0, 'aria-label': 'Vol surface. The arrow keys turn it; Space pauses the market; Home turns it back.', onKeyDown: onSurfaceKey }
               : {})}
             // iv-fig: the IV figure's colour ramp (STAGE_CSS, RAMP_CSS) is scoped to it, and the still surface draws with it.

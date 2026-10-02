@@ -125,7 +125,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
   const n = stillCount(cssW)
   // Each stroke fades toward the stage's top, as the live figure's do: a high volatility's upper tail runs past it.
   const topFade = (c: RGB) => {
-    const gr = g.createLinearGradient(0, 0, 0, 0.1 * H)
+    const gr = g.createLinearGradient(0, 0, 0, 0.12 * H)
     gr.addColorStop(0, css(c, 0))
     gr.addColorStop(1, css(c, 1))
     return gr

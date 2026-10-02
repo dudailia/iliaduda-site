@@ -43,6 +43,9 @@ const ENTER = `transform 240ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 // One 120 Hz frame in: the first frame after the switch draws the row a step along its new glide, not where it stood,
 // which for a row already moving read as a dead frame between two fast ones.
 const RETARGET = `transform 280ms ${EASE_OUT_CSS} -8ms, opacity 200ms ${EASE_OUT_CSS}`
+/** A row caught mid-glide and sent back the way it came: it turns through an in-out (on the ease-out it reversed at full
+ * speed in one frame, −21 to +36px). */
+const REVERSE = `transform 300ms cubic-bezier(0.45, 0, 0.2, 1), opacity 200ms ${EASE_OUT_CSS}`
 
 export function RankingLive({
   rows,
@@ -70,7 +73,7 @@ export function RankingLive({
   // The rows leaving the top, with the numbers they had there (the treatment just left), fading where they stood.
   const [gone, setGone] = useState<{ row: Row; top: number; height: number; key: number; rank: number; score: number; frac: number }[]>([])
   const goneKey = useRef(0)
-  const movingRef = useRef<Set<string>>(new Set())
+  const movingRef = useRef<Map<string, number>>(new Map())
 
   const shown = [...rows].sort((x, y) => x[v].rank - y[v].rank).slice(0, SHOWN)
   const max = Math.max(...rows.map((r) => Math.max(r.a.score, r.b.score, r.c.score)))
@@ -98,10 +101,13 @@ export function RankingLive({
     beforeH.current = el?.getBoundingClientRect().height ?? 0
     // Which rows are still on their way, read here, before React reorders the list: moving a keyed row's node cancels
     // its running transition, so read after the commit, a row cut mid-glide restarted from a standstill.
-    movingRef.current = new Set(
+    // And which way each was going (toward its place in the list, from where it is drawn), so one sent back the other way
+    // can turn through a curve rather than at full speed in one frame.
+    const layoutTop = (el?.getBoundingClientRect().top ?? 0) + (el?.clientTop ?? 0)
+    movingRef.current = new Map(
       [...(el?.querySelectorAll<HTMLLIElement>('li[data-name]') ?? [])]
         .filter((li) => li.getAnimations().some((a) => a.playState === 'running' && 'transitionProperty' in a && (a as CSSTransition).transitionProperty === 'transform'))
-        .map((li) => li.dataset.name!),
+        .map((li) => [li.dataset.name!, Math.sign(layoutTop + li.offsetTop - li.getBoundingClientRect().top)] as const),
     )
     setV(next)
     if (leaving.length) {
@@ -156,7 +162,10 @@ export function RankingLive({
     // Force the inverted frame, then release to the natural position.
     void el.offsetHeight
     for (const li of lis) {
-      li.style.transition = li.dataset.entering !== undefined ? ENTER : moving.has(li.dataset.name!) ? RETARGET : MOVE
+      const going = moving.get(li.dataset.name!)
+      const was = before.current.get(li.dataset.name!)
+      const turning = going !== undefined && going !== 0 && was !== undefined && Math.sign(now[lis.indexOf(li)]! - was) === -going
+      li.style.transition = li.dataset.entering !== undefined ? ENTER : turning ? REVERSE : going !== undefined ? RETARGET : MOVE
       li.style.transform = ''
       li.style.opacity = ''
     }

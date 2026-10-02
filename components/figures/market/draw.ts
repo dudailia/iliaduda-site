@@ -129,13 +129,16 @@ export class BookView {
     }
   }
 
-  /** Draws the book as `m` has it; `now` is the page's clock (ms), for the landing's streak. */
-  draw(m: Mirror, pal: Palette, now: number, landing: Landing | null, dt: number): boolean {
+  /**
+   * Draws the book as `m` has it; `now` is the page's clock (ms), for the landing's streak. `rate`: how fast the market
+   * runs, 0 to 1 (it coasts to rest on Pause): the price window's follow coasts with it, as the fan's breathing does.
+   */
+  draw(m: Mirror, pal: Palette, now: number, landing: Landing | null, dt: number, rate = 1): boolean {
     const g = this.g
     if (!g || !m.rows) return false
     const resized = fit(this.cv, this.box)
     if (!this.win) this.win = new PriceWindow(m.h.mid)
-    this.win.step(m.h.mid, dt)
+    this.win.step(m.h.mid, dt * rate)
     const flash = landing ? (now - landing.at) / 1000 : Infinity
     // A landing's streak over (past 1.2s) or held where it was drawn (paused, its clock stands still): nothing moves.
     const flashStill = flash > 1.2 || Math.abs(flash - this.drawnFlash) < 2e-3
