@@ -362,14 +362,16 @@ export function CategorisationLive({
                       </>
                     ) : st === 'flagged' && final && remap[l.suggested.code] ? (
                       <>
-                        {/* It names the account it maps to, not only its code: the reviewer approves what they can read. */}
+                        {/* Its code on the button, which fits the action column (the account's name beside it ran over the
+                            row's confidence); the account it maps to by name in its title and its accessible name. */}
                         <button
                           type="button"
                           onClick={() => act(i, 'remapped')}
                           aria-label={`Map to ${accountWords(remap[l.suggested.code]!)}: line ${i}, ${l.description}`}
+                          title={`Map to ${accountWords(remap[l.suggested.code]!)}`}
                           className={CONTROL}
                         >
-                          Map to {accountWords(remap[l.suggested.code]!)}
+                          Map to {remap[l.suggested.code]}
                         </button>
                         <span className="text-meta hidden font-mono text-graphite print:inline">blocked</span>
                       </>

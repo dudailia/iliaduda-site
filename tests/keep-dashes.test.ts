@@ -1,4 +1,4 @@
-import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react'
+import { Fragment, createElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { keepDashes } from '@/components/Layout'
 
@@ -20,6 +20,11 @@ describe('keepDashes', () => {
     const out = keepDashes(p) as ReactElement<{ className: string }>
     expect(out.props.className).toBe('x')
     expect(text(out)).toBe('one — two three — four end')
+  })
+
+  it('reaches into a fragment, as a caption is often passed', () => {
+    const f = createElement(Fragment, null, 'the key — billing', createElement('em', null, ' and — more'))
+    expect(text(keepDashes(f))).toBe('the key\u00a0— billing and\u00a0— more')
   })
 
   it('leaves a component’s children and dashless text as they are', () => {

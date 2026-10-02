@@ -106,7 +106,8 @@ export function ExperienceBrief() {
       <Row rail={<SectionHeading id="experience">Experience</SectionHeading>}>
         <ul role="list" className="grid list-none gap-y-5 border-t border-rule pt-5">
           {roles.map((r) => (
-            <li key={r.id}>
+            // On paper an entry is whole: its last line never opens the next sheet alone.
+            <li key={r.id} className="print:break-inside-avoid">
               <p>
                 <span className="font-semibold">{r.org}</span>
                 <span className="text-graphite">, {r.orgNote}</span>

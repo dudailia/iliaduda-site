@@ -85,8 +85,8 @@ export const papers: readonly Paper[] = [
     slug: 'order-book',
     href: '/order-book',
     title: 'Order flow that remembers: a Hawkes-driven limit order book',
-    standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig.\u00a02 shows what set off any one.`,
-    abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
+    standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig.\u00a02 shows what set off any one.`,
+    abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
     dek: 'A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser and drawn as terrain: read the odds of what set off any market order.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
@@ -101,7 +101,8 @@ export const papers: readonly Paper[] = [
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
     cvName: 'Implied-volatility surface free of static arbitrage',
-    cv: 'A synthetic SSVI surface free of static arbitrage, with Dupire local volatility and Black–Scholes Greeks at any point, the no-arbitrage conditions asserted by tests on a dense grid; drawn live in raw WebGL2.',
+    // Its name already says it is free of static arbitrage: the line goes on from there.
+    cv: 'A synthetic SSVI surface shaped like an equity index, with Dupire local volatility and Black–Scholes Greeks at any point, the no-arbitrage conditions asserted by tests on a dense grid; drawn live in raw WebGL2.',
   },
   {
     slug: 'startup-investments',

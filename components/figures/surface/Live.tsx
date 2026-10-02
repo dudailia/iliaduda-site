@@ -403,7 +403,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             at.style.top = `${(n.y * 100).toFixed(2)}%`
             // At a large shock the peak rises: the words stay inside the stage, as the live figure's do.
             const frame = at.parentElement, words = at.querySelector<HTMLElement>('[data-note-words]')
-            if (frame && words) setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight), n.align)
+            if (frame && words)
+              setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight), n.align, { x: n.x * frame.offsetWidth, w: words.offsetWidth, stageW: frame.offsetWidth })
           }
         }
         sync(params(x), x)

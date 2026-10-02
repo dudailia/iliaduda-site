@@ -448,10 +448,14 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const SHIFT: Record<string, readonly [number, number]> = { center: [-0.5, -0.5], left: [0, -0.5], right: [-1, -0.5], above: [-0.5, -1] }
   /**
    * Turned far, an axis foreshortens and its ticks close up ("1M3M6M"), or a label's point leaves the stage and its words
-   * fall onto the lines below it. The titles are placed first, then each tick in order: one that would touch a label
-   * already kept, or stand outside the stage, gives way (a 120ms fade), and comes back when there is room again.
+   * fall onto the lines below it, or the edge an axis hangs on turns behind the sheet. The titles are placed first, then
+   * each tick in order: one on an edge turned away, one that would touch a label already kept, or one outside the stage
+   * gives way (a 120ms fade), and comes back when there is room again.
    */
-  const thinLabels = (els: readonly (HTMLElement | null)[]) => {
+  const thinLabels = (els: readonly (HTMLElement | null)[], e: readonly number[]) => {
+    // The strike axis hangs on the front edge, the expiry axis on the right one: past the drag's soft limit the eye can
+    // stand behind either, and its words would be painted over the sheet that hides it.
+    const turned = (id: string) => (id[0] === 'k' ? e[2]! < ZW : id[0] === 't' ? e[0]! < XW : false)
     const kept: number[] = []
     const order = [...LABELS.keys()].sort((a, b) => (LABELS[a]!.kind === 'title' ? 0 : 1) - (LABELS[b]!.kind === 'title' ? 0 : 1))
     for (const i of order) {
@@ -464,11 +468,12 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const x0 = labelXY[i * 2]! + fx * size[0], y0 = labelXY[i * 2 + 1]! + fy * size[1]
       const x1 = x0 + size[0], y1 = y0 + size[1]
       const inside = x0 >= -2 && y0 >= -2 && x1 <= cssW + 2 && y1 <= cssH + 2
-      let clear = inside
-      // Boxes, not ink: a label's box is its line, taller than its glyphs, so two may share 3px and still read apart (the
-      // 1M and 3M ticks of /market's short pane do, at rest, as the poster draws them).
+      let clear = inside && !turned(LABELS[i]!.id)
+      // Boxes, not ink: a label's box is its line, taller than its glyphs (about 3px above and below them, at
+      // leading-none), so two may share that much and still read apart (the 1M and 3M ticks of /market's short pane do,
+      // at rest, as the poster draws them); across, a box is its glyphs' advance, and words closer than 1px touch.
       for (let k = 0; clear && k < kept.length; k += 4)
-        if (x0 < kept[k + 2]! - 3 && x1 > kept[k]! + 3 && y0 < kept[k + 3]! - 3 && y1 > kept[k + 1]! + 3) clear = false
+        if (x0 < kept[k + 2]! + 1 && x1 > kept[k]! - 1 && y0 < kept[k + 3]! - 3 && y1 > kept[k + 1]! + 3) clear = false
       if (clear) kept.push(x0, y0, x1, y1)
       if (labelOn[i] !== clear) {
         labelOn[i] = clear
@@ -479,6 +484,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   }
   /** Each note's words: their height (measured once a size), and how far above the point they last stood. */
   const noteH: number[] = []
+  const noteW: number[] = []
   const noteDy: (number | undefined)[] = []
   // A note mid-way through its word swap to the other side of its point.
   const noteSwap: boolean[] = []
@@ -486,6 +492,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   void document.fonts?.ready.then(() => {
     labelSize.length = 0
     noteH.length = 0
+    noteW.length = 0
     noteDy.length = 0
     noteSwap.length = 0
     sim.dirty = true
@@ -735,36 +742,41 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         labelXY[i * 2] = placed[0]!
         labelXY[i * 2 + 1] = placed[1]!
       })
-      thinLabels(els)
+      thinLabels(els, e)
       const layer = hooks.labelLayer()
       if (layer) layer.style.opacity = labelsK.toFixed(3)
       const notes = hooks.notes()
       NOTES.forEach((nt, i) => {
         const el = notes[i] ?? null
         place(el, m, wx(nt.k), wy(iv(p, nt.k, nt.T)) * rise, wz(nt.T))
-        const sy = placed[1]!
+        const sx = placed[0]!, sy = placed[1]!
         const o = nt.offset[kind]
         if (!el || !o) return
         // At a shock's peak the words would rise past the stage's top: they stop there, and the leader shortens.
-        noteH[i] ||= el.querySelector<HTMLElement>('[data-note-words]')?.offsetHeight ?? 0
+        const words = el.querySelector<HTMLElement>('[data-note-words]')
+        noteH[i] ||= words?.offsetHeight ?? 0
+        noteW[i] ||= words?.offsetWidth ?? 0
+        // Where the point is, so the words stay inside the stage across as well, and hang beside it rather than below.
+        const at = { x: sx, w: noteW[i]!, stageW: cssW }
         const below = (noteDy[i] ?? -1) > 0
         if (noteSwap[i]) {
           // Mid-swap the words keep riding the point on the side they are leaving.
           const keep = below ? 10 : Math.min(-10, Math.max(o[1], 4 + noteH[i]! - sy))
-          if (keep !== noteDy[i]) setNoteRise(el, (noteDy[i] = keep), o[2])
+          setNoteRise(el, (noteDy[i] = keep), o[2], at)
           return
         }
         const dy = noteRise(sy, o[1], noteH[i]!, 4, below)
         if (noteDy[i] !== undefined && dy > 0 !== below) {
-          // To the other side of its point through the site's word swap: blur out where they are, move, blur back in.
+          // To the other side of its point: out where they are and in where they go, through the site's blur and with
+          // the opacity too (a 3px blur alone did not hide a 50–80px move of two lines), on the ease-out.
           const words = el.querySelector<HTMLElement>('[data-note-words]')
           const ease = EASE_OUT_CSS
           const land = () => {
-            setNoteRise(el, (noteDy[i] = dy), o[2])
+            setNoteRise(el, (noteDy[i] = dy), o[2], at)
             noteSwap[i] = false
-            words?.animate([{ filter: 'blur(3px)' }, { filter: 'blur(0px)' }], { duration: 120, easing: ease })
+            words?.animate([{ filter: 'blur(3px)', opacity: 0 }, { filter: 'blur(0px)', opacity: 1 }], { duration: 140, easing: ease })
           }
-          const out = words?.animate([{ filter: 'blur(0px)' }, { filter: 'blur(3px)' }], { duration: 120, easing: ease, fill: 'forwards' })
+          const out = words?.animate([{ filter: 'blur(0px)', opacity: 1 }, { filter: 'blur(3px)', opacity: 0 }], { duration: 90, easing: ease, fill: 'forwards' })
           if (!out) return land()
           noteSwap[i] = true
           out.onfinish = () => {
@@ -773,7 +785,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
           }
           return
         }
-        if (dy !== noteDy[i]) setNoteRise(el, (noteDy[i] = dy), o[2])
+        // Every frame: the point moves across the stage as the surface turns, and the words are held inside it.
+        setNoteRise(el, (noteDy[i] = dy), o[2], at)
       })
       const dot = hooks.dot()
       const at = iv(p, probe.k, probe.T)
@@ -820,6 +833,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // A new size may wrap a note's words differently: measured again (and the labels, whose text size may step).
       labelSize.length = 0
       noteH.length = 0
+      noteW.length = 0
       noteDy.length = 0
       noteSwap.length = 0
     },

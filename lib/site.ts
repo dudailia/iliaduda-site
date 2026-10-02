@@ -17,7 +17,8 @@ export const PERSON = {
 } as const
 
 export const AVAILABILITY = {
-  line: 'Open to a 6-month co-op (an off-cycle internship) from January 2027',
+  // A month and its year are one item: "January / 2027" read as two facts at a line's end.
+  line: 'Open to a 6-month co-op (an off-cycle internship) from January\u00a02027',
   roles: ['Quant and risk', 'Investments', 'Investment banking', 'Data science in finance'],
   locations: ['Boston', 'New York', 'San Francisco', 'London'],
 } as const

@@ -111,7 +111,7 @@ export function OfzCurve({ inline = false }: { inline?: boolean }) {
         id: 'fig-ofz-curve',
         number: 'Fig. 1',
         title: 'The OFZ curve through two rate decisions, summer 2023',
-        subtitle: `zero-coupon yield · Moscow Exchange G-curve · every trading day, ${short(days[FIRST]!.date)} – ${short(days[LAST]!.date)} 2023 · public data`,
+        subtitle: `zero-coupon yield · Moscow Exchange G-curve · every trading day, ${`${short(days[FIRST]!.date)} – ${short(days[LAST]!.date)} 2023`.replace(/ /g, '\u00a0')} · public data`,
         caption,
         table,
         inline,

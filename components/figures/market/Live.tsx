@@ -717,9 +717,12 @@ export function MarketLive({
     const lay = v.book.layout()
     v.book.hover = lay.x1 - (a / SPAN) * lay.x1
     const text = `${a.toFixed(1)} s ago · vol ${pct(m.sigma(i))} · stress ${m.stress(i).toFixed(2)}`
+    // On screen each item is whole and the dot stays with the item before it (a phone's pane wrapped "· stress" onto a
+    // line of its own); what is read aloud keeps plain spaces.
+    const shown = text.split(' · ').map((item) => item.replace(/ /g, '\u00a0')).join('\u00a0· ')
     const h = hoverEl.current
-    if (h && h.textContent !== text) {
-      h.textContent = text
+    if (h && h.textContent !== shown) {
+      h.textContent = shown
       h.classList.add('text-ink')
     }
     if (!input || !el?.hasAttribute('aria-valuenow')) return

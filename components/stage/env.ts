@@ -79,12 +79,21 @@ export function saveData(): boolean {
  * still playing (the morph a paper arrives by, marked by app/(pages)/layout.tsx), so a figure's start never stutters it.
  */
 export function whenIdle(fn: () => void): () => void {
-  if (document.documentElement.dataset.vtRunning) {
-    let cancel = () => {}
-    const id = setTimeout(() => (cancel = whenIdle(fn)), 100)
+  const d = document.documentElement
+  if (d.dataset.vtRunning) {
+    // Watched, not polled, and run on the frame after the morph lands rather than at the next idle moment: the morph
+    // lands on the empty stage the figure fills, and the third of a second a poll and an idle wait cost read as the
+    // figure blinking out and back.
+    let frame = 0
+    const mo = new MutationObserver(() => {
+      if (d.dataset.vtRunning) return
+      mo.disconnect()
+      frame = requestAnimationFrame(() => fn())
+    })
+    mo.observe(d, { attributes: true, attributeFilter: ['data-vt-running'] })
     return () => {
-      clearTimeout(id)
-      cancel()
+      mo.disconnect()
+      cancelAnimationFrame(frame)
     }
   }
   if ('requestIdleCallback' in window) {

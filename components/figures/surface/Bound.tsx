@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
-import { DOMAIN, ETA_BOUND, gWithEta, P } from '@/lib/svi'
+import { DOMAIN, ETA_BOUND, ETA_STEP, gWithEta, P } from '@/lib/svi'
 import { CONTROL } from '@/components/stage/controls'
 import { rangeFill } from '@/components/stage/range'
 
@@ -122,7 +122,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
           type="range"
           min={0.4}
           max={ETA_MAX}
-          step={0.01}
+          step={ETA_STEP}
           value={eta}
           onChange={(e) => setEta(Number(e.currentTarget.value))}
           aria-valuetext={`eta ${eta.toFixed(2)}; ${arbitrage ? `butterfly arbitrage, lowest g drawn ${minG.toFixed(3)}` : 'no butterfly arbitrage'}`}

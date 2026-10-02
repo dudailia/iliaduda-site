@@ -40,7 +40,9 @@ const survives = (r: { a: { rank: number }; b: { rank: number }; c: { rank: numb
 const MOVE = `transform 280ms ${EASE_IN_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 const ENTER = `transform 240ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 /** A row caught mid-glide by another switch: away at once from where it is drawn, on the ease-out, so it never stalls. */
-const RETARGET = `transform 280ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
+// One 120 Hz frame in: the first frame after the switch draws the row a step along its new glide, not where it stood,
+// which for a row already moving read as a dead frame between two fast ones.
+const RETARGET = `transform 280ms ${EASE_OUT_CSS} -8ms, opacity 200ms ${EASE_OUT_CSS}`
 
 export function RankingLive({
   rows,
@@ -53,7 +55,7 @@ export function RankingLive({
   variants: readonly { key: Variant; label: string; note: string }[]
   rho: Record<Variant, number>
   description: string
-  frame: { id: string; number: string; vt: string; title: string; subtitle: string; caption: ReactNode; table: ReactNode; breakable?: boolean }
+  frame: { id: string; number: string; vt: string; title: string; subtitle: string; caption: ReactNode; table: ReactNode }
 }) {
   const [v, setV] = useState<Variant>('a')
   const reduced = useReducedMotion()

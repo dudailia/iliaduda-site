@@ -1,5 +1,5 @@
 import { fact } from '@/content/facts'
-import { DOMAIN, ETA_BOUND, gWithEta, P } from '@/lib/svi'
+import { DOMAIN, ETA_BOUND, ETA_STEP, gWithEta, P } from '@/lib/svi'
 import { BoundLive } from './surface/Bound'
 
 /**
@@ -19,7 +19,9 @@ function onset(): number {
 }
 
 export function ArbitrageBound() {
-  const breaks = onset()
+  // Stated at the slider's own step (0.01), rounded up: the first value on it that reads "present" (2.91 still reads
+  // none, the onset lying just past it).
+  const breaks = Math.ceil(onset() / ETA_STEP - 1e-9) * ETA_STEP
   return (
     <BoundLive
       description={`Durrleman's g across strikes at the shortest expiry. At the surface's own curvature, ${fact('ivEta').value}, g stays positive everywhere. The sufficient condition stops guaranteeing that at eta ${ETA_BOUND.toFixed(2)}; g first dips below zero, near the money, at about ${breaks.toFixed(2)}.`}

@@ -17,7 +17,7 @@ export function Shell({ children }: { children: ReactNode }) {
       {/* The running head and footer do not print, so a printed page carries its author here (the CV's sheet has its own). */}
       {/* As items, so a line never starts with the dot; on one line on paper (7pt), so it stays with the page's last lines
           and can never split across two sheets. */}
-      <p className="text-meta mt-10 hidden font-mono text-graphite print:block print:break-before-avoid print:text-[7pt]">
+      <p className="text-meta mt-10 hidden font-mono text-graphite print:mt-3 print:block print:break-before-avoid print:text-[7pt]">
         <Items items={[PERSON.name, PERSON.email, SITE.public, PERSON.linkedin, PERSON.github].map((v) => v.replace(/^https?:\/\/(www\.)?/, ''))} />
       </p>
     </div>
@@ -40,10 +40,11 @@ export function Row({
 }) {
   return (
     <div
-      className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 ${className}`}
+      className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 print:block ${className}`}
     >
-      {/* On paper the row is one column: the margin's label (a section's heading among them) keeps with what it names. */}
-      <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right print:break-after-avoid">{rail}</div>
+      {/* On paper the row is a block (a grid row gives the printer nowhere to hold a heading with what follows): the
+          margin's label, a section's heading among them, keeps with what it names. */}
+      <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right print:mb-2 print:break-after-avoid">{rail}</div>
       <div className="min-w-0">{children}</div>
     </div>
   )
@@ -165,13 +166,13 @@ export function Whole({ text }: { text: string }) {
 
 /**
  * Prose whose spaced em dashes stay at the end of their line, never opening the next (as Whole does for one string):
- * the text in it, down through its plain elements (a link, an emphasis, a paragraph), gets a no-break space before each
+ * the text in it, down through its plain elements (a link, an emphasis, a paragraph, a fragment), gets a no-break space before each
  * " — ". A component's own children are left as they are.
  */
 export function keepDashes(node: ReactNode): ReactNode {
   if (typeof node === 'string') return node.includes(' — ') ? node.replace(/ — /g, '\u00a0— ') : node
   if (Array.isArray(node)) return node.map(keepDashes)
-  if (isValidElement(node) && typeof node.type === 'string') {
+  if (isValidElement(node) && (typeof node.type === 'string' || node.type === Fragment)) {
     const el = node as ReactElement<{ children?: ReactNode }>
     const c = el.props.children
     if (c === undefined) return node

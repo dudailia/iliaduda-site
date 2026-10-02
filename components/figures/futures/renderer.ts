@@ -1109,7 +1109,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       }
       want = histLift(toCss, len, Math.max(hl.w, vl.w, aboveOn ? al.w : 0), hl.h + Math.max(0, vl.h) + (aboveOn ? Math.max(0, al.h) : 0))
     }
-    histUp = Math.abs(want - histUp) < 1e-4 ? want : histUp + (want - histUp) * follow
+    // Up at once, as the bars grow (eased, the words lagged a volatility jump by 100ms, sitting on the top bars); down over
+    // the 60ms follow, as they shrink.
+    histUp = want >= histUp || Math.abs(want - histUp) < 1e-4 ? want : histUp + (want - histUp) * follow
     if (histUp !== want) following = true
     for (const l of labels) {
       const [x, y, z] = l.at()

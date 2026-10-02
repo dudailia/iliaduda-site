@@ -66,20 +66,44 @@ export function noteRise(y: number, dy: number, h: number, top = 4, below = fals
   return up <= (below ? -16 : -10) ? up : 10
 }
 
-/** Hangs a note's words `dy` from its point, above it or (for a positive `dy`) below: the leader's end moves with them. */
-export function setNoteRise(el: HTMLElement, dy: number, align: string) {
+/** How far left of its own box a note's words start, by their alignment (as NOTE_ALIGN shifts them). */
+const NOTE_FX: Record<string, number> = { right: -1, left: 0, center: -0.5 }
+
+/**
+ * Hangs a note's words `dy` from its point, above it or (for a positive `dy`) below: the leader's end moves with them.
+ * Given where the point is on the stage (`at`: its x, the words' width, the stage's width), the words stay inside the
+ * stage across too, and where they would hang below the point, onto the sheet a shock has raised, they hang beside it
+ * instead, on whichever side has room, level with the point (below it only where neither side has).
+ */
+export function setNoteRise(el: HTMLElement, dy: number, align: string, at?: { x: number; w: number; stageW: number }) {
   const words = el.querySelector<HTMLElement>('[data-note-words]')
   const lead = el.querySelector('line')
-  if (words) {
-    // Moved by its transform, never its top, so following the point runs no layout.
-    words.style.top = '0px'
+  if (!words) return
+  // Moved by its transform, never its top, so following the point runs no layout.
+  words.style.top = '0px'
+  const dx = Number((words.dataset.dx ??= String(parseFloat(words.style.left) || 0)))
+  let t: string, below = false, x2 = dx, y2 = dy
+  const side = dy > 0 && at ? (at.x - 12 - at.w >= 4 ? -1 : at.x + 12 + at.w <= at.stageW - 4 ? 1 : 0) : 0
+  if (side) {
+    t = `translate3d(${(side < 0 ? -dx - 12 : -dx + 12).toFixed(1)}px, 0, 0) ${side < 0 ? 'translate(-100%, -50%)' : 'translate(0, -50%)'}`
+    x2 = side * 9
+    y2 = 0
+  } else {
+    const x0 = at ? at.x + dx + (NOTE_FX[align] ?? 0) * at.w : 0
+    const shift = at ? Math.max(4 - x0, Math.min(0, at.stageW - 4 - at.w - x0)) : 0
     const a = dy > 0 ? NOTE_ALIGN[align]!.replace('-100%)', '0)') : NOTE_ALIGN[align]!
-    words.style.transform = `translate3d(0, ${dy.toFixed(1)}px, 0) ${a}`
+    t = `translate3d(${shift.toFixed(1)}px, ${dy.toFixed(1)}px, 0) ${a}`
+    x2 = dx + shift
     // Below its point the words lie on the sheet: no paper plate there, which laid a band across the very lift a shock
     // had raised; a paper halo keeps them legible on it.
-    words.toggleAttribute('data-below', dy > 0)
+    below = dy > 0
   }
-  lead?.setAttribute('y2', String(dy))
+  if (words.style.transform !== t) words.style.transform = t
+  words.toggleAttribute('data-below', below)
+  if (lead) {
+    lead.setAttribute('x2', x2.toFixed(1))
+    lead.setAttribute('y2', y2.toFixed(1))
+  }
 }
 
 /**
