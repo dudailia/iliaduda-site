@@ -1121,7 +1121,9 @@ export function MarketLive({
         <div data-market-lower="" className="mt-3 grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-4">
           {/* The book: the last twenty seconds, and the book at now. */}
           <div className="-mx-6 sm:mx-0">
-            <p className="text-meta mb-1.5 px-6 font-mono text-graphite sm:px-0" data-market-book-title="">
+            {/* On a phone the reading ("6.1 s ago · vol 51.2% · stress 0.32") takes three lines in this pane: both panes'
+                titles keep that room, so a tap moves nothing under them and the two panes stay level. */}
+            <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0" data-market-book-title="">
               <span ref={hoverEl}>Order book, the last 20 seconds</span>
             </p>
             {/* The slider's description only (hidden, so it is never read as the page's text); there is none to
@@ -1188,7 +1190,7 @@ export function MarketLive({
           </div>
           {/* The futures: a year from the price now. */}
           <div className="-mx-6 sm:mx-0">
-            <p className="text-meta mb-1.5 px-6 font-mono text-graphite sm:px-0">Futures, the next year</p>
+            <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0">Futures, the next year</p>
             <div className="relative h-28 overflow-hidden bg-paper sm:h-52" data-market-fan="" data-market-pane="">
               <div data-market-still="" style={underlay(live)}>{stillsOf('fan')}</div>
               <canvas ref={fanCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />

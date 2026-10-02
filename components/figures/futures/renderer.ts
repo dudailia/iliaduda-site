@@ -495,6 +495,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   /** How far the fade back in has come after a Replay (0…1, eased). */
   let fadeUp = 0
   let firstFrame = true
+  /** A visit that opens on the finished picture: its first bars are set, not grown. */
+  let openFinished = false
   /** The one batch priced while the sequence waits has gone out. */
   let warmed = false
   /** An input changed since the last pricing call: the next frame prices, paused or not. */
@@ -862,15 +864,17 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
    * A bar as a slab behind the z = 0 plane, its front face the flat bar of the composed frame: written straight into
    * the vertex buffer, 36 vertices, without a call a face that would hand each of its numbers over boxed.
    */
-  function slab(x0: number, x1: number, y0: number, y1: number, base: Float64Array) {
+  function slab(x0: number, x1: number, y0: number, y1: number, base: Float64Array, k = 1) {
     const z0 = -2 * BAR_D, z1 = 0
     const dark = palette.dark
     // Lit from above and in front: the top catches the light, the far end and the back fall away from it. The
     // base at the wall takes the front's tone: every bar's base lies in one plane, and shaded apart they stacked
     // into a column that read as a tower rather than a distribution.
-    const top = mixInto(barTop, base, dark ? palette.ink : palette.paper, dark ? 0.2 : 0.24)
-    const end = mixInto(barEnd, base, dark ? palette.paper : palette.ink, dark ? 0.3 : 0.14)
-    const low = mixInto(barLow, base, dark ? palette.paper : palette.ink, dark ? 0.45 : 0.24)
+    // The shading fades with the bar (`k`, Replay's fade): at a fixed strength the faded bars' ends and bases stayed
+    // 14–24% ink, a grey wireframe of the old answer as the camera swung face-on.
+    const top = mixInto(barTop, base, dark ? palette.ink : palette.paper, (dark ? 0.2 : 0.24) * k)
+    const end = mixInto(barEnd, base, dark ? palette.paper : palette.ink, (dark ? 0.3 : 0.14) * k)
+    const low = mixInto(barLow, base, dark ? palette.paper : palette.ink, (dark ? 0.45 : 0.24) * k)
     const a = solid.room(36 * 7)
     let n = solid.n
     for (let f = 0; f < 6; f++) {
@@ -940,7 +944,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         const pays = lo + binWidth / 2 > kv.x
         const a = ((1 - w) * (pays ? (dark ? 0.62 : 0.5) : dark ? 0.4 : 0.28) + w * 0.95) * fadeMul
         // Opaque, so depth sorts them: the ink's strength is mixed into paper instead of blended over it.
-        slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixInto(barBase, palette.paper, pays ? palette.indigo : palette.graphite, a))
+        slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixInto(barBase, palette.paper, pays ? palette.indigo : palette.graphite, a), fadeMul)
       }
     }
     // The first frame builds the bars' pipeline with one slab far off screen, before any bar is due.
@@ -1093,7 +1097,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     // The histogram's name and price rise clear of any drawn bar (two pixels and longer) grown under them, followed
     // over the same 60ms.
     const hl = labels.find((l) => l.el === histEl)!, vl = labels.find((l) => l.el === valueEl)!, al = labels.find((l) => l.el === aboveEl)!
-    const aboveOn = shareAbove(sig.x) >= ABOVE_SHOWN * 0.8
+    // The third line's room comes and goes with the line itself (its own opacity, 0 to 1): taken whole the moment it
+    // switched on, it lifted the block 18px in one frame while the line was still invisible.
+    const aboveK = Math.max(0, Math.min(1, al.k ?? 0))
     let want = 0
     if (barsReady && hl.w > 0) {
       const toCss = (x: number, y: number, z: number) => {
@@ -1107,7 +1113,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         const l = land * ((1 - m) * cLen[b]! + m * gLen[b]!)
         return l < minLen ? 0 : l
       }
-      want = histLift(toCss, len, Math.max(hl.w, vl.w, aboveOn ? al.w : 0), hl.h + Math.max(0, vl.h) + (aboveOn ? Math.max(0, al.h) : 0))
+      want = histLift(toCss, len, Math.max(hl.w, vl.w, aboveK > 0.01 ? al.w : 0), hl.h + Math.max(0, vl.h) + aboveK * Math.max(0, al.h))
     }
     // Up at once, as the bars grow (eased, the words lagged a volatility jump by 100ms, sitting on the top bars); down over
     // the 60ms follow, as they shrink.
@@ -1241,8 +1247,16 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       spring(edgeK, cam === 'flight' ? smooth(0.2, 0.3, flightP) : 0, dt, 6)
       if (firstFrame) {
         firstFrame = false
-        // A visit without a sequence opens on the finished picture: payoff bars and the price.
-        if (!inSeq()) morph.x = 1
+        // A visit without a sequence opens on the finished picture, the poster's: payoff bars at their lengths, the price,
+        // and the histogram's finished name (it opened on "Where the paths end" and blurred to it over a poster that
+        // already said it, and the bars grew in beside the poster's).
+        if (!inSeq()) {
+          morph.x = 1
+          histText = histWant = 1
+          histSwapAt = -1
+          histEl.textContent = 'Payoff × how often it happens'
+          openFinished = true
+        }
       }
       // The morph: the sequence's own clock while it plays; the flight's once
       // it faces the wall; and the finished payoff picture at rest or on the way home.
@@ -1257,6 +1271,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
 
       if (pricer.collect()) {
         barTargets()
+        if (openFinished) {
+          // The first counts of a visit that opens finished are the bars as they stand, not a growth from nothing.
+          openFinished = false
+          cLen.set(barC)
+          gLen.set(barG)
+        }
         if (paused) {
           // Paused, the bars do not ease: they take each new count as it lands, redrawn at most once a second, as a
           // table would be refreshed, while the estimate in the margin carries on converging.

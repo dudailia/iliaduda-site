@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode, Ref } from 'react'
+import { EASE_OUT_CSS } from '@/lib/ease'
 
 /**
  * Markup shared by the server poster and the live layer: the frame the
@@ -75,25 +76,41 @@ const NOTE_FX: Record<string, number> = { right: -1, left: 0, center: -0.5 }
  * stage across too, and where they would hang below the point, onto the sheet a shock has raised, they hang beside it
  * instead, on whichever side has room, level with the point (below it only where neither side has).
  */
-export function setNoteRise(el: HTMLElement, dy: number, align: string, at?: { x: number; w: number; stageW: number }) {
+export function setNoteRise(el: HTMLElement, dy: number, align: string, at?: { x: number; w: number; stageW: number; h?: number }): readonly [number, number, number, number] | null {
   const words = el.querySelector<HTMLElement>('[data-note-words]')
   const lead = el.querySelector('line')
-  if (!words) return
+  if (!words) return null
   // Moved by its transform, never its top, so following the point runs no layout.
   words.style.top = '0px'
   const dx = Number((words.dataset.dx ??= String(parseFloat(words.style.left) || 0)))
   let t: string, below = false, x2 = dx, y2 = dy
-  const side = dy > 0 && at ? (at.x - 12 - at.w >= 4 ? -1 : at.x + 12 + at.w <= at.stageW - 4 ? 1 : 0) : 0
+  // Where the words now stand, from the point (x0, y0, x1, y1 in px), so the axis labels can make room for them.
+  let box: [number, number, number, number] | null = null
+  const h = at?.h ?? 0
+  // The side it hangs on is kept while it still fits (chosen afresh each frame, a falling shock flung the words 277px
+  // from one side to the other in a frame); a change of side fades them in where they land.
+  const fitsLeft = !!at && at.x - 12 - at.w >= 4, fitsRight = !!at && at.x + 12 + at.w <= at.stageW - 4
+  const was = Number(words.dataset.side ?? 0)
+  const side = dy > 0 && at ? (was === -1 && fitsLeft ? -1 : was === 1 && fitsRight ? 1 : fitsLeft ? -1 : fitsRight ? 1 : 0) : 0
+  if (side !== was) {
+    if (was !== 0 && side !== 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) words.animate([{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0px)' }], { duration: 140, easing: EASE_OUT_CSS })
+    words.dataset.side = String(side)
+  }
   if (side) {
     t = `translate3d(${(side < 0 ? -dx - 12 : -dx + 12).toFixed(1)}px, 0, 0) ${side < 0 ? 'translate(-100%, -50%)' : 'translate(0, -50%)'}`
     x2 = side * 9
     y2 = 0
+    if (at) box = side < 0 ? [-12 - at.w, -h / 2, -12, h / 2] : [12, -h / 2, 12 + at.w, h / 2]
   } else {
     const x0 = at ? at.x + dx + (NOTE_FX[align] ?? 0) * at.w : 0
     const shift = at ? Math.max(4 - x0, Math.min(0, at.stageW - 4 - at.w - x0)) : 0
     const a = dy > 0 ? NOTE_ALIGN[align]!.replace('-100%)', '0)') : NOTE_ALIGN[align]!
     t = `translate3d(${shift.toFixed(1)}px, ${dy.toFixed(1)}px, 0) ${a}`
     x2 = dx + shift
+    if (at) {
+      const left = dx + (NOTE_FX[align] ?? 0) * at.w + shift
+      box = dy > 0 ? [left, dy, left + at.w, dy + h] : [left, dy - h, left + at.w, dy]
+    }
     // Below its point the words lie on the sheet: no paper plate there, which laid a band across the very lift a shock
     // had raised; a paper halo keeps them legible on it.
     below = dy > 0
@@ -104,6 +121,7 @@ export function setNoteRise(el: HTMLElement, dy: number, align: string, at?: { x
     lead.setAttribute('x2', x2.toFixed(1))
     lead.setAttribute('y2', y2.toFixed(1))
   }
+  return box
 }
 
 /**

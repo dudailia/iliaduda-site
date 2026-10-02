@@ -533,6 +533,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
    * with the hand's speed.
    */
   const turn = { yaw: { x: 0, v: 0 }, pitch: { x: 0, v: 0 } }
+  /** How far the camera stands back at each soft limit: a share of its distance. */
+  const PULL = { yaw: 0.22, pitch: 0.22 }
   let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; touch: boolean; live: boolean } | null = null
   const follow = { x: centre, v: 0 }
   /** The drift's speed: 1 running, coasting to 0 over 240ms on Pause and back over 400ms on Resume, as the home figure's. */
@@ -557,7 +559,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const cam = (t: number, k: number): Camera => ({
     yaw: REST.yaw + (SWAY.drift * Math.sin((2 * Math.PI * t) / SWAY.period) + lean.yaw.x + turn.yaw.x) * k,
     pitch: page.pitch + (rest.pitch - page.pitch) * k + (lean.pitch.x + turn.pitch.x) * k,
-    dist: page.dist + (rest.dist - page.dist) * k,
+    // Turned toward a soft limit, the camera stands back (by the square of the turn, so the rest pose is untouched): the
+    // terrain's corners stay on the stage instead of being cut on its edge.
+    dist: (page.dist + (rest.dist - page.dist) * k) * (1 + PULL.yaw * (turn.yaw.x / 0.6) ** 2 + PULL.pitch * (turn.pitch.x / 0.3) ** 2),
     tx: page.tx + (rest.tx - page.tx) * k,
     ty: rest.ty,
     tz: rest.tz,

@@ -27,6 +27,10 @@ describe('keepDashes', () => {
     expect(text(keepDashes(f))).toBe('the key\u00a0— billing and\u00a0— more')
   })
 
+  it('holds a dash that ends its string, before the words in the next', () => {
+    expect(keepDashes('a log line —')).toBe('a log line\u00a0—')
+  })
+
   it('leaves a component’s children and dashless text as they are', () => {
     const C = ({ children }: { children: ReactNode }) => children
     const c = createElement(C, null, 'a — b')

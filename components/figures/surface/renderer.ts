@@ -298,6 +298,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   // The soft limits the drag eases into, and their inverses: a surface grabbed again near a limit picks up from where
   // it is, not from a second pass through the limit.
   const soft = { yaw: (r: number) => 0.9 * Math.tanh(r / 0.9), pitch: (r: number) => 0.1 + 0.4 * Math.tanh((r - 0.1) / 0.4) }
+  /** How far the camera stands back at each soft limit: a share of its distance. */
+  const PULL = { yaw: 0.18, pitch: 0.3 }
   const raw = {
     yaw: (y: number) => 0.9 * Math.atanh(Math.max(-0.999, Math.min(0.999, y / 0.9))),
     pitch: (p: number) => 0.1 + 0.4 * Math.atanh(Math.max(-0.999, Math.min(0.999, (p - 0.1) / 0.4))),
@@ -456,7 +458,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     // The strike axis hangs on the front edge, the expiry axis on the right one: past the drag's soft limit the eye can
     // stand behind either, and its words would be painted over the sheet that hides it.
     const turned = (id: string) => (id[0] === 'k' ? e[2]! < ZW : id[0] === 't' ? e[0]! < XW : false)
-    const kept: number[] = []
+    // The notes' words first: they are the figure's reading, and an axis label that would touch them gives way.
+    const kept: number[] = noteBox.flatMap((b) => (b ? [b[0], b[1], b[2], b[3]] : []))
     const order = [...LABELS.keys()].sort((a, b) => (LABELS[a]!.kind === 'title' ? 0 : 1) - (LABELS[b]!.kind === 'title' ? 0 : 1))
     for (const i of order) {
       const el = els[i]
@@ -485,6 +488,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   /** Each note's words: their height (measured once a size), and how far above the point they last stood. */
   const noteH: number[] = []
   const noteW: number[] = []
+  /** Where each note's words stood last frame, on the stage: the axis labels give way to them (thinLabels). */
+  const noteBox: (readonly [number, number, number, number] | null)[] = []
   const noteDy: (number | undefined)[] = []
   // A note mid-way through its word swap to the other side of its point.
   const noteSwap: boolean[] = []
@@ -647,7 +652,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const kind = hooks.frame()
       const cam = camera(kind, Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw + nod.yaw, spring.pitch + lean.pitch + nod.pitch)
       lastZoom = hooks.zoom?.() ?? 1
-      cam.dist *= lastZoom
+      // Turned toward a soft limit, the camera stands back (by the square of the turn, so rest is untouched): the slab's
+      // front and corners stay on the stage instead of being cut on its edge.
+      cam.dist *= lastZoom * (1 + PULL.yaw * (spring.yaw / 0.9) ** 2 + PULL.pitch * (Math.max(0, spring.pitch) / 0.5) ** 2 + PULL.pitch * (Math.min(0, spring.pitch) / 0.3) ** 2)
       const m = mvp(kind, cam, cssW / cssH)
       inv = invert(m, invBuf)
       const e = eye(cam)
@@ -757,12 +764,13 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         noteH[i] ||= words?.offsetHeight ?? 0
         noteW[i] ||= words?.offsetWidth ?? 0
         // Where the point is, so the words stay inside the stage across as well, and hang beside it rather than below.
-        const at = { x: sx, w: noteW[i]!, stageW: cssW }
+        const at = { x: sx, w: noteW[i]!, stageW: cssW, h: noteH[i]! }
         const below = (noteDy[i] ?? -1) > 0
         if (noteSwap[i]) {
           // Mid-swap the words keep riding the point on the side they are leaving.
           const keep = below ? 10 : Math.min(-10, Math.max(o[1], 4 + noteH[i]! - sy))
-          setNoteRise(el, (noteDy[i] = keep), o[2], at)
+          const b = setNoteRise(el, (noteDy[i] = keep), o[2], at)
+          noteBox[i] = b ? [sx + b[0], sy + b[1], sx + b[2], sy + b[3]] : null
           return
         }
         const dy = noteRise(sy, o[1], noteH[i]!, 4, below)
@@ -786,7 +794,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
           return
         }
         // Every frame: the point moves across the stage as the surface turns, and the words are held inside it.
-        setNoteRise(el, (noteDy[i] = dy), o[2], at)
+        const b = setNoteRise(el, (noteDy[i] = dy), o[2], at)
+        noteBox[i] = b ? [sx + b[0], sy + b[1], sx + b[2], sy + b[3]] : null
       })
       const dot = hooks.dot()
       const at = iv(p, probe.k, probe.T)

@@ -154,11 +154,26 @@ function Wide() {
               stroke={ACCENT}
               strokeWidth={stroke(s.role)}
             />
-            {/* A paper halo: the small gains' labels cross the ambiguous band
-                and the 1% line. */}
-            <text x={W.x0 + w + 9} y={y + 16} fontSize="12.5" fill={INK} stroke="var(--color-paper)" strokeWidth={4} paintOrder="stroke">
-              {gain(s.gain)}
-            </text>
+            {/* A gain that ends short of the 1% line is named past it, on paper, with a hairline back to its bar: set at
+                its bar's end, its figures crossed the ambiguous band's edge (the verdict's numbers, read through a
+                line). */}
+            {(() => {
+              const past = W.x0 + wScale(JUSTIFY) + 9
+              const at = W.x0 + w + 9
+              if (at >= past) return (
+                <text x={at} y={y + 16} fontSize="12.5" fill={INK}>
+                  {gain(s.gain)}
+                </text>
+              )
+              return (
+                <>
+                  <line x1={W.x0 + w + 3} y1={y + W.barH / 2} x2={past - 5} y2={y + W.barH / 2} stroke={GRAPHITE} strokeWidth="0.75" strokeDasharray="1 3" />
+                  <text x={past} y={y + 16} fontSize="12.5" fill={INK}>
+                    {gain(s.gain)}
+                  </text>
+                </>
+              )
+            })()}
           </g>
         )
       })}

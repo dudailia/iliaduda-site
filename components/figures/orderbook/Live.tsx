@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
+import { EASE_OUT_CSS } from '@/lib/ease'
 import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, whenIdle } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
@@ -571,7 +572,14 @@ export function OrderBookLive({
               </svg>
             )}
           </div>
-          <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
+          {/* On a visit after the first it arrives over a poster of a later moment of the market, so a 2px blur bridges
+              the two terrains while it fades in, as the home figure's still frame does (two sharp outlines showed). */}
+          <canvas
+            ref={canvas}
+            aria-hidden
+            className="absolute inset-0 size-full"
+            style={{ ...fade(live), filter: live ? 'none' : 'blur(2px)', transition: `${fade(live).transition}, filter 240ms ${EASE_OUT_CSS}` }}
+          />
           <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />
         </div>
         <FocusRing />

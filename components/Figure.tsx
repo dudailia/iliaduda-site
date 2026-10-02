@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import { Items, Row } from './Layout'
+import { Items, Row, keepDashes } from './Layout'
 
 /**
  * Every figure goes through here so the accessibility wiring cannot be
@@ -89,7 +89,7 @@ export function Figure({
           )
         })}
 
-        <figcaption id={`${id}-caption`} className="text-note mt-5 max-w-[39.2rem] text-graphite">{caption}</figcaption>
+        <figcaption id={`${id}-caption`} className="text-note mt-5 max-w-[39.2rem] text-graphite">{keepDashes(caption)}</figcaption>
 
         {table ? <div className="sr-only">{table}</div> : null}
       </Row>

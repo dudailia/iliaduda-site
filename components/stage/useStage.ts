@@ -181,6 +181,7 @@ export function useStage(
 
     let skip = false
     let calmFor = 0
+    let heldUntil = 0
     // Leaving the page, the loop stops: the way back to the Contents takes the old page's picture after pageswap, and
     // a live canvas drawing on into it was caught blank about half the time (a paused one, drawing nothing, never was).
     // A page the back-forward cache restores runs again.
@@ -217,7 +218,10 @@ export function useStage(
       // 30 Hz clock (Low Power Mode) that no lighter quality would speed up. The renderer is told the refresh too, so
       // its own pacing (the home figure's pricing) judges its frames by the same clock.
       // Halved, a frame spans two of the display's: the governor judges each against the display's own interval.
-      if (gov.frame(halve ? dt / 2 : dt, now, !!hold.current?.())) {
+      // The hold outlasts the story by a second and a half: released on its last frame, the step up it had held back
+      // landed there, one long frame where the story ends.
+      if (hold.current?.()) heldUntil = now + 1500
+      if (gov.frame(halve ? dt / 2 : dt, now, now < heldUntil)) {
         q = gov.q
         renderer.setQuality?.(q)
         size()
@@ -300,13 +304,37 @@ export function useStage(
     ro.observe(cv)
     const onVis = () => run()
     document.addEventListener('visibilitychange', onVis)
+    // The old page's picture is taken after pageswap, from what the compositor holds, and a WebGL canvas's buffer was
+    // still caught empty now and then (the IV surface, about 1 in 7). So the last frame is drawn once more and copied
+    // into a plain 2D canvas laid over the live one: the picture the morph takes is that copy, whatever the GL buffer
+    // holds by then. A page the back-forward cache restores takes the copy away and runs again.
+    let snap: HTMLCanvasElement | null = null
     const onSwap = () => {
       gone = true
       cancelAnimationFrame(raf)
       raf = 0
+      if (!renderer || !first || !t0) return
+      try {
+        const r = cv.getBoundingClientRect()
+        // Marked as changed (a resize at the same size), so even a paused, idle renderer draws this frame.
+        renderer.resize(cv.width, cv.height, r.width, r.height)
+        renderer.frame((last - t0) / 1000, 0)
+        const copy = document.createElement('canvas')
+        copy.width = cv.width
+        copy.height = cv.height
+        copy.getContext('2d')?.drawImage(cv, 0, 0)
+        copy.className = cv.className
+        copy.style.cssText = cv.style.cssText
+        copy.setAttribute('aria-hidden', 'true')
+        copy.dataset.swapCopy = ''
+        cv.after(copy)
+        snap = copy
+      } catch {}
     }
     const onShow = (e: PageTransitionEvent) => {
       if (!e.persisted) return
+      snap?.remove()
+      snap = null
       gone = false
       run()
     }
@@ -347,6 +375,7 @@ export function useStage(
       document.removeEventListener('visibilitychange', onVis)
       removeEventListener('pageswap', onSwap)
       removeEventListener('pageshow', onShow)
+      snap?.remove()
       cv.removeEventListener('webglcontextlost', onLost)
       cv.removeEventListener('webglcontextrestored', onRestored)
       renderer?.dispose()

@@ -170,7 +170,8 @@ export function Whole({ text }: { text: string }) {
  * " — ". A component's own children are left as they are.
  */
 export function keepDashes(node: ReactNode): ReactNode {
-  if (typeof node === 'string') return node.includes(' — ') ? node.replace(/ — /g, '\u00a0— ') : node
+  // A dash at a string's end ("… a log line —", then {' '} and the next words) is held to the word before it too.
+  if (typeof node === 'string') return node.includes(' —') ? node.replace(/ —( |$)/g, '\u00a0—$1') : node
   if (Array.isArray(node)) return node.map(keepDashes)
   if (isValidElement(node) && (typeof node.type === 'string' || node.type === Fragment)) {
     const el = node as ReactElement<{ children?: ReactNode }>
