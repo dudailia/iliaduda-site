@@ -1,7 +1,7 @@
 import { certifications, education, roles, SKILLS } from '@/content/experience'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
-import { AVAILABILITY, CV_PHONE, PERSON, RESUME, SITE } from '@/lib/site'
+import { AVAILABILITY, CV_PHONE, PERSON, RESUME, SITE, rolesInWords } from '@/lib/site'
 import { Whole } from '@/components/Layout'
 
 export const metadata = pageMeta(
@@ -74,8 +74,7 @@ export default function Cv() {
         <header className="cv-header">
           <h1 className="cv-name">{PERSON.name}</h1>
           <p className="cv-line">
-            {AVAILABILITY.line} in {AVAILABILITY.roles.slice(0, -1).join(', ').toLowerCase()} or{' '}
-            {AVAILABILITY.roles.at(-1)!.toLowerCase()}; {places}.
+            {AVAILABILITY.line} in {rolesInWords()}; {places}.
           </p>
           <ul className="cv-contact">
             {contact.map((c) => (
@@ -120,13 +119,13 @@ export default function Cv() {
                 <div className="cv-entry-head">
                   <p>
                     <strong>{r.org}</strong>
-                    {/* The dot is held to the note before it (a line never starts with it), and the title is one item: it
-                        moves to the next line whole rather than breaking inside itself. */}
+                    {/* The title is one item: it moves to the next line whole rather than breaking inside itself. Its dot
+                        hangs in the gap before it (globals.css, .cv-title), so a wrapped head never ends on a dot. */}
                     <span className="cv-muted">
                       , {r.orgNote}
-                      {'\u00a0· '}
+                      {'\u00a0\u00a0 '}
                     </span>
-                    <span className="whitespace-nowrap">{r.title}</span>
+                    <span className="cv-title">{r.title}</span>
                   </p>
                   <p className="cv-date">{shortDates(r.dates)}</p>
                 </div>

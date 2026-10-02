@@ -107,9 +107,12 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
           </span>
         ) : null}
       </div>
-      <div aria-hidden className="text-meta mt-1 flex justify-between font-mono text-graphite">
+      <div aria-hidden className="text-meta relative mt-1 flex justify-between font-mono text-graphite">
         <span>{Math.round(Math.exp(K0) * 100)}% strike</span>
-        <span>at the money</span>
+        {/* Under its own dashed line (k = 0 is 60% along), not at the middle of the axis. */}
+        <span className="absolute top-0 -translate-x-1/2 whitespace-nowrap" style={{ left: `${((0 - K0) / (K1 - K0)) * 100}%` }}>
+          at the money
+        </span>
         <span>{Math.round(Math.exp(K1) * 100)}%</span>
       </div>
 
@@ -123,7 +126,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
           value={eta}
           onChange={(e) => setEta(Number(e.currentTarget.value))}
           aria-valuetext={`eta ${eta.toFixed(2)}; ${arbitrage ? `butterfly arbitrage, lowest g drawn ${minG.toFixed(3)}` : 'no butterfly arbitrage'}`}
-          className="mt-1 h-6 w-full"
+          className="mt-1 h-6 w-full pointer-coarse:mt-[calc(0.25rem-10px)] pointer-coarse:mb-[-2px] pointer-coarse:h-11 pointer-coarse:align-top"
           style={rangeFill(eta, 0.4, ETA_MAX)}
         />
       </label>

@@ -97,7 +97,7 @@ export function OfzLive({
     <FigureFrame
       {...frame}
       rail={<Readouts rows={rows} across={frame.inline ?? false} />}
-      hint="Drag the slider, tap a rate decision, or use the arrow keys to move a trading day at a time · the dashed curve is the session before · dots are the bonds the curve was fitted to"
+      hint="Drag the slider, choose a rate decision, or use the arrow keys to move a trading day at a time · the dashed curve is the session before · dots are the bonds the curve was fitted to"
     >
       <div className="relative">
         <div className="flex">
@@ -208,7 +208,7 @@ export function OfzLive({
               setAt(Number(e.currentTarget.value))
               setAnnounce('')
             }}
-            className="h-6 w-full"
+            className="h-6 w-full pointer-coarse:-mt-2.5 pointer-coarse:mb-[-2px] pointer-coarse:h-11 pointer-coarse:align-top"
             style={rangeFill(at, 0, days.length - 1)}
           />
           {/* Positions follow the thumb's centre, which travels the track

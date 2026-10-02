@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Items, Row, Whole } from './Layout'
+import { Items, Row, Whole, keepDashes } from './Layout'
 
 /**
  * Section headings live in the rail, right-aligned, rather than stacked above
@@ -39,7 +39,7 @@ export function CaseStudyTitle({
       {byline ? (
         <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>
       ) : null}
-      <div className="mt-5 max-w-[37.9rem]">{standfirst}</div>
+      <div className="mt-5 max-w-[37.9rem]">{keepDashes(standfirst)}</div>
       <hr className="mt-8 border-0 border-t border-rule" />
     </Row>
   )
@@ -82,7 +82,7 @@ export function Section({
         {/* The measure holds at every width, not only beside the rail: a tablet's column would otherwise run to 85
             characters a line. */}
         <div className="min-w-0 max-w-(--measure) lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
-          {children}
+          {keepDashes(children)}
         </div>
       </div>
     </section>

@@ -190,6 +190,8 @@ export function MarketLive({
     }
   })
   const pausedRef = useRef(paused)
+  /** How fast the fan follows the market, 0 to 1, coasting with it on Pause. */
+  const fanRate = useRef(paused ? 0 : 1)
   const [flat, setFlat] = useState(false)
   // Live once both flat views have drawn a frame, so no view's words arrive before its picture.
   const drewOnce = useRef({ book: false, fan: false })
@@ -265,12 +267,15 @@ export function MarketLive({
     kindRef.current = kind
   }, [kind])
 
-  const write = useCallback((id: string, text: string) => {
+  /** On paper: the readouts hold the printed still frames' numbers, and the live market's writes wait. */
+  const onPaper = useRef(false)
+  const put = useCallback((id: string, text: string) => {
     for (const k of [id, `${id}-m`]) {
       const el = out.current[k]
       if (el && el.textContent !== text) el.textContent = text
     }
   }, [])
+  const write = useCallback((id: string, text: string) => void (onPaper.current || put(id, text)), [put])
 
   // ── the surface: the IV paper's renderer, its shock the market's stress ────────────────────────────────────────
   const leanApi = useRef<{ lean: { current: { x: number; y: number } } } | null>(null)
@@ -496,7 +501,10 @@ export function MarketLive({
       // Drawn while Fig. 1 is on screen; with only Fig. 2 in view the market runs on for its rates, and nothing here
       // is drawn that no one sees.
       if (stageOn.current && v.book.draw(m, p, now, landing.current, dt)) drewOnce.current.book = true
-      if (stageOn.current && v.fan.draw(m, p, now, landing.current, dt)) drewOnce.current.fan = true
+      // The fan's breathing toward the market's volatility coasts to rest with the market on Pause (240ms) and picks up
+      // with it on Resume (400ms): Pause holds every view. A moment the reader points at is answered at once, paused or not.
+      fanRate.current = pausedRef.current ? Math.max(0, fanRate.current - dt / 0.24) : Math.min(1, fanRate.current + dt / 0.4)
+      if (stageOn.current && v.fan.draw(m, p, now, landing.current, dt, fanRate.current)) drewOnce.current.fan = true
       if (!flat && drewOnce.current.book && drewOnce.current.fan) setFlat(true)
 
       // The book's words: prices up its side, where the window has them now.
@@ -511,13 +519,12 @@ export function MarketLive({
           return
         }
         const y = lay.y(p0)
-        // A label fades as it nears the strip's edge (over 12px), so the window carrying down never pops one. Paused,
-        // the window holds, and a label held half faded would be half legible: it is shown or not.
+        // A label near the strip's edge is shown or not, never held half faded (the window stands still whenever the
+        // price does, paused or running, and a half-faded label would be half legible for as long as it stood): it
+        // eases to shown or hidden over 150ms as the window carries it past the edge, so none pops.
         const edge = Math.min(1, Math.max(0, (Math.min(y, lay.h - y) - 8) / 12))
-        const o = pausedRef.current ? (edge >= 0.5 ? 1 : 0) : edge
-        // Paused, a half-faded label eases to shown or hidden over 150ms rather than popping; running, the edge's own
-        // fade moves it frame by frame.
-        const ease = pausedRef.current ? `opacity 150ms ${EASE_OUT_CSS}` : ''
+        const o = edge >= 0.5 ? 1 : 0
+        const ease = `opacity 150ms ${EASE_OUT_CSS}`
         if (el.style.transition !== ease) el.style.transition = ease
         if (o === 0) {
           el.style.opacity = '0'
@@ -642,15 +649,42 @@ export function MarketLive({
   })
 
   // Readouts start as the posters' frame: the same numbers, computed on the server.
+  const putInitial = useCallback(
+    (to: (id: string, text: string) => void) => {
+      to('time', clock(initial.t))
+      to('mid', usd(initial.mid))
+      to('spread', `${initial.spread} ${initial.spread === 1 ? 'tick' : 'ticks'}`)
+      to('sigma', pct(initial.sigma))
+      to('stress', initial.stress.toFixed(2))
+      to('atm', pct(atmOf(initial.stress)))
+      to('range', `${dollars(initial.lo)}–${dollars(initial.hi)}`)
+    },
+    [initial],
+  )
+  useEffect(() => putInitial(write), [putInitial, write])
+  // On paper the still frames stand in for the live views (a canvas is the screen's), so the readouts print the still
+  // frames' moment, not the live market's: a 70% realised volatility never prints beside a calm fan. Live writing
+  // resumes after.
   useEffect(() => {
-    write('time', clock(initial.t))
-    write('mid', usd(initial.mid))
-    write('spread', `${initial.spread} ${initial.spread === 1 ? 'tick' : 'ticks'}`)
-    write('sigma', pct(initial.sigma))
-    write('stress', initial.stress.toFixed(2))
-    write('atm', pct(atmOf(initial.stress)))
-    write('range', `${dollars(initial.lo)}–${dollars(initial.hi)}`)
-  }, [initial, write])
+    const toPaper = () => {
+      onPaper.current = false
+      putInitial(put)
+      onPaper.current = true
+    }
+    const back = () => {
+      onPaper.current = false
+    }
+    const print = matchMedia('print')
+    const onMedia = () => (print.matches ? toPaper() : back())
+    addEventListener('beforeprint', toPaper)
+    addEventListener('afterprint', back)
+    print.addEventListener('change', onMedia)
+    return () => {
+      removeEventListener('beforeprint', toPaper)
+      removeEventListener('afterprint', back)
+      print.removeEventListener('change', onMedia)
+    }
+  }, [putInitial, put])
 
   // ── the reader: a moment in the book shows the market as it was then, by pointer, finger or keys ─────────────────
   /**
@@ -704,7 +738,9 @@ export function MarketLive({
   }
   // A mouse reads as it moves; a finger reads while it drags sideways (the page keeps vertical swipes) and leaves the
   // reading where it lifts, until the next tap.
-  const touching = useRef<{ id: number; x: number; moved: boolean } | null>(null)
+  const touching = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null)
+  /** Where the last tap read, so a tap there again lets the reading go and a tap elsewhere moves it. */
+  const tappedAt = useRef<number | null>(null)
   const onBookMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'touch') {
       const t = touching.current
@@ -718,16 +754,23 @@ export function MarketLive({
   }
   const onBookDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'touch') return
-    touching.current = { id: e.pointerId, x: e.clientX, moved: false }
+    touching.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false }
   }
   const onBookUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     const t = touching.current
     if (!t || t.id !== e.pointerId) return
     touching.current = null
-    if (t.moved) return
-    // A tap reads the moment under it, as the other figures' taps do (no drag needed: WCAG 2.5.7); a tap while a
-    // reading is up lets it go.
-    readAt(readingAgo.current !== null ? null : agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
+    // A finger that travelled was a drag or a swipe of the page, not a tap.
+    if (t.moved || Math.abs(e.clientY - t.y) > 6) return
+    // A tap reads the moment under it, as the other figures' taps do (no drag needed: WCAG 2.5.7), and a later tap
+    // moves the reading there; a tap on the moment already read lets it go.
+    const again = readingAgo.current !== null && tappedAt.current !== null && Math.abs(e.clientX - tappedAt.current) < 16
+    tappedAt.current = again ? null : e.clientX
+    readAt(again ? null : agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
+  }
+  // The browser has taken the finger for a scroll of the page (or lost it): nothing was tapped, and nothing is read.
+  const onBookCancel = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (touching.current?.id === e.pointerId) touching.current = null
   }
   const onBookLeave = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'touch' || keyAgo.current !== null) return
@@ -1113,7 +1156,7 @@ export function MarketLive({
                 onPointerMove={onBookMove}
                 onPointerDown={onBookDown}
                 onPointerUp={onBookUp}
-                onPointerCancel={onBookUp}
+                onPointerCancel={onBookCancel}
                 onPointerLeave={onBookLeave}
                 data-market-book=""
                 data-hold=""
@@ -1121,10 +1164,10 @@ export function MarketLive({
                 <div data-market-still="" style={underlay(live)}>{stillsOf('book')}</div>
                 <canvas ref={bookCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
                 <div data-market-words="" className="pointer-events-none absolute inset-0" style={fade(live)} aria-hidden="true">
-                  {/* On a phone the strip is 165px wide and three paper plates covered half its twenty seconds: there the
-                      prices are words with a paper halo, and the history reads through them. */}
+                  {/* On paper plates at every width: the price line runs through this column, and a halo alone left it
+                      striking through the words on a phone. */}
                   {Array.from({ length: 6 }, (_, i) => (
-                    <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-1 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite max-sm:bg-transparent max-sm:text-ink max-sm:[text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper),0_0_6px_var(--color-paper)]" />
+                    <span key={i} ref={(el) => void (priceEls.current[i] = el)} className="text-meta absolute top-0 left-1 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite" />
                   ))}
                 </div>
                 {/* Over the words too, so the old market's prices fade with its picture and the new ones are revealed under it. */}

@@ -51,6 +51,9 @@ export const LABELS = {
   /** The strike line runs from the expiry axis across the bars; its name stands where the ticks do, in place of the tick it hides. */
   strike: { x: HX0 + HLEN + 0.04, x0: X1, label: X1 - 0.02, cls: '-ml-1.5 -translate-x-full -translate-y-1/2 text-ink' },
   hist: { at: [HX0 + HLEN, wy(AXIS.hi - 2)], cls: '-translate-x-full' },
+  /** At a high volatility, the share of paths that end above the wall's top: a third line under the price, hung from
+   * the same point, so it rises clear of the bars with the histogram's name (lib/futures/histLift.ts). */
+  above: { cls: '-translate-x-full translate-y-[200%] text-graphite' },
   /** The price, directly under the histogram's name: what its bars add up to. It hangs from the same point. */
   value: { cls: '-translate-x-full translate-y-full' },
 } as const

@@ -204,6 +204,7 @@ export function OrderBookLive({
           drawnAt: () => market.drawnAt,
           highlight: () => market.highlight,
           sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
+          waiting: () => !!sigApi.current?.armed.current && !seq.current.started,
           lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
           tick: (dtMs) => {
             // Paused, the rise holds where it is, as everything does (WCAG 2.2.2).

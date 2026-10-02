@@ -22,6 +22,9 @@ export const AVAILABILITY = {
   locations: ['Boston', 'New York', 'San Francisco', 'London'],
 } as const
 
+/** The roles as a phrase, "quant and risk, investments, investment banking or data science in finance" (/cv, /about). */
+export const rolesInWords = () => `${AVAILABILITY.roles.slice(0, -1).join(', ').toLowerCase()} or ${AVAILABILITY.roles.at(-1)!.toLowerCase()}`
+
 /** One line, used by the masthead and the metadata description. */
 export const POSITIONING =
   'Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class\u00a0of\u00a02028.'

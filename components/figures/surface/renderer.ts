@@ -441,6 +441,42 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     placed[1] = sy
     if (el) el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`
   }
+  /** Each axis label's size (measured once a size and once the page's face has arrived), and whether it is shown. */
+  const labelSize: ([number, number] | undefined)[] = []
+  const labelOn: boolean[] = []
+  const labelXY: number[] = []
+  const SHIFT: Record<string, readonly [number, number]> = { center: [-0.5, -0.5], left: [0, -0.5], right: [-1, -0.5], above: [-0.5, -1] }
+  /**
+   * Turned far, an axis foreshortens and its ticks close up ("1M3M6M"), or a label's point leaves the stage and its words
+   * fall onto the lines below it. The titles are placed first, then each tick in order: one that would touch a label
+   * already kept, or stand outside the stage, gives way (a 120ms fade), and comes back when there is room again.
+   */
+  const thinLabels = (els: readonly (HTMLElement | null)[]) => {
+    const kept: number[] = []
+    const order = [...LABELS.keys()].sort((a, b) => (LABELS[a]!.kind === 'title' ? 0 : 1) - (LABELS[b]!.kind === 'title' ? 0 : 1))
+    for (const i of order) {
+      const el = els[i]
+      if (!el) continue
+      const size = (labelSize[i] ||= [el.offsetWidth, el.offsetHeight])
+      // The other framing's labels are in the layer too, not shown: nothing to place, nothing to make room for.
+      if (!size[0]) continue
+      const [fx, fy] = SHIFT[LABELS[i]!.align]!
+      const x0 = labelXY[i * 2]! + fx * size[0], y0 = labelXY[i * 2 + 1]! + fy * size[1]
+      const x1 = x0 + size[0], y1 = y0 + size[1]
+      const inside = x0 >= -2 && y0 >= -2 && x1 <= cssW + 2 && y1 <= cssH + 2
+      let clear = inside
+      // Boxes, not ink: a label's box is its line, taller than its glyphs, so two may share 3px and still read apart (the
+      // 1M and 3M ticks of /market's short pane do, at rest, as the poster draws them).
+      for (let k = 0; clear && k < kept.length; k += 4)
+        if (x0 < kept[k + 2]! - 3 && x1 > kept[k]! + 3 && y0 < kept[k + 3]! - 3 && y1 > kept[k + 1]! + 3) clear = false
+      if (clear) kept.push(x0, y0, x1, y1)
+      if (labelOn[i] !== clear) {
+        labelOn[i] = clear
+        el.style.transition = `opacity 120ms ${EASE_OUT_CSS}`
+        el.style.opacity = clear ? '' : '0'
+      }
+    }
+  }
   /** Each note's words: their height (measured once a size), and how far above the point they last stood. */
   const noteH: number[] = []
   const noteDy: (number | undefined)[] = []
@@ -448,6 +484,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const noteSwap: boolean[] = []
   // The page's own face may arrive after the first frame and set the words a little taller: measured again then.
   void document.fonts?.ready.then(() => {
+    labelSize.length = 0
     noteH.length = 0
     noteDy.length = 0
     noteSwap.length = 0
@@ -693,7 +730,12 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
 
       // Labels, notes and the reading point ride the same projection; the labels arrive with the sheet.
       const els = hooks.labels()
-      LABELS.forEach((l, i) => place(els[i] ?? null, m, l.at[0], l.at[1], l.at[2]))
+      LABELS.forEach((l, i) => {
+        place(els[i] ?? null, m, l.at[0], l.at[1], l.at[2])
+        labelXY[i * 2] = placed[0]!
+        labelXY[i * 2 + 1] = placed[1]!
+      })
+      thinLabels(els)
       const layer = hooks.labelLayer()
       if (layer) layer.style.opacity = labelsK.toFixed(3)
       const notes = hooks.notes()
@@ -775,7 +817,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       cssW = cw
       cssH = ch
       resized = true
-      // A new size may wrap a note's words differently: measured again.
+      // A new size may wrap a note's words differently: measured again (and the labels, whose text size may step).
+      labelSize.length = 0
       noteH.length = 0
       noteDy.length = 0
       noteSwap.length = 0

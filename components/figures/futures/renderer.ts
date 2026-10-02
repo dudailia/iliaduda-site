@@ -5,7 +5,7 @@ import { BAR_D, ZWALL, driftAt, project, restPose, viewProjection, wallPrice, ty
 import { DENSITY_SCALE, densityFormat, glOverride, type Density } from '@/lib/futures/caps'
 import { Director, type CamMode } from '@/lib/futures/director'
 import { RNG } from '@/lib/futures/glsl'
-import { aggregate, binnedPrice } from '@/lib/futures/hist'
+import { ABOVE_SHOWN, aboveWords, aggregate, binnedPrice, shareAbove } from '@/lib/futures/hist'
 import { histLift } from '@/lib/futures/histLift'
 import { GROUPS, HIST, MODEL, binWidth, stepCoefficients } from '@/lib/futures/mc'
 import { type Phases } from '@/lib/futures/sequence'
@@ -560,6 +560,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   for (const s of TICKS) label(`$${s}`, LABELS.tick.cls, () => [LABELS.tick.x, wy(s), zEdge()], () => labelU * tickShown(s - kv.x))
   // The strike stays named through the whole flight: it is what the colours mean.
   const strikeEl = label('', LABELS.strike.cls, () => [LABELS.strike.label, wy(kv.x), zEdge()], () => 1)
+  // At a high volatility a share of the paths ends above the wall's top, where no bar is drawn: it is said at the top of
+  // the price axis, so the histogram is never read as the whole of the distribution.
+  let aboveText = ''
+  const aboveEl = label('', LABELS.above.cls, () => [LABELS.hist.at[0], LABELS.hist.at[1] + histUp, 0], () =>
+    labelU * landing() * smooth(ABOVE_SHOWN * 0.8, ABOVE_SHOWN * 1.6, shareAbove(sig.x)),
+  )
   // One label for the histogram. Its words change halfway through the morph, through a 3px blur at full opacity (the
   // swap below), so one text never crossfades into another.
   /** How far the histogram's words have risen clear of bars grown under them (lib/futures/histLift.ts), world y. */
@@ -1073,6 +1079,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   /** Places every label; true while any is still following its opacity, so the next frame is drawn too. */
   function placeLabels(dt: number): boolean {
     let following = false
+    const above = aboveWords(shareAbove(sig.x))
+    if (above !== aboveText) aboveEl.textContent = aboveText = above
     // Labels whose text changed are measured first, all together, before any style is written this frame: one
     // layout at most, never one for each label after another's write.
     for (const l of labels)
@@ -1084,7 +1092,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     const follow = 1 - Math.exp(-dt / 0.06)
     // The histogram's name and price rise clear of any drawn bar (two pixels and longer) grown under them, followed
     // over the same 60ms.
-    const hl = labels.find((l) => l.el === histEl)!, vl = labels.find((l) => l.el === valueEl)!
+    const hl = labels.find((l) => l.el === histEl)!, vl = labels.find((l) => l.el === valueEl)!, al = labels.find((l) => l.el === aboveEl)!
+    const aboveOn = shareAbove(sig.x) >= ABOVE_SHOWN * 0.8
     let want = 0
     if (barsReady && hl.w > 0) {
       const toCss = (x: number, y: number, z: number) => {
@@ -1098,7 +1107,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         const l = land * ((1 - m) * cLen[b]! + m * gLen[b]!)
         return l < minLen ? 0 : l
       }
-      want = histLift(toCss, len, Math.max(hl.w, vl.w), hl.h + Math.max(0, vl.h))
+      want = histLift(toCss, len, Math.max(hl.w, vl.w, aboveOn ? al.w : 0), hl.h + Math.max(0, vl.h) + (aboveOn ? Math.max(0, al.h) : 0))
     }
     histUp = Math.abs(want - histUp) < 1e-4 ? want : histUp + (want - histUp) * follow
     if (histUp !== want) following = true

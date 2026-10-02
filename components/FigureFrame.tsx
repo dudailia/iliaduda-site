@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Items, Whole } from './Layout'
+import { Items, Whole, keepDashes } from './Layout'
 
 /**
  * The layout every live figure shares: number and readouts in the rail, title
@@ -108,7 +108,7 @@ export function FigureFrame({
           {rail && (railBelow || inline) ? <div className={`mt-5 ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
           {/* A hint written as items (" · ") wraps between them, never inside one or before its dot. */}
           {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite print:hidden">{typeof hint === 'string' ? <Items items={hint} /> : hint}</p> : null}
-          <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{caption}</figcaption>
+          <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{keepDashes(caption)}</figcaption>
           {table ? <div className="sr-only">{table}</div> : null}
         </div>
         {/* The margin's readouts, under the number and sticking as the figure scrolls. After the figure in the page's
@@ -134,7 +134,8 @@ export function Readouts({
 }) {
   if (across) {
     return (
-      <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:grid-cols-4">
+      // On paper the readouts print together, a few lines, on one sheet: never split between two.
+      <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4">
         {rows.map((r) => (
           <div key={r.label} className="min-w-0 break-inside-avoid">
             <dt className="text-graphite">

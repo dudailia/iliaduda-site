@@ -76,7 +76,9 @@ export function SettlementLive({
   const typedFor = (v: string): { text: string; invalid: boolean } => {
     if (!v.trim()) return { text: '', invalid: false }
     const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
-    if (!/\d/.test(v)) return { text: 'An amount in roubles, in figures.', invalid: true }
+    // In figures: digits, with spaces or a separator between thousands and kopecks, and a ₽ if the reader adds one
+    // ("1e4" is not ten thousand roubles).
+    if (!/\d/.test(v) || /[^\d\s.,\u00a0\u202f₽-]/.test(v)) return { text: 'An amount in roubles, in figures.', invalid: true }
     // A minus is not a payment: "-5" is not 5 ₽.
     if (!(roubles > 0) || /-\s*\d/.test(v)) return { text: 'More than 0 ₽ a month.', invalid: true }
     const t = offered.find((o) => o.months === termForMonthly(debt, roubles * 100))!
@@ -90,7 +92,7 @@ export function SettlementLive({
     setTyped(v)
     clearTimeout(heardTimer.current)
     const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
-    if (Number.isFinite(roubles) && roubles > 0 && !/-\s*\d/.test(v)) {
+    if (Number.isFinite(roubles) && roubles > 0 && !/-\s*\d/.test(v) && !/[^\d\s.,\u00a0\u202f₽-]/.test(v)) {
       const months = termForMonthly(debt, roubles * 100)
       setIndex(offered.findIndex((t) => t.months === months))
     }
@@ -219,7 +221,7 @@ export function SettlementLive({
                   clearTimeout(heardTimer.current)
                   setHeard('')
                 }}
-                className="mt-1 h-6 w-full sm:my-[calc((2.3125rem-1.5rem)/2+0.25rem)]"
+                className="mt-1 h-6 w-full sm:my-[calc((2.3125rem-1.5rem)/2+0.25rem)] pointer-coarse:mt-[calc(0.25rem-10px)] pointer-coarse:mb-[-2px] pointer-coarse:h-11 pointer-coarse:align-top sm:pointer-coarse:my-[calc((2.3125rem-1.5rem)/2+0.25rem-10px)]"
                 style={rangeFill(i, 0, offered.length - 1)}
               />
             </label>
@@ -233,7 +235,7 @@ export function SettlementLive({
                 placeholder="e.g. 4000"
                 aria-invalid={typedNote.invalid || undefined}
                 aria-describedby="settlement-typed"
-                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite pointer-coarse:text-small"
+                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite aria-invalid:border-ink aria-invalid:shadow-[inset_0_0_0_1px_var(--color-ink)] pointer-coarse:text-small"
               />
             </label>
             {/* What the amount chose, for the eye at once (its line kept, so the page does not move as it appears). */}

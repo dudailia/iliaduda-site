@@ -97,6 +97,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
   const [strike, setStrike] = useState<number>(MODEL.strike)
   const [shown, setShown] = useState<Shown>({ ...initial.stats, rate: 0, mode: 'server', done: true })
   const [frame, setFrame] = useState<PosterFrame>(initial)
+  /** On paper, the poster's price is the readouts' own estimate, so a printed sheet never sets two prices for one call. */
+  const [paperPrice, setPaperPrice] = useState<number | null>(null)
+  const paperRef = useRef<number | null>(null)
   const [table, setTable] = useState<Table>({ sigma: MODEL.sigma, strike: MODEL.strike, ...initial.stats, counts: initial.counts, payoff: initial.payoff })
   const [history, setHistory] = useState<Point[]>([])
   // Why the live renderer declined, when it did.
@@ -719,6 +722,27 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
   const priced = hasMean && fresh
   // The estimate held while a new option's run starts is the old option's: its gap to the new formula means nothing.
   const sameOption = !shown.for || (shown.for.sigma === sigma && shown.for.strike === strike)
+  // Far out of the money at a low volatility no simulated path pays: every payoff is 0, the standard error with them,
+  // and the gap has no standard errors to be counted in.
+  const gapText = !(priced && sameOption) ? '…' : shown.se > 0 ? `${(diff / shown.se).toFixed(1)} SE` : 'no path pays'
+  const paperEstimate = priced && sameOption ? shown.mean : null
+  useEffect(() => {
+    paperRef.current = paperEstimate
+  }, [paperEstimate])
+  useEffect(() => {
+    const on = () => flushSync(() => setPaperPrice(paperRef.current))
+    const off = () => setPaperPrice(null)
+    const print = matchMedia('print')
+    const onMedia = () => (print.matches ? on() : off())
+    addEventListener('beforeprint', on)
+    addEventListener('afterprint', off)
+    print.addEventListener('change', onMedia)
+    return () => {
+      removeEventListener('beforeprint', on)
+      removeEventListener('afterprint', off)
+      print.removeEventListener('change', onMedia)
+    }
+  }, [])
   const changed = sigma !== MODEL.sigma || strike !== MODEL.strike
 
   const running = shown.mode === 'gpu' || shown.mode === 'cpu'
@@ -801,7 +825,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           {exact.toFixed(4)}
         </dd>
         <dt className="text-graphite">Gap to the formula</dt>
-        <dd className="tabular text-ink">{priced && sameOption ? `${(diff / shown.se).toFixed(1)} SE` : '…'}</dd>
+        <dd className="tabular text-ink">{gapText}</dd>
       </dl>
       <dl className="mt-1 grid grid-cols-1 gap-y-px border-t border-rule pt-3 [&_dd]:mb-2">
         <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
@@ -895,7 +919,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           onClick={onTap}
         >
           <div data-futures-poster="" className="absolute inset-0" style={underlay(live || stillShown)}>
-            <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={frame.stats.mean} />
+            <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={paperPrice ?? frame.stats.mean} />
           </div>
           {/* It arrives over a flat poster framed differently, so a 2px blur bridges the two pictures while it fades in. */}
           <canvas
@@ -925,7 +949,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           </span>
         </p>
 
-        {/* A phone gets the numbers that tell the story; the margin has the rest. */}
+        {/* A phone gets the margin's numbers too, in pairs: the estimate against the formula, how far apart they are
+            and on how many paths (what the caption says the readouts show), and the machine. */}
         <dl className="text-meta mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono lg:hidden">
           <div className="min-w-0">
             <dt className="text-graphite">Simulated ± 2 SE</dt>
@@ -934,6 +959,14 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           <div className="min-w-0">
             <dt className="text-graphite">Black–Scholes</dt>
             <dd className="tabular text-ink">{exact.toFixed(4)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">Gap to the formula</dt>
+            <dd className="tabular text-ink">{gapText}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
+            <dd className="tabular text-ink">{paths}</dd>
           </div>
           <div className="col-span-2 min-w-0">
             <dt className="text-graphite">{speedLabel}</dt>
@@ -958,7 +991,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               value={Math.round(sigma * 100)}
               aria-valuetext={`${pct(sigma)} a year`}
               onChange={(e) => commit(Number(e.currentTarget.value) / 100, strike)}
-              className="mt-0.5 block h-6 w-full"
+              className="mt-0.5 block h-6 w-full pointer-coarse:-mb-2.5 pointer-coarse:mt-[calc(0.125rem-10px)] pointer-coarse:h-11"
               style={rangeFill(Math.round(sigma * 100), MODEL.sigmaMin * 100, MODEL.sigmaMax * 100)}
             />
           </label>
@@ -977,7 +1010,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               value={strike}
               aria-valuetext={`$${strike}`}
               onChange={(e) => commit(sigma, Number(e.currentTarget.value))}
-              className="mt-0.5 block h-6 w-full"
+              className="mt-0.5 block h-6 w-full pointer-coarse:-mb-2.5 pointer-coarse:mt-[calc(0.125rem-10px)] pointer-coarse:h-11"
               style={rangeFill(strike, MODEL.strikeMin, MODEL.strikeMax)}
             />
           </label>

@@ -192,7 +192,9 @@
 
   /* The site's slider, the same in every browser (iOS Safari ignores accent-color): a 4px track in the context tone,
      indigo as far as the value (--fill, which each input sets from its own value: components/stage/range.ts), and a
-     16px indigo thumb ringed in paper, inside the input's 24px to the touch. Forced colours keep the system's own. */
+     16px indigo thumb ringed in paper, inside the input's 24px to the touch (44px under a finger: each slider grows by
+     10px above and below, taken back by its margins, and a slider set in a line of text is hung from the line's top
+     so the line keeps its height; nothing on the page moves). Forced colours keep the system's own. */
   input[type='range'] {
     --fill: 0%;
     --track: color-mix(in oklab, var(--color-graphite) 70%, var(--color-paper));
@@ -818,6 +820,24 @@
 
   .cv-entry-head strong {
     font-weight: 600;
+  }
+
+  /* The dot between an entry's note and its title belongs to the title, hung in the gap before it: where the title
+     moves to a line of its own, the dot falls outside the head's left edge and is clipped, so no line ends on a dot. */
+  .cv-entry-head > p:first-child {
+    overflow: hidden;
+  }
+  .cv-title {
+    white-space: nowrap;
+  }
+  /* In the flow (the PDF's text keeps its order): drawn back over the gap the note leaves, by its own width. */
+  .cv-title::before {
+    content: '·';
+    display: inline-block;
+    width: 0.75em;
+    margin-left: -0.75em;
+    text-align: center;
+    color: var(--color-graphite);
   }
 
   .cv-date {

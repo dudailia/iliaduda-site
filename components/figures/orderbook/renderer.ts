@@ -46,6 +46,8 @@ export interface Shared {
   drawnAt(): number
   /** The order chosen in Fig. 2, which this figure marks with its probe when the reader is not probing it: price, time. */
   highlight(): { price: number; t: number } | null
+  /** The story is armed and waits to be seen: the stage is the flat page until it starts. */
+  waiting?(): boolean
   /** The signature's phases while it waits or plays (lib/orderbook/sequence.ts); null once it is over, or on a visit without one. */
   sequence(): { rise: number; river: number; settle: number; labels: number } | null
   /** The reader's lean, −1…1 each way, from the pointer or the tilt (components/stage/useLean.ts). */
@@ -867,7 +869,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     if (reading) {
       const r = sim.row(probeAge)
       const x = xOf(probePrice), z = zOf(probeAge)
-      const y = height(sim.depthAt(r, probePrice))
+      // On the terrain as it stands: through Replay's lowering and the rise after it, the pin rides the ground.
+      const y = height(sim.depthAt(r, probePrice)) * rowRise(rise, probeAge, rowsF || rows) * lift
       dropPts[0] = x
       dropPts[1] = y
       dropPts[2] = z
@@ -944,7 +947,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       const probeTag = label('probe', 'probe')
       if (reading) {
         const r = sim.row(probeAge)
-        const pin = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) + 0.16, zOf(probeAge))
+        const pin = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) * rowRise(rise, probeAge, rowsF || rows) * lift + 0.16, zOf(probeAge))
         const text = reading.side === 'spread' ? `${fmt.usd(reading.price)} · inside the spread` : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)} · ${fmt.ago(reading.ago)}`
         todo.push({ l: probeTag, text, at: pin ? [pin[0] + 6, pin[1] - 10] : null, anchor: 'l' })
       } else todo.push({ l: probeTag, text: '', at: null, anchor: 'c' })
@@ -1005,6 +1008,14 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // is already right: draw nothing (the page's still-frame budget; WCAG 2.2.2 holds either way).
     const key = sh.key, chosen = sh.highlight()
     if (first && sh.paused && !dirty && !settling && key === lastKey && chosen === lastChosen && !sh.sequence() && sim.written === uploaded) {
+      pending = 0
+      return 'idle'
+    }
+    // Waiting for the reader to bring the stage on screen, the flat page on it is already drawn: the market moves on
+    // (Fig. 2 draws it too) and its rows are uploaded, all of them, by the first frame that draws (a phone held 40% of
+    // the stage in view redrew it at 120 frames a second, and the flat sheet streamed).
+    if (first && !dirty && sh.waiting?.()) {
+      sh.advance()
       pending = 0
       return 'idle'
     }

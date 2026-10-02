@@ -14,8 +14,8 @@ import type { FrameKind } from './view'
  * read from the stylesheet (lib/palette.ts), and the stage's ramp over them.
  * No text: the axis labels and notes stay in the page, over it.
  */
-export function surfacePosterSvg(p: Params, kind: FrameKind = 'wide'): string {
-  const d = poster(p, kind)
+export function surfacePosterSvg(p: Params, kind: FrameKind = 'wide', probe?: { readonly k: number; readonly T: number }): string {
+  const d = poster(p, kind, probe)
   const { light, dark } = palette()
   const tokens = (c: Palette) =>
     `--color-ink:${c.ink};--color-paper:${c.paper};--color-graphite:${c.graphite};--color-rule:${c.rule};--color-indigo:${c.indigo};--color-indigo-wash:${c['indigo-wash']}`

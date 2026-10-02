@@ -5,7 +5,7 @@ import { OfzCurve } from '@/components/figures/OfzCurve'
 import { certifications, education, monitoRounds, roles, SKILLS } from '@/content/experience'
 import { otherWork, papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
-import { AVAILABILITY, PERSON, POSITIONING, SITE } from '@/lib/site'
+import { AVAILABILITY, PERSON, POSITIONING, SITE, rolesInWords } from '@/lib/site'
 import avif176 from './headshot-176.avif'
 import avif256 from './headshot-256.avif'
 import webp176 from './headshot-176.webp'
@@ -96,7 +96,8 @@ export default function About() {
           <h1 className="text-h2 sm:text-h1">{PERSON.name}</h1>
           <div className="mt-5 max-w-[37.9rem]">
             <p>
-              {POSITIONING} {AVAILABILITY.line}, based in Boston and just as open to{' '}
+              {/* What he is looking for, on the first screen as on the home page and the CV: the roles as well as when. */}
+              {POSITIONING} {AVAILABILITY.line} in {rolesInWords()}, based in Boston and just as open to{' '}
               {AVAILABILITY.locations
                 .filter((l) => !PERSON.base.startsWith(l))
                 .join(', ')

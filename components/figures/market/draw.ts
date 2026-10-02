@@ -373,7 +373,8 @@ export class FanView {
     return this.sig.x
   }
 
-  draw(m: Mirror, pal: Palette, now: number, landing: Landing | null, dt: number): boolean {
+  /** `rate`: how fast the market runs, 0 to 1 (it coasts to rest on Pause): the fan's breathing follows it. */
+  draw(m: Mirror, pal: Palette, now: number, landing: Landing | null, dt: number, rate = 1): boolean {
     const g = this.g
     const fan = m.fan
     if (!g || !fan) return false
@@ -383,7 +384,8 @@ export class FanView {
     // The market's own moves breathe the fan out on ω 8; a moment the reader points at, and the return from it, on the
     // surface's quick ω 30, so the three views agree about "then" within a sixth of a second.
     if (this.as !== null) this.pointedAt = now
-    spring(this.sig, target, dt, now - this.pointedAt < 600 ? 30 : 8)
+    const quick = now - this.pointedAt < 600
+    spring(this.sig, target, quick ? dt : dt * rate, quick ? 30 : 8)
     const flash = landing ? (now - landing.at) / 1000 : Infinity
     // Lit while its volatility moves fast, as after a shock's jump, so the landing and the widening are one gesture.
     const moving = Math.min(1, Math.abs(this.sig.v) / Math.max(0.05, this.sig.x) / 1.2)

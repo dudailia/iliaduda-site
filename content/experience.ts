@@ -42,8 +42,8 @@ export const roles: readonly Role[] = [
     place: 'Remote',
     dates: 'January 2026 – present',
     brief: 'Building the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model.',
+    // /about's lead says what he builds here, in these words: the detail goes on from it rather than repeating it.
     detail: [
-      'I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model.',
       'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
       'Built the real-time dashboards the traders work from — Next.js on Vercel, Supabase, and a Python worker on Fly.io — replacing a cron-and-email pipeline, and moved strategy configuration out of code so non-engineers can tune it without a deploy.',
     ],

@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { PERSON, SITE } from '@/lib/site'
 
 /**
@@ -42,7 +42,8 @@ export function Row({
     <div
       className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 ${className}`}
     >
-      <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right">{rail}</div>
+      {/* On paper the row is one column: the margin's label (a section's heading among them) keeps with what it names. */}
+      <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right print:break-after-avoid">{rail}</div>
       <div className="min-w-0">{children}</div>
     </div>
   )
@@ -88,9 +89,9 @@ export function Annotated({
 }) {
   return (
     <div className="lg:-ml-[calc(var(--rail)+var(--gutter))] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-(--gutter)">
-      <div className="min-w-0 lg:col-start-2 lg:row-start-1">{children}</div>
+      <div className="min-w-0 lg:col-start-2 lg:row-start-1">{keepDashes(children)}</div>
       <aside className="text-note mt-3 border-l-2 border-rule pl-4 text-graphite lg:col-start-1 lg:row-start-1 lg:mt-0 lg:mb-2 lg:border-l-0 lg:pl-0 lg:text-right">
-        {note}
+        {keepDashes(note)}
       </aside>
     </div>
   )
@@ -98,7 +99,7 @@ export function Annotated({
 
 /** Body prose. One measure, one rhythm, no bullet lists. */
 export function Prose({ children }: { children: ReactNode }) {
-  return <div className="max-w-[var(--measure)] [&>p+p]:mt-[1.1em]">{children}</div>
+  return <div className="max-w-[var(--measure)] [&>p+p]:mt-[1.1em]">{keepDashes(children)}</div>
 }
 
 /**
@@ -160,4 +161,21 @@ export function Whole({ text }: { text: string }) {
       part
     ),
   )
+}
+
+/**
+ * Prose whose spaced em dashes stay at the end of their line, never opening the next (as Whole does for one string):
+ * the text in it, down through its plain elements (a link, an emphasis, a paragraph), gets a no-break space before each
+ * " — ". A component's own children are left as they are.
+ */
+export function keepDashes(node: ReactNode): ReactNode {
+  if (typeof node === 'string') return node.includes(' — ') ? node.replace(/ — /g, '\u00a0— ') : node
+  if (Array.isArray(node)) return node.map(keepDashes)
+  if (isValidElement(node) && typeof node.type === 'string') {
+    const el = node as ReactElement<{ children?: ReactNode }>
+    const c = el.props.children
+    if (c === undefined) return node
+    return Array.isArray(c) ? cloneElement(el, undefined, ...c.map(keepDashes)) : cloneElement(el, undefined, keepDashes(c))
+  }
+  return node
 }

@@ -291,6 +291,9 @@ export const VOL_TICKS = [0.2, 0.4, 0.6, 0.8, 1.0] as const
 /** The corner post that carries the volatility scale: back right. */
 export const POST: readonly [number, number] = [XW, -ZW]
 
+/** Where the IV figure's reading point starts: at the money, three months out (its crosshair is in the poster too). */
+export const PROBE_START = { k: 0, T: 0.25 } as const
+
 export interface Label {
   readonly id: string
   readonly text: string

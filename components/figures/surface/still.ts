@@ -122,8 +122,8 @@ const SMILE_N = 96
  * the walls, contours and ticks, with their style beside them; every time, both are drawn for `p` in the page's
  * colours now. Returns the poster's data for `p`, for a figure that places marks of its own (the IV paper's notes).
  */
-export function smoothStill(root: HTMLElement, p: Params, kind: FrameKind): PosterData {
-  const d = poster(p, kind)
+export function smoothStill(root: HTMLElement, p: Params, kind: FrameKind, probe?: { readonly k: number; readonly T: number }): PosterData {
+  const d = poster(p, kind, probe)
   let mesh = root.querySelector('[data-iv-poster] [data-mesh]')
   if (mesh && mesh.tagName.toLowerCase() === 'img') {
     const sheet = document.createElement('canvas')

@@ -68,6 +68,7 @@ export function RankingLive({
   // The rows leaving the top, with the numbers they had there (the treatment just left), fading where they stood.
   const [gone, setGone] = useState<{ row: Row; top: number; height: number; key: number; rank: number; score: number; frac: number }[]>([])
   const goneKey = useRef(0)
+  const movingRef = useRef<Set<string>>(new Set())
 
   const shown = [...rows].sort((x, y) => x[v].rank - y[v].rank).slice(0, SHOWN)
   const max = Math.max(...rows.map((r) => Math.max(r.a.score, r.b.score, r.c.score)))
@@ -93,6 +94,13 @@ export function RankingLive({
     })
     before.current = m
     beforeH.current = el?.getBoundingClientRect().height ?? 0
+    // Which rows are still on their way, read here, before React reorders the list: moving a keyed row's node cancels
+    // its running transition, so read after the commit, a row cut mid-glide restarted from a standstill.
+    movingRef.current = new Set(
+      [...(el?.querySelectorAll<HTMLLIElement>('li[data-name]') ?? [])]
+        .filter((li) => li.getAnimations().some((a) => a.playState === 'running' && 'transitionProperty' in a && (a as CSSTransition).transitionProperty === 'transform'))
+        .map((li) => li.dataset.name!),
+    )
     setV(next)
     if (leaving.length) {
       // Added to any still fading from the last switch, which finish rather than vanish.
@@ -107,12 +115,8 @@ export function RankingLive({
     const el = list.current
     if (!el || reduced || before.current.size === 0) return
     const lis = [...el.querySelectorAll<HTMLLIElement>('li[data-name]')]
-    // Which rows are still on their way, read before their moves are cut.
-    const moving = new Set(
-      lis
-        .filter((li) => li.getAnimations().some((a) => a.playState === 'running' && 'transitionProperty' in a && (a as CSSTransition).transitionProperty === 'transform'))
-        .map((li) => li.dataset.name!),
-    )
+    // Which rows were still on their way when the reader switched (read in choose, before the reorder cut them).
+    const moving = movingRef.current
     for (const li of lis) {
       // Only the move is cut for the measurement: a row still fading in goes on fading.
       li.style.transition = 'transform 0s'

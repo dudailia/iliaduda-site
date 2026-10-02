@@ -73,6 +73,10 @@ export function CategorisationLive({
   }
 
   const results: Result[] = feed.map((l) => categorise(l, chart))
+  const accountWords = (code: string) => {
+    const a = chart.find((x) => x.code === code)
+    return a ? `${a.code} ${a.name}` : code
+  }
 
   // A press while the rows are leaving does nothing more, as the cricket replay's does.
   const letting = useRef(false)
@@ -239,7 +243,7 @@ export function CategorisationLive({
       <div ref={box}>
         {/* The gate, where a phone reader can see it change: above the rows,
             pinned while they scroll past. The rail carries it on wide screens. */}
-        <p data-batch-gate="" className="text-meta sticky top-0 z-10 -mx-1 mb-2 bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
+        <p data-batch-gate="" className="text-meta sticky top-0 z-10 -mx-1 mb-2 border-b border-rule bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
           {/* Each count kept whole, its dot held to it, so a wrapped line never starts with the separator. */}
           <span className="whitespace-nowrap">by the rules {counts.auto}{'\u00a0·'}</span>{' '}
           <span className="whitespace-nowrap">by a reviewer {lit(String(counts.reviewed), 'reviewed')}{'\u00a0·'}</span>{' '}
@@ -358,13 +362,14 @@ export function CategorisationLive({
                       </>
                     ) : st === 'flagged' && final && remap[l.suggested.code] ? (
                       <>
+                        {/* It names the account it maps to, not only its code: the reviewer approves what they can read. */}
                         <button
                           type="button"
                           onClick={() => act(i, 'remapped')}
-                          aria-label={`Map to ${remap[l.suggested.code]}: line ${i}, ${l.description}`}
+                          aria-label={`Map to ${accountWords(remap[l.suggested.code]!)}: line ${i}, ${l.description}`}
                           className={CONTROL}
                         >
-                          Map to {remap[l.suggested.code]}
+                          Map to {accountWords(remap[l.suggested.code]!)}
                         </button>
                         <span className="text-meta hidden font-mono text-graphite print:inline">blocked</span>
                       </>
