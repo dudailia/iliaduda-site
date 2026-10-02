@@ -148,7 +148,9 @@ export function Readouts({
     )
   }
   return (
-    <dl className="text-meta grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono lg:grid-cols-1 lg:gap-y-px print:break-inside-avoid lg:[&_dd]:mb-2">
+    // On a phone each label sits over its value: beside it, a long label ("Growth lookup fixed") squeezed the value
+    // into a column that wrapped it over three lines, and the figure's height changed with the reading.
+    <dl className="text-meta grid grid-cols-1 font-mono max-sm:[&_dd]:mb-1.5 sm:grid-cols-[auto_1fr] sm:gap-x-4 sm:gap-y-1 lg:grid-cols-1 lg:gap-y-px print:break-inside-avoid lg:[&_dd]:mb-2">
       {rows.map((r) => (
         <div key={r.label} className="contents">
           <dt className="text-graphite">{r.label}</dt>

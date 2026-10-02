@@ -92,7 +92,8 @@ export function Section({
 /** Trailing metadata: links, repo, status. Two typeset columns, mono values. */
 export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[] }) {
   return (
-    <div className="mt-12 lg:mt-16">
+    // On paper it keeps to the sheet before it: alone, with the footer line, it made a sheet of its own.
+    <div className="mt-12 lg:mt-16 print:break-before-avoid">
       <Row rail="">
         <hr className="mb-5 border-0 border-t border-rule" />
         {/* Single column below sm: a repo URL is one unbreakable token and at
@@ -126,7 +127,7 @@ export function Register({
   columns: readonly { readonly heading: string; readonly items: readonly string[] }[]
 }) {
   return (
-    <div className="mt-6 grid gap-x-10 gap-y-6 border-t border-rule pt-6 sm:grid-cols-2">
+    <div className="mt-6 grid gap-x-10 gap-y-6 border-t border-rule pt-6 sm:grid-cols-2 print:break-inside-avoid">
       {columns.map((c) => (
         <div key={c.heading}>
           <p className="text-meta font-mono text-ink">{c.heading}</p>

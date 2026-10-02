@@ -820,7 +820,8 @@ function Margin({
   suffix: string
   across?: boolean
 }) {
-  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
+  // On paper the readouts print together, on one sheet, as every figure's do (components/FigureFrame.tsx, Readouts).
+  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
   const row = (id: string) => rows.find((r) => r.id === id)!
   return (
     <div className={across ? 'grid gap-y-4' : ''}>

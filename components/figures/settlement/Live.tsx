@@ -56,6 +56,41 @@ export function SettlementLive({
   const i = Math.min(index, offered.length - 1)
   const s = offered[i]!.s
   const hidden = all.filter((t) => !t.offered).length
+  /** The lines under a debt's plot: on a phone its first hidden term in words, and the plot's note. */
+  const ladderNote = (d: number, shown: boolean) => {
+    const all = terms(d)
+    const offered = offeredTerms(d)
+    const hidden = all.filter((t) => !t.offered).length
+    const h = all.find((t) => !t.offered)
+    const before = h && all.filter((t) => t.offered && t.months < h.months).at(-1)
+    return (
+      <>
+        {/* In the plot it ran off its left edge and over the lowest payment's label. */}
+        {h && before ? (
+          <p aria-hidden {...(shown ? { 'data-hidden-term-line': '' } : {})} className="text-meta mt-1 font-mono text-ink sm:hidden">
+            {`Hollow: ${h.months} months at ${rub(h.s.monthly)}, more a month than ${before.months} months at ${rub(before.s.monthly)}.`}
+          </p>
+        ) : null}
+        <p className="text-meta mt-1.5 max-w-[36rem] font-mono text-graphite">
+          {all.length === 1
+            ? 'Under the monthly floor at any longer term: settles in one payment.'
+            : (
+              <>
+                {`Monthly payment by term. ${offered.length} terms offered up to ${all.length} months`}
+                {hidden ? (
+                  <>
+                    {`; ${hidden} hidden (hollow`}
+                    <span className="hidden sm:inline">, the first magnified in the corner</span>
+                    {'): at a step in the discount ladder a longer term would cost more a month'}
+                  </>
+                ) : null}
+                {'. Dashed lines are the ladder’s steps.'}
+              </>
+            )}
+        </p>
+      </>
+    )
+  }
 
   // What typing an amount chose, said once the reader stops typing (the slider and readouts it moves say nothing).
   const [heard, setHeard] = useState('')
@@ -238,8 +273,9 @@ export function SettlementLive({
                 className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite aria-invalid:border-ink aria-invalid:shadow-[inset_0_0_0_1px_var(--color-ink)] pointer-coarse:text-small"
               />
             </label>
-            {/* What the amount chose, for the eye at once (its line kept, so the page does not move as it appears). */}
-            <p id="settlement-typed" className="text-meta mt-1 min-h-[1lh] font-mono text-graphite">
+            {/* What the amount chose, for the eye at once (two lines kept, the longest answer's, so the page does not move as
+                it appears or as an answer changes while the amount is typed). */}
+            <p id="settlement-typed" className="text-meta mt-1 min-h-[2lh] font-mono text-graphite">
               {typedNote.text}
             </p>
             <p className="sr-only font-mono" aria-live="polite">
@@ -337,11 +373,12 @@ export function SettlementLive({
                 </>
               )
             })()}
-            {/* Above the line's low end, not on it: the last terms' dots sit there. */}
+            {/* Above the line's low end, clear of it: the last terms' dots sit there, and where the line still falls
+                toward them (a short ladder on a phone) a label at half the height lay on the line and the last dots. */}
             <span
               aria-hidden
               className="text-meta absolute right-1.5 -translate-y-full bg-paper px-0.5 font-mono text-graphite"
-              style={{ top: `calc(${py(minPay)}% - 0.5rem)` }}
+              style={{ top: `calc(${py(minPay)}% - 1rem)` }}
             >
               {rub(minPay)} a month
             </span>
@@ -350,35 +387,15 @@ export function SettlementLive({
             <span>1 month</span>
             <span>{maxM} months</span>
           </div>
-          {/* On a phone the hidden term is named here, under the plot, in a sentence (in the plot it ran off its left edge
-              and over the lowest payment's label). */}
-          {(() => {
-            const h = all.find((t) => !t.offered)
-            const before = h && all.filter((t) => t.offered && t.months < h.months).at(-1)
-            if (!h || !before) return null
-            return (
-              <p aria-hidden data-hidden-term-line="" className="text-meta mt-1 font-mono text-ink sm:hidden">
-                {`Hollow: ${h.months} months at ${rub(h.s.monthly)}, more a month than ${before.months} months at ${rub(before.s.monthly)}.`}
-              </p>
-            )
-          })()}
-          <p className="text-meta mt-1.5 max-w-[36rem] font-mono text-graphite">
-            {all.length === 1
-              ? 'Under the monthly floor at any longer term: settles in one payment.'
-              : (
-                <>
-                  {`Monthly payment by term. ${offered.length} terms offered up to ${all.length} months`}
-                  {hidden ? (
-                    <>
-                      {`; ${hidden} hidden (hollow`}
-                      <span className="hidden sm:inline">, the first magnified in the corner</span>
-                      {'): at a step in the discount ladder a longer term would cost more a month'}
-                    </>
-                  ) : null}
-                  {'. Dashed lines are the ladder’s steps.'}
-                </>
-              )}
-          </p>
+          {/* Under the plot: on a phone the hidden term in a sentence, and the plot's note. Every debt's are laid in one cell,
+              the others unseen, so the room is the longest one's and choosing a debt moves nothing under the figure. */}
+          <div className="grid">
+            {DEBTS.map((d) => (
+              <div key={d} aria-hidden={d !== debt || undefined} className={`[grid-area:1/1] ${d === debt ? '' : 'invisible'}`}>
+                {ladderNote(d, d === debt)}
+              </div>
+            ))}
+          </div>
         </section>
     </FigureFrame>
 
@@ -475,7 +492,8 @@ export function SettlementLive({
               )
             })}
           </div>
-          <p className="text-note mt-3 min-h-[3em]" aria-live="polite">
+          {/* Room for the longest answer: two lines, three on a phone, so an answer arriving moves nothing below it. */}
+          <p className="text-note mt-3 min-h-[2lh] max-sm:min-h-[3lh]" aria-live="polite">
             {/* Through the blur only once an answer arrives: the page's first sentence is there when it loads. */}
             <span key={asked} className={`block ${asked ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}>
               {said}

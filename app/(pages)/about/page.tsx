@@ -68,7 +68,7 @@ export default function About() {
     <Shell>
       <article id="cv">
         <Row
-          className="pt-10 lg:pt-16"
+          className="pt-6 sm:pt-10 lg:pt-16"
           rail={
             // A plain <picture>, encoded once at build size in AVIF and WebP:
             // next/image would add its client runtime to this page for one
@@ -77,17 +77,19 @@ export default function About() {
               <source
                 type="image/avif"
                 srcSet={`${avif176.src} 176w, ${avif256.src} 256w`}
-                sizes="(min-width: 64rem) 128px, 88px"
+                sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px"
               />
               <img
                 src={webp256.src}
                 srcSet={`${webp176.src} 176w, ${webp256.src} 256w`}
-                sizes="(min-width: 64rem) 128px, 88px"
+                sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px"
                 width={128}
                 height={160}
                 alt={PERSON.name}
                 decoding="async"
-                className="h-auto w-[5.5rem] border border-rule lg:ml-auto lg:w-32 dark:brightness-90"
+                // Smaller on a phone, so a 360×800 screen still ends on the contact links: the portrait above the name
+                // and the lede had pushed LinkedIn and GitHub below its fold.
+                className="h-auto w-14 border border-rule sm:w-[5.5rem] lg:ml-auto lg:w-32 dark:brightness-90"
               />
             </picture>
           }

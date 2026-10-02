@@ -83,7 +83,7 @@ export function OtherWork() {
       <Row rail={<SectionHeading id="other-work">Other work</SectionHeading>}>
         <ul role="list" className="grid list-none border-t border-rule">
           {otherWork.map((o) => (
-            <li key={o.slug} className="border-b border-rule py-4">
+            <li key={o.slug} className="border-b border-rule py-4 print:break-inside-avoid">
               <a href={o.href} className="text-body underline decoration-transparent hover:decoration-ink">
                 {o.name}
               </a>
