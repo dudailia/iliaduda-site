@@ -985,6 +985,13 @@
     visibility: visible !important;
     opacity: 1 !important;
   }
+  /* The order book's poster and /market's still frames are images, which carry the screen's paper (#faf9f7) and do not
+     see the print media (an SVG image keeps its own): on white paper their page showed as a tinted slab. A 3.5% lift
+     takes that paper to white and moves the inks by a step no one can see. */
+  [data-orderbook-poster] img,
+  [data-market-still] img {
+    filter: brightness(1.035);
+  }
   /* The first-look replays print their finished figure (each also finishes on beforeprint): whatever the pre-paint mark
      hides, and whatever is mid-transition, prints as it ends. */
   :root[data-cricket-seq] #fig-replay [data-played],

@@ -482,6 +482,10 @@ export function OrderBookLive({
         setProbing(true)
         settle()
         return
+      // End means nothing here, and it scrolled the page to its foot from a focused figure.
+      case 'End':
+        e.preventDefault()
+        return
       case 'Escape':
         setKey(null)
         setProbing(false)
@@ -544,8 +548,10 @@ export function OrderBookLive({
           aria-label="Synthetic order book as terrain. Arrow keys move the probe across price and back in time; Home resets; Escape clears; Space pauses."
           aria-describedby="fig-order-book-probe"
           onKeyDown={onKey}
-          onFocus={() => {
-            if (!key.current) {
+          // The keyboard's starting point, for keyboard focus only (as Fig. 2's): a press to turn the terrain focuses it
+          // too, and pinned a probe that stayed after the hand let go and moved away.
+          onFocus={(e) => {
+            if (!key.current && e.currentTarget.matches(':focus-visible')) {
               setKey(PROBE_START)
               setProbing(true)
             }

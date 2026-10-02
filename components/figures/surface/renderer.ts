@@ -458,8 +458,12 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     // The strike axis hangs on the front edge, the expiry axis on the right one: past the drag's soft limit the eye can
     // stand behind either, and its words would be painted over the sheet that hides it.
     const turned = (id: string) => (id[0] === 'k' ? e[2]! < ZW : id[0] === 't' ? e[0]! < XW : false)
-    // The notes' words first: they are the figure's reading, and an axis label that would touch them gives way.
+    // The notes' words and the reading point first: they are the figure's reading, and an axis label that would touch
+    // them gives way (held at a drag's limit, the dot sat on "implied vol").
     const kept: number[] = noteBox.flatMap((b) => (b ? [b[0], b[1], b[2], b[3]] : []))
+    if (dotAt) kept.push(dotAt[0] - 8, dotAt[1] - 8, dotAt[0] + 8, dotAt[1] + 8)
+    /** Each kept tick's axis, by its box's index in `kept` (a note or the dot has none). */
+    const axisOf: (string | null)[] = kept.map(() => null)
     const order = [...LABELS.keys()].sort((a, b) => (LABELS[a]!.kind === 'title' ? 0 : 1) - (LABELS[b]!.kind === 'title' ? 0 : 1))
     for (const i of order) {
       const el = els[i]
@@ -475,9 +479,19 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // Boxes, not ink: a label's box is its line, taller than its glyphs (about 3px above and below them, at
       // leading-none), so two may share that much and still read apart (the 1M and 3M ticks of /market's short pane do,
       // at rest, as the poster draws them); across, a box is its glyphs' advance, and words closer than 1px touch.
-      for (let k = 0; clear && k < kept.length; k += 4)
-        if (x0 < kept[k + 2]! + 1 && x1 > kept[k]! - 1 && y0 < kept[k + 3]! - 3 && y1 > kept[k + 1]! + 3) clear = false
-      if (clear) kept.push(x0, y0, x1, y1)
+      // Ticks of one axis stacked one over another (most of the narrower's width shared, as a foreshortened axis piles
+      // them) need a real gap: there the 3px of shared line read as one block of figures.
+      const axis = LABELS[i]!.kind === 'tick' ? LABELS[i]!.id[0]! : null
+      for (let k = 0; clear && k < kept.length; k += 4) {
+        const ox = Math.min(x1, kept[k + 2]!) - Math.max(x0, kept[k]!)
+        const stacked = axis !== null && axisOf[k] === axis && ox > 0.5 * Math.min(x1 - x0, kept[k + 2]! - kept[k]!)
+        const slack = stacked ? -1 : 3
+        if (x0 < kept[k + 2]! + 1 && x1 > kept[k]! - 1 && y0 < kept[k + 3]! - slack && y1 > kept[k + 1]! + slack) clear = false
+      }
+      if (clear) {
+        axisOf[kept.length] = axis
+        kept.push(x0, y0, x1, y1)
+      }
       if (labelOn[i] !== clear) {
         labelOn[i] = clear
         el.style.transition = `opacity 120ms ${EASE_OUT_CSS}`
@@ -490,6 +504,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const noteW: number[] = []
   /** Where each note's words stood last frame, on the stage: the axis labels give way to them (thinLabels). */
   const noteBox: (readonly [number, number, number, number] | null)[] = []
+  /** Where the reading point stood last frame, on the stage (an obstacle the axis labels give way to too). */
+  let dotAt: readonly [number, number] | null = null
   const noteDy: (number | undefined)[] = []
   // A note mid-way through its word swap to the other side of its point.
   const noteSwap: boolean[] = []
@@ -801,6 +817,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const at = iv(p, probe.k, probe.T)
       place(dot, m, wx(probe.k), wy(at) * rise, wz(probe.T))
       const dotX = placed[0]!
+      dotAt = dot && labelsK > 0.01 ? [placed[0]!, placed[1]!] : null
       // The reading point arrives with the labels, once the sheet is up to be read.
       if (dot) dot.style.opacity = labelsK.toFixed(3)
       // While the reader reads a point, its tag names the volatility there, beside the dot, on whichever side has room.

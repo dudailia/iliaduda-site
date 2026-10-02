@@ -483,6 +483,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         e.preventDefault()
         readHere()
         return setProbe(PROBE_START)
+      // End means nothing here, and it scrolled the page to its foot from a focused figure.
+      case 'End':
+        return e.preventDefault()
       case ' ':
         if (!live) return
         e.preventDefault()

@@ -192,6 +192,8 @@ export function MarketLive({
   const pausedRef = useRef(paused)
   /** How fast the fan follows the market, 0 to 1, coasting with it on Pause. */
   const fanRate = useRef(paused ? 0 : 1)
+  /** The surface's punch while paused, held as it was. */
+  const heldZoom = useRef<number | null>(null)
   const [flat, setFlat] = useState(false)
   // Live once both flat views have drawn a frame, so no view's words arrive before its picture.
   const drewOnce = useRef({ book: false, fan: false })
@@ -330,7 +332,14 @@ export function MarketLive({
       },
       reading: () => false,
       aim: () => aim.current,
-      zoom: () => 1 - MARKET_SEQ.punch.depth * struck(blow.current, (performance.now() - blow.current.at) / 1000),
+      // Held while paused: its clock moves on by each frame's step while performance.now() moves on by the wall's, and the
+      // two never quite agree, so the held surface shimmered by a fraction of a pixel every frame.
+      zoom: () => {
+        if (pausedRef.current && heldZoom.current !== null) return heldZoom.current
+        const z = 1 - MARKET_SEQ.punch.depth * struck(blow.current, (performance.now() - blow.current.at) / 1000)
+        heldZoom.current = pausedRef.current ? z : null
+        return z
+      },
     }
     return {
       frame(t, dt) {
@@ -741,14 +750,16 @@ export function MarketLive({
   }
   // A mouse reads as it moves; a finger reads while it drags sideways (the page keeps vertical swipes) and leaves the
   // reading where it lifts, until the next tap.
-  const touching = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null)
+  const touching = useRef<{ id: number; x: number; y: number; moved: boolean; before: number | null } | null>(null)
   /** Where the last tap read, so a tap there again lets the reading go and a tap elsewhere moves it. */
   const tappedAt = useRef<number | null>(null)
   const onBookMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'touch') {
       const t = touching.current
       if (!t || t.id !== e.pointerId) return
-      if (Math.abs(e.clientX - t.x) > 6) t.moved = true
+      // Sideways, as the home figure's drag reads it: a diagonal swipe of the page is not a reading.
+      const dx = Math.abs(e.clientX - t.x), dy = Math.abs(e.clientY - t.y)
+      if (dx > 10 && dx > 1.5 * dy) t.moved = true
       if (t.moved) readAt(agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
       return
     }
@@ -757,7 +768,7 @@ export function MarketLive({
   }
   const onBookDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'touch') return
-    touching.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false }
+    touching.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, before: readingAgo.current }
   }
   const onBookUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     const t = touching.current
@@ -773,7 +784,11 @@ export function MarketLive({
   }
   // The browser has taken the finger for a scroll of the page (or lost it): nothing was tapped, and nothing is read.
   const onBookCancel = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (touching.current?.id === e.pointerId) touching.current = null
+    const t = touching.current
+    if (t?.id !== e.pointerId) return
+    touching.current = null
+    // A drag the page took over as a scroll leaves the book as it was before it.
+    if (t.moved) readAt(t.before)
   }
   const onBookLeave = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'touch' || keyAgo.current !== null) return
@@ -805,6 +820,8 @@ export function MarketLive({
     else if (e.key === 'ArrowDown') a.pitch += 0.08
     else if (e.key === 'Home' || e.key === 'Escape') aim.current = { yaw: 0, pitch: 0 }
     else if (e.key === ' ') togglePause()
+    // End means nothing here, and it scrolled the page to its foot from a focused figure.
+    else if (e.key === 'End') return e.preventDefault()
     else return
     e.preventDefault()
     a.yaw = Math.max(-1.5, Math.min(1.5, a.yaw))

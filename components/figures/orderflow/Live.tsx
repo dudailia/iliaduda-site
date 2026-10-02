@@ -303,7 +303,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     // Before the market is built there is nothing to step through yet; it is on its way.
     if (!market.ready) {
       void market.prepare()
-      if (e.key.startsWith('Arrow') || e.key === 'Home') e.preventDefault()
+      if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') e.preventDefault()
       return
     }
     const f = market.flow
@@ -325,6 +325,9 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       }
       case 'Home':
         return go(newest(lane))
+      // End means nothing here, and it scrolled the page to its foot from a focused figure.
+      case 'End':
+        return e.preventDefault()
       case 'Escape':
         return pin(null)
     }
@@ -399,10 +402,11 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
-        {/* Room kept for the longest reading, so choosing an order never moves the page below it. */}
+        {/* Room kept for the longest reading, so choosing an order never moves the page below it: on a phone seven
+            lines, the length a reading reaches once its order passes ten seconds and is said to be off the strip. */}
         <dl
           id="fig-order-flow-reading"
-          className="text-meta grid min-h-[6.6rem] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh] print:hidden"
+          className="text-meta grid min-h-[7lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh] print:hidden"
           aria-label="Reading"
         >
           <dt className="text-graphite">Order</dt>

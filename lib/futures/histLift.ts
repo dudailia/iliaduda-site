@@ -30,5 +30,11 @@ export function histLift(toCss: (x: number, y: number, z: number) => readonly [n
     if (fx < ax - w - pad) continue
     need = Math.max(need, ay + h + pad - Math.min(fy, by))
   }
-  return Math.min(need, Math.max(0, ay - 4)) / perY
+  // A bar's tip a few pixels into the block (the figure's own volatility, the poster's picture) is no cause to move the
+  // words: lifted for it, the live words stood 8–10px above the poster's across the hand-over. The lift comes in past
+  // 12px and reaches the full clearance by 30px, continuously.
+  const T = 12
+  const u = Math.min(1, Math.max(0, (need - T) / (1.5 * T)))
+  const eased = Math.max(0, need - T) + T * u * u * (3 - 2 * u)
+  return Math.min(eased, Math.max(0, ay - 4)) / perY
 }
