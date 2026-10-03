@@ -63,39 +63,44 @@ function MonitoRounds() {
   )
 }
 
+/**
+ * The portrait: a plain <picture>, encoded once at build size in AVIF and WebP (next/image would add its client
+ * runtime to this page for one 3 KB portrait). Drawn twice, the margin's and a phone's, each shown at its own width;
+ * the two ask for the same files, so they are fetched once.
+ */
+function Portrait({ className, size }: { className: string; size: string }) {
+  return (
+    <picture className={className}>
+      <source type="image/avif" srcSet={`${avif176.src} 176w, ${avif256.src} 256w`} sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px" />
+      <img
+        src={webp256.src}
+        srcSet={`${webp176.src} 176w, ${webp256.src} 256w`}
+        sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px"
+        width={128}
+        height={160}
+        alt={PERSON.name}
+        decoding="async"
+        className={`${size} border border-rule dark:brightness-90 print:brightness-100`}
+      />
+    </picture>
+  )
+}
+
 export default function About() {
   return (
     <Shell>
       <article id="cv">
         <Row
           className="pt-6 sm:pt-10 lg:pt-16"
-          rail={
-            // A plain <picture>, encoded once at build size in AVIF and WebP:
-            // next/image would add its client runtime to this page for one
-            // 3 KB portrait.
-            <picture>
-              <source
-                type="image/avif"
-                srcSet={`${avif176.src} 176w, ${avif256.src} 256w`}
-                sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px"
-              />
-              <img
-                src={webp256.src}
-                srcSet={`${webp176.src} 176w, ${webp256.src} 256w`}
-                sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px"
-                width={128}
-                height={160}
-                alt={PERSON.name}
-                decoding="async"
-                // Smaller on a phone, so a 360×800 screen still ends on the contact links: the portrait above the name
-                // and the lede had pushed LinkedIn and GitHub below its fold.
-                className="h-auto w-14 border border-rule sm:w-[5.5rem] lg:ml-auto lg:w-32 dark:brightness-90 print:brightness-100"
-              />
-            </picture>
-          }
+          // From sm the portrait stands in the margin; on a phone beside the name instead (portrait component below), so
+          // the first screen still ends on the contact links at 360×800 (stacked above the name it cost ~150px).
+          rail={<Portrait className="hidden sm:block" size="h-auto w-[5.5rem] lg:ml-auto lg:w-32" />}
         >
           {/* The person, not the word: /about is a landing page from LinkedIn and email (its tab still says About). */}
-          <h1 className="text-h2 sm:text-h1">{PERSON.name}</h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-h2 sm:text-h1">{PERSON.name}</h1>
+            <Portrait className="shrink-0 sm:hidden" size="h-auto w-14" />
+          </div>
           <div className="mt-5 max-w-[37.9rem]">
             <p>{POSITIONING}</p>
             {/* What he is looking for, on the first screen as on the home page and the CV, the roles as well as when: a

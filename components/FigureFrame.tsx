@@ -105,7 +105,8 @@ export function FigureFrame({
           <div className={`mt-5 ${breakable ? '' : 'print:break-inside-avoid'}`} style={vt ? vtStyle(vt) : undefined}>
             {children}
           </div>
-          {rail && (railBelow || inline) ? <div className={`mt-5 ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
+          {/* On paper the readouts keep to the figure they read (a few lines; printed a sheet after it, they read nothing). */}
+          {rail && (railBelow || inline) ? <div className={`mt-5 print:break-before-avoid ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
           {/* A hint written as items (" · ") wraps between them, never inside one or before its dot. */}
           {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite print:hidden">{typeof hint === 'string' ? <Items items={hint} /> : hint}</p> : null}
           <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{keepDashes(caption)}</figcaption>

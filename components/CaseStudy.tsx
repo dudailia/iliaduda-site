@@ -95,7 +95,8 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
     // On paper it keeps to the sheet before it: alone, with the footer line, it made a sheet of its own.
     <div className="mt-12 lg:mt-16 print:break-before-avoid">
       <Row rail="">
-        <hr className="mb-5 border-0 border-t border-rule" />
+        {/* On paper the rule goes with the rows it heads: left behind, it ended the sheet before them on a lone line. */}
+        <hr className="mb-5 border-0 border-t border-rule print:break-after-avoid" />
         {/* Single column below sm: a repo URL is one unbreakable token and at
             360px it does not fit beside a label. `break-words` lets the mono
             values wrap rather than push the document wider than the viewport,

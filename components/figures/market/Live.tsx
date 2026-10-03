@@ -1202,9 +1202,9 @@ export function MarketLive({
               <FocusRing />
             </div>
             <div className="text-meta relative mt-1 flex justify-between pr-14 pl-0 font-mono whitespace-nowrap text-graphite" aria-hidden="true">
-              {/* At 360px "ago" would run into "now". */}
+              {/* At 360px "ago" would run into "now": there the axis reads "−20 s", a time back from now, not a length. */}
               <span>
-                20 s<span className="max-[379px]:hidden"> ago</span>
+                <span className="min-[380px]:hidden">−</span>20 s<span className="max-[379px]:hidden"> ago</span>
               </span>
               <span>now</span>
             </div>

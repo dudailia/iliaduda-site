@@ -167,15 +167,19 @@ test('a second switch while rows are moving takes them on from where they are, n
   const asWritten = await names()
   await page.getByRole('radio', { name: 'Lookup and CAGR fixed' }).click()
   await page.waitForTimeout(120)
-  // A row in the top twelve both ways, mid-move: where it is drawn, and a frame after switching straight back.
+  // A row in the top twelve both ways, mid-move: how far it went in the two frames before switching straight back, and
+  // in the two after. It goes on at about its own speed (a turning row slows), never jumping back to where it was.
   const both = (await names()).filter((n) => asWritten.includes(n))
-  const [mid, after] = await page.evaluate(async (ns) => {
+  const [before, mid, after] = await page.evaluate(async (ns) => {
     const find = (n: string) => [...document.querySelectorAll<HTMLElement>('#fig-ranking ol > li[data-name]')].find((li) => li.dataset.name === n)!
+    const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
     const n = ns.find((x) => find(x).style.transform !== '') ?? ns[0]!
+    const b = find(n).getBoundingClientRect().top
+    await frames()
     const a = find(n).getBoundingClientRect().top
     ;[...document.querySelectorAll<HTMLButtonElement>('#fig-ranking [role="radio"]')].find((b) => b.textContent?.includes('As written'))!.click()
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-    return [a, find(n).getBoundingClientRect().top]
+    await frames()
+    return [b, a, find(n).getBoundingClientRect().top]
   }, both)
-  expect(Math.abs(after - mid)).toBeLessThan(40)
+  expect(Math.abs(after - mid)).toBeLessThan(Math.max(40, 2 * Math.abs(mid - before)))
 })

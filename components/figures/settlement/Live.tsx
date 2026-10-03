@@ -71,7 +71,8 @@ export function SettlementLive({
             {`Hollow: ${h.months} months at ${rub(h.s.monthly)}, more a month than ${before.months} months at ${rub(before.s.monthly)}.`}
           </p>
         ) : null}
-        <p className="text-meta mt-1.5 max-w-[36rem] font-mono text-graphite">
+        {/* Whole on paper: it was cut mid-sentence across two sheets. */}
+        <p className="text-meta mt-1.5 max-w-[36rem] font-mono text-graphite print:break-inside-avoid">
           {all.length === 1
             ? 'Under the monthly floor at any longer term: settles in one payment.'
             : (

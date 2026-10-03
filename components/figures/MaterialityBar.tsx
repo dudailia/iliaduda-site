@@ -215,7 +215,9 @@ const nRowY = (i: number) => N.top + i * (N.barH + N.gap)
 function Narrow() {
   // The ambiguous band and the 1% line run across each bar and down to the axis, never through the labels stacked
   // above the bars (a dash between a label's letters read as a broken word).
-  const spans = [...SERIES.map((_, i) => [nRowY(i) - 3, nRowY(i) + N.barH + 3] as const), [N.axisY - 8, N.axisY] as const]
+  // Each span is its bar's own height, and the last runs on down to the axis: a stub of its own above the axis read as a
+  // fourth, unlabelled bar, and spans 3px taller than the bars stood out above and below them.
+  const spans = SERIES.map((_, i) => [nRowY(i), i === SERIES.length - 1 ? N.axisY : nRowY(i) + N.barH] as const)
   return (
     <>
       {spans.map(([y0, y1]) => (

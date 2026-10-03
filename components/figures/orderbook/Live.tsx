@@ -133,7 +133,7 @@ export function OrderBookLive({
       write('p-price', fmt.usd(r.price))
       write('p-side', fmt.side(r))
       write('p-queue', r.side === 'spread' ? 'no queue' : `${fmt.shares(r.queue)} at this price`)
-      write('p-cum', r.side === 'spread' ? `· mid ${fmt.mid(r.mid)}` : `· ${Math.round(r.cum).toLocaleString('en-US')} to the ${r.side === 'bid' ? 'best bid' : 'best ask'}`)
+      write('p-cum', r.side === 'spread' ? `mid ${fmt.mid(r.mid)}` : `${Math.round(r.cum).toLocaleString('en-US')} to the ${r.side === 'bid' ? 'best bid' : 'best ask'}`)
       write('p-ago', fmt.ago(r.ago))
     },
     [write],
@@ -606,11 +606,13 @@ export function OrderBookLive({
             </span>
           </dd>
           <dt className="text-graphite">Queue</dt>
-          <dd className="text-ink">
+          {/* On a phone the distance to the best price has a line of its own, kept: run on after the queue, it wrapped and
+              unwrapped as the counts changed, and the When row under it jumped with every tick. */}
+          <dd className="text-ink max-sm:min-h-[2lh]">
             <span ref={ref('p-queue')} className="tabular">
               —
             </span>{' '}
-            <span ref={ref('p-cum')} className="text-graphite" />
+            <span ref={ref('p-cum')} className="text-graphite max-sm:block sm:not-empty:before:content-['·_']" />
           </dd>
           <dt className="text-graphite">When</dt>
           <dd ref={ref('p-ago')} className="tabular text-ink">
@@ -620,7 +622,8 @@ export function OrderBookLive({
         <div data-orderbook-controls="" className="flex min-h-8 shrink-0 gap-2">
           {live ? (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">
+              {/* Figs. 1 and 2 are one market: either Pause stops both, and its name says so (two buttons were both "Pause"). */}
+              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button

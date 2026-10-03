@@ -73,6 +73,8 @@ export interface Options {
   onSequenceFrame: () => void
   /** The still frame is on screen as the first frame is drawn: open on the resting view it shows. */
   atRest?: () => boolean
+  /** The price the still frame shows, which a visit that opens finished says until its own estimate is in. */
+  opening?: () => number
 }
 
 export interface FuturesRenderer extends Renderer {
@@ -593,6 +595,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     true,
   )
   let valueText = ''
+  /** When the price's words last changed (clock seconds). */
+  let valueAt = -1
+  const priceWords = (mean: number) => (cssW < 520 ? `Call price: $${mean.toFixed(2)}` : `Call price, the average discounted payoff: $${mean.toFixed(2)}`)
   /**
    * The last price shown, held through the moment after the reader moves an input and before the new run's first
    * estimate is back, so the claim does not blink out on every step of a drag. The sequence starts from nothing, as
@@ -645,21 +650,25 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       o.onStats({ n: 0, mean: 0, se: 0, forward: 0, rate: 0, done: false, hist: null })
       return
     }
-    const narrow = cssW < 520
     const now = clock.now
     const v =
       previewK != null && pricer.ready()
         ? `Call at $${Math.round(kv.x)}: about $${binnedPrice(pricer.fine, kv.x).toFixed(2)}`
         : est.n > 0
-          ? narrow
-            ? `Call price: $${est.mean.toFixed(2)}`
-            : `Call price, the average discounted payoff: $${est.mean.toFixed(2)}`
+          ? priceWords(est.mean)
           : inSeq()
             ? ''
             : held
     if (est.n > 0 && previewK == null) held = v
     else if (inSeq()) held = ''
-    if (v !== valueText) valueEl.textContent = valueText = v
+    // Outside the story the estimate's cents settle at most four times a second: on a visit that opens finished it took
+    // over from the still's price and read $10.55, .53, .56, .54, .57 inside 150ms. In the story the convergence is the
+    // point, a reader's preview answers at once, and a paused figure's words stop with its picture.
+    const settling = !inSeq() && previewK == null && !o.paused() && est.n > 0 && !pricer.doneAt && !!valueText && now - valueAt < 0.25
+    if (v !== valueText && !settling) {
+      valueEl.textContent = valueText = v
+      valueAt = now
+    }
     const rate = pricer.rate()
     if (!force && now - statsAt < 0.1) return
     statsAt = now
@@ -1247,7 +1256,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       // Alongside the fan the futures step back by half, so the camera is among them without drowning in them; at
       // the wall a little more, and the bars carry the view.
       spring(focus, cam === 'flight' ? 1 - 0.5 * smooth(0.28, 0.45, flightP) - 0.05 * smooth(0.6, 0.8, flightP) : 1, dt, 5)
-      spring(edgeK, cam === 'flight' ? smooth(0.2, 0.3, flightP) : 0, dt, 6)
+      // The edge fade comes in with the flight's first steps: from 20% the camera was already in among the paths, and
+      // for two seconds they stopped on the stage's edge as on a rectangle.
+      spring(edgeK, cam === 'flight' ? smooth(0.02, 0.14, flightP) : 0, dt, 6)
       if (firstFrame) {
         firstFrame = false
         // A visit without a sequence opens on the finished picture, the poster's: payoff bars at their lengths, the price,
@@ -1259,6 +1270,14 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
           histSwapAt = -1
           histEl.textContent = 'Payoff × how often it happens'
           openFinished = true
+          // And the still's price, at full strength from the first frame: arriving with the first estimate, from nothing
+          // over 60ms, the price faded to half its contrast as the canvas covered the still's.
+          const opening = o.opening?.()
+          if (opening != null && Number.isFinite(opening)) {
+            held = priceWords(opening)
+            valueEl.textContent = valueText = held
+            valueAt = clock.now
+          }
         }
       }
       // The morph: the sequence's own clock while it plays; the flight's once

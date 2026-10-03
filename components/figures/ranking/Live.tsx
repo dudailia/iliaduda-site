@@ -40,53 +40,25 @@ const survives = (r: { a: { rank: number }; b: { rank: number }; c: { rank: numb
 const MOVE = `transform 280ms ${EASE_IN_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 const ENTER = `transform 240ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 /** A row caught mid-glide by another switch: away at once from where it is drawn, on the ease-out, so it never stalls. */
-// One 120 Hz frame in: the first frame after the switch draws the row a step along its new glide, not where it stood,
-// which for a row already moving read as a dead frame between two fast ones.
-const RETARGET = `transform 280ms ${EASE_OUT_CSS} -8ms, opacity 200ms ${EASE_OUT_CSS}`
+const RETARGET = `transform 280ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 /** A row sent back mid-glide turns on a critically damped spring (ω 22/s) from the speed it had: an ease-out reversed it
- * at full speed in one frame, an in-out stopped it dead for three frames. Sampled each 60th of a second. */
+ * at full speed in one frame, an in-out stopped it dead for three frames. Sampled every 4ms, finer than any display's
+ * frame: at a 60th of a second its braking arrived in steps, two frames alike, then a drop. */
 const SPRING_W = 22
 const SPRING_MS = 420
+const SPRING_STEP_MS = 4
 function springFrames(x0: number, v0: number): Keyframe[] {
+  const n = Math.ceil(SPRING_MS / SPRING_STEP_MS)
   const frames: Keyframe[] = []
-  for (let k = 0; k <= 25; k++) {
-    const t = (k / 25) * (SPRING_MS / 1000)
-    const x = k === 25 ? 0 : (x0 + (v0 + SPRING_W * x0) * t) * Math.exp(-SPRING_W * t)
+  for (let k = 0; k <= n; k++) {
+    const t = (k / n) * (SPRING_MS / 1000)
+    const x = k === n ? 0 : (x0 + (v0 + SPRING_W * x0) * t) * Math.exp(-SPRING_W * t)
     frames.push({ transform: `translateY(${x.toFixed(2)}px)` })
   }
   return frames
 }
-/** A running CSS glide's speed now, in px/s (down positive): its distance left over its timing curve's slope. */
-function glideSpeed(a: Animation): number {
-  const e = a.effect as KeyframeEffect | null
-  if (!e) return 0
-  const timing = e.getComputedTiming()
-  const dur = Number(timing.duration) || 0
-  if (!(dur > 0)) return 0
-  const from = String(e.getKeyframes()[0]?.transform ?? '')
-  const m = /matrix\(([^)]+)\)/.exec(from)
-  const ty = m ? Number(m[1]!.split(',')[5]) : Number(/translateY\((-?[\d.]+)px\)/.exec(from)?.[1] ?? 0)
-  const tf = Math.min(1, Math.max(0, Number(timing.localTime ?? 0) / dur))
-  // The row goes from ty to 0 along the curve: its velocity is −ty times the curve's slope, over the duration.
-  return (-ty * bezierSlope(e.getTiming().easing ?? 'linear', tf)) / (dur / 1000)
-}
-/** The slope dy/dx of a CSS cubic-bezier easing at time fraction x (1 for anything else). */
-function bezierSlope(easing: string, x: number): number {
-  const m = /cubic-bezier\(([^)]+)\)/.exec(easing)
-  if (!m) return 1
-  const [x1, y1, x2, y2] = m[1]!.split(',').map(Number) as [number, number, number, number]
-  const bx = (s: number) => 3 * x1 * s * (1 - s) ** 2 + 3 * x2 * s * s * (1 - s) + s ** 3
-  const dx = (s: number) => 3 * x1 * (1 - s) ** 2 + 6 * (x2 - x1) * s * (1 - s) + 3 * (1 - x2) * s * s
-  const dy = (s: number) => 3 * y1 * (1 - s) ** 2 + 6 * (y2 - y1) * s * (1 - s) + 3 * (1 - y2) * s * s
-  let lo = 0, hi = 1
-  for (let i = 0; i < 30; i++) {
-    const mid = (lo + hi) / 2
-    if (bx(mid) < x) lo = mid
-    else hi = mid
-  }
-  const s = (lo + hi) / 2
-  return dy(s) / Math.max(1e-6, dx(s))
-}
+/** Below this a row is at rest (px/s): a glide's last frames, or a measurement's rounding. */
+const AT_REST = 20
 
 export function RankingLive({
   rows,
@@ -115,6 +87,12 @@ export function RankingLive({
   const [gone, setGone] = useState<{ row: Row; top: number; height: number; key: number; rank: number; score: number; frac: number }[]>([])
   const goneKey = useRef(0)
   const movingRef = useRef<Map<string, number>>(new Map())
+  /**
+   * Where each row was drawn on the last two frames while rows move (px from the list's top, and the frame's time): a
+   * switch mid-glide takes a row's speed from what was drawn (a timing curve's slope overstated it, 1.8×, and a row on
+   * its spring had none).
+   */
+  const drawn = useRef({ raf: 0, until: 0, renew: false, at: new Map<string, readonly [number, number, number, number]>() })
 
   const shown = [...rows].sort((x, y) => x[v].rank - y[v].rank).slice(0, SHOWN)
   const max = Math.max(...rows.map((r) => Math.max(r.a.score, r.b.score, r.c.score)))
@@ -140,14 +118,15 @@ export function RankingLive({
     })
     before.current = m
     beforeH.current = el?.getBoundingClientRect().height ?? 0
-    // Which rows are still on their way, read here, before React reorders the list: moving a keyed row's node cancels
-    // its running transition, so read after the commit, a row cut mid-glide restarted from a standstill.
-    // And how fast each was going (px/s, down positive, from its running glide), so one sent back the other way turns
-    // with its own momentum rather than at full speed in one frame or from a dead stop.
+    // Which rows are still on their way, and how fast (px/s, down positive), from the frames drawn: read here, before
+    // React reorders the list (moving a keyed row's node cancels its running transition). A row sent back the other way
+    // turns with its own momentum rather than at full speed in one frame or from a dead stop.
+    // (Only while they are tracked: the record is cleared once every row has been still a while.)
     movingRef.current = new Map(
-      [...(el?.querySelectorAll<HTMLLIElement>('li[data-name]') ?? [])].flatMap((li) => {
-        const a = li.getAnimations().find((x) => x.playState === 'running' && 'transitionProperty' in x && (x as CSSTransition).transitionProperty === 'transform')
-        return a ? [[li.dataset.name!, glideSpeed(a)] as const] : []
+      [...drawn.current.at].flatMap(([name, [y0, t0, y1, t1]]) => {
+        if (!(t1 > t0)) return []
+        const speed = ((y1 - y0) / (t1 - t0)) * 1000
+        return Math.abs(speed) > AT_REST ? [[name, speed] as const] : []
       }),
     )
     setV(next)
@@ -158,6 +137,34 @@ export function RankingLive({
     }
   }
 
+  /** Read where each row is drawn, every frame, until every row has been still a while (the spring's 420ms and more). */
+  const track = () => {
+    const t = drawn.current
+    t.renew = true
+    if (t.raf) return
+    const step = (now: number) => {
+      const el = list.current
+      if (t.renew) {
+        t.until = now + SPRING_MS + 200
+        t.renew = false
+      }
+      if (!el || now > t.until) {
+        t.raf = 0
+        t.at.clear()
+        return
+      }
+      const top0 = el.getBoundingClientRect().top
+      el.querySelectorAll<HTMLLIElement>('li[data-name]').forEach((li) => {
+        const y = li.getBoundingClientRect().top - top0
+        const had = t.at.get(li.dataset.name!)
+        t.at.set(li.dataset.name!, had ? [had[2], had[3], y, now] : [y, now, y, now])
+      })
+      t.raf = requestAnimationFrame(step)
+    }
+    t.raf = requestAnimationFrame(step)
+  }
+  useLayoutEffect(() => () => cancelAnimationFrame(drawn.current.raf), [])
+
   // Last, Invert, Play: every write to clear the rows, one read of where they now sit, every write to put them back
   // where they were seen, then release them to their new places.
   useLayoutEffect(() => {
@@ -167,7 +174,11 @@ export function RankingLive({
     // Which rows were still on their way when the reader switched (read in choose, before the reorder cut them).
     const moving = movingRef.current
     for (const li of lis) {
-      // Only the move is cut for the measurement: a row still fading in goes on fading.
+      // Only the move is cut for the measurement: a row still fading in goes on fading. A row on its spring leaves it
+      // (its offsets are from the place it had before this switch).
+      li.getAnimations().forEach((a) => {
+        if (!('transitionProperty' in a)) a.cancel()
+      })
       li.style.transition = 'transform 0s'
       li.style.transform = 'none'
     }
@@ -202,6 +213,13 @@ export function RankingLive({
     else el.style.minHeight = `${h}px`
     // Force the inverted frame, then release to the natural position.
     void el.offsetHeight
+    // A row caught moving goes on from the frame it was seen in, at once: a new animation waits a frame or two to start
+    // (Chrome's, while the compositor takes it up), and the rows stood still there, between two fast frames. Its clock
+    // runs from that frame, so the next frame draws it a frame along.
+    const seenAt = document.timeline.currentTime
+    const startNow = (li: HTMLElement) => {
+      for (const a of li.getAnimations()) if ('transitionProperty' in a && (a as CSSTransition).transitionProperty === 'transform' && a.pending) a.startTime = seenAt
+    }
     lis.forEach((li, i) => {
       const v = moving.get(li.dataset.name!)
       const was = before.current.get(li.dataset.name!)
@@ -211,12 +229,13 @@ export function RankingLive({
         li.style.transition = `opacity 200ms ${EASE_OUT_CSS}`
         li.style.transform = ''
         li.style.opacity = ''
-        li.animate(springFrames(x0, v), { duration: SPRING_MS, easing: 'linear' })
+        li.animate(springFrames(x0, v), { duration: SPRING_MS, easing: 'linear' }).startTime = seenAt
         return
       }
       li.style.transition = li.dataset.entering !== undefined ? ENTER : v !== undefined ? RETARGET : MOVE
       li.style.transform = ''
       li.style.opacity = ''
+      if (v !== undefined && li.dataset.entering === undefined) startNow(li)
     })
     if (glide) {
       el.style.transition = `height 280ms ${EASE_IN_OUT_CSS}`
@@ -230,7 +249,9 @@ export function RankingLive({
       }, 300)
     }
     before.current = new Map()
+    track()
   }, [v, reduced])
+
 
   const current = variants.find((x) => x.key === v)!
   const zeroed = rows.filter((r) => r.zeroed).length

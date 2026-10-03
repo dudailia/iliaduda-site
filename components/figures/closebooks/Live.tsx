@@ -240,7 +240,9 @@ export function CategorisationLive({
       caption={caption}
       table={table}
     >
-      <div ref={box}>
+      {/* On paper the batch and its export line print whole (about three-quarters of a sheet): cut between its rows, one
+          sheet ended on half a batch and the next opened on the rest. */}
+      <div ref={box} className="print:break-inside-avoid">
         {/* The gate, where a phone reader can see it change: above the rows,
             pinned while they scroll past. The rail carries it on wide screens. */}
         <p data-batch-gate="" className="text-meta sticky top-0 z-10 -mx-1 mb-2 border-b border-rule bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>

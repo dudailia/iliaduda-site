@@ -303,6 +303,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const gridBuf = gl.createBuffer()!
   const idxBuf = gl.createBuffer()!
   let rows: number = ROWS_BY_Q[2]
+  /** The rows the quality asks for: a step down keeps the deeper grid until the eased count has come down to it. */
+  let rowsWant: number = rows
   let rowsF = 0
   let idxCount = 0
   const buildGrid = (nz: number) => {
@@ -831,12 +833,15 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     gl.bindTexture(gl.TEXTURE_2D, centreTex)
     gl.uniform1i(terrain.u('uCentre'), 1)
     gl.uniform1i(terrain.u('uHead'), head)
-    gl.uniform1i(terrain.u('uRows'), Math.min(rows, sim.written))
     // The age fade eases toward a new history depth (τ ≈ 250ms) instead of
     // rescaling in one frame when quality steps: rows a step adds emerge out
-    // of the fade rather than the whole terrain jumping 23% deeper.
-    const rowsTarget = Math.min(rows, sim.written)
+    // of the fade rather than the whole terrain jumping 23% deeper, and rows a
+    // step down takes sink back into the page as the count passes them (cut at
+    // once, the back of both walls went in one frame, "10 s ago" with it).
+    const rowsTarget = Math.min(rowsWant, sim.written)
     rowsF = rowsF ? rowsF + (rowsTarget - rowsF) * (1 - Math.exp(-dt * 4)) : rowsTarget
+    if (rows > rowsWant && rowsF < rowsWant + 0.5) buildGrid(rowsWant)
+    gl.uniform1i(terrain.u('uRows'), Math.min(rows, Math.max(rowsWant, Math.ceil(rowsF)), sim.written))
     gl.uniform1f(terrain.u('uRowsF'), Math.max(1, rowsF))
     gl.uniform1i(terrain.u('uBase'), b - START)
     const wmod = (sim.written - 1) % 1200
@@ -949,7 +954,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // First every label's text and where it would go; then the new texts are measured, all at once; then they are
     // placed: one layout a frame at most, never one after another label's write.
     const todo: { l: Label; text: string; at: [number, number] | null; anchor: Anchor }[] = []
-    for (const l of labelSpecs(sim, { centre, fracZ, narrow: aspect < 1, rows, rise, lift })) {
+    // Time is marked only as deep as the terrain is drawn: as a step down sinks the back rows, their label fades with them.
+    for (const l of labelSpecs(sim, { centre, fracZ, narrow: aspect < 1, rows: rowsF ? Math.min(rows, Math.ceil(rowsF)) : rows, rise, lift })) {
       const at = S(l.at[0], l.at[1], l.at[2])
       todo.push({ l: label(l.id, l.kind), text: l.text, at: at ? [at[0] + l.dx, at[1] + l.dy] : null, anchor: l.anchor })
       if (l.id !== 'price') continue
@@ -958,12 +964,25 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       if (reading) {
         const r = sim.row(probeAge)
         const pin = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) * rowRise(rise, probeAge, rowsF || rows) * lift + 0.16, zOf(probeAge))
-        const text = reading.side === 'spread' ? `${fmt.usd(reading.price)} · inside the spread` : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)} · ${fmt.ago(reading.ago)}`
+        // On a phone's stage the age is left to the readout under it: with it the tag took two-thirds of the width.
+        const text =
+          reading.side === 'spread'
+            ? `${fmt.usd(reading.price)} · inside the spread`
+            : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)}${cssW < 480 ? '' : ` · ${fmt.ago(reading.ago)}`}`
         // Right of the pin where it fits, else to its left: always to the right, it ran off the stage (or onto a label)
-        // over the terrain's right half and was never shown there.
+        // over the terrain's right half and was never shown there. Where it fits on neither side (the middle of a
+        // narrow stage), it stands over the pin, held inside the stage: dropped there, a tap left no mark of what it read.
         const wide = probeTag.w || 0.6 * cssW
-        const left = !!pin && pin[0] + 6 + wide > cssW - 8
-        todo.push({ l: probeTag, text, at: pin ? [left ? pin[0] - 6 : pin[0] + 6, pin[1] - 10] : null, anchor: left ? 'r' : 'l' })
+        const right = !!pin && pin[0] + 6 + wide <= cssW - 8
+        const left = !!pin && !right && pin[0] - 6 - wide >= 8
+        const over = !!pin && !right && !left
+        const tall = probeTag.h || 18
+        todo.push({
+          l: probeTag,
+          text,
+          at: pin ? (over ? [Math.min(Math.max(pin[0], 8 + wide / 2), cssW - 8 - wide / 2), pin[1] - 12 - tall / 2] : [left ? pin[0] - 6 : pin[0] + 6, pin[1] - 10]) : null,
+          anchor: over ? 'c' : left ? 'r' : 'l',
+        })
       } else todo.push({ l: probeTag, text: '', at: null, anchor: 'c' })
     }
     for (const t of todo)
@@ -1057,7 +1076,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       dirty = true
       q = level
       const nz = ROWS_BY_Q[Math.max(0, Math.min(3, level))]!
-      if (nz !== rows) buildGrid(nz)
+      rowsWant = nz
+      // Deeper at once (the new rows rise in as the eased count reaches them); shallower once the count has come down
+      // (the frame rebuilds it), unless nothing has been drawn yet.
+      if (nz > rows || (nz < rows && !rowsF)) buildGrid(nz)
     },
     setPalette(p) {
       dirty = true

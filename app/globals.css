@@ -268,10 +268,27 @@
       box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 4px var(--color-indigo-wash);
     }
   }
+  /* Under a finger the box is 44px, pulled up over the slider's label, and a ring around it ran through the label and
+     over the buttons below: there the focus is drawn on the thumb, an ink ring outside its paper one. */
+  @media (pointer: coarse) {
+    input[type='range']:focus-visible {
+      outline: none;
+    }
+    input[type='range']:focus-visible::-webkit-slider-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 3px var(--color-paper), 0 0 0 5px var(--color-ink);
+    }
+    input[type='range']:focus-visible::-moz-range-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 3px var(--color-paper), 0 0 0 5px var(--color-ink);
+    }
+  }
   @media (forced-colors: active) {
     input[type='range'] {
       -webkit-appearance: auto;
       appearance: auto;
+    }
+    /* Forced colours drop the thumb's shadows: the ring goes back on the box. */
+    input[type='range']:focus-visible {
+      outline: 2px solid;
     }
   }
 
@@ -514,7 +531,7 @@
    stage one screen tall at most (--h), so on a laptop's first screen, and once in view on a phone, the shock lands in
    all three at once. Each pane's canvas is half the height left after the titles and axes (6.5rem in all). Outside
    any layer, so it wins over the panes' own sizes. */
-@media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem) {
+@media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem), print {
   [data-market-views] {
     --h: clamp(15rem, calc(100svh - 34.75rem), 24rem);
     display: grid;
@@ -551,6 +568,14 @@
 @media (min-width: 40rem) and (max-width: 63.99rem) and (max-height: 30rem) {
   [data-market-views] {
     --h: calc(100svh - 7rem);
+  }
+}
+/* On paper as on a laptop: stacked, the three views took a sheet and a half and were cut between the surface and the
+   other two; side by side they take half of one. */
+@media print {
+  [data-market-views] {
+    --h: 16rem;
+    break-inside: avoid;
   }
 }
 /* On a phone in portrait the three views fit one screen: the surface at its own 1.62 (not 1.1), and the book and the
@@ -1025,10 +1050,7 @@
   figure :is(button:not([role='radio'], [aria-pressed]), input:not([type='range'], [type='radio'], [type='checkbox'])) {
     display: none !important;
   }
-  /* CloseBooks' batch is taller than a sheet: it breaks between rows rather than leaving a page blank before it. */
-  #fig-pipeline {
-    break-inside: auto;
-  }
+  /* CloseBooks' batch prints whole (Live.tsx); should it ever outgrow a sheet, it breaks between rows, never through one. */
   #fig-pipeline li {
     break-inside: avoid;
   }

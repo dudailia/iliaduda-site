@@ -417,7 +417,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
             </span>
           </dd>
           <dt className="text-graphite">Set off by</dt>
-          <dd ref={ref('par')} className="text-ink">
+          {/* Its longest takes two lines (three on a phone), kept: as it wrapped and unwrapped, the row under it jumped. */}
+          <dd ref={ref('par')} className="min-h-[2lh] text-ink max-sm:min-h-[3lh]">
             —
           </dd>
           <dt className="text-graphite">On its own</dt>
@@ -426,8 +427,9 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           </dd>
         </dl>
         <div data-orderflow-controls="" className="flex min-h-8 shrink-0 gap-2">
+          {/* Figs. 1 and 2 are one market: either Pause stops both, and its name says so (two buttons were both "Pause"). */}
           {live && !reduced && !still ? (
-            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">
+            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} min-w-[4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
               {paused ? 'Resume' : 'Pause'}
             </button>
           ) : null}

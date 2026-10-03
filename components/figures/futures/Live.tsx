@@ -285,6 +285,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
                 onStats,
                 onSequenceFrame,
                 atRest: () => stillWasShown.current,
+                opening: () => frameRef.current.stats.mean,
               },
             )
             real.setQuality!(quality)
