@@ -26,6 +26,21 @@ test('the self-hosted faces are the ones actually in use', async ({ page }) => {
 })
 
 /**
+ * The headings' bold fallback (app/globals.css) joins next/font's generated fallback family by name: if next/font ever
+ * names it otherwise, the face would sit unused and headings would reflow at the swap again, with nothing on screen to
+ * say so.
+ */
+test('the headings’ bold fallback belongs to the family next/font falls back to', async ({ page }) => {
+  await page.goto('/')
+  const info = await page.evaluate(() => ({
+    stack: getComputedStyle(document.documentElement).getPropertyValue('--font-serif-face'),
+    faces: [...document.fonts].filter((f) => f.weight === '500 900').map((f) => f.family.replace(/^["']|["']$/g, '')),
+  }))
+  expect(info.stack).toContain('"sourceSerif Fallback"')
+  expect(info.faces).toContain('sourceSerif Fallback')
+})
+
+/**
  * The faces are subsets, so a character outside them is drawn in whatever the
  * system falls back to: σ was, in the hero's subtitle, a heavier glyph from
  * another family. Every character a page shows must be in the site's fonts:

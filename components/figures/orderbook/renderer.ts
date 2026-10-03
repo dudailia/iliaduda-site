@@ -251,6 +251,9 @@ export interface BookRenderer extends Renderer {
   sink(done: () => void): void
 }
 
+/** How far a drag tilts the terrain (radians, the soft limit it eases into). */
+const PITCH_MAX = 0.22
+
 export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const gl: GL = env.gl
   const { canvas } = env
@@ -548,6 +551,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   /** Whether the pointer was reading the terrain last frame. */
   let reading0 = false
   let hover: [number, number] | null = null
+  /** The last place the resting pointer read the terrain, and what it read there. */
+  let lastHit: { x: number; y: number; probe: KeyProbe } | null = null
   let mvp: M4 = new Float32Array(16)
   let inv: M4 | null = null
   let fracZ = 0
@@ -567,7 +572,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     pitch: page.pitch + (rest.pitch - page.pitch) * k + (lean.pitch.x + turn.pitch.x) * k,
     // Turned toward a soft limit, the camera stands back (by the square of the turn, so the rest pose is untouched): the
     // terrain's corners stay on the stage instead of being cut on its edge.
-    dist: (page.dist + (rest.dist - page.dist) * k) * (1 + PULL.yaw * (turn.yaw.x / 0.6) ** 2 + PULL.pitch * (turn.pitch.x / 0.3) ** 2),
+    dist: (page.dist + (rest.dist - page.dist) * k) * (1 + PULL.yaw * (turn.yaw.x / 0.6) ** 2 + PULL.pitch * (turn.pitch.x / PITCH_MAX) ** 2),
     tx: page.tx + (rest.tx - page.tx) * k,
     ty: rest.ty,
     tz: rest.tz,
@@ -598,11 +603,13 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   }
   // The soft limits a drag eases into (tanh), and their inverses, so a terrain grabbed again near a limit picks up from
   // where it is.
-  const soft = { yaw: (r: number) => 0.6 * Math.tanh(r / 0.6), pitch: (r: number) => 0.3 * Math.tanh(r / 0.3) }
+  // The pitch stops at 0.22: at 0.3 the bid wall's far edge stood nearly edge-on and read as a jagged white-and-ink
+  // fringe.
+  const soft = { yaw: (r: number) => 0.6 * Math.tanh(r / 0.6), pitch: (r: number) => PITCH_MAX * Math.tanh(r / PITCH_MAX) }
   const unsoft = (y: number, a: number) => a * Math.atanh(Math.max(-0.999, Math.min(0.999, y / a)))
   const onDown = (e: PointerEvent) => {
     if (drag) return
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, 0.3), touch: e.pointerType === 'touch', live: false }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, PITCH_MAX), touch: e.pointerType === 'touch', live: false }
     canvas.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent) => {
@@ -616,7 +623,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         if (!drag.live) {
           drag.live = true
           drag.rawYaw = unsoft(turn.yaw.x, 0.6)
-          drag.rawPitch = unsoft(turn.pitch.x, 0.3)
+          drag.rawPitch = unsoft(turn.pitch.x, PITCH_MAX)
           turn.yaw.v = turn.pitch.v = 0
         }
         // The hand's grip shows while the terrain turns under it.
@@ -800,7 +807,13 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     inv = invert(mvp)
 
     // Probe: hover wins; else the keyboard/tap probe.
-    const hovered = hover ? pick(hover[0], hover[1]) : null
+    // A pointer held still keeps its reading: the terrain moves under it every simulated second, and at the front edge
+    // the ray fell off and back on, the reading blinking between a value and "point at the terrain". Moved (over 2px),
+    // it reads afresh, and off the terrain it reads nothing.
+    let hovered = hover ? pick(hover[0], hover[1]) : null
+    if (hover && hovered) lastHit = { x: hover[0], y: hover[1], probe: hovered }
+    else if (hover && lastHit && Math.hypot(hover[0] - lastHit.x, hover[1] - lastHit.y) <= 2) hovered = lastHit.probe
+    else lastHit = null
     reading0 = hovered !== null
     // The reader's own probe wins; otherwise the order chosen in Fig. 2, where and when it was, while it is in view.
     const chosen = !hovered && !sh.key ? sh.highlight() : null

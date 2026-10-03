@@ -18,6 +18,7 @@ export function CaseStudyTitle({
   standfirst,
   level = 'h2',
   figure = true,
+  measure = '',
 }: {
   /** Role and dates, as on the résumé. Sits under the title, never above it:
    *  a label over a heading is a kicker, and the heading has to carry itself. */
@@ -27,13 +28,15 @@ export function CaseStudyTitle({
   level?: 'h1' | 'h2'
   /** A figure follows (every paper's Fig. 1): it sits closer under the abstract's rule at lg. */
   figure?: boolean
+  /** A narrower measure for a title whose line count would differ between the fallback face and Source Serif. */
+  measure?: string
 }) {
   const Heading = level
   // At lg the first figure sits 2.5rem under the abstract's rule rather than the 4rem between figures (its own margin,
   // less this block's 1.5rem), so a laptop's first screen shows more of Fig. 1's stage.
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'}>
+      <Heading className={`${level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'} ${measure}`}>
         <Whole text={title} />
       </Heading>
       {byline ? (

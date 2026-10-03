@@ -48,6 +48,23 @@ const TS = Array.from({ length: SAMPLES }, (_, i) => {
 })
 // Whole units of a 1000-unit box: a tenth of a pixel at most on screen, and
 // forty-four of these ship in the HTML.
+/**
+ * Where a phone's key-rate label stands: at the right or left end of its line, over or under it, the first of those
+ * (in that order) where neither the curve nor a bond runs through it. The label takes about 45% of a phone's plot and
+ * 8% of its height. On a laptop it keeps the right end, over the line, where it never meets them.
+ */
+function keyPlace(p: GParams, bonds: readonly (readonly [number, number])[], rate: number): { left: boolean; below: boolean } {
+  const ly = sy(rate)
+  const hits = (left: boolean, below: boolean) => {
+    const [x0, x1] = left ? [0, 0.45 * W] : [0.55 * W, W]
+    const [y0, y1] = below ? [ly, ly + 0.08 * H] : [ly - 0.08 * H, ly]
+    if (y0 < 0 || y1 > H) return Infinity
+    const inside = (x: number, y: number) => x >= x0 && x <= x1 && y >= y0 && y <= y1
+    return TS.filter((t) => inside(sx(t), sy(zcy(p, t)))).length + 4 * bonds.filter(([t, y]) => inside(sx(t), sy(y))).length
+  }
+  const places = [{ left: false, below: false }, { left: false, below: true }, { left: true, below: false }, { left: true, below: true }]
+  return places.reduce((best, c) => (hits(c.left, c.below) < hits(best.left, best.below) ? c : best))
+}
 const path = (p: GParams) => TS.map((t, i) => `${i ? 'L' : 'M'}${Math.round(sx(t))} ${Math.round(sy(zcy(p, t)))}`).join('')
 
 const pc = (y: number) => `${y.toFixed(2)}%`
@@ -80,6 +97,7 @@ export function OfzLive({
   const d = days[at]!
   const prev = days[Math.max(0, at - 1)]!
   const rate = [...keyRate].reverse().find((k) => k.from <= d.date)!.rate
+  const phoneKey = keyPlace(d.params, d.bonds, rate)
   const short = zcy(d.params, T_MIN)
   const long = zcy(d.params, 10)
   const move = at > 0 ? (short - zcy(prev.params, T_MIN)) * 100 : 0
@@ -181,9 +199,20 @@ export function OfzLive({
             <span
               aria-hidden
               // On paper, as a label over a plot is: at a phone's width the line's label falls among the bonds.
-              className={`text-meta pointer-events-none absolute right-1.5 rounded-sm bg-paper/85 px-1 font-mono text-ink ${
+              className={`text-meta pointer-events-none absolute right-1.5 rounded-sm bg-paper/85 px-1 font-mono text-ink max-sm:hidden ${
                 sy(rate) / H < 0.12 ? 'pt-0.5' : '-translate-y-full pb-0.5'
               }`}
+              style={{ top: `${(sy(rate) / H) * 100}%` }}
+            >
+              {`key rate ${rate.toFixed(2)}%`}
+            </span>
+            {/* On a phone the label takes half the plot, and at the right end over the line it covered the long bonds and
+                the curve (four dots under it on 15 August): there it takes the first end and side clear of both. */}
+            <span
+              aria-hidden
+              className={`text-meta pointer-events-none absolute rounded-sm bg-paper/85 px-1 font-mono text-ink sm:hidden ${
+                phoneKey.left ? 'left-1.5' : 'right-1.5'
+              } ${phoneKey.below ? 'pt-0.5' : '-translate-y-full pb-0.5'}`}
               style={{ top: `${(sy(rate) / H) * 100}%` }}
             >
               {`key rate ${rate.toFixed(2)}%`}

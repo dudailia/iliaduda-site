@@ -116,10 +116,13 @@ export function setNoteRise(el: HTMLElement, dy: number, align: string, at?: { x
     below = dy > 0
   }
   if (words.style.transform !== t) words.style.transform = t
-  words.toggleAttribute('data-below', below)
+  if (words.hasAttribute('data-below') !== below) words.toggleAttribute('data-below', below)
+  // Written only when they change: set every frame, even to the same values, they repainted the page 60 times a second
+  // at rest.
   if (lead) {
-    lead.setAttribute('x2', x2.toFixed(1))
-    lead.setAttribute('y2', y2.toFixed(1))
+    const nx = x2.toFixed(1), ny = y2.toFixed(1)
+    if (lead.getAttribute('x2') !== nx) lead.setAttribute('x2', nx)
+    if (lead.getAttribute('y2') !== ny) lead.setAttribute('y2', ny)
   }
   return box
 }

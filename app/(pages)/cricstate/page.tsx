@@ -51,6 +51,10 @@ export default function Cricstate() {
           byline={paper.byline}
           level="h1"
           title={paper.title}
+          // From lg the column is 646px, and "predicts beyond the scoreboard" fit it in the fallback face by 4px and not
+          // in Source Serif: two lines, then three when the face arrived, and Fig. 1 dropped 49px (CLS 0.017 on a slow
+          // load). At 38rem it takes three lines in either face.
+          measure="lg:max-w-[38rem]"
           standfirst={<p>{paper.abstract}</p>}
         />
 

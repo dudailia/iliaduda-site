@@ -87,6 +87,7 @@ export function RankingLive({
   const [gone, setGone] = useState<{ row: Row; top: number; height: number; key: number; rank: number; score: number; frac: number }[]>([])
   const goneKey = useRef(0)
   const movingRef = useRef<Map<string, number>>(new Map())
+  const bars = useRef<Map<string, number>>(new Map())
   /**
    * Where each row was drawn on the last two frames while rows move (px from the list's top, and the frame's time): a
    * switch mid-glide takes a row's speed from what was drawn (a timing curve's slope overstated it, 1.8×, and a row on
@@ -117,6 +118,14 @@ export function RankingLive({
       if (!reduced && row && !kept.has(row.name)) leaving.push({ row, top: r.top - top0, height: r.height, key: ++goneKey.current, rank: row[v].rank, score: row[v].score, frac: row[v].score / max })
     })
     before.current = m
+    // And each bar's length as drawn (its scale, mid-glide or at rest): reordering moves a row's node, which cancels
+    // its bar's transition, so six of seven bars took their new length in one frame.
+    bars.current = new Map(
+      [...(el?.querySelectorAll<HTMLElement>('li[data-name] [data-bar]') ?? [])].map((b) => [
+        b.closest<HTMLElement>('li[data-name]')!.dataset.name!,
+        new DOMMatrixReadOnly(getComputedStyle(b).transform).a,
+      ]),
+    )
     beforeH.current = el?.getBoundingClientRect().height ?? 0
     // Which rows are still on their way, and how fast (px/s, down positive), from the frames drawn: read here, before
     // React reorders the list (moving a keyed row's node cancels its running transition). A row sent back the other way
@@ -237,6 +246,22 @@ export function RankingLive({
       li.style.opacity = ''
       if (v !== undefined && li.dataset.entering === undefined) startNow(li)
     })
+    // The bars glide from the length each was drawn at to the new one, on the rows' own curve (on the ease-out for a
+    // row caught moving), their clock running from the frame they were seen in.
+    for (const li of lis) {
+      const bar = li.querySelector<HTMLElement>('[data-bar]')
+      const was = bars.current.get(li.dataset.name!)
+      if (!bar || was === undefined) continue
+      for (const a of bar.getAnimations()) a.cancel()
+      const to = new DOMMatrixReadOnly(getComputedStyle(bar).transform).a
+      if (Math.abs(to - was) < 1e-3) continue
+      const glideBar = bar.animate([{ transform: `scaleX(${was})` }, { transform: `scaleX(${to})` }], {
+        duration: 280,
+        easing: moving.has(li.dataset.name!) ? EASE_OUT_CSS : EASE_IN_OUT_CSS,
+      })
+      glideBar.startTime = seenAt
+    }
+    bars.current = new Map()
     if (glide) {
       el.style.transition = `height 280ms ${EASE_IN_OUT_CSS}`
       el.style.height = `${h}px`
@@ -339,9 +364,11 @@ export function RankingLive({
               {/* On a phone the bar takes its own line under the name, across the row: squeezed beside it (70–100px on
                   a 0–100 scale) the treatments' scores drew twelve identical bars. */}
               <span className="relative col-[2/-1] row-start-2 h-2.5 sm:col-auto sm:row-auto" aria-hidden>
+                {/* Its glide is played by the FLIP above (a transition here was cut whenever React moved the row). */}
                 <span
+                  data-bar=""
                   className={`absolute inset-y-0 left-0 w-full origin-left ${survives(r) ? 'bg-indigo' : 'bg-graphite/45'}`}
-                  style={{ transform: `scaleX(${r[v].score / max})`, transition: reduced ? 'none' : `transform 280ms ${EASE_IN_OUT_CSS}` }}
+                  style={{ transform: `scaleX(${r[v].score / max})` }}
                 />
               </span>
               <span className="text-meta tabular text-right text-graphite">{r[v].score.toFixed(1)}</span>
