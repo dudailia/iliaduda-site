@@ -43,13 +43,15 @@ export function ContactLinks({ className = '' }: { className?: string }) {
 }
 
 export function Masthead() {
+  const elsewhere = AVAILABILITY.locations.filter((l) => !PERSON.base.startsWith(l))
   const rows = [
     ['Seeking', AVAILABILITY.line],
     ['Roles', AVAILABILITY.roles.join(' · ')],
     [
       'Location',
-      // A city's name is never split across two lines ("San / Francisco").
-      `Based in ${PERSON.base}; open to ${AVAILABILITY.locations.slice(0, -1).map(whole).join(', ')} or ${whole(AVAILABILITY.locations.at(-1)!)}`,
+      // A city's name is never split across two lines ("San / Francisco"); the base is not listed again after it, as on
+      // /about ("Based in Boston, MA; open to Boston, …" said it twice).
+      `Based in ${PERSON.base}; open to ${elsewhere.slice(0, -1).map(whole).join(', ')} or ${whole(elsewhere.at(-1)!)}`,
     ],
   ] as const
 

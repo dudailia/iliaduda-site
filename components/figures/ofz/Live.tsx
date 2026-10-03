@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
+import { Items } from '@/components/Layout'
 import { zcy, type GParams } from '@/lib/gcurve'
 import { rangeFill } from '@/components/stage/range'
 
@@ -97,7 +98,17 @@ export function OfzLive({
     <FigureFrame
       {...frame}
       rail={<Readouts rows={rows} across={frame.inline ?? false} />}
-      hint="Drag the slider, choose a rate decision, or use the arrow keys to move a trading day at a time · the dashed curve is the session before · dots are the bonds the curve was fitted to"
+      // Under a finger the hint says what a finger does (the keys it taught are not there).
+      hint={
+        <>
+          <span className="pointer-coarse:hidden">
+            <Items items="Drag the slider, choose a rate decision, or use the arrow keys to move a trading day at a time · the dashed curve is the session before · dots are the bonds the curve was fitted to" />
+          </span>
+          <span className="hidden pointer-coarse:inline">
+            <Items items="Drag the slider or tap a rate decision · the dashed curve is the session before · dots are the bonds the curve was fitted to" />
+          </span>
+        </>
+      }
     >
       <div className="relative">
         <div className="flex">

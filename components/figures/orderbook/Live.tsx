@@ -54,6 +54,9 @@ const noop = () => () => {}
 /** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright. */
 const posterVariant = (): 'wide' | 'narrow' => (matchMedia('(width < 40rem) and (orientation: portrait)').matches ? 'narrow' : 'wide')
 
+/** The probe's price is set in the width of the widest it reads, "$100.00". */
+const PRICE_CH = 7
+
 export function OrderBookLive({
   poster,
   initial,
@@ -122,7 +125,7 @@ export function OrderBookLive({
     (r: Reading | null) => {
       last.current = r
       if (!r) {
-        write('p-price', '—')
+        write('p-price', '—'.padStart(PRICE_CH, '\u2007'))
         // A finger taps (the hint under the figure says so too).
         write('p-side', `${(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'tap' : 'point at')} the terrain`)
         write('p-queue', '—')
@@ -130,7 +133,9 @@ export function OrderBookLive({
         write('p-ago', '—')
         return
       }
-      write('p-price', fmt.usd(r.price))
+      // Set right in the width of "$100.00" (figure spaces, a digit's width): under $100 the price is a character shorter,
+      // and the side after it stepped sideways as a pointer crossed the line, a layout shift with no input to excuse it.
+      write('p-price', fmt.usd(r.price).padStart(PRICE_CH, '\u2007'))
       write('p-side', fmt.side(r))
       write('p-queue', r.side === 'spread' ? 'no queue' : `${fmt.shares(r.queue)} at this price`)
       write('p-cum', r.side === 'spread' ? `mid ${fmt.mid(r.mid)}` : `${Math.round(r.cum).toLocaleString('en-US')} to the ${r.side === 'bid' ? 'best bid' : 'best ask'}`)
@@ -599,20 +604,20 @@ export function OrderBookLive({
           <dt className="text-graphite">Probe</dt>
           <dd className="text-ink">
             <span ref={ref('p-price')} className="tabular">
-              —
+              {'—'.padStart(PRICE_CH, '\u2007')}
             </span>{' '}
             <span ref={ref('p-side')} className="text-graphite">
               {mounted && matchMedia('(pointer: coarse)').matches ? 'tap the terrain' : 'point at the terrain'}
             </span>
           </dd>
           <dt className="text-graphite">Queue</dt>
-          {/* On a phone the distance to the best price has a line of its own, kept: run on after the queue, it wrapped and
-              unwrapped as the counts changed, and the When row under it jumped with every tick. */}
-          <dd className="text-ink max-sm:min-h-[2lh]">
+          {/* The distance to the best price has a line of its own, kept: run on after the queue, it stepped sideways as
+              the count before it changed width, and on a phone it wrapped and unwrapped and the When row jumped. */}
+          <dd className="min-h-[2lh] text-ink">
             <span ref={ref('p-queue')} className="tabular">
               —
-            </span>{' '}
-            <span ref={ref('p-cum')} className="text-graphite max-sm:block sm:not-empty:before:content-['·_']" />
+            </span>
+            <span ref={ref('p-cum')} className="block text-graphite" />
           </dd>
           <dt className="text-graphite">When</dt>
           <dd ref={ref('p-ago')} className="tabular text-ink">

@@ -454,6 +454,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   const togglePause = () => {
     const next = !pausedRef.current
+    // Paused before its story has begun (the stage not yet far enough on screen), the figure opens finished, at calm:
+    // the story waiting there played in full under a button that read Resume.
+    if (next && sig.armed.current && !seq.current.started) seq.current.finish()
     pausedRef.current = next
     sim.current.dirty = true
     setPaused(next)

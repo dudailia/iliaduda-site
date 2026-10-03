@@ -209,10 +209,11 @@ export function SettlementLive({
       rail={rail}
       railBelow={false}
     >
+        {/* Named by its label, not a heading: the paper's outline is its sections, and no figure's title is a heading. */}
         <section aria-labelledby="st-a">
-          <h2 id="st-a" className="text-meta font-mono font-normal tracking-normal text-graphite">
+          <p id="st-a" className="text-meta font-mono font-normal tracking-normal text-graphite">
             Settlement calculator
-          </h2>
+          </p>
           <div role="radiogroup" aria-label="Debt" className="mt-2 flex flex-wrap gap-2">
             {DEBTS.map((d, di) => (
               <button
@@ -423,9 +424,9 @@ export function SettlementLive({
       hint="Request a code, move the simulated clock, and request again: the meters show what each code spends"
     >
         <section aria-labelledby="st-b">
-          <h2 id="st-b" className="text-meta font-mono font-normal tracking-normal text-graphite">
+          <p id="st-b" className="text-meta font-mono font-normal tracking-normal text-graphite">
             The login’s statutory cost, in messages
-          </h2>
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {/* Both labels in one cell, the one not shown kept invisible: the press changes its own words, never its
                 width, so the controls beside it stay under the pointer. */}

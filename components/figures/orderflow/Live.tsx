@@ -115,7 +115,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       const x = read(f, r)
       write('ev', upper(NAMES[x.type]!))
       // A pinned order the strips have moved past stays readable, and says so.
-      write('ev-more', `· ${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)} s ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
+      write('ev-more', `${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)} s ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
       write('par', setOff(x))
       write('own-one', fmt.pct(x.own))
       market.highlight = { price: x.price, t: x.t }
@@ -403,16 +403,19 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
         {/* Room kept for the longest reading, so choosing an order never moves the page below it: on a phone eight
-            lines, an order off the strip with three lines of what set it off. */}
+            lines, an order off the strip with three lines of what set it off; from sm five. */}
         <dl
           id="fig-order-flow-reading"
-          className="text-meta grid min-h-[8lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh] print:hidden"
+          className="text-meta grid min-h-[8lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[5lh] print:hidden"
           aria-label="Reading"
         >
           <dt className="text-graphite">Order</dt>
-          <dd className="text-ink">
+          {/* The kind of order, and under it the order itself: run on after the kind, its words stepped sideways as a
+              pointer crossed from one kind to another (a layout shift with no input to excuse it). Its lines kept, two
+              (three on a phone, where the order's own line wraps), so the rows under it never jump. */}
+          <dd className="min-h-[2lh] text-ink max-sm:min-h-[3lh]">
             <span ref={ref('ev')}>—</span>{' '}
-            <span ref={ref('ev-more')} className="text-graphite">
+            <span ref={ref('ev-more')} className="block text-graphite">
               {mounted && matchMedia('(pointer: coarse)').matches ? 'tap an order' : 'point at an order'}
             </span>
           </dd>

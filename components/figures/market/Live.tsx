@@ -798,6 +798,12 @@ export function MarketLive({
   // The slider's value is the moment's time against now (−20 to 0 seconds), so the keys go the way a slider's do:
   // Right and Up towards now, Left and Down back, Page Up and Page Down by five seconds, Home to the oldest, End to now.
   const onBookKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    // Space pauses, as on the surface beside it and every stage on the site (it scrolled the page a screen from here).
+    if (e.key === ' ') {
+      e.preventDefault()
+      togglePause()
+      return
+    }
     const step = e.shiftKey ? 2 : 0.5
     let next: number | null | undefined
     if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = (keyAgo.current ?? 0) + step
@@ -1151,7 +1157,8 @@ export function MarketLive({
                 describe on a still frame. */}
             {live ? (
               <span id="market-book-keys" hidden>
-                A moment to read the market at. The arrow keys move it, Page Up and Page Down by five seconds; End returns to now.
+                A moment to read the market at. The arrow keys move it, Page Up and Page Down by five seconds; End returns to now;
+                Space pauses the market.
               </span>
             ) : null}
             <div className="relative">

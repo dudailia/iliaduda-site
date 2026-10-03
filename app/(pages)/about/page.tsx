@@ -33,8 +33,9 @@ function MonitoRounds() {
   // Result, region, date. On a phone the region folds under its result: three
   // columns at 390px broke "Worcestershire and Warwickshire" over three lines.
   return (
-    // The rules on a wrapper: WebKit cut the table's own top border short where its hidden header cell sits.
-    <div className="mt-4 border-y border-rule">
+    // The rules on a wrapper: WebKit cut the table's own top border short where its hidden header cell sits. On paper the
+    // table is whole and goes with the entry it belongs to (on A4 it opened a sheet alone, under no heading).
+    <div className="mt-4 border-y border-rule print:break-before-avoid print:break-inside-avoid">
     <table className="text-note w-full">
       <caption className="sr-only">Monito in the Young Enterprise company programme, round by round</caption>
       <thead className="sr-only">
@@ -146,8 +147,9 @@ export default function About() {
                 ) : null}
                 {r.href ? (
                   <p className="text-note mt-2">
-                    <a href={r.href} className="inline-block py-1 whitespace-nowrap">
-                      Read the paper<span className="sr-only">: {r.org}</span>
+                    {/* Named with its paper in one string: an sr-only span was read as "Read the paper : X". */}
+                    <a href={r.href} aria-label={`Read the paper: ${r.org}`} className="inline-block py-1 whitespace-nowrap">
+                      Read the paper
                     </a>
                   </p>
                 ) : null}
@@ -216,7 +218,8 @@ export default function About() {
             {education.directedStudy.title}. {education.directedStudy.detail}
           </p>
           <p className="text-meta mt-4 font-mono text-graphite">In progress, Fall 2026</p>
-          <ul className="mt-1.5 grid list-none gap-y-2 sm:grid-cols-2 sm:gap-x-8">
+          {/* One column, as the coursework above: in two, "Interest Theory and Life Insurance" wrapped. */}
+          <ul className="mt-1.5 grid list-none gap-y-2">
             {education.inProgress.map((c) => (
               <li key={c}>{c}</li>
             ))}

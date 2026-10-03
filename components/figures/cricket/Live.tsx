@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
+import { Items } from '@/components/Layout'
 import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
 import { CONTROL } from '@/components/stage/controls'
@@ -345,7 +346,17 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       }
       caption={caption}
       table={table}
-      hint="Drag across the chart, or use the slider or the arrow keys, to move ball by ball · Home and End jump · the line is the model’s output before each ball"
+      // Under a finger the hint says what a finger does (the keys it taught are not there).
+      hint={
+        <>
+          <span className="pointer-coarse:hidden">
+            <Items items="Drag across the chart, or use the slider or the arrow keys, to move ball by ball · Home and End jump · the line is the model’s output before each ball" />
+          </span>
+          <span className="hidden pointer-coarse:inline">
+            <Items items="Drag across the chart or the slider, or tap a ball, to move ball by ball · the line is the model’s output before each ball" />
+          </span>
+        </>
+      }
     >
       <div ref={box} className="relative">
         <div className="flex">

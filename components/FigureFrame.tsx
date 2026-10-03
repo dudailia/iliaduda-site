@@ -102,7 +102,9 @@ export function FigureFrame({
               </span>
             </span>
           </div>
-          <div className={`mt-5 ${breakable ? '' : 'print:break-inside-avoid'}`} style={vt ? vtStyle(vt) : undefined}>
+          {/* On the page's paper: the morph's snapshot of it is one opaque picture, as the thumbnail it shrinks into is.
+              Transparent, the Contents' titles showed through the shrinking figure on the way back. */}
+          <div className={`mt-5 ${vt ? 'bg-paper' : ''} ${breakable ? '' : 'print:break-inside-avoid'}`} style={vt ? vtStyle(vt) : undefined}>
             {children}
           </div>
           {/* On paper the readouts keep to the figure they read (a few lines; printed a sheet after it, they read nothing). */}
