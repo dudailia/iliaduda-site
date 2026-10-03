@@ -112,7 +112,8 @@ void main() {
   int j = int(aGrid.x), a = int(aGrid.y);
   float d = dep(j, a);
   float ra = rise(a);
-  float y = hgt(d) * ra;
+  // A row past the eased count (a quality step up adds 48 at once) rises in as the count reaches it.
+  float y = hgt(d) * ra * clamp(uRowsF - float(a), 0.0, 1.0);
   float x = (float(j) - ${VIS / 2}.0 - uFracX) * DX;
   float z = ZNOW - (float(a) + uFracZ) * DZ;
   float hl = hgt(dep(j - 1, a)) * ra, hr = hgt(dep(j + 1, a)) * ra, hb = hgt(dep(j, a + 1)) * rise(a + 1), hf = hgt(dep(j, max(a - 1, 0))) * rise(max(a - 1, 0));
@@ -859,7 +860,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     gl.uniform1f(terrain.u('uProbeRow'), wmod - probeAge)
     gl.uniform1f(terrain.u('uProbePx'), probePrice - START - (b - START) + ((((b - START) % 10) + 10) % 10))
     gl.bindVertexArray(gridVao)
-    gl.drawElements(gl.TRIANGLES, idxCount, gl.UNSIGNED_SHORT, 0)
+    // Only as many rows as the eased count reaches: a step up in quality rebuilt the grid 48 rows deeper, and the
+    // terrain stood a third taller in one frame. The index buffer runs row by row, so a row is a run of its indices.
+    gl.drawElements(gl.TRIANGLES, Math.min(idxCount, Math.max(1, Math.ceil(rowsF) - 1) * (NX - 1) * 6), gl.UNSIGNED_SHORT, 0)
     gl.disable(gl.POLYGON_OFFSET_FILL)
 
     // Overlays: premultiplied; additive at night so the glow reads as light.
@@ -956,7 +959,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         const r = sim.row(probeAge)
         const pin = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) * rowRise(rise, probeAge, rowsF || rows) * lift + 0.16, zOf(probeAge))
         const text = reading.side === 'spread' ? `${fmt.usd(reading.price)} · inside the spread` : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)} · ${fmt.ago(reading.ago)}`
-        todo.push({ l: probeTag, text, at: pin ? [pin[0] + 6, pin[1] - 10] : null, anchor: 'l' })
+        // Right of the pin where it fits, else to its left: always to the right, it ran off the stage (or onto a label)
+        // over the terrain's right half and was never shown there.
+        const wide = probeTag.w || 0.6 * cssW
+        const left = !!pin && pin[0] + 6 + wide > cssW - 8
+        todo.push({ l: probeTag, text, at: pin ? [left ? pin[0] - 6 : pin[0] + 6, pin[1] - 10] : null, anchor: left ? 'r' : 'l' })
       } else todo.push({ l: probeTag, text: '', at: null, anchor: 'c' })
     }
     for (const t of todo)

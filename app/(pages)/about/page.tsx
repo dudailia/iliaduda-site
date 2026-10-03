@@ -89,7 +89,7 @@ export default function About() {
                 decoding="async"
                 // Smaller on a phone, so a 360×800 screen still ends on the contact links: the portrait above the name
                 // and the lede had pushed LinkedIn and GitHub below its fold.
-                className="h-auto w-14 border border-rule sm:w-[5.5rem] lg:ml-auto lg:w-32 dark:brightness-90"
+                className="h-auto w-14 border border-rule sm:w-[5.5rem] lg:ml-auto lg:w-32 dark:brightness-90 print:brightness-100"
               />
             </picture>
           }
@@ -97,9 +97,11 @@ export default function About() {
           {/* The person, not the word: /about is a landing page from LinkedIn and email (its tab still says About). */}
           <h1 className="text-h2 sm:text-h1">{PERSON.name}</h1>
           <div className="mt-5 max-w-[37.9rem]">
-            <p>
-              {/* What he is looking for, on the first screen as on the home page and the CV: the roles as well as when. */}
-              {POSITIONING} {AVAILABILITY.line} in {rolesInWords()}, based in Boston and just as open to{' '}
+            <p>{POSITIONING}</p>
+            {/* What he is looking for, on the first screen as on the home page and the CV, the roles as well as when: a
+                paragraph of its own, so on a phone the ask does not start at the eleventh line of one long lede. */}
+            <p className="mt-2 sm:mt-[1.05em]">
+              {AVAILABILITY.line} in {rolesInWords()}, based in Boston and just as open to{' '}
               {AVAILABILITY.locations
                 .filter((l) => !PERSON.base.startsWith(l))
                 .join(', ')
@@ -196,7 +198,8 @@ export default function About() {
           </p>
           <p className="mt-2">{education.honours}.</p>
           <p className="text-meta mt-5 font-mono text-graphite">Coursework</p>
-          <ul className="mt-1.5 grid list-none gap-y-2 sm:grid-cols-2 sm:gap-x-8">
+          {/* One column: in two, nine of the ten course names wrapped onto two or three lines. */}
+          <ul className="mt-1.5 grid list-none gap-y-2">
             {education.coursework.map((c) => (
               <li key={c}>
                 <Whole text={c} />

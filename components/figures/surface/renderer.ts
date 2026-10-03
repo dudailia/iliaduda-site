@@ -581,8 +581,11 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const reading = sim.hover !== null
       const leaning = paused || drag?.live || reading ? null : hooks.lean()
       const ly = leaning ? -LEAN.yaw * leaning.x : lean.yaw, lp = leaning ? -LEAN.pitch * leaning.y : lean.pitch
-      step2(lean, 'yaw', 'vy', ly, dt, 4)
-      step2(lean, 'pitch', 'vp', lp, dt, 4)
+      // Paused, it brakes (ω 12, not the lean's own 4) and is at rest below 2e-4 rad/s: on the lean's own spring it
+      // coasted on for a second after Pause, the last half of it in frames no one could see move.
+      step2(lean, 'yaw', 'vy', ly, dt, paused ? 12 : 4)
+      step2(lean, 'pitch', 'vp', lp, dt, paused ? 12 : 4)
+      if (paused && Math.abs(lean.vy) + Math.abs(lean.vp) < 2e-4) lean.vy = lean.vp = 0
 
       // The shock: the signature's while it plays; after it, the reader's level on a quick spring (ω = 30/s).
       let x: number

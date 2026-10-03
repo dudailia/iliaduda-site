@@ -128,8 +128,12 @@ void main() {
   float line = hair(f, major ? 0.5 : 0.15) * step(3.5, f);
   lab = mix(lab, mix(lab, to, major ? 0.42 : 0.22), line);
   if (uProbe.z > 0.0) {
-    vec2 d = abs(vUV - uProbe.xy) / max(fwidth(vUV), vec2(1e-5));
-    float pl = max(1.0 - clamp(d.y - 0.35, 0.0, 1.0), 1.0 - clamp(d.x - 0.35, 0.0, 1.0));
+    vec2 fw = fwidth(vUV);
+    vec2 d = abs(vUV - uProbe.xy) / max(fw, vec2(1e-5));
+    // A line only along a coordinate that runs across this face: on a wall the other is constant (the right wall is all
+    // the last strike), and with the probe there its line covered the whole wall in ink.
+    vec2 on = step(vec2(1e-7), fw);
+    float pl = max(on.y * (1.0 - clamp(d.y - 0.35, 0.0, 1.0)), on.x * (1.0 - clamp(d.x - 0.35, 0.0, 1.0)));
     lab = mix(lab, to, pl * 0.7 * uProbe.z);
   }
   vec3 N = normalize(vN);

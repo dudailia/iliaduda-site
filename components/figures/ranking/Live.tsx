@@ -43,9 +43,50 @@ const ENTER = `transform 240ms ${EASE_OUT_CSS}, opacity 200ms ${EASE_OUT_CSS}`
 // One 120 Hz frame in: the first frame after the switch draws the row a step along its new glide, not where it stood,
 // which for a row already moving read as a dead frame between two fast ones.
 const RETARGET = `transform 280ms ${EASE_OUT_CSS} -8ms, opacity 200ms ${EASE_OUT_CSS}`
-/** A row caught mid-glide and sent back the way it came: it turns through an in-out (on the ease-out it reversed at full
- * speed in one frame, −21 to +36px). */
-const REVERSE = `transform 300ms cubic-bezier(0.45, 0, 0.2, 1), opacity 200ms ${EASE_OUT_CSS}`
+/** A row sent back mid-glide turns on a critically damped spring (ω 22/s) from the speed it had: an ease-out reversed it
+ * at full speed in one frame, an in-out stopped it dead for three frames. Sampled each 60th of a second. */
+const SPRING_W = 22
+const SPRING_MS = 420
+function springFrames(x0: number, v0: number): Keyframe[] {
+  const frames: Keyframe[] = []
+  for (let k = 0; k <= 25; k++) {
+    const t = (k / 25) * (SPRING_MS / 1000)
+    const x = k === 25 ? 0 : (x0 + (v0 + SPRING_W * x0) * t) * Math.exp(-SPRING_W * t)
+    frames.push({ transform: `translateY(${x.toFixed(2)}px)` })
+  }
+  return frames
+}
+/** A running CSS glide's speed now, in px/s (down positive): its distance left over its timing curve's slope. */
+function glideSpeed(a: Animation): number {
+  const e = a.effect as KeyframeEffect | null
+  if (!e) return 0
+  const timing = e.getComputedTiming()
+  const dur = Number(timing.duration) || 0
+  if (!(dur > 0)) return 0
+  const from = String(e.getKeyframes()[0]?.transform ?? '')
+  const m = /matrix\(([^)]+)\)/.exec(from)
+  const ty = m ? Number(m[1]!.split(',')[5]) : Number(/translateY\((-?[\d.]+)px\)/.exec(from)?.[1] ?? 0)
+  const tf = Math.min(1, Math.max(0, Number(timing.localTime ?? 0) / dur))
+  // The row goes from ty to 0 along the curve: its velocity is −ty times the curve's slope, over the duration.
+  return (-ty * bezierSlope(e.getTiming().easing ?? 'linear', tf)) / (dur / 1000)
+}
+/** The slope dy/dx of a CSS cubic-bezier easing at time fraction x (1 for anything else). */
+function bezierSlope(easing: string, x: number): number {
+  const m = /cubic-bezier\(([^)]+)\)/.exec(easing)
+  if (!m) return 1
+  const [x1, y1, x2, y2] = m[1]!.split(',').map(Number) as [number, number, number, number]
+  const bx = (s: number) => 3 * x1 * s * (1 - s) ** 2 + 3 * x2 * s * s * (1 - s) + s ** 3
+  const dx = (s: number) => 3 * x1 * (1 - s) ** 2 + 6 * (x2 - x1) * s * (1 - s) + 3 * (1 - x2) * s * s
+  const dy = (s: number) => 3 * y1 * (1 - s) ** 2 + 6 * (y2 - y1) * s * (1 - s) + 3 * (1 - y2) * s * s
+  let lo = 0, hi = 1
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2
+    if (bx(mid) < x) lo = mid
+    else hi = mid
+  }
+  const s = (lo + hi) / 2
+  return dy(s) / Math.max(1e-6, dx(s))
+}
 
 export function RankingLive({
   rows,
@@ -101,13 +142,13 @@ export function RankingLive({
     beforeH.current = el?.getBoundingClientRect().height ?? 0
     // Which rows are still on their way, read here, before React reorders the list: moving a keyed row's node cancels
     // its running transition, so read after the commit, a row cut mid-glide restarted from a standstill.
-    // And which way each was going (toward its place in the list, from where it is drawn), so one sent back the other way
-    // can turn through a curve rather than at full speed in one frame.
-    const layoutTop = (el?.getBoundingClientRect().top ?? 0) + (el?.clientTop ?? 0)
+    // And how fast each was going (px/s, down positive, from its running glide), so one sent back the other way turns
+    // with its own momentum rather than at full speed in one frame or from a dead stop.
     movingRef.current = new Map(
-      [...(el?.querySelectorAll<HTMLLIElement>('li[data-name]') ?? [])]
-        .filter((li) => li.getAnimations().some((a) => a.playState === 'running' && 'transitionProperty' in a && (a as CSSTransition).transitionProperty === 'transform'))
-        .map((li) => [li.dataset.name!, Math.sign(layoutTop + li.offsetTop - li.getBoundingClientRect().top)] as const),
+      [...(el?.querySelectorAll<HTMLLIElement>('li[data-name]') ?? [])].flatMap((li) => {
+        const a = li.getAnimations().find((x) => x.playState === 'running' && 'transitionProperty' in x && (x as CSSTransition).transitionProperty === 'transform')
+        return a ? [[li.dataset.name!, glideSpeed(a)] as const] : []
+      }),
     )
     setV(next)
     if (leaving.length) {
@@ -161,14 +202,22 @@ export function RankingLive({
     else el.style.minHeight = `${h}px`
     // Force the inverted frame, then release to the natural position.
     void el.offsetHeight
-    for (const li of lis) {
-      const going = moving.get(li.dataset.name!)
+    lis.forEach((li, i) => {
+      const v = moving.get(li.dataset.name!)
       const was = before.current.get(li.dataset.name!)
-      const turning = going !== undefined && going !== 0 && was !== undefined && Math.sign(now[lis.indexOf(li)]! - was) === -going
-      li.style.transition = li.dataset.entering !== undefined ? ENTER : turning ? REVERSE : going !== undefined ? RETARGET : MOVE
+      const x0 = was === undefined ? 0 : was - now[i]!
+      // Sent back the way it was going: it carries its speed on, turns, and settles, as a critically damped spring.
+      if (v !== undefined && v * -x0 < 0 && li.dataset.entering === undefined) {
+        li.style.transition = `opacity 200ms ${EASE_OUT_CSS}`
+        li.style.transform = ''
+        li.style.opacity = ''
+        li.animate(springFrames(x0, v), { duration: SPRING_MS, easing: 'linear' })
+        return
+      }
+      li.style.transition = li.dataset.entering !== undefined ? ENTER : v !== undefined ? RETARGET : MOVE
       li.style.transform = ''
       li.style.opacity = ''
-    }
+    })
     if (glide) {
       el.style.transition = `height 280ms ${EASE_IN_OUT_CSS}`
       el.style.height = `${h}px`
@@ -230,6 +279,12 @@ export function RankingLive({
       </div>
       <p className="text-note mt-3 min-h-[4.5em] text-graphite sm:min-h-[3em]" aria-live="polite">
         {current.note}
+      </p>
+      {/* Below lg the margin's readouts come after all fifteen rows: the switch's answer, the top pick and how far the
+          ranking moved, is said here, by the buttons, as CloseBooks' counts are. (The readouts below say it to a screen
+          reader.) */}
+      <p aria-hidden className="text-meta mt-2 font-mono text-ink lg:hidden">
+        <Items items={[`top pick ${shown[0]!.name}`, `ρ ${v === 'a' ? '1.00' : rho[v].toFixed(2)} against as written`]} />
       </p>
 
       {/* The key before the rows: what indigo marks is read before the list, not after fifteen of them. */}

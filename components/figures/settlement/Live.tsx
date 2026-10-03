@@ -278,8 +278,8 @@ export function SettlementLive({
             </label>
             {/* What the amount chose, for the eye at once, under the field it answers (beside the slider it sat under the
                 term, a column away from what was typed): the longest answer's lines kept, two under a phone's full-width
-                field and four in the narrow column, so the page does not move as it appears or changes. */}
-            <p id="settlement-typed" className="text-meta mt-1 min-h-[2lh] font-mono text-graphite sm:col-start-2 sm:-mt-4 sm:min-h-[4lh]">
+                field and three in the narrow column, so the page does not move as it appears or changes. */}
+            <p id="settlement-typed" className="text-meta mt-1 min-h-[2lh] font-mono text-graphite sm:col-start-2 sm:-mt-4 sm:min-h-[3lh]">
               {typedNote.text}
             </p>
             <p className="sr-only font-mono" aria-live="polite">
