@@ -682,14 +682,26 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             style={{ opacity: onStage ? 1 : 0 }}
           >
             {/* The plate stays crisp; only its words blur through a turn of the story, as the line below does (a reader's
-                own change on the slider is simply there). */}
-            <span className="inline-block rounded-sm bg-paper/90 px-1.5 py-0.5">
-              <span
-                key={said}
-                className={`inline-block ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
-              >
-                <span className="font-semibold">{PHASE_TEXT[said].name}.</span> {PHASE_TEXT[said].short}
-              </span>
+                own change on the slider is simply there). Every turn's words share one cell, the ones not said kept
+                invisible, so the box keeps one size through the story: sized to each turn, it moved as Calm's two lines
+                became Shock's one, a layout shift with no input. The paper sits behind the words said, so it still
+                fits them. */}
+            <span className="inline-grid justify-items-end">
+              {(Object.keys(PHASE_TEXT) as Phase[]).map((k) =>
+                k === said ? (
+                  <span
+                    key={said}
+                    data-said=""
+                    className={`self-start rounded-sm bg-paper/90 px-1.5 py-0.5 [grid-area:1/1] ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
+                  >
+                    <span className="font-semibold">{PHASE_TEXT[k].name}.</span> {PHASE_TEXT[k].short}
+                  </span>
+                ) : (
+                  <span key={`room-${k}`} className="invisible px-1.5 py-0.5 [grid-area:1/1]">
+                    <span className="font-semibold">{PHASE_TEXT[k].name}.</span> {PHASE_TEXT[k].short}
+                  </span>
+                ),
+              )}
             </span>
           </p>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>

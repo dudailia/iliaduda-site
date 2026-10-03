@@ -216,6 +216,16 @@ export function MarketLive({
   // The signature: the story's clock, whether it has pressed its shock, and the camera's blow.
   const seq = useRef(marketSequence())
   const storyPressed = useRef(false)
+  // Back to the page from the back-forward cache, the story is finished (useSignature): before its shock had landed,
+  // finishing it pressed the shock on the reader's return, out of a calm they had left. The shock it has not pressed is
+  // spent instead, and the market goes on calm; Liquidity shock is the reader's.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) storyPressed.current = true
+    }
+    addEventListener('pageshow', onShow)
+    return () => removeEventListener('pageshow', onShow)
+  }, [])
   const marketRef = useRef<{ act(a: 'shock'): void } | null>(null)
   const blow = useRef({ at: -Infinity, k: 0, from: 0 })
   /** The latest landing, on the page's clock, and whether it topped up a shock still in the market. */

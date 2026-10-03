@@ -40,6 +40,22 @@ describe('the statutory contact allowance', () => {
     const o = requestCode(a, 4 * 25 * H).outcome
     expect(o.ok === false && o.reason === 'cap' && o.window.key).toBe('week')
   })
+  it('names the window that binds and the moment all of them reopen, when more than one is at its cap', () => {
+    // The reviewer's sequence: two codes, a day on, two more. Both the 24-hour and the 7-day windows are at their caps;
+    // the first opens in hours, the week only when the first day's codes age out of it.
+    let a = empty
+    for (const t of [0, 20 * 60_000, 24 * H + 10 * 60_000, 24 * H + 40 * 60_000]) a = requestCode(a, t).next
+    expect(a.episodes).toHaveLength(4)
+    const now = 24 * H + 60 * 60_000
+    const o = requestCode(a, now).outcome
+    expect(o.ok === false && o.reason === 'cap' && o.window.key).toBe('week')
+    const at = o.ok === false && o.reason === 'cap' ? o.nextAt : 0
+    expect(at).toBe(WINDOWS[1].ms)
+    // Refused until then, by whichever window still holds; allowed at that moment.
+    expect(requestCode(a, 2 * 24 * H + 60 * 60_000).outcome.ok).toBe(false)
+    expect(requestCode(a, at - 1).outcome.ok).toBe(false)
+    expect(requestCode(a, at).outcome.ok).toBe(true)
+  })
   it('a refusal of interaction stops everything, before any cap is checked', () => {
     expect(requestCode({ episodes: [], refused: true }, 0).outcome).toEqual({ ok: false, reason: 'refused' })
   })

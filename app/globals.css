@@ -352,6 +352,16 @@
   ::view-transition-group(*.figure) {
     animation-duration: 380ms;
     animation-timing-function: var(--ease-in-out);
+    overflow: clip;
+  }
+  /* Both pictures fill the card the group draws, from its top: at their own heights a figure taller than its 5:3
+     thumbnail overhung the thumbnail's picture, and in that band only the fading figure was left, the Contents reading
+     through the lower part of the card as it shrank back (22–48% of it on five papers). */
+  ::view-transition-old(*.figure),
+  ::view-transition-new(*.figure) {
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 0;
   }
 
   /* The two pictures (the thumbnail's drawing, the figure's) are not the same image, so the crossfade between them
@@ -1048,7 +1058,9 @@
   }
   /* A figure's marks drawn as backgrounds (the ranking's bars, the batch's confidence, a chosen option's fill) print:
      printing drops backgrounds unless asked. */
-  figure :is(.bg-indigo, .bg-indigo-wash, [class*='bg-graphite'], [class*='bg-ink'], [aria-pressed='true'], [aria-checked='true'], [type='checkbox']) {
+  /* Any figure fill in the site's inks, an opacity variant included (Fig. 2's keys, bg-indigo/70 and bg-rule, printed as
+     nothing and left their words unexplained). */
+  figure :is([class*='bg-indigo'], [class*='bg-graphite'], [class*='bg-ink'], [class*='bg-rule'], [aria-pressed='true'], [aria-checked='true'], [type='checkbox']) {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

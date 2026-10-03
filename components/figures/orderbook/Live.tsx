@@ -125,7 +125,7 @@ export function OrderBookLive({
     (r: Reading | null) => {
       last.current = r
       if (!r) {
-        write('p-price', '—'.padStart(PRICE_CH, '\u2007'))
+        write('p-price', '—'.padStart(PRICE_CH, '\u00a0'))
         // A finger taps (the hint under the figure says so too).
         write('p-side', `${(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'tap' : 'point at')} the terrain`)
         write('p-queue', '—')
@@ -133,9 +133,10 @@ export function OrderBookLive({
         write('p-ago', '—')
         return
       }
-      // Set right in the width of "$100.00" (figure spaces, a digit's width): under $100 the price is a character shorter,
+      // Set right in the width of "$100.00" (no-break spaces: in the mono face every character is a digit's width, and a
+      // figure space is not in its subset): under $100 the price is a character shorter,
       // and the side after it stepped sideways as a pointer crossed the line, a layout shift with no input to excuse it.
-      write('p-price', fmt.usd(r.price).padStart(PRICE_CH, '\u2007'))
+      write('p-price', fmt.usd(r.price).padStart(PRICE_CH, '\u00a0'))
       write('p-side', fmt.side(r))
       write('p-queue', r.side === 'spread' ? 'no queue' : `${fmt.shares(r.queue)} at this price`)
       write('p-cum', r.side === 'spread' ? `mid ${fmt.mid(r.mid)}` : `${Math.round(r.cum).toLocaleString('en-US')} to the ${r.side === 'bid' ? 'best bid' : 'best ask'}`)
@@ -604,7 +605,7 @@ export function OrderBookLive({
           <dt className="text-graphite">Probe</dt>
           <dd className="text-ink">
             <span ref={ref('p-price')} className="tabular">
-              {'—'.padStart(PRICE_CH, '\u2007')}
+              {'—'.padStart(PRICE_CH, '\u00a0')}
             </span>{' '}
             <span ref={ref('p-side')} className="text-graphite">
               {mounted && matchMedia('(pointer: coarse)').matches ? 'tap the terrain' : 'point at the terrain'}

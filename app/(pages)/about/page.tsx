@@ -164,10 +164,11 @@ export default function About() {
           <ol className="grid list-none gap-y-5">
             {research.map((p) => (
               <li key={p.slug}>
-                <h3 className="text-body font-semibold tracking-normal">
+                {/* On paper an entry's title and byline go with its description (A4 left one closing a sheet alone). */}
+                <h3 className="text-body font-semibold tracking-normal print:break-after-avoid">
                   <a href={p.href}>{p.title}</a>
                 </h3>
-                <p className="text-meta mt-0.5 font-mono text-graphite">
+                <p className="text-meta mt-0.5 font-mono text-graphite print:break-after-avoid">
                   <Items items={p.byline} />
                 </p>
                 <p className="mt-1.5">
@@ -184,10 +185,10 @@ export default function About() {
             <ol className="grid list-none gap-y-5">
               {other.map((o) => (
                 <li key={o.slug}>
-                  <h3 className="text-body font-semibold tracking-normal">
+                  <h3 className="text-body font-semibold tracking-normal print:break-after-avoid">
                     <a href={o.href}>{o.name}</a>
                   </h3>
-                  <p className="text-meta mt-0.5 font-mono text-graphite">
+                  <p className="text-meta mt-0.5 font-mono text-graphite print:break-after-avoid">
                     <Items items={o.status} />
                   </p>
                   <p className="mt-1.5">{o.what}.</p>

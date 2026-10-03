@@ -91,7 +91,8 @@ test('while the story plays and its narration is below the fold, the stage says 
   expect(line.y + line.height).toBeGreaterThan(900)
   if (!(await expect.poll(() => seq(page), { timeout: 15_000 }).toBe('playing').then(() => true, () => false))) return test.skip(true, 'no GPU here')
   await expect.poll(shown).toBeGreaterThan(0.9)
-  await expect(caption).toContainText('Shock.', { timeout: 6_000 })
+  // The words said (the others keep the plate's room, invisible).
+  await expect(caption.locator('[data-said]')).toContainText('Shock.', { timeout: 6_000 })
   await expect.poll(() => seq(page), { timeout: 10_000 }).toBe('done')
   await expect.poll(shown).toBeLessThan(0.05)
 })

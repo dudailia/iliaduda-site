@@ -115,7 +115,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       const x = read(f, r)
       write('ev', upper(NAMES[x.type]!))
       // A pinned order the strips have moved past stays readable, and says so.
-      write('ev-more', `${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)} s ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
+      // The age held to its unit ("3.65 / s ago" broke at 360px).
+      write('ev-more', `${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)}\u00a0s ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
       write('par', setOff(x))
       write('own-one', fmt.pct(x.own))
       market.highlight = { price: x.price, t: x.t }

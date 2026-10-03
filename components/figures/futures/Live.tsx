@@ -92,6 +92,21 @@ export interface MarketSigma {
   sigma: number
 }
 
+/**
+ * A readout that holds still as it changes. From lg the rail is set right, so a number that grew or lost a digit moved
+ * its own left edge, a layout shift with no input to excuse it (0.0018 a load, and again each Replay): there it is set
+ * in a fixed width, no-break spaces before it (in the mono face every character is a digit's width; a figure space
+ * is not in its subset). Below lg the rail is set left, and the text is as is.
+ */
+function Steady({ text, ch }: { text: string; ch: number }) {
+  return (
+    <>
+      <span className="lg:hidden">{text}</span>
+      <span className="hidden lg:inline">{text.padStart(ch, '\u00a0')}</span>
+    </>
+  )
+}
+
 export function FuturesLive({ initial, market }: { initial: PosterFrame; market: MarketSigma }) {
   const [sigma, setSigma] = useState<number>(MODEL.sigma)
   const [strike, setStrike] = useState<number>(MODEL.strike)
@@ -824,23 +839,27 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       <dl className="grid grid-cols-1 gap-y-px [&_dd]:mb-2">
         <dt className="text-graphite">Simulated price ± 2 SE</dt>
         <dd className="tabular text-indigo" data-mc-price={priced ? shown.mean : ''} data-mc-se={priced ? shown.se : ''}>
-          {mc}
+          <Steady text={mc} ch={16} />
         </dd>
         <dt className="text-graphite">Black–Scholes formula</dt>
         <dd className="tabular text-ink" data-bs-price={exact}>
           {exact.toFixed(4)}
         </dd>
         <dt className="text-graphite">Gap to the formula</dt>
-        <dd className="tabular text-ink">{gapText}</dd>
+        <dd className="tabular text-ink">
+          <Steady text={gapText} ch={12} />
+        </dd>
       </dl>
       <dl className="mt-1 grid grid-cols-1 gap-y-px border-t border-rule pt-3 [&_dd]:mb-2">
-        <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
+        <dt className="text-graphite">
+          <Steady text={shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'} ch={16} />
+        </dt>
         <dd className="tabular text-ink" data-paths={fresh ? shown.n : 0}>
-          {paths}
+          <Steady text={paths} ch={11} />
         </dd>
         <dt className="text-graphite">{speedLabel}</dt>
         <dd className="tabular text-ink" data-speed={shown.mode}>
-          {speed}
+          <Steady text={speed} ch={13} />
         </dd>
       </dl>
       {/* Its room is kept from the first paint, and it fades in with the canvas it reports on. */}
