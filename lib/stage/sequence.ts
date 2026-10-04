@@ -52,6 +52,18 @@ export class Sequence<P extends string> {
     this.skipT = 0
   }
 
+  /**
+   * The reader asked to get on with a story that has not begun (Pause before it starts): it begins and plays out at
+   * once, over the skip's 240ms, rather than its end appearing in one frame.
+   */
+  settle(): void {
+    if (this.started || this.done) return this.skip()
+    this.started = true
+    this.seen = true
+    this.skipFrom = this.ms
+    this.skipT = 0
+  }
+
   /** The reader is using the figure itself: the story ends now. */
   finish(): void {
     this.started = true

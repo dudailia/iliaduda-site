@@ -44,7 +44,11 @@ export function useInView(ref: RefObject<Element | null>, rootMargin = '200px', 
     const el = ref.current
     if (!el) return
     const io = new IntersectionObserver(
-      ([e]) => setInView(!!e && e.isIntersecting && e.intersectionRatio >= threshold),
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
+        setInView(!!e && e.isIntersecting && e.intersectionRatio >= threshold)
+      },
       { rootMargin, threshold },
     )
     io.observe(el)
@@ -135,7 +139,9 @@ export function useOnceSeen(ref: RefObject<Element | null>, threshold: number, f
       cb.current()
     }
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         const r = e && e.isIntersecting ? e.intersectionRatio : 0
         if (r >= threshold) return go()
         if (hold !== undefined && r >= hold) {

@@ -197,7 +197,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     const el = box.current
     if (!el) return
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         seen.current = !!e?.isIntersecting
         const go = parked.current
         if (seen.current && go) {
@@ -277,17 +279,20 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const hx = x(Math.min(n - 1, at + frac))
   const hy = frac > 0 && at < n - 1 ? y(p) + (y(balls[at + 1]![9]) - y(p)) * frac : y(p)
 
+  // Each value's longest, so in the margin (set right) a value that changes length while the replay runs holds still
+  // (ch: FigureFrame's Steady): "1 run" to "0 runs" moved the value's left edge on a hundred balls, a shift each.
+  const names = Math.max(first.length, second.length)
   const rows = [
     // The claim first: the model's probability before this ball.
-    { label: `P(${first} win)`, value: pct(p) },
-    { label: 'Innings', value: inn === 1 ? `1 · ${first} batting` : `2 · ${second} chasing` },
-    { label: 'Before ball', value: `over ${over}.${ball}` },
-    { label: 'Score', value: `${batting} ${runs}/${wkts}` },
+    { label: `P(${first} win)`, value: pct(p), ch: '> 99.9%'.length },
+    { label: 'Innings', value: inn === 1 ? `1 · ${first} batting` : `2 · ${second} chasing`, ch: Math.max(`1 · ${first} batting`.length, `2 · ${second} chasing`.length) },
+    { label: 'Before ball', value: `over ${over}.${ball}`, ch: 'over 99.9'.length },
+    { label: 'Score', value: `${batting} ${runs}/${wkts}`, ch: names + ' 999/10'.length },
     // Every row is always present, so the margin never changes height while
     // the replay runs — a row appearing mid-replay was a layout shift.
-    { label: 'Needs', value: target ? `${need} from ${left} balls` : '—' },
-    { label: 'This ball', value: thisBall },
-    { label: 'Result', value: done ? result : '—' },
+    { label: 'Needs', value: target ? `${need} from ${left} balls` : '—', ch: `999 from ${maxBalls} balls`.length },
+    { label: 'This ball', value: thisBall, ch: '9 wickets'.length },
+    { label: 'Result', value: done ? result : '—', ch: result.length },
   ]
 
   // Reading the match by pointer: a mouse drags or clicks along the chart; a finger scrubs once its drag is plainly

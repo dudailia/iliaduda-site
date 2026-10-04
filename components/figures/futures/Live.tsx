@@ -4,7 +4,7 @@ import { Items } from '@/components/Layout'
 import { EASE_OUT_CSS } from '@/lib/ease'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
 import { flushSync } from 'react-dom'
-import { FigureFrame } from '@/components/FigureFrame'
+import { FigureFrame, Steady } from '@/components/FigureFrame'
 import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
@@ -90,21 +90,6 @@ export interface MarketSigma {
   seed: number
   t: number
   sigma: number
-}
-
-/**
- * A readout that holds still as it changes. From lg the rail is set right, so a number that grew or lost a digit moved
- * its own left edge, a layout shift with no input to excuse it (0.0018 a load, and again each Replay): there it is set
- * in a fixed width, no-break spaces before it (in the mono face every character is a digit's width; a figure space
- * is not in its subset). Below lg the rail is set left, and the text is as is.
- */
-function Steady({ text, ch }: { text: string; ch: number }) {
-  return (
-    <>
-      <span className="lg:hidden">{text}</span>
-      <span className="hidden lg:inline">{text.padStart(ch, '\u00a0')}</span>
-    </>
-  )
 }
 
 export function FuturesLive({ initial, market }: { initial: PosterFrame; market: MarketSigma }) {
@@ -454,7 +439,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       if (armed.current && !timeline.current.started) timeline.current.start()
     }
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         const seen = e?.isIntersecting ? e.intersectionRatio : 0
         if (seen >= 0.35 || seen < 0.2) {
           clearTimeout(wait)

@@ -454,9 +454,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   const togglePause = () => {
     const next = !pausedRef.current
-    // Paused before its story has begun (the stage not yet far enough on screen), the figure opens finished, at calm:
-    // the story waiting there played in full under a button that read Resume.
-    if (next && sig.armed.current && !seq.current.started) seq.current.finish()
+    // Paused before its story has begun (the stage not yet far enough on screen), the story plays out over the skip's
+    // 240ms to calm: left waiting it played in full under a button that read Resume, and finished at once the sheet
+    // appeared in one frame.
+    if (next && sig.armed.current && !seq.current.started) seq.current.settle()
     pausedRef.current = next
     sim.current.dirty = true
     setPaused(next)
@@ -524,7 +525,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   useEffect(() => {
     const el = phaseLine.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => setLineSeen(e!.intersectionRatio > 0.9), { threshold: [0, 0.9, 1] })
+    // The latest entry: a batch can hold several of the line's crossings, the first stale.
+    const io = new IntersectionObserver((es) => setLineSeen(es[es.length - 1]!.intersectionRatio > 0.9), { threshold: [0, 0.9, 1] })
     io.observe(el)
     return () => io.disconnect()
   }, [])

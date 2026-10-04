@@ -77,7 +77,7 @@ export function SettlementLive({
             ? 'Under the monthly floor at any longer term: settles in one payment.'
             : (
               <>
-                {`Monthly payment by term. ${offered.length} terms offered up to ${all.length} months`}
+                {`Monthly payment by term. ${offered.length} terms offered up to ${all.length}\u00a0months`}
                 {hidden ? (
                   <>
                     {`; ${hidden} hidden (hollow`}
@@ -175,11 +175,21 @@ export function SettlementLive({
   )
   // A refusal to send goes stale once the clock passes the time it named: then it says the allowance has reopened. One
   // for the debtor's refusal goes stale when the refusal is withdrawn (the rail said "allowed" beside it).
+  // Either way it says what the next request would meet, asked of the allowance as it stands (nothing spent): after a
+  // refusal was withdrawn the caps may still hold, and once one cap reopens the debtor may since have refused.
+  const next = requestCode(allowance, now).outcome
+  const stillCapped = (o: Outcome) => (!o.ok && o.reason === 'cap' ? `${o.window.cap} of ${o.window.cap} in the last ${o.window.label}, until ${clock(o.nextAt)}` : '')
   const said =
     outcome && !outcome.ok && outcome.reason === 'refused' && !allowance.refused
-      ? 'The refusal is withdrawn: a code can be requested again.'
+      ? next.ok
+        ? 'The refusal is withdrawn: a code can be requested again.'
+        : `The refusal is withdrawn, but the cap still holds: ${stillCapped(next)}.`
       : outcome && !outcome.ok && outcome.reason !== 'refused' && now >= outcome.nextAt
-        ? `The allowance reopened at ${clock(outcome.nextAt)}: the next code can be sent.`
+        ? next.ok
+          ? `The allowance reopened at ${clock(outcome.nextAt)}: the next code can be sent.`
+          : !next.ok && next.reason === 'refused'
+            ? `The allowance reopened at ${clock(outcome.nextAt)}, but the debtor has refused interaction: nothing is sent.`
+            : message(next)
         : message(outcome)
 
   // Monthly payment against term: every term up to the floor, the offered ones
@@ -191,6 +201,12 @@ export function SettlementLive({
   // Inset 2% each side, so the first and last dots sit inside the frame.
   const px = (m: number) => (maxM === 1 ? 50 : 2 + ((m - 1) / (maxM - 1)) * 96)
   const py = (v: number) => (maxPay === minPay ? 50 : 6 + (1 - (v - minPay) / (maxPay - minPay)) * 88)
+  // The floor's label stands at the right end of the plot, a little over the line's low end, and over every dot under
+  // its span (the right 42% of a phone's plot, the narrowest): a short ladder still has dots there (7,500 ₽ at 360px:
+  // the 4-month dot sat under the label). Its foot in % of the plot, 3.5% (a dot's radius and a gap) over the highest.
+  const floorFoot = Math.min(
+    ...all.filter((t) => px(t.months) >= 56 && py(t.s.monthly) > py(minPay) - 26).map((t) => py(t.s.monthly) - 3.5),
+  )
   const stepPath = offered.map((t, k) => `${k ? 'L' : 'M'}${px(t.months).toFixed(2)} ${py(t.s.monthly).toFixed(2)}`).join('')
 
   return (
@@ -384,7 +400,7 @@ export function SettlementLive({
             <span
               aria-hidden
               className="text-meta absolute right-1.5 -translate-y-full bg-paper px-0.5 font-mono text-graphite"
-              style={{ top: `calc(${py(minPay)}% - 1rem)` }}
+              style={{ top: Number.isFinite(floorFoot) ? `min(calc(${py(minPay)}% - 1rem), ${floorFoot}%)` : `calc(${py(minPay)}% - 1rem)` }}
             >
               {rub(minPay)} a month
             </span>

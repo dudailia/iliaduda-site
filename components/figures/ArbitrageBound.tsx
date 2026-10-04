@@ -24,7 +24,7 @@ export function ArbitrageBound() {
   const breaks = Math.ceil(onset() / ETA_STEP - 1e-9) * ETA_STEP
   return (
     <BoundLive
-      description={`Durrleman's g across strikes at the shortest expiry. At the surface's own curvature, ${fact('ivEta').value}, g stays positive everywhere. The sufficient condition stops guaranteeing that at eta ${ETA_BOUND.toFixed(2)}; g first dips below zero, near the money, at about ${breaks.toFixed(2)}.`}
+      description={`Durrleman’s g across strikes at the shortest expiry. At the surface’s own curvature, ${fact('ivEta').value}, g stays positive everywhere. The sufficient condition stops guaranteeing that at eta ${ETA_BOUND.toFixed(2)}; g first dips below zero, near the money, at about ${breaks.toFixed(2)}.`}
       caption={
         <>
           The surface sits at η = {fact('ivEta').value}. The condition that guarantees no butterfly

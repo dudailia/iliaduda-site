@@ -595,9 +595,11 @@ export function MarketLive({
         // frame's own, never a range of nothing.
         if (v.fan.band(4, 64) > 0) write('range', `${dollars(v.fan.band(0, 64) * root$)}–${dollars(v.fan.band(4, 64) * root$)}`)
         // For the specs: the market's own clock.
+        // Written only when they change: paused, the same values ten times a second were attribute mutations for nothing.
         if (stage.current) {
-          stage.current.dataset.marketT = h.t.toFixed(3)
-          stage.current.dataset.marketHeld = h.held.toFixed(3)
+          const d = stage.current.dataset, t = h.t.toFixed(3), held = h.held.toFixed(3)
+          if (d.marketT !== t) d.marketT = t
+          if (d.marketHeld !== held) d.marketHeld = held
         }
         // Frames taken from the worker in the last wall second, for Fig. 2.
         const fa = framesAt.current
@@ -649,7 +651,8 @@ export function MarketLive({
   useEffect(() => {
     const el = stage.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => void (stageOn.current = !!e?.isIntersecting))
+    // The latest entry: a batch can hold several of the stage's crossings, the first stale.
+    const io = new IntersectionObserver((es) => void (stageOn.current = !!es[es.length - 1]?.isIntersecting))
     io.observe(el)
     return () => io.disconnect()
   }, [])

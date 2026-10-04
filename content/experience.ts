@@ -117,11 +117,11 @@ export const roles: readonly Role[] = [
     detail: [
       'Covered the Russian energy, metals and banking sectors.',
       'Built DCF, comparable-company and sensitivity models.',
-      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate rises in 25 days, the second an extraordinary 350 bp.',
+      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate rises in 25\u00a0days, the second an extraordinary 350\u00a0bp.',
     ],
     cv: [
       'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models.',
-      'Wrote daily briefings on OFZ, index activity and Bank of Russia policy through two rate rises in 25 days.',
+      'Wrote daily briefings on OFZ, index activity and Bank of Russia policy through two rate rises in 25\u00a0days.',
     ],
     figure: '/about#fig-ofz-curve',
   },

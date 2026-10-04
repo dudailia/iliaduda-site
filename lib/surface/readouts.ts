@@ -66,7 +66,8 @@ export interface Row {
   readonly value: string
 }
 
-const signed = (x: number, d: number) => `${x < 0 ? '−' : ''}${Math.abs(x).toFixed(d)}`
+// A value that rounds to zero is 0, unsigned: a theta of −0.00002 read "−0.0000".
+const signed = (x: number, d: number) => `${x < 0 && Math.abs(x).toFixed(d) !== (0).toFixed(d) ? '−' : ''}${Math.abs(x).toFixed(d)}`
 
 /**
  * Everything the margin says about one point on the surface, from the parameters on screen: where it is, its

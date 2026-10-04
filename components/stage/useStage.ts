@@ -290,7 +290,9 @@ export function useStage(
     }
 
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         // A fifth of the stage to start it; once it has started, it runs while any of it shows, so the strip still
         // on screen as the reader scrolls past does not freeze mid-motion.
         visible = !!e && e.isIntersecting && (started ? e.intersectionRatio > 0 : e.intersectionRatio >= threshold)

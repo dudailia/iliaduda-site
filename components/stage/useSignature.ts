@@ -47,7 +47,9 @@ export function useSignature<P extends string>(name: string, box: RefObject<HTML
       if (armed.current && !seq.current.started) seq.current.start()
     }
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         // With `fit`, "seen" is of what can be seen at once: a box taller than the screen (a phone in portrait) counts
         // as wholly seen when as much of it as the screen holds is on it, so a story that waits for all of its views
         // still plays there.

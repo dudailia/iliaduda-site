@@ -27,7 +27,9 @@ export function ContentsLive() {
     if (!list || matchMedia('(prefers-reduced-motion: reduce)').matches || saveData()) return
     let gone = false
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         if (!e?.isIntersecting) return
         io.disconnect()
         void import('./live').then(

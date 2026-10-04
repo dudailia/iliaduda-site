@@ -266,8 +266,22 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     [],
   )
 
+  /**
+   * Where the mouse last was on the screen: an enter at that very point is the page scrolled under a still cursor (the
+   * enter of a real move comes before that move's own pointermove, so it lands somewhere new).
+   */
+  const lastAt = useRef<[number, number] | null>(null)
+  useEffect(() => {
+    const onAny = (e: globalThis.PointerEvent) => {
+      if (e.pointerType === 'mouse') lastAt.current = [e.clientX, e.clientY]
+    }
+    addEventListener('pointermove', onAny, { capture: true, passive: true })
+    return () => removeEventListener('pointermove', onAny, { capture: true })
+  }, [])
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'mouse') return
+    // A mouse the reader moves over the strips holds them, so an order can be pointed at (see onPointerEnter).
+    if (e.movementX || e.movementY) market.hold('pointer', true)
     hovered.current = under(e)
     redraw.current()
   }
@@ -378,8 +392,11 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
               if (!pinned.current && document.activeElement === stage.current) pin(newest(LANES.indexOf(MARKET_BUY)))
             })
           }}
+          // A mouse that comes onto the strips holds them; the page scrolled under a still cursor does not (Chrome sends
+          // the pointer an enter for that too): held then, Fig. 2 stood frozen while the reader only scrolled.
           onPointerEnter={(e) => {
-            if (e.pointerType === 'mouse') market.hold('pointer', true)
+            const at = lastAt.current
+            if (e.pointerType === 'mouse' && !(at && at[0] === e.clientX && at[1] === e.clientY)) market.hold('pointer', true)
           }}
           onPointerMove={onMove}
           onPointerLeave={(e) => {

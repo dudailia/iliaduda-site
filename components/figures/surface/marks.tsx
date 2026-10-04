@@ -101,6 +101,9 @@ export function setNoteRise(el: HTMLElement, dy: number, align: string, at?: { x
     x2 = side * 9
     y2 = 0
     if (at) box = side < 0 ? [-12 - at.w, -h / 2, -12, h / 2] : [12, -h / 2, 12 + at.w, h / 2]
+    // Beside its point, as below it, the words lie on the sheet (a side is taken only when they have dropped below):
+    // the halo, not a paper plate, which cut a box out of the surface's peak at a large shock.
+    below = true
   } else {
     const x0 = at ? at.x + dx + (NOTE_FX[align] ?? 0) * at.w : 0
     const shift = at ? Math.max(4 - x0, Math.min(0, at.stageW - 4 - at.w - x0)) : 0

@@ -33,7 +33,8 @@ const short = (iso: string) => long(iso).replace(/(\d+) (\w{3})\w*/, '$1 $2')
 const y3m = (i: number) => zcy(days[i]!.params, 0.25)
 const y10 = (i: number) => zcy(days[i]!.params, 10)
 const pc = (y: number) => `${y.toFixed(2)}%`
-const bps = (x: number) => `${Math.round(x * 100)} bp`
+// A number keeps its unit on its line ("298 / bp" broke at 600px).
+const bps = (x: number) => `${Math.round(x * 100)}\u00a0bp`
 
 // The two decisions: announced 21 July (in effect from the 24th), and 15
 // August, in effect the same day.

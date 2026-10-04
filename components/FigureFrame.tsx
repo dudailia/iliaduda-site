@@ -127,11 +127,27 @@ export function FigureFrame({
 }
 
 /** A rail readout list: label over value, right-aligned in the margin. */
+/**
+ * A readout that holds still as it changes. In the margin (from lg) readouts are set right, so a value that grew or
+ * lost a character moved its own left edge, a layout shift with no input to excuse it: there it is set in a fixed
+ * width, no-break spaces before it (in the mono face every character is one width; a figure space is not in its
+ * subset). Below lg they are set left, and the text is as is.
+ */
+export function Steady({ text, ch }: { text: string; ch: number }) {
+  return (
+    <>
+      <span className="lg:hidden">{text}</span>
+      <span className="hidden lg:inline">{text.padStart(ch, '\u00a0')}</span>
+    </>
+  )
+}
+
 export function Readouts({
   rows,
   across = false,
 }: {
-  rows: readonly { readonly label: string; readonly value: ReactNode }[]
+  /** `ch`: the longest the value can be, for one that changes while the figure runs (held still in the margin). */
+  rows: readonly { readonly label: string; readonly value: ReactNode; readonly ch?: number }[]
   /** Label over value in a row of columns, for a figure with no margin to stack them in. */
   across?: boolean
 }) {
@@ -157,7 +173,7 @@ export function Readouts({
       {rows.map((r) => (
         <div key={r.label} className="contents">
           <dt className="text-graphite">{r.label}</dt>
-          <dd className="tabular text-ink">{r.value}</dd>
+          <dd className="tabular text-ink">{r.ch && typeof r.value === 'string' ? <Steady text={r.value} ch={r.ch} /> : r.value}</dd>
         </div>
       ))}
     </dl>

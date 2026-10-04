@@ -335,9 +335,10 @@ export function RankingLive({
 
       {/* The key before the rows: what indigo marks is read before the list, not after fifteen of them. */}
       <p className="text-meta mt-3 font-mono text-graphite">
-        <Items items="indigo, and set bold: in the top fifteen under all three treatments · ∅ absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written" />
+        {/* * marks a segment the growth table lacks: ∅ was not in the site's fonts, and drew in a system face. */}
+        <Items items="Indigo and bold: in the top fifteen under all three treatments · *: absent from the notebook’s growth table, so scored zero on growth and CAGR · arrows: places moved against as written" />
       </p>
-      <ol ref={list} role="list" aria-label={`Top ${SHOWN} segments, ${current.label.toLowerCase()}`} className="relative mt-3 grid list-none border-t border-rule">
+      <ol ref={list} role="list" aria-label={`Top ${SHOWN} segments, ${current.label.charAt(0).toLowerCase()}${current.label.slice(1)}`} className="relative mt-3 grid list-none border-t border-rule">
         {shown.map((r) => {
           const was = r.a.rank
           const now = r[v].rank
@@ -356,8 +357,10 @@ export function RankingLive({
               <span className={`text-note min-w-0 leading-snug [overflow-wrap:anywhere] ${survives(r) ? 'font-semibold' : ''}`}>
                 {r.name}
                 {v === 'a' && r.zeroed ? (
-                  <span className="text-meta ml-1.5 font-mono text-graphite" title="Absent from the growth table: growth and CAGR scored zero">
-                    ∅
+                  // Said in words to a screen reader; a title was a tooltip that touch and the keyboard never reach.
+                  <span className="text-meta ml-1 font-mono text-graphite">
+                    <span aria-hidden>*</span>
+                    <span className="sr-only"> (absent from the growth table: growth and CAGR scored zero)</span>
                   </span>
                 ) : null}
               </span>
