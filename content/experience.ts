@@ -64,11 +64,11 @@ export const roles: readonly Role[] = [
     detail: [
       'Only developer on a self-service debt-settlement portal for a licensed collection organisation: debt lookup, a settlement calculator, SMS authentication, and an SBP payment screen whose amount the server recomputes from the chosen term, never taking it from the browser.',
       'Architecture set by statute: 152-FZ data localisation keeps personal data, hosting, fonts and analytics in Russia, and the portal counts every login SMS against the debtor’s 230-FZ contact allowance (the conservative reading of an unsettled question), enforced in code and by build gates.',
-      'Next.js 16 with Turbopack and Tailwind 4, hosted on Yandex Cloud.',
+      'Next.js\u00a016 with Turbopack and Tailwind\u00a04, hosted on Yandex\u00a0Cloud.',
     ],
     cv: [
       'Only developer: debt lookup, a settlement calculator in integer kopecks, SMS login, an SBP payment screen.',
-      'Built to 152-FZ data localisation and the 230-FZ contact cap, both enforced in code; Next.js 16, Yandex Cloud.',
+      'Built to 152-FZ data localisation and the 230-FZ contact cap, both enforced in code; Next.js\u00a016, Yandex\u00a0Cloud.',
     ],
     href: '/debt-portal',
   },
@@ -206,7 +206,7 @@ export const SKILLS = [
   ],
   [
     'Platforms',
-    'Next.js, React, Supabase (Postgres, Auth, Realtime), Vercel, Fly.io, Stripe, Yandex Cloud, Tailwind, Git, Jupyter; the Anthropic Claude API and LLM pipelines.',
+    'Next.js, React, Supabase (Postgres, Auth, Realtime), Vercel, Fly.io, Stripe, Yandex\u00a0Cloud, Tailwind, Git, Jupyter; the Anthropic Claude API and LLM pipelines.',
   ],
 ] as const
 

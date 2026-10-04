@@ -72,6 +72,9 @@ const bp = (d: number) => `${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(Math.
 const tLabel = (t: number) => (t < 1 ? `${Math.round(t * 12)}m` : `${t}y`)
 const fmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const day = (iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`))
+const dayMonth = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+/** How soon after a decision its rate can come into force and still be read as that decision's. */
+const IN_FORCE_DAYS = 7
 
 export function OfzLive({
   days,
@@ -97,6 +100,13 @@ export function OfzLive({
   const d = days[at]!
   const prev = days[Math.max(0, at - 1)]!
   const rate = [...keyRate].reverse().find((k) => k.from <= d.date)!.rate
+  // On a decision's day whose rate comes into force later (21 July's, from the 24th), the readout says both: showing the
+  // old rate alone under "+100 bp" read as the figure's mistake.
+  const comes = marks.some((m) => m.index === at && m.sub) ? keyRate.find((k) => k.from > d.date) : undefined
+  const pending =
+    comes && Date.parse(`${comes.from}T00:00:00Z`) - Date.parse(`${d.date}T00:00:00Z`) <= IN_FORCE_DAYS * 86_400_000
+      ? `, ${comes.rate.toFixed(2)}% from ${dayMonth.format(new Date(`${comes.from}T00:00:00Z`))}`
+      : ''
   const phoneKey = keyPlace(d.params, d.bonds, rate)
   const short = zcy(d.params, T_MIN)
   const long = zcy(d.params, 10)
@@ -104,13 +114,13 @@ export function OfzLive({
 
   const rows = [
     { label: 'Trading day', value: day(d.date) },
-    { label: 'Key rate', value: `${rate.toFixed(2)}%` },
+    { label: 'Key rate', value: `${rate.toFixed(2)}%${pending}` },
     { label: '3-month', value: pc(short) },
     { label: '10-year', value: pc(long) },
     { label: 'Slope, 10y − 3m', value: bp((long - short) * 100) },
     { label: '3-month, on the day', value: at > 0 ? bp(move) : '—' },
   ]
-  const valueText = `${day(d.date)}: 3-month ${pc(short)}, 10-year ${pc(long)}, key rate ${rate.toFixed(2)}%`
+  const valueText = `${day(d.date)}: 3-month ${pc(short)}, 10-year ${pc(long)}, key rate ${rate.toFixed(2)}%${pending}`
 
   return (
     <FigureFrame

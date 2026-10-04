@@ -1005,6 +1005,14 @@
   .cv a {
     text-decoration: none;
   }
+  /* Except the papers' titles: links on the sheet with nothing to say so, read as bold text, and a reader of the PDF
+     never learned the figures are live. A hairline under each, in graphite; the sheet's height does not change. */
+  .cv .cv-stack strong a {
+    text-decoration: underline;
+    text-decoration-thickness: 0.5pt;
+    text-underline-offset: 0.18em;
+    text-decoration-color: var(--color-graphite);
+  }
 
   /* The printable width is under the 48rem breakpoint, so the rail is put
      back explicitly: the sheet prints as it previews. */

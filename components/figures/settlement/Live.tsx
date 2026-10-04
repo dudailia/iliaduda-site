@@ -20,10 +20,13 @@ const DEBTS = [750_000, 6_000_000, 18_500_000] // kopecks
 const MIN = 60_000
 const DAY = 24 * 60 * MIN
 
+/** The simulated clock starts at 09:00 on day 1; past midnight it is the next day (it read "day 1, 00:00"). */
+const START = 9 * 60 * MIN
 const clock = (t: number) => {
-  const day = Math.floor(t / DAY) + 1
-  const m = Math.floor((t % DAY) / MIN) + 9 * 60
-  return `day ${day}, ${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  const at = t + START
+  const day = Math.floor(at / DAY) + 1
+  const m = Math.floor((at % DAY) / MIN)
+  return `day ${day}, ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
 
 function message(o: Outcome | null): string {
@@ -140,12 +143,15 @@ export function SettlementLive({
   const [now, setNow] = useState(0)
   const [allowance, setAllowance] = useState<Allowance>({ episodes: [], refused: false })
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  /** The clock and the refusal the outcome was given under: once either moves, it is no longer the answer. */
+  const [outcomeAt, setOutcomeAt] = useState({ now: 0, refused: false })
   // Requests made, so a repeated outcome still reads as an answer: its sentence arrives again, through a 3px blur.
   const [asked, setAsked] = useState(0)
   const request = () => {
     const r = requestCode(allowance, now)
     setAllowance(r.next)
     setOutcome(r.outcome)
+    setOutcomeAt({ now, refused: allowance.refused })
     setAsked((n) => n + 1)
   }
   const inEpisode = allowance.episodes.length > 0 && now - allowance.episodes.at(-1)! < EPISODE_MS
@@ -175,22 +181,35 @@ export function SettlementLive({
   )
   // A refusal to send goes stale once the clock passes the time it named: then it says the allowance has reopened. One
   // for the debtor's refusal goes stale when the refusal is withdrawn (the rail said "allowed" beside it).
-  // Either way it says what the next request would meet, asked of the allowance as it stands (nothing spent): after a
-  // refusal was withdrawn the caps may still hold, and once one cap reopens the debtor may since have refused.
+  // An answer stands until the clock or the refusal moves; then the line says what the next request would meet, asked
+  // of the allowance as it stands (nothing spent). "Code sent" stayed beside a refusal and an emptied day's meter, and
+  // "Resent inside the same episode" after the episode had closed. A refusal withdrawn, and a cap reopened, say so; a
+  // block that still holds as it was keeps its words.
   const next = requestCode(allowance, now).outcome
-  const stillCapped = (o: Outcome) => (!o.ok && o.reason === 'cap' ? `${o.window.cap} of ${o.window.cap} in the last ${o.window.label}, until ${clock(o.nextAt)}` : '')
-  const said =
-    outcome && !outcome.ok && outcome.reason === 'refused' && !allowance.refused
+  const stale = !!outcome && (now !== outcomeAt.now || allowance.refused !== outcomeAt.refused)
+  const capWords = (o: Outcome) => (!o.ok && o.reason === 'cap' ? `${o.window.cap} of ${o.window.cap} in the last ${o.window.label}, until ${clock(o.nextAt)}` : '')
+  const nextWords = (o: Outcome) =>
+    o.ok
+      ? o.spent
+        ? 'A code can be requested: it would spend one contact from every window.'
+        : 'Still inside the verification episode: a request resends the same code.'
+      : o.reason === 'refused'
+        ? 'The debtor has refused interaction: no code can be sent.'
+        : `Not now: ${capWords(o)}.`
+  const sameBlock = !!outcome && !outcome.ok && !next.ok && next.reason === outcome.reason && (next.reason !== 'cap' || (outcome.reason === 'cap' && next.nextAt === outcome.nextAt))
+  const said = !outcome || !stale || sameBlock
+    ? message(outcome)
+    : !outcome.ok && outcome.reason === 'refused' && !allowance.refused
       ? next.ok
         ? 'The refusal is withdrawn: a code can be requested again.'
-        : `The refusal is withdrawn, but the cap still holds: ${stillCapped(next)}.`
-      : outcome && !outcome.ok && outcome.reason !== 'refused' && now >= outcome.nextAt
+        : `The refusal is withdrawn, but the cap still holds: ${capWords(next)}.`
+      : !outcome.ok && outcome.reason !== 'refused' && now >= outcome.nextAt
         ? next.ok
           ? `The allowance reopened at ${clock(outcome.nextAt)}: the next code can be sent.`
           : !next.ok && next.reason === 'refused'
             ? `The allowance reopened at ${clock(outcome.nextAt)}, but the debtor has refused interaction: nothing is sent.`
-            : message(next)
-        : message(outcome)
+            : nextWords(next)
+        : nextWords(next)
 
   // Monthly payment against term: every term up to the floor, the offered ones
   // joined, the pruned ones left hanging above the line where a longer term

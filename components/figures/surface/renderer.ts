@@ -483,12 +483,15 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       // Ticks of one axis stacked one over another (most of the narrower's width shared, as a foreshortened axis piles
       // them) need a real gap: there the 3px of shared line read as one block of figures.
       const axis = LABELS[i]!.kind === 'tick' ? LABELS[i]!.id[0]! : null
+      // A label given way comes back only with 4px more room on every side: at the edge of room, "implied volatility"
+      // went and came five times in 50ms as the view moved a pixel either way.
+      const m = labelOn[i] === false ? 4 : 0
       for (let k = 0; clear && k < kept.length; k += 4) {
         const ox = Math.min(x1, kept[k + 2]!) - Math.max(x0, kept[k]!)
         const stacked = axis !== null && axisOf[k] === axis && ox > 0.5 * Math.min(x1 - x0, kept[k + 2]! - kept[k]!)
         const slack = stacked ? -1 : 3
         // Across, a gap of 4px: words of two axes closer than that read as one ("130%2Y").
-        if (x0 < kept[k + 2]! + 4 && x1 > kept[k]! - 4 && y0 < kept[k + 3]! - slack && y1 > kept[k + 1]! + slack) clear = false
+        if (x0 - m < kept[k + 2]! + 4 && x1 + m > kept[k]! - 4 && y0 - m < kept[k + 3]! - slack && y1 + m > kept[k + 1]! + slack) clear = false
       }
       if (clear) {
         axisOf[kept.length] = axis
@@ -660,7 +663,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         !sim.hover &&
         !hooks.pinned() &&
         flash <= 0
-      if (drawnOnce && paused && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return 'idle'
+      // Paused, or with the sway stilled by a reading (a resting pointer on a point): only a change is drawn. The reading
+      // drew the same picture 120 times a second; a pointer that moves marks the sheet dirty.
+      if (drawnOnce && (paused || swayK === 0) && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return 'idle'
       // Waiting for the reader to bring the stage on screen, the paper on it is already drawn (a phone held a third of
       // it in view for as long as it liked, at 120 frames a second).
       if (drawnOnce && hooks.waiting?.() && !moving && !storyMoved && !sim.dirty && !resized) return 'idle'

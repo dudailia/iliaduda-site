@@ -20,7 +20,8 @@ export const AVAILABILITY = {
   // A month and its year are one item: "January / 2027" read as two facts at a line's end.
   line: 'Open to a 6-month co-op (an off-cycle internship) from January\u00a02027',
   roles: ['Quant and risk', 'Investments', 'Investment banking', 'Data science in finance'],
-  locations: ['Boston', 'New York', 'San Francisco', 'London'],
+  // A city's name is never split across two lines ("New / York" on /about and /cv): no-break spaces inside each.
+  locations: ['Boston', 'New\u00a0York', 'San\u00a0Francisco', 'London'],
 } as const
 
 /** The roles as a phrase, "quant and risk, investments, investment banking or data science in finance" (/cv, /about). */

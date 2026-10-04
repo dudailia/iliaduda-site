@@ -551,8 +551,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   /** Whether the pointer was reading the terrain last frame. */
   let reading0 = false
   let hover: [number, number] | null = null
-  /** The last place the resting pointer read the terrain, and what it read there. */
-  let lastHit: { x: number; y: number; probe: KeyProbe } | null = null
+  /** Where the resting pointer last read the terrain, and the level and market moment it read there. */
+  let lastHit: { x: number; y: number; price: number; t: number } | null = null
   let mvp: M4 = new Float32Array(16)
   let inv: M4 | null = null
   let fracZ = 0
@@ -810,10 +810,21 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // A pointer held still keeps its reading: the terrain moves under it every simulated second, and at the front edge
     // the ray fell off and back on, the reading blinking between a value and "point at the terrain". Moved (over 2px),
     // it reads afresh, and off the terrain it reads nothing.
-    let hovered = hover ? pick(hover[0], hover[1]) : null
-    if (hover && hovered) lastHit = { x: hover[0], y: hover[1], probe: hovered }
-    else if (hover && lastHit && Math.hypot(hover[0] - lastHit.x, hover[1] - lastHit.y) <= 2) hovered = lastHit.probe
-    else lastHit = null
+    // ...and keeps reading what it read, the same level at the same market moment, as that moment ages: picked afresh
+    // every frame, the reading flickered between neighbouring rows and levels (4.4, 4.5, 4.4 s ago, forty times in
+    // three seconds) as the rows slid under a still pointer. The moment gone off the back, it reads afresh.
+    let hovered: KeyProbe | null = null
+    const resting = !!hover && !!lastHit && Math.hypot(hover[0] - lastHit.x, hover[1] - lastHit.y) <= 2
+    if (resting && lastHit) {
+      const age = rowAfter(sim, lastHit.t)
+      if (age < Math.min(rows, sim.written) - 1) hovered = { dp: lastHit.price - Math.round(centre), age }
+    }
+    if (!hovered && hover) {
+      hovered = pick(hover[0], hover[1])
+      if (hovered) lastHit = { x: hover[0], y: hover[1], price: Math.round(centre) + hovered.dp, t: sim.times[sim.row(hovered.age)]! }
+      else if (!resting) lastHit = null
+    }
+    if (!hover) lastHit = null
     reading0 = hovered !== null
     // The reader's own probe wins; otherwise the order chosen in Fig. 2, where and when it was, while it is in view.
     const chosen = !hovered && !sh.key ? sh.highlight() : null

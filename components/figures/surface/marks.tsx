@@ -88,12 +88,14 @@ export function setNoteRise(el: HTMLElement, dy: number, align: string, at?: { x
   let box: [number, number, number, number] | null = null
   const h = at?.h ?? 0
   // The side it hangs on is kept while it still fits (chosen afresh each frame, a falling shock flung the words 277px
-  // from one side to the other in a frame); a change of side fades them in where they land.
+  // from one side to the other in a frame); any change of place, side to side or between above its point and beside
+  // it (130px across in one frame), fades them in where they land. Not their first placing: there is nowhere they left.
   const fitsLeft = !!at && at.x - 12 - at.w >= 4, fitsRight = !!at && at.x + 12 + at.w <= at.stageW - 4
+  const placed = words.dataset.side !== undefined
   const was = Number(words.dataset.side ?? 0)
   const side = dy > 0 && at ? (was === -1 && fitsLeft ? -1 : was === 1 && fitsRight ? 1 : fitsLeft ? -1 : fitsRight ? 1 : 0) : 0
-  if (side !== was) {
-    if (was !== 0 && side !== 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) words.animate([{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0px)' }], { duration: 140, easing: EASE_OUT_CSS })
+  if (side !== was || !placed) {
+    if (placed && !matchMedia('(prefers-reduced-motion: reduce)').matches) words.animate([{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0px)' }], { duration: 140, easing: EASE_OUT_CSS })
     words.dataset.side = String(side)
   }
   if (side) {
