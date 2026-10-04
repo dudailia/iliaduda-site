@@ -25,7 +25,10 @@ export interface LiveMarket {
   declined: string | null
   /** The market's hash (lib/market/engine.ts) as the worker built it, for ?debug=1 and the engines test. */
   hash: string | null
-  act(a: Act): void
+  /** An action now, or at simulated time `at` (lib/market/host.ts). */
+  act(a: Act, at?: number): void
+  /** Drop an action waiting for its time. */
+  unschedule(): void
   pause(): void
   resume(): void
   reset(): void
@@ -189,7 +192,8 @@ export function useMarket(
     live: live && !reduced,
     declined,
     hash,
-    act: (a) => send({ kind: 'act', act: a }),
+    act: (a, at) => send(at === undefined ? { kind: 'act', act: a } : { kind: 'act', act: a, at }),
+    unschedule: () => send({ kind: 'unschedule' }),
     pause: () => {
       paused.current = true
       pausedAtRef.current = performance.now()

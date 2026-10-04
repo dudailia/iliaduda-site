@@ -426,7 +426,9 @@ const facts = {
     value: 0.386,
     unit: 'kg',
     label: 'co2PerKwhKg',
-    source: 'nucarbon/lib/data.ts:1-8; EPA eGRID 2023 NEWE subregion, MethodologyBadge.tsx:104-124',
+    // The app labels it eGRID 2023 NEWE, but NEWE's 2023 rate is 543 lb CO2e/MWh (0.246 kg/kWh); 0.386 matches eGRID2021's
+    // US average (852.3 lb/MWh). The page no longer calls it New England's; the owner decides the app's label (2026-10-04).
+    source: 'nucarbon/lib/data.ts:1-8; EPA eGRID (the app says 2023 NEWE; the value matches the eGRID2021 US average), MethodologyBadge.tsx:104-124',
   },
   ncConstants: {
     value: 6,

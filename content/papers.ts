@@ -63,7 +63,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'closebooks',
     href: '/closebooks',
-    title: 'CloseBooks: a multi-tenant month-end close with an LLM in the loop',
+    // "a" held to its noun: before the unbreakable "multi-tenant" a phone left it alone at a line's end.
+    title: 'CloseBooks: a\u00a0multi-tenant month-end close with an LLM in the loop',
     abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} API routes over Postgres with row-level security, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn, or a reviewer’s approval, before it is exported.`,
     dek: 'A multi-tenant month-end close for CPA firms that I built alone: an LLM pipeline maps every bank line to the client’s accounts, and only confident or reviewer-approved lines export.',
     figureNote: 'synthetic feed',
@@ -73,7 +74,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'cricstate',
     href: '/cricstate',
-    title: 'What ball-by-ball cricket predicts beyond the scoreboard',
+    // "beyond the" held together: at 360px the title set "beyond" alone on a line.
+    title: 'What ball-by-ball cricket predicts beyond\u00a0the scoreboard',
     abstract: `A leakage-audited model of T20 cricket, built on ${n('crDeliveries')} T20 and ODI deliveries. Gradient boosting on match state cuts log-loss on win probability ${Math.round(fact('crT2Skill').value)}% below the base rate (${fact('crT2Nll').value.toFixed(3)} against ${fact('crT2Base').value.toFixed(3)}) on held-out matches, and the study measured what player identity adds before building on it: ${fact('crIdentityGain').value}%, under the bar.`,
     dek: `A leakage-audited model of T20 cricket, built on ${n('crDeliveries')} T20 and ODI deliveries: gradient boosting on match state cuts win-probability log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate on held-out matches.`,
     byline: 'Independent research · July 2026',

@@ -30,8 +30,11 @@ const at = (date: string) => days.findIndex((d) => d.date === date)
 const fmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 const long = (iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`))
 const short = (iso: string) => long(iso).replace(/(\d+) (\w{3})\w*/, '$1 $2')
-const y3m = (i: number) => zcy(days[i]!.params, 0.25)
-const y10 = (i: number) => zcy(days[i]!.params, 10)
+// The yields as printed, to the basis point, so every gap the caption states is the difference of the figures beside
+// it (from the unrounded curve it said "rose 231 bp" between yields 230 bp apart).
+const shown = (y: number) => Math.round(y * 100) / 100
+const y3m = (i: number) => shown(zcy(days[i]!.params, 0.25))
+const y10 = (i: number) => shown(zcy(days[i]!.params, 10))
 const pc = (y: number) => `${y.toFixed(2)}%`
 // A number keeps its unit on its line ("298 / bp" broke at 600px).
 const bps = (x: number) => `${Math.round(x * 100)}\u00a0bp`

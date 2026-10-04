@@ -68,7 +68,13 @@ function keyPlace(p: GParams, bonds: readonly (readonly [number, number])[], rat
 const path = (p: GParams) => TS.map((t, i) => `${i ? 'L' : 'M'}${Math.round(sx(t))} ${Math.round(sy(zcy(p, t)))}`).join('')
 
 const pc = (y: number) => `${y.toFixed(2)}%`
-const bp = (d: number) => `${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(Math.round(d))} bp`
+// Rounded first, then signed: the sign of an unrounded −0.3 printed "−0 bp".
+const bp = (d: number) => {
+  const r = Math.round(d)
+  return `${r > 0 ? '+' : r < 0 ? '−' : '±'}${Math.abs(r)} bp`
+}
+/** A yield as printed, to the basis point: every gap the readout states is the difference of the yields it shows. */
+const shownY = (y: number) => Math.round(y * 100) / 100
 const tLabel = (t: number) => (t < 1 ? `${Math.round(t * 12)}m` : `${t}y`)
 const fmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const day = (iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`))
@@ -108,9 +114,9 @@ export function OfzLive({
       ? `, ${comes.rate.toFixed(2)}% from ${dayMonth.format(new Date(`${comes.from}T00:00:00Z`))}`
       : ''
   const phoneKey = keyPlace(d.params, d.bonds, rate)
-  const short = zcy(d.params, T_MIN)
-  const long = zcy(d.params, 10)
-  const move = at > 0 ? (short - zcy(prev.params, T_MIN)) * 100 : 0
+  const short = shownY(zcy(d.params, T_MIN))
+  const long = shownY(zcy(d.params, 10))
+  const move = at > 0 ? (short - shownY(zcy(prev.params, T_MIN))) * 100 : 0
 
   const rows = [
     { label: 'Trading day', value: day(d.date) },

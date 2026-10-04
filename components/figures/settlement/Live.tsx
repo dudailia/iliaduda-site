@@ -84,7 +84,7 @@ export function SettlementLive({
                 {hidden ? (
                   <>
                     {`; ${hidden} hidden (hollow`}
-                    <span className="hidden sm:inline">, the first magnified in the corner</span>
+                    <span className="hidden sm:inline">{hidden > 1 ? ', the first magnified in the corner' : ', magnified in the corner'}</span>
                     {'): at a step in the discount ladder a longer term would cost more a month'}
                   </>
                 ) : null}

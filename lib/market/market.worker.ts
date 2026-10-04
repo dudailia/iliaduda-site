@@ -35,7 +35,10 @@ scope.onmessage = (e) => {
         break
       }
       case 'act':
-        host?.act(msg.act)
+        host?.act(msg.act, msg.at)
+        break
+      case 'unschedule':
+        host?.unschedule()
         break
       case 'pause':
         host?.pause()

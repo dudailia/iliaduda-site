@@ -72,7 +72,10 @@ export class MarketHost {
     this.build()
   }
 
+  private scheduled: { a: Act; at: number } | null = null
+
   private build() {
+    this.scheduled = null
     this.market = new Market(this.seed)
     this.market.advance(this.t0)
     this.sim = this.market.t
@@ -83,8 +86,23 @@ export class MarketHost {
     this.fanBusy = false
   }
 
-  act(a: Act): void {
+  /**
+   * An action now, or one waiting for simulated time `at`: /market's story lands its shock on one quantum, 2.5
+   * simulated seconds after the figure's opening, whatever the frames' timing (sent when the wall clock said so, it
+   * landed a quantum early or late, and the same seed's market then answered a shock with a 75% volatility or a 24%
+   * one). An action taken now drops one waiting.
+   */
+  act(a: Act, at?: number): void {
+    if (at !== undefined && at > this.market.t) {
+      this.scheduled = { a, at }
+      return
+    }
+    this.scheduled = null
     this.market.apply(a)
+  }
+
+  unschedule(): void {
+    this.scheduled = null
   }
 
   pause(): void {
@@ -117,6 +135,13 @@ export class MarketHost {
     if (!this.paused) this.held += dt - capped
     const t = this.market.t
     this.sim += step
+    // An action waiting for its time is taken at the start of the quantum that time falls in.
+    const s = this.scheduled
+    if (s && this.sim >= s.at) {
+      this.market.advance(s.at)
+      this.market.apply(s.a)
+      this.scheduled = null
+    }
     this.market.advance(this.sim)
     this.ran += this.market.t - t
 

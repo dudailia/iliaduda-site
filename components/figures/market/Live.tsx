@@ -216,17 +216,11 @@ export function MarketLive({
   // The signature: the story's clock, whether it has pressed its shock, and the camera's blow.
   const seq = useRef(marketSequence())
   const storyPressed = useRef(false)
-  // Back to the page from the back-forward cache, the story is finished (useSignature): before its shock had landed,
-  // finishing it pressed the shock on the reader's return, out of a calm they had left. The shock it has not pressed is
-  // spent instead, and the market goes on calm; Liquidity shock is the reader's.
-  useEffect(() => {
-    const onShow = (e: PageTransitionEvent) => {
-      if (e.persisted) storyPressed.current = true
-    }
-    addEventListener('pageshow', onShow)
-    return () => removeEventListener('pageshow', onShow)
-  }, [])
-  const marketRef = useRef<{ act(a: 'shock'): void } | null>(null)
+  const marketRef = useRef<{ act(a: 'shock', at?: number): void; unschedule(): void } | null>(null)
+  /** The market's simulated time on the story's last frame (null until the story starts, and again after a Replay). */
+  const storySim = useRef<number | null>(null)
+  /** A Replay asked for: the story waits for the market's first frame back at its opening. */
+  const awaitingReset = useRef(false)
   const blow = useRef({ at: -Infinity, k: 0, from: 0 })
   /** The latest landing, on the page's clock, and whether it topped up a shock still in the market. */
   const landedAt = useRef({ at: -Infinity, topped: false })
@@ -417,6 +411,9 @@ export function MarketLive({
   const lastDraw = useRef(0)
   const lastText = useRef(0)
   const framesAt = useRef({ at: 0, n: 0, rate: 0 })
+  // The market opens at the figure's own moment, or where its Contents miniature was if the reader came from it
+  // (lib/minis/handoff.ts): the same seeded market, carried on.
+  const [from] = useState(() => (typeof window === 'undefined' ? t0 : (handedTo('market', t0) ?? t0)))
   const draw = useCallback(
     (m: Mirror, now: number) => {
       mirrorRef.current = m
@@ -461,7 +458,10 @@ export function MarketLive({
         if (pausedRef.current) return 'paused'
         const since = performance.now() - landedAt.current.at
         if (since < MARKET_SEQ.told) return landedAt.current.topped ? 'topped' : 'shock'
-        return mm.h.stress >= 0.05 ? 'recovering' : 'running'
+        // With room between the two (recovering above 0.05, running again below 0.03): at one threshold, a stress
+        // hovering at it flipped the line Running, Recovering, Running inside 200ms.
+        const was = storyRef.current
+        return mm.h.stress >= (was === 'running' ? 0.05 : 0.03) ? 'recovering' : 'running'
       }
       const tell = (next: Story) => {
         if (next === storyRef.current) return
@@ -479,13 +479,28 @@ export function MarketLive({
       // The story, on the frames all three views draw; held while the market is.
       const sg = sigRef.current
       if (sg.armed.current && allLive.current) {
-        if (!pausedRef.current) seq.current.advance(dt * 1000)
+        // The story runs on the market's own clock, and its shock is the market's, landed on one quantum: 2.5
+        // simulated seconds after the figure's opening (lib/market/host.ts). Started a little after the opening (the
+        // views arrive a few frames apart), the story begins that far into its calm, so the words land with the
+        // shock; started a second or more after (a reader who held the figure half in view), it schedules from there.
+        if (awaitingReset.current && m.h.t <= from + 0.5) awaitingReset.current = false
+        if (seq.current.started && !awaitingReset.current) {
+          if (storySim.current === null) {
+            storySim.current = m.h.t
+            const lead = m.h.t - from
+            const calm = MARKET_SEQ.calm / 1000
+            if (lead > 0 && lead <= 1) seq.current.advance(lead * 1000)
+            if (!storyPressed.current && !seq.current.done) marketRef.current?.act('shock', lead <= 1 ? from + calm : m.h.t + calm)
+          } else {
+            const ds = m.h.t - storySim.current
+            storySim.current = m.h.t
+            if (ds > 0) seq.current.advance(ds * 1000)
+          }
+        }
         sg.onFrame()
         const ph = seq.current.phases()
-        if (ph.land > 0 && !storyPressed.current) {
-          storyPressed.current = true
-          marketRef.current?.act('shock')
-        }
+        // The shock has landed (the market took it at its quantum): the story's is spent.
+        if (ph.land > 0) storyPressed.current = true
         if (seq.current.started && !seq.current.done) {
           // Paused, the story holds where it is, and the line says so.
           const turn = storyOf(ph)
@@ -611,7 +626,7 @@ export function MarketLive({
         marketRates.set({ rate: h.rate, expected: h.expected, frames: fa.rate, paths: h.paths, busy: h.busy, held: h.held, paused: pausedRef.current })
       }
     },
-    [flat, write],
+    [flat, write, from],
   )
 
   // A shock has landed in the frame just taken: every view takes it in the next animation frame, whichever of their
@@ -661,15 +676,24 @@ export function MarketLive({
   useLayoutEffect(() => {
     follow.current = document.querySelector<HTMLElement>('[data-market-follow]')
   }, [])
-  // The market opens at the figure's own moment, or where its Contents miniature was if the reader came from it
-  // (lib/minis/handoff.ts): the same seeded market, carried on.
-  const [from] = useState(() => (typeof window === 'undefined' ? t0 : (handedTo('market', t0) ?? t0)))
   useEffect(() => spend(), [])
   const market = useMarket([stage, follow], { seed, t: from, allowed, draw, onTake })
   useEffect(() => {
     marketRef.current = market
     allLive.current = market.live && flat && (surfaceLive || !eligible)
   })
+  // Back to the page from the back-forward cache, the story is finished (useSignature): before its shock had landed,
+  // finishing it pressed the shock on the reader's return, out of a calm they had left. The shock it has not pressed is
+  // spent instead, and the market goes on calm; Liquidity shock is the reader's.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return
+      storyPressed.current = true
+      marketRef.current?.unschedule()
+    }
+    addEventListener('pageshow', onShow)
+    return () => removeEventListener('pageshow', onShow)
+  }, [])
 
   // Readouts start as the posters' frame: the same numbers, computed on the server.
   const putInitial = useCallback(
@@ -881,6 +905,8 @@ export function MarketLive({
   const replayNow = () => {
     // The market back to its opening moment, and the story told again from its calm, paused or not.
     storyPressed.current = false
+    storySim.current = null
+    awaitingReset.current = true
     landedAt.current = { at: -Infinity, topped: false }
     if (pausedRef.current) setPause(false)
     sig.replay()

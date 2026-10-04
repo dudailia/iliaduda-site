@@ -501,9 +501,11 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   // The still frame's reading point, one for each framing: projected with that framing's poster camera, drawn until
   // the canvas takes over. Both are drawn, each shown at its own breakpoint, so the server's first paint has it right.
-  const posterDot = (k: FrameKind) => {
+  // At a shock level: the reader's on screen, where the still frame is redrawn at it; calm on paper, where the poster and
+  // the readouts print calm (a dot at the shocked height floated over the printed sheet).
+  const posterDot = (k: FrameKind, x = shock) => {
     const m = mvp(k, camera(k))
-    const c = apply(m, wx(probe.k), wy(iv(params(shock), probe.k, probe.T)), wz(probe.T))
+    const c = apply(m, wx(probe.k), wy(iv(params(x), probe.k, probe.T)), wz(probe.T))
     return { left: `${((c[0] / c[3]) * 0.5 + 0.5) * 100}%`, top: `${(1 - ((c[1] / c[3]) * 0.5 + 0.5)) * 100}%` }
   }
 
@@ -610,7 +612,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     : live
       ? coarse
         ? 'Tap to read a point · drag sideways to turn · the shock slider applies the shock'
-        : 'Point to read a point · drag to turn · arrow keys move the point · Space pauses'
+        : 'Point at the surface to read it · drag to turn · arrow keys move the point · Space pauses'
       : coarse
         ? 'Tap or tab to the surface to read a point'
         : 'Tab to the figure and use the arrow keys to read a point'
@@ -657,22 +659,32 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             lean.onTap()
             onStillPick(e)
           }}
+          // On a phone the narration and the Skew note want the same corner: while it speaks, the notes wait (globals.css).
+          data-narrating={onStage ? '' : undefined}
           className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
         >
           <div data-surface-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
             <Frame>
-              {(['wide', 'tall'] as const).map((k) => (
-                <span key={k} aria-hidden data-fill="" className={`absolute ${k === 'wide' ? 'hidden sm:block' : 'sm:hidden'}`} style={posterDot(k)}>
-                  <span data-still-dot="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" />
-                  {read && (
-                    // Near the right edge it stands on the dot's left, as the live tag does.
-                    <span data-probe-tag="" className={TAG} style={parseFloat(posterDot(k).left) > 80 ? { transform: 'translateX(calc(-100% - 1.25rem))' } : undefined}>
-                      vol {(iv(params(shock), probe.k, probe.T) * 100).toFixed(1)}%
-                    </span>
-                  )}
-                </span>
-              ))}
+              {(['wide', 'tall'] as const).flatMap((k) =>
+                ([['screen', shock], ['paper', 0]] as const).map(([medium, x]) => (
+                  <span
+                    key={`${k}-${medium}`}
+                    aria-hidden
+                    data-fill=""
+                    className={`absolute ${k === 'wide' ? 'hidden sm:block' : 'sm:hidden'} ${medium === 'screen' ? 'print:hidden!' : 'hidden! print:block!'} ${medium === 'paper' && k === 'tall' ? 'sm:print:hidden!' : ''} ${medium === 'paper' && k === 'wide' ? 'max-sm:print:hidden!' : ''}`}
+                    style={posterDot(k, x)}
+                  >
+                    <span data-still-dot="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" />
+                    {read && (
+                      // Near the right edge it stands on the dot's left, as the live tag does.
+                      <span data-probe-tag="" className={TAG} style={parseFloat(posterDot(k, x).left) > 80 ? { transform: 'translateX(calc(-100% - 1.25rem))' } : undefined}>
+                        vol {(iv(params(x), probe.k, probe.T) * 100).toFixed(1)}%
+                      </span>
+                    )}
+                  </span>
+                )),
+              )}
             </Frame>
           </div>
           <canvas ref={canvas} data-live-canvas="" aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y pinch-zoom' }} />
@@ -680,7 +692,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           <p
             aria-hidden
             data-phase-caption=""
-            className="text-note pointer-events-none absolute top-3 right-3 w-[min(42%,17rem)] text-right leading-snug text-ink transition-opacity duration-200 ease-out"
+            // Over the notes: on a phone the Skew note's paper plate lay across the narration and cut its first letters.
+            className="text-note pointer-events-none absolute top-3 right-3 z-10 w-[min(42%,17rem)] text-right leading-snug text-ink transition-opacity duration-200 ease-out"
             style={{ opacity: onStage ? 1 : 0 }}
           >
             {/* The plate stays crisp; only its words blur through a turn of the story, as the line below does (a reader's
@@ -726,6 +739,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
                   n.offset[kind] && (
                     <NoteMark
                       key={n.id}
+                      note={n.id}
                       moving
                       ref={(el) => {
                         noteEls.current[i] = el

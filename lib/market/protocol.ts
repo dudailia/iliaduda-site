@@ -132,7 +132,10 @@ export type ToWorker =
   | { kind: 'start'; seed: number; t: number }
   /** A frame at the page's clock `at` (ms), written into `buf`, which comes back in the answer. */
   | { kind: 'frame'; at: number; buf: ArrayBuffer }
-  | { kind: 'act'; act: Act }
+  /** An action now, or (with `at`) at the start of the quantum the market reaches at simulated time `at`. */
+  | { kind: 'act'; act: Act; at?: number }
+  /** Drop an action waiting for its time. */
+  | { kind: 'unschedule' }
   | { kind: 'pause' }
   | { kind: 'resume' }
   /** Back to the market as it was at the start. */
