@@ -164,7 +164,8 @@ export function SettlementLive({
         { label: 'Discount', value: `${(s.bp / 100).toFixed(0)}%` },
         { label: 'Pays in total', value: rub(s.payable) },
         { label: s.months === 1 ? 'Single payment' : 'Monthly', value: rub(s.monthly) },
-        { label: 'Last payment', value: rub(s.last) },
+        // One payment is its own last: the row says what it saves, as the phone's does (the rail said the same sum three times).
+        s.months === 1 ? { label: 'Saves', value: rub(s.saved) } : { label: 'Last payment', value: rub(s.last) },
       ]}
     />
   )

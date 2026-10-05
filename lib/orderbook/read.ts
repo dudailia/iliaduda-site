@@ -46,8 +46,11 @@ export function rowAfter(sim: Flow, t: number): number {
 }
 
 const usd = (ticks: number) => `$${(ticks * TICK).toFixed(2)}`
-/** The mid sits on a half tick whenever the spread is odd; show the half cent rather than round it away. */
-const mid = (ticks: number) => `$${(ticks * TICK).toFixed(Number.isInteger(ticks) ? 2 : 3)}`
+/**
+ * The mid sits on a half tick whenever the spread is odd; show the half cent rather than round it away. Always to the
+ * tenth of a cent, on a whole tick too: the readout keeps one width, never flipping between $100.25 and $100.255.
+ */
+const mid = (ticks: number) => `$${(ticks * TICK).toFixed(3)}`
 export const fmt = {
   usd,
   mid,

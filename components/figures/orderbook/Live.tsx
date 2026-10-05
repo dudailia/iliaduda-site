@@ -113,11 +113,14 @@ export function OrderBookLive({
     (s: Pick<Stats, 'rate' | 'trades' | 'shares' | 'mid' | 'spread'>) => {
       const since = performance.now() - statsAt.current
       clearTimeout(trailing.current)
+      // The mid at once, as the stage's own "Price" tag beside it is written: held to a quarter second, the two showed
+      // different prices in one frame (5 of 25 samples).
+      if (Number.isFinite(statsAt.current)) write('mid', fmt.mid(s.mid))
       if (since >= 250) return putStats(s)
       // Held back (printing holds the margin at the poster's moment: statsAt is then Infinity, and nothing is queued).
       if (Number.isFinite(statsAt.current)) trailing.current = window.setTimeout(() => putStats(s), 250 - since)
     },
-    [putStats],
+    [putStats, write],
   )
   useEffect(() => () => clearTimeout(trailing.current), [])
 

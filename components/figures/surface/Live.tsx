@@ -61,12 +61,16 @@ const clampProbe = (p: Probe): Probe => ({
  */
 function phaseOf(story: Sequence<SurfacePhase> | null, level: number, drawn = level, draining = false): Phase {
   if (draining) return drawn > 0.04 ? 'relax' : 'calm'
-  if (!story) return level > 0.04 ? 'shock' : 'calm'
+  // A reader's own shock up to a third of the story's reads as small (the 1-month at-the-money vol under about 33%).
+  if (!story) return level > MILD ? 'shock' : level > 0.04 ? 'mild' : 'calm'
   if (story.skipping()) return shownAmplitude(story) > 0.04 ? 'relax' : 'calm'
   const ph = story.phases()
   if (ph.shock > 0 && ph.relax < 0.12) return 'shock'
   return amplitudeOf(ph) > 0.04 ? 'relax' : 'calm'
 }
+
+/** The reader's shock, as a share of the story's, up to which it is told as small. */
+const MILD = 0.35
 
 const HEADLINE = [
   // Each phrase held whole (no-break spaces): a label breaks only at its comma.

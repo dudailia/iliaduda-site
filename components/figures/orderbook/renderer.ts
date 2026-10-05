@@ -1040,7 +1040,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     sh.labels.dataset.draws = String(++draws)
     sh.labels.dataset.simT = sim.t.toFixed(3)
     sh.labels.dataset.turn = turn.yaw.x.toFixed(3)
-    sh.onFrame(sim.stats(), reading, !!hovered)
+    // The margin's mid is the front row's, the one the stage's "Price" tag is written from: the book's own, which moves
+    // between the twelve photographs a second, stood half a tick from the tag beside it now and then.
+    const stats = sim.stats()
+    if (sim.written > 0) stats.mid = sim.mids[sim.row(0)]!
+    sh.onFrame(stats, reading, !!hovered)
     first = true
     return true
   }
