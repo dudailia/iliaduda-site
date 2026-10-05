@@ -170,7 +170,7 @@ vec3 at(int i, float ln, float jj) {
 // A ribbon: two vertices per step, pushed apart across the path's direction on
 // screen. Width follows distance from the eye; ink per unit length does not.
 const RIBBON_VS = `${HEAD}${RNG}${STRAND}
-uniform vec2 uPx; uniform float uWidth, uRef, uFar, uEdge; uniform vec3 uFade;
+uniform vec2 uPx; uniform float uWidth, uRef, uFar, uEdge, uWMax, uInkW; uniform vec3 uFade;
 out float vD; out float vHalf; out float vA; flat out int vPays; flat out uint vId;
 void main() {
   int i = gl_InstanceID;
@@ -192,14 +192,16 @@ void main() {
   // In among the futures (a flight), they fade out toward the stage's edges, so the frame never shows as a rectangle.
   vec2 ndc = abs(c.xy / depth);
   float edge = mix(1.0, smoothstep(1.0, 0.8, max(ndc.x, ndc.y)), uEdge);
-  float w = clamp(uWidth * uRef / depth, 0.85, 2.6);
+  float w = clamp(uWidth * uRef / depth, 0.85, uWMax);
   float reach = past ? 0.0 : w * 0.5 + 1.0;
   c.xy += n * side * reach * 2.0 / uPx * c.w;
   vD = side * reach;
   vHalf = w * 0.5;
   float near = smoothstep(uFade.x, uFade.y, depth);
   float far = mix(1.0, uFar, smoothstep(uRef, uFade.z, depth));
-  vA = s.opacity * near * far * edge * (1.2 / max(w, 1.2));
+  // Ink per pixel as the picture was weighed at two device pixels a CSS pixel: above it the same line covers more of
+  // the screen's pixels, and at the 2× share each it read a third lighter on a 3× phone (the composite is not linear).
+  vA = s.opacity * near * far * edge * (1.2 / max(w * uInkW, 1.2));
   vPays = uS0 * exp(lr(i, 64)) > uK ? 1 : 0;
   vId = s.id;
   gl_Position = c;
@@ -618,12 +620,18 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   function buildScreen() {
     disposeTarget(gl, den)
     bl.forEach((t) => disposeTarget(gl, t))
-    // The density at the canvas's own resolution (the stage caps it at two device pixels per CSS pixel): crisp ribbons.
+    // The density at the canvas's own resolution, the screen's device pixels (the stage draws at the screen's own
+    // density, up to 3×): every future's core is a line of real pixels, composited one to one.
     const dw = Math.max(1, cw), dh = Math.max(1, ch)
     den = target(gl, dw, dh, density, true)
-    const h2 = [Math.max(1, dw >> 1), Math.max(1, dh >> 1)] as const
-    const h4 = [Math.max(1, dw >> 2), Math.max(1, dh >> 2)] as const
-    const h8 = [Math.max(1, dw >> 3), Math.max(1, dh >> 3)] as const
+    // The glow around them is built from at most two device pixels a CSS pixel, so it is the same glow on a 3× phone
+    // as on a 2× laptop (its blur is counted in its buffers' texels) and costs no more: soft by design, laid around the
+    // sharp lines, never instead of them.
+    const g = Math.min(1, 2 / Math.max(1, cw / Math.max(1, cssW)))
+    const gw = Math.max(1, Math.round(dw * g)), gh = Math.max(1, Math.round(dh * g))
+    const h2 = [Math.max(1, gw >> 1), Math.max(1, gh >> 1)] as const
+    const h4 = [Math.max(1, gw >> 2), Math.max(1, gh >> 2)] as const
+    const h8 = [Math.max(1, gw >> 3), Math.max(1, gh >> 3)] as const
     bl = [
       target(gl, h2[0], h2[1], density, true),
       target(gl, h4[0], h4[1], density, true),
@@ -777,6 +785,10 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     set(P.ribbon)
     gl.uniform2f(P.ribbon.u('uPx'), den.w / 2, den.h / 2)
     gl.uniform1f(P.ribbon.u('uWidth'), 1.15 * dpr)
+    // The widest a near future draws, in device pixels: 1.3 CSS pixels at any density (a fixed 2.6 drew a 3× screen's
+    // futures thinner than a 2× one's). The narrowest stays 0.85 device pixels, its coverage carrying the rest.
+    gl.uniform1f(P.ribbon.u('uWMax'), 1.3 * dpr)
+    gl.uniform1f(P.ribbon.u('uInkW'), Math.min(1, 2 / dpr))
     gl.uniform1f(P.ribbon.u('uRef'), ref)
     gl.uniform1f(P.ribbon.u('uFar'), palette.dark ? 0.6 : DAY.far)
     gl.uniform1f(P.ribbon.u('uEdge'), edgeK.x)
@@ -807,7 +819,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       }
       const down = (src: Target, dst: Target, th = 0) =>
         pass(P.down, src, dst, () => {
-          gl.uniform2f(P.down.u('uTexel'), 1 / src.w, 1 / src.h)
+          // Its four taps a quarter of the destination's texel from centre, whatever the step (a halving, or the 3:1 of
+          // a 3× density into the glow's first buffer): every source texel is averaged in, none skipped.
+          gl.uniform2f(P.down.u('uTexel'), 1 / (2 * dst.w), 1 / (2 * dst.h))
           gl.uniform1f(P.down.u('uThresh'), th)
         })
       const blur = (src: Target, dst: Target, x: number, y: number) => pass(P.blur, src, dst, () => gl.uniform2f(P.blur.u('uDir'), x / src.w, y / src.h))

@@ -338,7 +338,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     [onStats, onTick, onSequenceFrame, release],
   )
 
-  // The quality waits to climb until the story is told, as the IV figure's does: the burst never sharpens mid-moment.
+  // The quality waits to climb until the story is told, as the IV figure's does: the burst's glow and effects never change mid-moment.
   // And while the camera moves (the swing into depth after the story, a flight and its return): the step's long frame
   // landed in the middle of the swing, a hitch in the one move the reader is watching; at rest the drift is slow.
   const [stageOpts] = useState(() => ({

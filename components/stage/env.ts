@@ -160,3 +160,22 @@ export function useOnceSeen(ref: RefObject<Element | null>, threshold: number, f
     }
   }, [ref, threshold, hold])
 }
+
+/**
+ * Calls `fn` whenever the device pixel ratio changes, with no change of CSS size: a window moved to a screen of another
+ * density, or a zoom. A canvas listening redraws at its new screen's own pixels. Returns the unsubscribe.
+ */
+export function onDprChange(fn: () => void): () => void {
+  let mq: MediaQueryList | null = null
+  const arm = () => {
+    mq?.removeEventListener('change', fire)
+    mq = matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
+    mq.addEventListener('change', fire)
+  }
+  const fire = () => {
+    arm()
+    fn()
+  }
+  arm()
+  return () => mq?.removeEventListener('change', fire)
+}

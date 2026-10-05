@@ -41,10 +41,10 @@ function sizeOf(cv: HTMLCanvasElement) {
   return s
 }
 
-/** A canvas sized to its box at up to two device pixels a CSS pixel; true when its size changed. */
+/** A canvas sized to its box at the screen's own density, up to three device pixels a CSS pixel; true when its size changed. */
 function fit(cv: HTMLCanvasElement, box: { w: number; h: number }): boolean {
   const r = sizeOf(cv)
-  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  const dpr = Math.min(3, window.devicePixelRatio || 1)
   const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr))
   box.w = r.width
   box.h = r.height
