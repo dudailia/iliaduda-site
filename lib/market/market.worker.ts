@@ -24,6 +24,10 @@ scope.onmessage = (e) => {
       case 'start':
         host = new MarketHost(msg.seed, msg.t, () => performance.now())
         scope.postMessage({ kind: 'ready', t: host.market.t, hash: host.market.hash(), sigma: host.market.sigma })
+        {
+          const fan = host.openingFan()
+          scope.postMessage(fan, [fan.bands.buffer, fan.strands.buffer])
+        }
         break
       case 'frame': {
         let fan: FanMsg | null = null

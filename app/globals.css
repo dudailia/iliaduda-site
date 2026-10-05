@@ -484,15 +484,14 @@
   size-adjust: 112.78%;
 }
 
-/* /iv-surface on a phone: the story's narration (in the stage's corner while the line under it is out of view) and
-   the Skew note met at 360px, one plate cutting the other's words. While the narration speaks, the notes wait. */
-@media (max-width: 39.99rem) {
-  [data-note] {
-    transition: opacity 200ms var(--ease-out);
-  }
-  [data-narrating] [data-note] {
-    opacity: 0;
-  }
+/* /iv-surface: the story's narration (in the stage's corner while the line under it is out of view) and the Skew note
+   meet, at 360px on a phone and on a laptop's first screen, one plate cutting the other's words. While the narration
+   speaks, the notes wait. */
+[data-note] {
+  transition: opacity 200ms var(--ease-out);
+}
+[data-narrating] [data-note] {
+  opacity: 0;
 }
 
 /* The supplement to the site's two faces: the Greek and mathematical characters the papers use (scripts/subset-

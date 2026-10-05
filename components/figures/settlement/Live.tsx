@@ -38,13 +38,11 @@ function message(o: Outcome | null): string {
 
 export function SettlementLive({
   caption,
-  table,
   loginCaption,
   loginTable,
   callCaps,
 }: {
   caption: ReactNode
-  table: ReactNode
   loginCaption: ReactNode
   loginTable: ReactNode
   callCaps: string
@@ -240,7 +238,32 @@ export function SettlementLive({
       caption={caption}
       // The sr-only table and live line in the mono face: their ₽ is then the mono supplement this page fetches anyway,
       // not a serif one for text no one sees (7,217 B).
-      table={<div className="font-mono">{table}</div>}
+      // The terms of the debt chosen, as the plot shows them (the server's table stayed at 60,000 ₽ whichever was picked).
+      table={
+        <div className="font-mono">
+          <table>
+            <caption>{`Offered terms for a debt of ${rub(debt)}`}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Months</th>
+                <th scope="col">Discount</th>
+                <th scope="col">Monthly</th>
+                <th scope="col">Last payment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {offered.map((t) => (
+                <tr key={t.months}>
+                  <td>{t.months}</td>
+                  <td>{`${t.s.bp / 100}%`}</td>
+                  <td>{rub(t.s.monthly)}</td>
+                  <td>{rub(t.s.last)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      }
       rail={rail}
       railBelow={false}
     >
@@ -249,7 +272,7 @@ export function SettlementLive({
           <p id="st-a" className="text-meta font-mono font-normal tracking-normal text-graphite">
             Settlement calculator
           </p>
-          <div role="radiogroup" aria-label="Debt" className="mt-2 flex flex-wrap gap-2">
+          <div role="radiogroup" aria-label="Debt" className="mt-2 flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
             {DEBTS.map((d, di) => (
               <button
                 key={d}
@@ -462,7 +485,7 @@ export function SettlementLive({
           <p id="st-b" className="text-meta font-mono font-normal tracking-normal text-graphite">
             The login’s statutory cost, in messages
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2 pointer-coarse:gap-y-3.5">
             {/* Both labels in one cell, the one not shown kept invisible: the press changes its own words, never its
                 width, so the controls beside it stay under the pointer. */}
             <button type="button" onClick={request} className={CONTROL}>

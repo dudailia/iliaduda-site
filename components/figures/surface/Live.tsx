@@ -659,7 +659,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             lean.onTap()
             onStillPick(e)
           }}
-          // On a phone the narration and the Skew note want the same corner: while it speaks, the notes wait (globals.css).
+          // The narration and the Skew note want the same corner: while it speaks, the notes wait (globals.css).
           data-narrating={onStage ? '' : undefined}
           className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
         >
@@ -779,7 +779,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       </p>
 
       {/* The slider first: it is there in every mode, so the buttons a live figure adds arrive after it, moving nothing. */}
-      <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3 pointer-coarse:gap-y-3.5">
         <label className="text-meta flex items-center gap-3 font-mono text-graphite">
           {/* The reader's own shock: while the story plays its shock, this one still reads 0.00×, and says whose it is. */}
           <span>Your shock</span>

@@ -295,7 +295,7 @@ export function RankingLive({
   return (
     <FigureFrame {...frame} rail={rail}>
     <div>
-      <div role="radiogroup" aria-label="Treatment of the data" className="text-meta flex flex-wrap gap-2 font-mono">
+      <div role="radiogroup" aria-label="Treatment of the data" className="text-meta flex flex-wrap gap-2 font-mono pointer-coarse:gap-y-3.5">
         {variants.map((x) => (
           <button
             key={x.key}

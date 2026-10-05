@@ -120,7 +120,9 @@ export function OfzLive({
 
   const rows = [
     { label: 'Trading day', value: day(d.date) },
-    { label: 'Key rate', value: `${rate.toFixed(2)}%${pending}` },
+    // A phone sets 21 July's "7.50%, 8.50% from 24 Jul" on two lines: they are held on every day, so stepping onto it
+    // and off it moves nothing under the readouts.
+    { label: 'Key rate', value: <span className="block max-sm:min-h-[2lh]">{`${rate.toFixed(2)}%${pending}`}</span> },
     { label: '3-month', value: pc(short) },
     { label: '10-year', value: pc(long) },
     { label: 'Slope, 10y − 3m', value: bp((long - short) * 100) },

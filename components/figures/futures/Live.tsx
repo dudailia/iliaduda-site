@@ -1031,7 +1031,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             where it never will (reduced motion, no WebGL2), the pre-paint script collapses it. */}
         {/* On a 360px phone the four buttons at full padding took a second line when Reset came, moving the caption 40px
             under the reader's thumb: there they close up (8px padding, 6px gaps), and the row keeps its one line. */}
-        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2">
+        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2 pointer-coarse:gap-y-3.5">
           {live && (
             <>
               <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem] max-sm:min-w-[4.125rem]`}>

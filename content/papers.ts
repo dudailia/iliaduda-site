@@ -74,8 +74,11 @@ export const papers: readonly Paper[] = [
   {
     slug: 'cricstate',
     href: '/cricstate',
-    // "beyond the" held together: at 360px the title set "beyond" alone on a line.
-    title: 'What ball-by-ball cricket predicts beyond\u00a0the scoreboard',
+    // "the scoreboard" held together: no line ends on "the". Measured 320–1440: the Contents and every heading from
+    // 390 up set it with no word alone ("beyond the" held left "predicts" alone in the Contents, "scoreboard" alone in
+    // the heading at desktop). Under 390 the heading takes four lines and one word stands alone whatever is held;
+    // all three held overflow it.
+    title: 'What ball-by-ball cricket predicts beyond the\u00a0scoreboard',
     abstract: `A leakage-audited model of T20 cricket, built on ${n('crDeliveries')} T20 and ODI deliveries. Gradient boosting on match state cuts log-loss on win probability ${Math.round(fact('crT2Skill').value)}% below the base rate (${fact('crT2Nll').value.toFixed(3)} against ${fact('crT2Base').value.toFixed(3)}) on held-out matches, and the study measured what player identity adds before building on it: ${fact('crIdentityGain').value}%, under the bar.`,
     dek: `A leakage-audited model of T20 cricket, built on ${n('crDeliveries')} T20 and ODI deliveries: gradient boosting on match state cuts win-probability log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate on held-out matches.`,
     byline: 'Independent research · July 2026',

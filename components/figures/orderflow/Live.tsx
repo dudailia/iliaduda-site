@@ -115,8 +115,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       const x = read(f, r)
       write('ev', upper(NAMES[x.type]!))
       // A pinned order the strips have moved past stays readable, and says so.
-      // The age held to its unit ("3.65 / s ago" broke at 360px).
-      write('ev-more', `${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)}\u00a0s ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
+      // The age held to its unit and its word ("3.65 / s ago" broke at 360px, then "1.82 s / ago").
+      write('ev-more', `${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)}\u00a0s\u00a0ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
       write('par', setOff(x))
       write('own-one', fmt.pct(x.own))
       market.highlight = { price: x.price, t: x.t }
@@ -438,8 +438,9 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
             </span>
           </dd>
           <dt className="text-graphite">Set off by</dt>
-          {/* Its longest takes two lines (three on a phone), kept: as it wrapped and unwrapped, the row under it jumped. */}
-          <dd ref={ref('par')} className="min-h-[2lh] text-ink max-sm:min-h-[3lh]">
+          {/* Its longest takes two lines (four on a phone, a limit order's), kept: as it wrapped and unwrapped, the row
+              under it jumped. */}
+          <dd ref={ref('par')} className="min-h-[2lh] text-ink max-sm:min-h-[4lh]">
             —
           </dd>
           <dt className="text-graphite">On its own</dt>

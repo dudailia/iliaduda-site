@@ -26,10 +26,11 @@ import { syntheticValue } from '@/content/synthetic'
 import type { Mirror } from '@/lib/market/mirror'
 import { PROTOCOL } from '@/lib/market/protocol'
 import { handedTo, spend } from '@/lib/minis/handoff'
+import { useArrivedByMorph } from '@/lib/arrival'
 import type { LiveInfo } from '@/lib/stage/debug'
 import { EASE_OUT, EASE_OUT_CSS } from '@/lib/ease'
 import { MARKET_SEQ, marketSequence, punch, storyOf } from '@/lib/market/sequence'
-import { FAN_RANGE, logTicks, priceTicks, SPAN, WINDOW } from '@/lib/market/views'
+import { FAN_RANGE, fanBand, logTicks, priceTicks, SPAN, WINDOW } from '@/lib/market/views'
 import { params } from '@/lib/surface/shock'
 import { iv, type Params } from '@/lib/surface/ssvi'
 import { LABELS, WIDE_QUERY, type FrameKind } from '@/lib/surface/view'
@@ -170,7 +171,15 @@ export function MarketLive({
   const fanCv = useRef<HTMLCanvasElement>(null)
   const views = useRef<{ book: BookView; fan: FanView } | null>(null)
   const drawMod = useRef<Promise<Draw | null> | null>(null)
-  const out = useRef<Record<string, HTMLElement | null>>({})
+  // Arrived by a paper's morph: the views' code is fetched under it, so they draw on the frame it lands rather than
+  // after a further request.
+  const morphed = useArrivedByMorph()
+  useEffect(() => {
+    if (!morphed) return
+    void import('./draw').catch(() => {})
+    void import('../surface/renderer').catch(() => {})
+  }, [morphed])
+  const out =useRef<Record<string, HTMLElement | null>>({})
   const priceEls = useRef<(HTMLElement | null)[]>([])
   const fanEls = useRef<(HTMLElement | null)[]>([])
   const labelEls = useRef<(HTMLElement | null)[]>([])
@@ -405,7 +414,9 @@ export function MarketLive({
   // still frames), and where there is no WebGL2 at all, for the flat views.
   // The market runs where its surface can: a browser with no WebGL2 (a blocklisted GPU, or a headless audit, which
   // Chrome no longer lends a software one) or a software rasteriser keeps the still frames, which Liquidity shock swaps.
-  const allowed = mounted && !saveData() && tier !== null && tier !== 'software'
+  // Arrived by a paper's morph, it starts under the morph, before the stage has a context to judge the device by (a
+  // morph is a reader's click, never an audit's load); a stage that then finds no WebGL2 or a software one stops it.
+  const allowed = mounted && !saveData() && (tier === null ? morphed && eligible && supportsWebGL2() : tier !== 'software')
 
   // ── the flat views, drawn in the market's own frame ────────────────────────────────────────────────────────────
   const lastDraw = useRef(0)
@@ -607,8 +618,10 @@ export function MarketLive({
         write('stress', r.stress.toFixed(2))
         write('atm', pct(atmOf(r.stress)))
         // The year's range once the fan has been drawn (the pointed moment's fan, while one is); until then the still
-        // frame's own, never a range of nothing.
-        if (v.fan.band(4, 64) > 0) write('range', `${dollars(v.fan.band(0, 64) * root$)}–${dollars(v.fan.band(4, 64) * root$)}`)
+        // frame's own, never a range of nothing. At the volatility written beside it, not the drawn fan's, which springs
+        // toward that one.
+        if (m.fan && v.fan.band(4, 64) > 0)
+          write('range', `${dollars(fanBand(m.fan, r.sigma, 0, 64) * root$)}–${dollars(fanBand(m.fan, r.sigma, 4, 64) * root$)}`)
         // For the specs: the market's own clock.
         // Written only when they change: paused, the same values ten times a second were attribute mutations for nothing.
         if (stage.current) {
@@ -1276,7 +1289,7 @@ export function MarketLive({
 
         </div>
 
-        <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2 print:hidden" data-market-controls="">
+        <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2 pointer-coarse:gap-y-3.5 print:hidden" data-market-controls="">
           {mounted && why && !live ? (
             <button type="button" className={`${CONTROL} min-w-[8.75rem]`} onClick={toggleStill} onPointerEnter={() => void fetchShock()} onFocus={() => void fetchShock()} data-market-still-shock="">
               {still === 'calm' ? 'Liquidity shock' : 'Back to calm'}

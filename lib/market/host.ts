@@ -120,6 +120,37 @@ export class MarketHost {
     this.build()
   }
 
+  /**
+   * The opening second's fan, whole, before the first frame is asked for (the worker sends it with 'ready'): drawn a
+   * slice a frame, the futures pane came in about eight frames after the book and the surface, and after a paper's
+   * morph that was the one pane still empty. The fan has its own seed, so the market is the same either way.
+   */
+  openingFan(): FanMsg {
+    const second = Math.floor(this.market.t)
+    this.fanSecond = second
+    this.fanT = second
+    this.fanSigma = this.market.sigma
+    this.fan.begin(1, this.fanSigma)
+    while (!this.fan.work(HOST.pathsPerFrame));
+    this.fanBusy = false
+    return this.fanMsg()
+  }
+
+  private fanMsg(): FanMsg {
+    return {
+      kind: 'fan',
+      seq: ++this.fanSeq,
+      t: this.fanT,
+      sigma: this.fanSigma,
+      r: MODEL.r,
+      dt: MODEL.T / MODEL.steps,
+      bands: this.fan.bandsData().slice(),
+      strands: this.fan.strands().slice(),
+      call: this.fan.call(),
+      paths: FAN.paths,
+    }
+  }
+
   /** The frame at the page's clock `at` (ms), written into `buf`; a fan, if one finished in it. */
   frame(at: number, buf: ArrayBuffer): FanMsg | null {
     const start = this.now()
@@ -163,18 +194,7 @@ export class MarketHost {
       this.drawn += this.fanDrawn() - before
       if (finished) {
         this.fanBusy = false
-        done = {
-          kind: 'fan',
-          seq: ++this.fanSeq,
-          t: this.fanT,
-          sigma: this.fanSigma,
-          r: MODEL.r,
-          dt: MODEL.T / MODEL.steps,
-          bands: this.fan.bandsData().slice(),
-          strands: this.fan.strands().slice(),
-          call: this.fan.call(),
-          paths: FAN.paths,
-        }
+        done = this.fanMsg()
       }
     }
 

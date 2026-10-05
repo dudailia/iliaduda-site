@@ -105,8 +105,20 @@ export function useMarket(
       draw.current?.(mirror, now)
       raf = requestAnimationFrame(tick)
     }
+    // Arrived by a paper's morph, the market's catch-up runs in its worker under the morph (off the main thread), and
+    // its frames are asked for and drawn from the frame the morph lands: drawing during it would stutter the morph.
+    const morphing = () => !!document.documentElement.dataset.vtRunning
+    let afterMorph: (() => void) | null = null
     const run = () => {
-      if (!raf && ready && !stopped && visible() && !document.hidden) raf = requestAnimationFrame(tick)
+      if (raf || !ready || stopped || !visible() || document.hidden) return
+      if (morphing()) {
+        afterMorph ??= whenIdle(() => {
+          afterMorph = null
+          run()
+        })
+        return
+      }
+      raf = requestAnimationFrame(tick)
     }
     // The market failed: the loop stops and the worker goes, and the figure keeps its still frames with the reason.
     const stop = (why: string) => {
@@ -165,7 +177,14 @@ export function useMarket(
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) seen.set(e.target, e.isIntersecting ? e.intersectionRatio : 0)
-        if (!w && !cancelIdle && [...seen.values()].some((r) => r >= 0.2)) cancelIdle = whenIdle(start)
+        if (!w && !cancelIdle && [...seen.values()].some((r) => r >= 0.2)) {
+          // Under a morph the worker starts now (the stage stood empty a quarter of a second after the morph while it
+          // was fetched and caught up); otherwise, at the next idle moment.
+          if (morphing()) {
+            start()
+            cancelIdle = () => {}
+          } else cancelIdle = whenIdle(start)
+        }
         run()
       },
       { threshold: [0, 0.01, 0.2] },
@@ -177,6 +196,7 @@ export function useMarket(
     return () => {
       disposed = true
       cancelIdle?.()
+      afterMorph?.()
       cancelAnimationFrame(raf)
       io.disconnect()
       document.removeEventListener('visibilitychange', onVis)

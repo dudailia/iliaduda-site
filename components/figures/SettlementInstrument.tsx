@@ -1,5 +1,4 @@
 import { fact } from '@/content/facts'
-import { offeredTerms, rub } from '@/lib/settlement'
 import { SettlementLive } from './settlement/Live'
 
 /**
@@ -8,7 +7,6 @@ import { SettlementLive } from './settlement/Live'
  * real terms are a commercial decision that was never in the code.
  */
 export function SettlementInstrument() {
-  const d = 6_000_000
   return (
     <SettlementLive
       callCaps={`Calls are a separate channel with separate caps — ${fact('dgCallsDay').value} a day, ${fact('dgCallsWeek').value} a week, ${fact('dgCallsMonth').value} a month — and the login path is forbidden by a build gate from importing them.`}
@@ -50,29 +48,6 @@ export function SettlementInstrument() {
               <td>30 days</td>
               <td>{fact('dgMessagesMonth').value}</td>
             </tr>
-          </tbody>
-        </table>
-      }
-      table={
-        <table>
-          <caption>{`Offered terms for an illustrative debt of ${rub(d)}`}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Months</th>
-              <th scope="col">Discount</th>
-              <th scope="col">Monthly</th>
-              <th scope="col">Last payment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {offeredTerms(d).map((t) => (
-              <tr key={t.months}>
-                <td>{t.months}</td>
-                <td>{`${t.s.bp / 100}%`}</td>
-                <td>{rub(t.s.monthly)}</td>
-                <td>{rub(t.s.last)}</td>
-              </tr>
-            ))}
           </tbody>
         </table>
       }

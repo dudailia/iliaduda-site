@@ -456,7 +456,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             style={rangeFill(at, 0, n - 1)}
           />
         </div>
-        <div className="mt-2 ml-12 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="mt-2 ml-12 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pointer-coarse:gap-y-3.5">
           <p aria-hidden className="text-meta font-mono text-graphite">
             <span className="mr-1 inline-block h-2.5 w-px translate-y-0.5 bg-ink" /> a wicket falls
           </p>

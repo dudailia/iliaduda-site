@@ -74,6 +74,24 @@ export function fanAt(
 }
 
 /**
+ * One of the fan's percentiles, `b` at step `j`, at volatility `sigma`, mapped as fanAt maps them all: the year's range
+ * the readouts state at the volatility they state (read from the drawn fan, which springs toward it, the range lagged
+ * "Realised vol" by most of a second after Replay: 23.0% beside $30–$234).
+ */
+export function fanBand(
+  base: { sigma: number; r: number; dt: number; bands: ArrayLike<number> },
+  sigma: number,
+  b: number,
+  j: number,
+): number {
+  const src = base.bands[b * 65 + j]!
+  if (j === 0) return src
+  const step = (s: number) => ({ drift: (base.r - 0.5 * s * s) * base.dt, vol: s * Math.sqrt(base.dt) })
+  const a = step(base.sigma), c = step(sigma)
+  return dexp(j * c.drift + (c.vol / a.vol) * (dlog(src) - j * a.drift))
+}
+
+/**
  * A price's own queue as the heat strip tones it, the depth heatmap's convention: the shares resting there, 1 −
  * e^(−q/45) over a trace for any queue at all, so the median queue (10 shares) is light and one of 45 past half; never
  * full. The book at now beside the strip keeps the depth (every share between a price and the touch), the depth chart's.

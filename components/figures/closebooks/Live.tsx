@@ -403,7 +403,7 @@ export function CategorisationLive({
         </p>
         {/* The export gate as a state, at the foot of the batch: held while any line waits or is blocked, open once every
             line has cleared (its word swaps through the site's blur). */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pointer-coarse:gap-y-3.5">
           <p data-export-gate="" aria-hidden className="text-meta font-mono text-graphite">
             Export:{' '}
             <span
