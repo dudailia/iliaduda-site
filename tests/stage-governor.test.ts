@@ -103,4 +103,26 @@ describe('the quality governor', () => {
     }
     expect(g.q).toBe(1)
   })
+  // Resolution is the last resort (components/stage/useStage.ts): a level below the lightest effects exists only for a
+  // low-tier device, and it is reached only when frames still miss there; a laptop or a phone never gets one.
+  it('takes a low-tier device below its lightest effects only when its frames still miss there, and never a laptop or phone', () => {
+    // Every level misses its frames: 25ms on a 60 Hz display, ±3ms frame to frame, so no clock explains them.
+    let k = 0
+    const heavy = (q: number) => (q >= 0 ? 25 + (k++ % 2 ? 3 : -3) : 1000 / 60)
+    const low = new Governor(1, 1, -1)
+    run(low, 1, () => 1000 / 60)
+    expect(Math.min(...run(low, 20, heavy, 1000).seen)).toBe(-1)
+    const phone = new Governor(2, 3)
+    run(phone, 1, () => 1000 / 60)
+    expect(Math.min(...run(phone, 20, heavy, 1000).seen)).toBe(0)
+  })
+
+  it('keeps a low-tier device that holds its frames at its lightest effects at full resolution', () => {
+    // Slow at level 1, fine at 0: it settles at 0 and never takes the last resort.
+    const g = new Governor(1, 1, -1)
+    run(g, 1, () => 1000 / 60)
+    let k = 0
+    const { seen } = run(g, 20, (q) => (q >= 1 ? 25 + (k++ % 2 ? 3 : -3) : 1000 / 60), 1000)
+    expect(Math.min(...seen)).toBe(0)
+  })
 })

@@ -328,7 +328,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     [onStats, onTick, onSequenceFrame, release],
   )
 
-  // The quality waits to climb until the story is told, as the IV figure's does: the burst never sharpens mid-moment.
+  // The quality waits to climb until the story is told, as the IV figure's does: the burst's glow and effects never change mid-moment.
   const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seqRef.current === 'pending' || seqRef.current === 'playing' }))
   const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
 

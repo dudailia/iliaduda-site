@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { CONTROL } from '@/components/stage/controls'
-import { cssColor, useColorScheme, useInView, useReducedMotion } from '@/components/stage/env'
+import { cssColor, onDprChange, useColorScheme, useInView, useReducedMotion } from '@/components/stage/env'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { fade, underlay } from '@/components/stage/useStage'
 import { EVENTS, HAWKES, MARKET_BUY, MARKET_SELL, type Flow } from '@/lib/market/flow'
@@ -155,7 +155,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     let w = 0, dpr = 1, raf = 0, statsAt = -1e9, draws = 0, first = false
     const size = () => {
       w = st.clientWidth
-      dpr = Math.min(2, window.devicePixelRatio || 1)
+      dpr = Math.min(3, window.devicePixelRatio || 1)
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(HEIGHT * dpr)
     }
@@ -213,6 +213,11 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       draw()
     })
     ro.observe(st)
+    // On another screen's density, or a zoom: its own pixels again.
+    const unDpr = onDprChange(() => {
+      size()
+      draw()
+    })
     // Paused, it draws on while the market coasts to rest (240ms), then stops.
     const loop = () => {
       market.tick()
@@ -226,6 +231,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       cancelAnimationFrame(raf)
       cancelAnimationFrame(asked)
       ro.disconnect()
+      unDpr()
       redraw.current = () => {}
     }
   }, [mounted, ready, inView, shown, reduced, paused, still, held, scheme, read, writeReading, writeStats])

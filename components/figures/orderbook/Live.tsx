@@ -245,7 +245,7 @@ export function OrderBookLive({
     [writeProbe, writeStats],
   )
 
-  // The quality waits to climb until the rise is over, as the IV figure's does: the terrain never sharpens mid-rise.
+  // The quality waits to climb until the rise is over, as the IV figure's does: the terrain's detail never changes mid-rise.
   const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seq.current.started && !seq.current.done }))
   const { box, canvas, live, eligible, reduced, quality, fps, tier } = useStage(create, stageOpts)
   // The terrain rises in the middle and bottom of its stage: the story waits for most of it to be in view (on a
@@ -546,7 +546,7 @@ export function OrderBookLive({
               </svg>
             )}
           </div>
-          <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
+          <canvas ref={canvas} data-live-canvas="" aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
           <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />
         </div>
         <FocusRing />

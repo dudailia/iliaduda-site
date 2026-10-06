@@ -55,7 +55,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
   }
   const box = canvas.getBoundingClientRect()
   const cssW = Math.max(1, box.width), cssH = Math.max(1, box.height)
-  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  const dpr = Math.min(3, window.devicePixelRatio || 1)
   const W = Math.round(cssW * dpr), H = Math.round(cssH * dpr)
   const aspect = cssW / cssH
   const pose = restPose(aspect)
