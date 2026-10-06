@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
-import { DOMAIN, ETA_BOUND, gWithEta, P } from '@/lib/svi'
+import { DOMAIN, ETA_BOUND, ETA_STEP, gWithEta, P } from '@/lib/svi'
 import { CONTROL } from '@/components/stage/controls'
 import { rangeFill } from '@/components/stage/range'
 
@@ -69,7 +69,7 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
             { label: 'η(1 + |ρ|)', value: `${(eta * (1 + Math.abs(P.rho))).toFixed(2)} ${sufficient ? '≤' : '>'} 2` },
             { label: 'Sufficient condition', value: sufficient ? 'holds' : 'no longer guarantees' },
             // Over the drawn window of k: with no dip, the lowest is at its edge, and g falls further out.
-            { label: 'Lowest g drawn', value: `${minus(minG.toFixed(3))} at k = ${minus(at.toFixed(2))}` },
+            { label: 'Lowest g drawn', value: `${minus(minG.toFixed(3))} at k\u00a0=\u00a0${minus(at.toFixed(2))}` },
             { label: 'Butterfly arbitrage', value: arbitrage ? 'present' : 'none' },
           ]}
         />
@@ -107,23 +107,26 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
           </span>
         ) : null}
       </div>
-      <div aria-hidden className="text-meta mt-1 flex justify-between font-mono text-graphite">
+      <div aria-hidden className="text-meta relative mt-1 flex justify-between font-mono text-graphite">
         <span>{Math.round(Math.exp(K0) * 100)}% strike</span>
-        <span>at the money</span>
+        {/* Under its own dashed line (k = 0 is 60% along), not at the middle of the axis. */}
+        <span className="absolute top-0 -translate-x-1/2 whitespace-nowrap" style={{ left: `${((0 - K0) / (K1 - K0)) * 100}%` }}>
+          at the money
+        </span>
         <span>{Math.round(Math.exp(K1) * 100)}%</span>
       </div>
 
       <label className="mt-4 block">
-        <span className="text-meta font-mono text-graphite">Curvature η — the surface uses {P.eta}; the sufficient bound is {ETA_BOUND.toFixed(2)}</span>
+        <span className="text-meta block font-mono text-graphite">Curvature η{'\u00a0'}— the surface uses {P.eta}; the sufficient bound is {ETA_BOUND.toFixed(2)}</span>
         <input
           type="range"
           min={0.4}
           max={ETA_MAX}
-          step={0.01}
+          step={ETA_STEP}
           value={eta}
           onChange={(e) => setEta(Number(e.currentTarget.value))}
           aria-valuetext={`eta ${eta.toFixed(2)}; ${arbitrage ? `butterfly arbitrage, lowest g drawn ${minG.toFixed(3)}` : 'no butterfly arbitrage'}`}
-          className="mt-1 h-6 w-full"
+          className="mt-1 h-6 w-full pointer-coarse:mt-[calc(0.25rem-10px)] pointer-coarse:mb-[-2px] pointer-coarse:h-11 pointer-coarse:align-top"
           style={rangeFill(eta, 0.4, ETA_MAX)}
         />
       </label>

@@ -36,7 +36,8 @@ const PITCH = 20
 const LABEL_X = 96
 const HUB_X = 190
 const HUB_W = 134
-const H = TOP + SOURCES.length * PITCH + 74
+// The legend's lines at a 16-unit pitch, as the other quiet diagrams' are.
+const H = TOP + SOURCES.length * PITCH + 80
 const HUB_Y = TOP + (SOURCES.length * PITCH) / 2 - 22
 
 function Marks() {
@@ -101,18 +102,18 @@ function Marks() {
 
       <line
         x1="0"
-        y1={H - 56}
+        y1={H - 62}
         x2={W}
-        y2={H - 56}
+        y2={H - 62}
         stroke={RULE}
         strokeWidth="1"
       />
       <g className="font-mono" fontSize="12" fill={GRAPHITE}>
-        <rect x="0" y={H - 46} width="8" height="8" fill={ACCENT} stroke={ACCENT} />
-        <text x="14" y={H - 38}>
+        <rect x="0" y={H - 52} width="8" height="8" fill={ACCENT} stroke={ACCENT} />
+        <text x="14" y={H - 44}>
           {`${value('acAdaptersWithoutLineItems')} of ${value('acIntegrations')} cannot supply line items,`}
         </text>
-        <text x="14" y={H - 25}>
+        <text x="14" y={H - 28}>
           so the shared type is a lowest common
         </text>
         <text x="14" y={H - 12}>

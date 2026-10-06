@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
-import { Items, Row } from './Layout'
-import { keepCompounds } from '@/components/keep'
+import { Items, Row, Whole, keepDashes } from './Layout'
 
 /**
  * Section headings live in the rail, right-aligned, rather than stacked above
@@ -19,6 +18,7 @@ export function CaseStudyTitle({
   standfirst,
   level = 'h2',
   figure = true,
+  measure = '',
 }: {
   /** Role and dates, as on the résumé. Sits under the title, never above it:
    *  a label over a heading is a kicker, and the heading has to carry itself. */
@@ -28,17 +28,21 @@ export function CaseStudyTitle({
   level?: 'h1' | 'h2'
   /** A figure follows (every paper's Fig. 1): it sits closer under the abstract's rule at lg. */
   figure?: boolean
+  /** A narrower measure for a title whose line count would differ between the fallback face and Source Serif. */
+  measure?: string
 }) {
   const Heading = level
   // At lg the first figure sits 2.5rem under the abstract's rule rather than the 4rem between figures (its own margin,
   // less this block's 1.5rem), so a laptop's first screen shows more of Fig. 1's stage.
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'}>{keepCompounds(title)}</Heading>
+      <Heading className={`${level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'} ${measure}`}>
+        <Whole text={title} />
+      </Heading>
       {byline ? (
         <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>
       ) : null}
-      <div className="mt-5 max-w-[37.9rem]">{standfirst}</div>
+      <div className="mt-5 max-w-[37.9rem]">{keepDashes(standfirst)}</div>
       <hr className="mt-8 border-0 border-t border-rule" />
     </Row>
   )
@@ -81,7 +85,7 @@ export function Section({
         {/* The measure holds at every width, not only beside the rail: a tablet's column would otherwise run to 85
             characters a line. */}
         <div className="min-w-0 max-w-(--measure) lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
-          {children}
+          {keepDashes(children)}
         </div>
       </div>
     </section>
@@ -91,17 +95,24 @@ export function Section({
 /** Trailing metadata: links, repo, status. Two typeset columns, mono values. */
 export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[] }) {
   return (
-    <div className="mt-12 lg:mt-16">
+    // On paper it keeps to the sheet before it: alone, with the footer line, it made a sheet of its own.
+    <div className="mt-12 lg:mt-16 print:break-before-avoid">
       <Row rail="">
-        <hr className="mb-5 border-0 border-t border-rule" />
+        {/* On paper the rule goes with the rows it heads: left behind, it ended the sheet before them on a lone line. */}
+        <hr className="mb-5 border-0 border-t border-rule print:break-after-avoid" />
         {/* Single column below sm: a repo URL is one unbreakable token and at
             360px it does not fit beside a label. `break-words` lets the mono
             values wrap rather than push the document wider than the viewport,
             which is what they did before. */}
-        <dl className="text-note grid gap-y-3 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2">
+        {/* On a phone each label sits on its value (a pair per row, further apart from the next); from sm, two columns.
+            On paper a block of whole rows, which may break between rows: kept whole as a list, it jumped onto a sheet
+            of its own with only the colophon under it. */}
+        {/* One column on a phone, as wide as the page and no wider: left to size itself, a long path
+            ("tests/membrane-bessel.test.ts · …") widened it past the screen, and the page scrolled sideways at 360px. */}
+        <dl className="text-note grid grid-cols-1 gap-y-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2 print:block">
           {rows.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-meta font-mono text-graphite sm:pt-0.5">{k}</dt>
+            <div key={k} className="sm:contents print:mb-2 print:grid! print:grid-cols-[7.5rem_minmax(0,1fr)] print:break-inside-avoid">
+              <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5">{k}</dt>
               {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
                   long address still wraps at 360px. */}
               <dd className="min-w-0 break-words font-mono [&_a]:py-1">{typeof v === 'string' ? <Items items={v} /> : v}</dd>
@@ -123,13 +134,15 @@ export function Register({
   columns: readonly { readonly heading: string; readonly items: readonly string[] }[]
 }) {
   return (
-    <div className="mt-6 grid gap-x-10 gap-y-6 border-y border-rule py-6 sm:grid-cols-2">
+    <div className="mt-6 grid gap-x-10 gap-y-6 border-t border-rule pt-6 sm:grid-cols-2 print:break-inside-avoid">
       {columns.map((c) => (
         <div key={c.heading}>
           <p className="text-meta font-mono text-ink">{c.heading}</p>
-          <ul className="text-note mt-2.5 grid list-none gap-y-1 text-graphite">
+          <ul className="text-note mt-2.5 grid list-none gap-y-2 text-graphite">
             {c.items.map((i) => (
-              <li key={i}>{i}</li>
+              <li key={i}>
+                <Whole text={i} />
+              </li>
             ))}
           </ul>
         </div>

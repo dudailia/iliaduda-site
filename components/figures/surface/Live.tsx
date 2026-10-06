@@ -19,7 +19,7 @@ import { params, PHASE_TEXT, SIZE_MAX, type Phase } from '@/lib/surface/shock'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
 import type { Sequence } from '@/lib/stage/sequence'
 import { invert } from '@/lib/m4'
-import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
+import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, PROBE_START as PROBE_ORIGIN, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel, Frame, FRAME_ASPECT, NoteMark, noteRise, setNoteRise } from './marks'
 import type { Probe, Sim, SurfaceRenderer } from './renderer'
 import { rangeFill } from '@/components/stage/range'
@@ -36,7 +36,7 @@ import { rangeFill } from '@/components/stage/range'
  * run, the slider redraws the still frame instead.
  */
 
-const PROBE_START: Probe = { k: 0, T: 0.25 }
+const PROBE_START: Probe = PROBE_ORIGIN
 const STEP_U = 1 / 28
 const STEP_V = 1 / 20
 const PAUSED = 'surface-paused'
@@ -61,17 +61,22 @@ const clampProbe = (p: Probe): Probe => ({
  */
 function phaseOf(story: Sequence<SurfacePhase> | null, level: number, drawn = level, draining = false): Phase {
   if (draining) return drawn > 0.04 ? 'relax' : 'calm'
-  if (!story) return level > 0.04 ? 'shock' : 'calm'
+  // A reader's own shock up to a third of the story's reads as small (the 1-month at-the-money vol under about 33%).
+  if (!story) return level > MILD ? 'shock' : level > 0.04 ? 'mild' : 'calm'
   if (story.skipping()) return shownAmplitude(story) > 0.04 ? 'relax' : 'calm'
   const ph = story.phases()
   if (ph.shock > 0 && ph.relax < 0.12) return 'shock'
   return amplitudeOf(ph) > 0.04 ? 'relax' : 'calm'
 }
 
+/** The reader's shock, as a share of the story's, up to which it is told as small. */
+const MILD = 0.35
+
 const HEADLINE = [
-  ['atm', '1-month vol, at the money'],
-  ['premium', 'Crash premium, 80% strike'],
-  ['put', '1-month put, 10% down'],
+  // Each phrase held whole (no-break spaces): a label breaks only at its comma.
+  ['atm', '1-month vol, at\u00a0the\u00a0money'],
+  ['premium', 'Crash premium, 80%\u00a0strike'],
+  ['put', '1-month put, 10%\u00a0down'],
 ] as const
 
 export function SurfaceLive({ poster, title, subtitle, caption, table }: { poster: ReactNode; title: string; subtitle: string; caption: ReactNode; table: ReactNode }) {
@@ -141,12 +146,15 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   const fallbackApi = useRef<{ fail(why: 'load' | 'error'): void; watch(): () => void } | null>(null)
   const leanApi = useRef<{ lean: { current: { x: number; y: number } } } | null>(null)
 
-  const write = useCallback((id: string, value: string) => {
+  /** On paper: the readouts hold the printed poster's numbers (the calm surface), and the live writes wait. */
+  const onPaper = useRef(false)
+  const put = useCallback((id: string, value: string) => {
     for (const k of [id, `${id}-m`]) {
       const el = out.current[k]
       if (el && el.textContent !== value) el.textContent = value
     }
   }, [])
+  const write = useCallback((id: string, value: string) => void (onPaper.current || put(id, value)), [put])
   const ref = (id: string) => (el: HTMLElement | null) => {
     out.current[id] = el
   }
@@ -203,6 +211,32 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
     [write],
   )
 
+  // On paper the calm poster stands in for the live surface (a canvas is the screen's), so the margin prints the calm
+  // surface's numbers, not the live moment's: the sheet's picture and its readouts agree. Live writing resumes after.
+  useEffect(() => {
+    const toPaper = () => {
+      const p = params(0)
+      const t = format(numbers(p), check(p))
+      for (const [id, v] of [['atm', t.atm], ['premium', t.premium], ['put', t.put], ['arb', t.arb], ['arb-detail', t.arbDetail]] as const) put(id, v)
+      for (const r of pointRows(p, PROBE_START)) put(r.id, r.value)
+      onPaper.current = true
+    }
+    const back = () => {
+      onPaper.current = false
+      sim.current.dirty = true
+    }
+    const print = matchMedia('print')
+    const onMedia = () => (print.matches ? toPaper() : back())
+    addEventListener('beforeprint', toPaper)
+    addEventListener('afterprint', back)
+    print.addEventListener('change', onMedia)
+    return () => {
+      removeEventListener('beforeprint', toPaper)
+      removeEventListener('afterprint', back)
+      print.removeEventListener('change', onMedia)
+    }
+  }, [put])
+
   const create = useCallback<Create>(
     (env) => {
       // A software rasteriser would compile and draw this scene on the main thread for hundreds of milliseconds:
@@ -234,6 +268,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
             shown: () => shownAmplitude(seq.current),
             playing: () => !!sigApi.current?.armed.current && seq.current.started && !seq.current.done,
+            waiting: () => !!sigApi.current?.armed.current && !seq.current.started,
+            // The paper's own surface, alone on its stage: at rest the kit may halve its rate on a 120 Hz display.
+            halveAtRest: true,
             tick: (dtMs) => {
               seq.current.advance(dtMs)
               sigApi.current?.onFrame()
@@ -281,6 +318,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           q = level
           inner?.setQuality?.(level)
         },
+        calm: () => !!inner?.calm?.(),
         setPalette(p) {
           pal = p
           inner?.setPalette?.(p)
@@ -360,7 +398,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         if (!s || !el) return
         const kind = kindRef.current
         // The first redraw puts the still frame in place of the poster's picture (./still.ts, smoothStill).
-        const d = s.sheet.smoothStill(el, params(x), kind)
+        // With the reading point's crosshair where the point is, as the live sheet draws it.
+        const d = s.sheet.smoothStill(el, params(x), kind, sim.current.probe)
         for (const n of d.notes) {
           const at = el.querySelector<HTMLElement>(`[data-iv-poster] [data-note="${n.id}"]`)
           if (at) {
@@ -368,7 +407,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             at.style.top = `${(n.y * 100).toFixed(2)}%`
             // At a large shock the peak rises: the words stay inside the stage, as the live figure's do.
             const frame = at.parentElement, words = at.querySelector<HTMLElement>('[data-note-words]')
-            if (frame && words) setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight), n.align)
+            if (frame && words)
+              setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight), n.align, { x: n.x * frame.offsetWidth, w: words.offsetWidth, stageW: frame.offsetWidth })
           }
         }
         sync(params(x), x)
@@ -418,6 +458,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   const togglePause = () => {
     const next = !pausedRef.current
+    // Paused before its story has begun (the stage not yet far enough on screen), the story plays out over the skip's
+    // 240ms to calm: left waiting it played in full under a button that read Resume, and finished at once the sheet
+    // appeared in one frame.
+    if (next && sig.armed.current && !seq.current.started) seq.current.settle()
     pausedRef.current = next
     sim.current.dirty = true
     setPaused(next)
@@ -447,6 +491,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         e.preventDefault()
         readHere()
         return setProbe(PROBE_START)
+      // End means nothing here, and it scrolled the page to its foot from a focused figure.
+      case 'End':
+        return e.preventDefault()
       case ' ':
         if (!live) return
         e.preventDefault()
@@ -458,9 +505,11 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   // The still frame's reading point, one for each framing: projected with that framing's poster camera, drawn until
   // the canvas takes over. Both are drawn, each shown at its own breakpoint, so the server's first paint has it right.
-  const posterDot = (k: FrameKind) => {
+  // At a shock level: the reader's on screen, where the still frame is redrawn at it; calm on paper, where the poster and
+  // the readouts print calm (a dot at the shocked height floated over the printed sheet).
+  const posterDot = (k: FrameKind, x = shock) => {
     const m = mvp(k, camera(k))
-    const c = apply(m, wx(probe.k), wy(iv(params(shock), probe.k, probe.T)), wz(probe.T))
+    const c = apply(m, wx(probe.k), wy(iv(params(x), probe.k, probe.T)), wz(probe.T))
     return { left: `${((c[0] / c[3]) * 0.5 + 0.5) * 100}%`, top: `${(1 - ((c[1] / c[3]) * 0.5 + 0.5)) * 100}%` }
   }
 
@@ -482,7 +531,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   useEffect(() => {
     const el = phaseLine.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => setLineSeen(e!.intersectionRatio > 0.9), { threshold: [0, 0.9, 1] })
+    // The latest entry: a batch can hold several of the line's crossings, the first stale.
+    const io = new IntersectionObserver((es) => setLineSeen(es[es.length - 1]!.intersectionRatio > 0.9), { threshold: [0, 0.9, 1] })
     io.observe(el)
     return () => io.disconnect()
   }, [])
@@ -526,7 +576,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   }, [stillFor, stillReady])
   useEffect(() => {
     if (stillFor && stillReady) redrawStill(level.current)
-  }, [stillFor, stillReady, kind, scheme, redrawStill])
+  }, [stillFor, stillReady, kind, scheme, probe, redrawStill])
 
   const debugInfo = useRef<() => LiveInfo>(null)
   useEffect(() => {
@@ -560,13 +610,13 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   // Said for the pointer this reader has: a phone's finger taps to read and drags sideways to turn (vertical drags
   // scroll the page); a mouse points. A still frame keeps its instructions after its reason.
   const coarse = mounted && matchMedia('(pointer: coarse)').matches
-  const readHow = `${coarse ? 'Tap' : 'Click'} or tab to the surface to read a point; the Shock slider still redraws it.`
+  const readHow = `${coarse ? 'Tap' : 'Click'} or tab to the surface to read a point; the shock slider still redraws it.`
   const hint = why
     ? `${why} ${readHow}`
     : live
       ? coarse
-        ? 'Tap to read a point · drag sideways to turn · the Shock slider applies the shock'
-        : 'Point to read a point · drag to turn · arrow keys move the point · Space pauses'
+        ? 'Tap to read a point · drag sideways to turn · the shock slider applies the shock'
+        : 'Point at the surface to read it · drag to turn · arrow keys move the point · Space pauses'
       : coarse
         ? 'Tap or tab to the surface to read a point'
         : 'Tab to the figure and use the arrow keys to read a point'
@@ -576,6 +626,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   return (
     <FigureFrame
       id="fig-iv-surface"
+      // On paper the stage may break: its poster keeps itself whole (app/globals.css, print).
+      breakable
       number="Fig. 1"
       title={title}
       subtitle={subtitle}
@@ -611,22 +663,32 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             lean.onTap()
             onStillPick(e)
           }}
+          // The narration and the Skew note want the same corner: while it speaks, the notes wait (globals.css).
+          data-narrating={onStage ? '' : undefined}
           className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
         >
           <div data-surface-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
             <Frame>
-              {(['wide', 'tall'] as const).map((k) => (
-                <span key={k} aria-hidden data-fill="" className={`absolute ${k === 'wide' ? 'hidden sm:block' : 'sm:hidden'}`} style={posterDot(k)}>
-                  <span data-still-dot="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" />
-                  {read && (
-                    // Near the right edge it stands on the dot's left, as the live tag does.
-                    <span data-probe-tag="" className={TAG} style={parseFloat(posterDot(k).left) > 80 ? { transform: 'translateX(calc(-100% - 1.25rem))' } : undefined}>
-                      vol {(iv(params(shock), probe.k, probe.T) * 100).toFixed(1)}%
-                    </span>
-                  )}
-                </span>
-              ))}
+              {(['wide', 'tall'] as const).flatMap((k) =>
+                ([['screen', shock], ['paper', 0]] as const).map(([medium, x]) => (
+                  <span
+                    key={`${k}-${medium}`}
+                    aria-hidden
+                    data-fill=""
+                    className={`absolute ${k === 'wide' ? 'hidden sm:block' : 'sm:hidden'} ${medium === 'screen' ? 'print:hidden!' : 'hidden! print:block!'} ${medium === 'paper' && k === 'tall' ? 'sm:print:hidden!' : ''} ${medium === 'paper' && k === 'wide' ? 'max-sm:print:hidden!' : ''}`}
+                    style={posterDot(k, x)}
+                  >
+                    <span data-still-dot="" className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink" />
+                    {read && (
+                      // Near the right edge it stands on the dot's left, as the live tag does.
+                      <span data-probe-tag="" className={TAG} style={parseFloat(posterDot(k, x).left) > 80 ? { transform: 'translateX(calc(-100% - 1.25rem))' } : undefined}>
+                        vol {(iv(params(x), probe.k, probe.T) * 100).toFixed(1)}%
+                      </span>
+                    )}
+                  </span>
+                )),
+              )}
             </Frame>
           </div>
           <canvas ref={canvas} data-live-canvas="" aria-hidden className="absolute inset-0 h-full w-full" style={{ ...fade(live), touchAction: 'pan-y pinch-zoom' }} />
@@ -634,18 +696,31 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           <p
             aria-hidden
             data-phase-caption=""
-            className="text-note pointer-events-none absolute top-3 right-3 w-[min(42%,17rem)] text-right leading-snug text-ink transition-opacity duration-200 ease-out"
+            // Over the notes: on a phone the Skew note's paper plate lay across the narration and cut its first letters.
+            className="text-note pointer-events-none absolute top-3 right-3 z-10 w-[min(42%,17rem)] text-right leading-snug text-ink transition-opacity duration-200 ease-out"
             style={{ opacity: onStage ? 1 : 0 }}
           >
             {/* The plate stays crisp; only its words blur through a turn of the story, as the line below does (a reader's
-                own change on the slider is simply there). */}
-            <span className="inline-block rounded-sm bg-paper/90 px-1.5 py-0.5">
-              <span
-                key={said}
-                className={`inline-block ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
-              >
-                <span className="font-semibold">{PHASE_TEXT[said].name}.</span> {PHASE_TEXT[said].short}
-              </span>
+                own change on the slider is simply there). Every turn's words share one cell, the ones not said kept
+                invisible, so the box keeps one size through the story: sized to each turn, it moved as Calm's two lines
+                became Shock's one, a layout shift with no input. The paper sits behind the words said, so it still
+                fits them. */}
+            <span className="inline-grid justify-items-end">
+              {(Object.keys(PHASE_TEXT) as Phase[]).map((k) =>
+                k === said ? (
+                  <span
+                    key={said}
+                    data-said=""
+                    className={`self-start rounded-sm bg-paper/90 px-1.5 py-0.5 [grid-area:1/1] ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
+                  >
+                    <span className="font-semibold">{PHASE_TEXT[k].name}.</span> {PHASE_TEXT[k].short}
+                  </span>
+                ) : (
+                  <span key={`room-${k}`} className="invisible px-1.5 py-0.5 [grid-area:1/1]">
+                    <span className="font-semibold">{PHASE_TEXT[k].name}.</span> {PHASE_TEXT[k].short}
+                  </span>
+                ),
+              )}
             </span>
           </p>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
@@ -668,6 +743,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
                   n.offset[kind] && (
                     <NoteMark
                       key={n.id}
+                      note={n.id}
                       moving
                       ref={(el) => {
                         noteEls.current[i] = el
@@ -695,8 +771,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         <FocusRing />
       </div>
 
-      {/* What the shock is doing, in words; the room is kept, so a change never moves the page. */}
-      <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em]" aria-live="off">
+      {/* What the shock is doing, in words; the room is kept, so a change never moves the page. Not on paper, where the
+          calm poster stands in for the live surface and the story's moment would contradict it. */}
+      <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em] print:hidden" aria-live="off">
         <span
           key={said}
           className={`block ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
@@ -706,7 +783,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       </p>
 
       {/* The slider first: it is there in every mode, so the buttons a live figure adds arrive after it, moving nothing. */}
-      <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3 pointer-coarse:gap-y-3.5">
         <label className="text-meta flex items-center gap-3 font-mono text-graphite">
           {/* The reader's own shock: while the story plays its shock, this one still reads 0.00×, and says whose it is. */}
           <span>Your shock</span>
@@ -719,7 +796,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             value={shock}
             onChange={(e) => onShock(Number(e.target.value))}
             aria-valuetext={shock < 0.025 ? 'calm' : `${shock.toFixed(2)} times a full shock; 1-month at-the-money volatility ${peakAtm}%`}
-            className="h-6 w-32 sm:w-40"
+            className="h-6 w-32 sm:w-40 pointer-coarse:-my-2.5 pointer-coarse:h-11"
             style={rangeFill(shock, 0, SIZE_MAX)}
           />
           {/* The mark at 1: the size of the story's own shock. */}
@@ -781,7 +858,8 @@ function Margin({
   suffix: string
   across?: boolean
 }) {
-  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
+  // On paper the readouts print together, on one sheet, as every figure's do (components/FigureFrame.tsx, Readouts).
+  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
   const row = (id: string) => rows.find((r) => r.id === id)!
   return (
     <div className={across ? 'grid gap-y-4' : ''}>
@@ -815,7 +893,7 @@ function Margin({
         ))}
         {/* The two volatilities side by side: the comparison is the point (local runs above implied on the downside). */}
         <div className="min-w-0">
-          <dt className="text-graphite">Implied · local vol</dt>
+          <dt className="text-graphite">Implied · local{'\u00a0'}vol</dt>
           <dd className="tabular text-ink">
             <span ref={set(`iv${suffix}`)}>{row('iv').value}</span> · <span ref={set(`lv${suffix}`)}>{row('lv').value}</span>
           </dd>
@@ -828,7 +906,8 @@ function Margin({
         </div>
       </dl>
       {/* The Greeks, one step away: the margin leads with what the figure shows. */}
-      <details className={`text-meta font-mono ${across ? '' : 'mt-2 lg:text-right'}`}>
+      {/* Closed, it would print a summary with nothing under it. */}
+      <details className={`text-meta font-mono print:hidden ${across ? '' : 'mt-2 lg:text-right'}`}>
         <summary onClick={glideDetails} className="cursor-pointer py-1 text-graphite marker:text-graphite hover:text-ink">
           Greeks at the point
         </summary>

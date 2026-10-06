@@ -105,7 +105,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       const r = alive(f, hovered.current) ? hovered.current : alive(f, pinned.current) ? pinned.current : null
       if (!r) {
         write('ev', '—')
-        write('ev-more', 'point at an order')
+        // A finger taps (the hint under the figure says so too).
+        write('ev-more', `${(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'tap' : 'point at')} an order`)
         write('par', '—')
         write('own-one', '—')
         market.highlight = null
@@ -114,7 +115,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       const x = read(f, r)
       write('ev', upper(NAMES[x.type]!))
       // A pinned order the strips have moved past stays readable, and says so.
-      write('ev-more', `· ${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)} s ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
+      // The age held to its unit and its word ("3.65 / s ago" broke at 360px, then "1.82 s / ago").
+      write('ev-more', `${fmt.shares(x.size)} at ${fmt.usd(x.price)} · ${(f.t - x.t).toFixed(2)}\u00a0s\u00a0ago${f.t - x.t > SECONDS ? ', off the strip' : ''}`)
       write('par', setOff(x))
       write('own-one', fmt.pct(x.own))
       market.highlight = { price: x.price, t: x.t }
@@ -270,8 +272,22 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     [],
   )
 
+  /**
+   * Where the mouse last was on the screen: an enter at that very point is the page scrolled under a still cursor (the
+   * enter of a real move comes before that move's own pointermove, so it lands somewhere new).
+   */
+  const lastAt = useRef<[number, number] | null>(null)
+  useEffect(() => {
+    const onAny = (e: globalThis.PointerEvent) => {
+      if (e.pointerType === 'mouse') lastAt.current = [e.clientX, e.clientY]
+    }
+    addEventListener('pointermove', onAny, { capture: true, passive: true })
+    return () => removeEventListener('pointermove', onAny, { capture: true })
+  }, [])
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'mouse') return
+    // A mouse the reader moves over the strips holds them, so an order can be pointed at (see onPointerEnter).
+    if (e.movementX || e.movementY) market.hold('pointer', true)
     hovered.current = under(e)
     redraw.current()
   }
@@ -308,7 +324,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     // Before the market is built there is nothing to step through yet; it is on its way.
     if (!market.ready) {
       void market.prepare()
-      if (e.key.startsWith('Arrow') || e.key === 'Home') e.preventDefault()
+      if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') e.preventDefault()
       return
     }
     const f = market.flow
@@ -330,6 +346,9 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       }
       case 'Home':
         return go(newest(lane))
+      // End means nothing here, and it scrolled the page to its foot from a focused figure.
+      case 'End':
+        return e.preventDefault()
       case 'Escape':
         return pin(null)
     }
@@ -379,8 +398,11 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
               if (!pinned.current && document.activeElement === stage.current) pin(newest(LANES.indexOf(MARKET_BUY)))
             })
           }}
+          // A mouse that comes onto the strips holds them; the page scrolled under a still cursor does not (Chrome sends
+          // the pointer an enter for that too): held then, Fig. 2 stood frozen while the reader only scrolled.
           onPointerEnter={(e) => {
-            if (e.pointerType === 'mouse') market.hold('pointer', true)
+            const at = lastAt.current
+            if (e.pointerType === 'mouse' && !(at && at[0] === e.clientX && at[1] === e.clientY)) market.hold('pointer', true)
           }}
           onPointerMove={onMove}
           onPointerLeave={(e) => {
@@ -404,21 +426,27 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
-        {/* Room kept for the longest reading, so choosing an order never moves the page below it. */}
+        {/* Room kept for the longest reading, so choosing an order never moves the page below it: on a phone eight
+            lines, an order off the strip with three lines of what set it off; from sm five. */}
         <dl
           id="fig-order-flow-reading"
-          className="text-meta grid min-h-[6.6rem] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[4lh]"
+          className="text-meta grid min-h-[8lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono sm:min-h-[5lh] print:hidden"
           aria-label="Reading"
         >
           <dt className="text-graphite">Order</dt>
-          <dd className="text-ink">
+          {/* The kind of order, and under it the order itself: run on after the kind, its words stepped sideways as a
+              pointer crossed from one kind to another (a layout shift with no input to excuse it). Its lines kept, two
+              (three on a phone, where the order's own line wraps), so the rows under it never jump. */}
+          <dd className="min-h-[2lh] text-ink max-sm:min-h-[3lh]">
             <span ref={ref('ev')}>—</span>{' '}
-            <span ref={ref('ev-more')} className="text-graphite">
-              point at an order
+            <span ref={ref('ev-more')} className="block text-graphite">
+              {mounted && matchMedia('(pointer: coarse)').matches ? 'tap an order' : 'point at an order'}
             </span>
           </dd>
           <dt className="text-graphite">Set off by</dt>
-          <dd ref={ref('par')} className="text-ink">
+          {/* Its longest takes two lines (four on a phone, a limit order's), kept: as it wrapped and unwrapped, the row
+              under it jumped. */}
+          <dd ref={ref('par')} className="min-h-[2lh] text-ink max-sm:min-h-[4lh]">
             —
           </dd>
           <dt className="text-graphite">On its own</dt>
@@ -427,8 +455,9 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           </dd>
         </dl>
         <div data-orderflow-controls="" className="flex min-h-8 shrink-0 gap-2">
+          {/* Figs. 1 and 2 are one market: either Pause stops both, and its name says so (two buttons were both "Pause"). */}
           {live && !reduced && !still ? (
-            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">
+            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} min-w-[4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
               {paused ? 'Resume' : 'Pause'}
             </button>
           ) : null}
@@ -444,16 +473,18 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
   )
 }
 
-const perSecond = (n: number) => `${n} · ${(n / SECONDS).toFixed(1)} a second`
+// No-break spaces: a phone's narrow value column never leaves "second" (or "s" in a label) on a line of its own.
+const perSecond = (n: number) => `${n} · ${(n / SECONDS).toFixed(1)}\u00a0a\u00a0second`
 
 /** The margin's readouts, written live from the drawing loop (the "-m" copy is the phone's, below the figure). */
 function Stats({ initial, set, suffix, across = false }: { initial: Initial; set: (id: string) => (el: HTMLElement | null) => void; suffix: string; across?: boolean }) {
   const rows = [
-    { label: 'Market buys, 10 s', value: <span ref={set(`buys${suffix}`)}>{perSecond(initial.buys)}</span> },
-    { label: 'Market sells, 10 s', value: <span ref={set(`sells${suffix}`)}>{perSecond(initial.sells)}</span> },
-    { label: 'Market orders set off, 10 s', value: <span ref={set(`own${suffix}`)}>{fmt.pct(initial.setOff)}</span> },
+    // In the strips' own order, top to bottom: sells above buys.
+    { label: 'Market sells, 10\u00a0s', value: <span ref={set(`sells${suffix}`)}>{perSecond(initial.sells)}</span> },
+    { label: 'Market buys, 10\u00a0s', value: <span ref={set(`buys${suffix}`)}>{perSecond(initial.buys)}</span> },
+    { label: 'Market orders set off, 10\u00a0s', value: <span ref={set(`own${suffix}`)}>{fmt.pct(initial.setOff)}</span> },
     { label: 'In theory', value: fmt.pct(initial.theory) },
-    { label: 'Queues emptied, 10 s', value: <span ref={set(`emptied${suffix}`)}>{String(initial.emptied)}</span> },
+    { label: 'Queues emptied, 10\u00a0s', value: <span ref={set(`emptied${suffix}`)}>{String(initial.emptied)}</span> },
   ]
   return <Readouts rows={rows} across={across} />
 }
@@ -475,7 +506,8 @@ function setOff(x: Read): string {
 function Labels() {
   const text = 'pointer-events-none absolute whitespace-nowrap font-mono text-meta leading-none'
   const gutter = `${text} hidden @min-[520px]:block right-[calc(100%-var(--g)+0.5rem)] text-right text-graphite`
-  const inside = `${text} left-1.5 rounded-sm bg-paper px-1 text-graphite @min-[520px]:hidden`
+  // On a phone the strips run to the screen's edges; their labels keep to the page's gutter.
+  const inside = `${text} left-6 rounded-sm bg-paper px-1 py-px text-graphite @min-[520px]:hidden`
   const top = (y: number) => ({ top: Math.round(y) })
   return (
     // Clipped to the stage: enlarged text (the strips' geometry is the canvas's, in pixels) never widens the page.
@@ -496,7 +528,7 @@ function Labels() {
         Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off
         <span className="hidden @min-[600px]:inline"> by earlier orders</span>
       </span>
-      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-1.5 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 34)}>
+      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-6 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 34)}>
         Market orders a second:
         <br />
         <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off by others
@@ -515,7 +547,7 @@ function Labels() {
       </span>
       <div className="absolute right-2 left-(--g) border-t border-graphite/60" style={top(LAM_MID)} />
 
-      <span className={`${text} left-1.5 text-ink @min-[520px]:left-(--g)`} style={top(Y.queue - 17)}>
+      <span className={`${text} left-6 text-ink @min-[520px]:left-(--g)`} style={top(Y.queue - 17)}>
         Shares at the touch: <Swatch className="bg-ink" /> ran out<span className="hidden @min-[520px]:inline">, the price stepped</span>
       </span>
       <span className={gutter} style={top(QUEUE_MID - 26)}>
@@ -532,7 +564,7 @@ function Labels() {
       </span>
       <div className="absolute right-2 left-(--g) border-t border-graphite/60" style={top(QUEUE_MID)} />
 
-      <div className="absolute right-2 left-(--g) flex justify-between pl-1.5 font-mono text-meta leading-none text-graphite @min-[520px]:pl-0" style={top(Y.axis + 7)}>
+      <div className="absolute right-6 left-(--g) flex justify-between pl-6 font-mono text-meta leading-none text-graphite @min-[520px]:right-2 @min-[520px]:pl-0" style={top(Y.axis + 7)}>
         <span>{`${SECONDS} s ago`}</span>
         <span>{`${SECONDS / 2} s ago`}</span>
         <span>now</span>

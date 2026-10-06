@@ -185,13 +185,19 @@
     outline-offset: 3px;
     border-radius: 1px;
   }
+  /* A link inside running text: the ring stays clear of the next word's glyphs and the stop after it. */
+  :is(p, li, dd) > a:focus-visible {
+    outline-offset: 1px;
+  }
 
   /* The site's slider, the same in every browser (iOS Safari ignores accent-color): a 4px track in the context tone,
      indigo as far as the value (--fill, which each input sets from its own value: components/stage/range.ts), and a
-     16px indigo thumb ringed in paper, inside the input's 24px to the touch. Forced colours keep the system's own. */
+     16px indigo thumb ringed in paper, inside the input's 24px to the touch (44px under a finger: each slider grows by
+     10px above and below, taken back by its margins, and a slider set in a line of text is hung from the line's top
+     so the line keeps its height; nothing on the page moves). Forced colours keep the system's own. */
   input[type='range'] {
     --fill: 0%;
-    --track: color-mix(in oklab, var(--color-graphite) 45%, var(--color-paper));
+    --track: color-mix(in oklab, var(--color-graphite) 70%, var(--color-paper));
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
@@ -234,10 +240,55 @@
     background: var(--color-indigo);
     box-shadow: 0 0 0 1px var(--color-indigo);
   }
+  /* A scrubber whose input runs 8px past its column on each side, so the thumb's centre lands on the first and last
+     points (the cricket replay's): its track is painted only across the column. */
+  input[type='range'].range-inset::-webkit-slider-runnable-track {
+    background: linear-gradient(
+      to right,
+      transparent 8px,
+      var(--color-indigo) 8px,
+      var(--color-indigo) calc(8px + (100% - 16px) * var(--frac, 0)),
+      var(--track) calc(8px + (100% - 16px) * var(--frac, 0)),
+      var(--track) calc(100% - 8px),
+      transparent calc(100% - 8px)
+    );
+  }
+  input[type='range'].range-inset::-moz-range-track {
+    background: linear-gradient(to right, transparent 8px, var(--track) 8px, var(--track) calc(100% - 8px), transparent calc(100% - 8px));
+  }
+  input[type='range'].range-inset::-moz-range-progress {
+    background: linear-gradient(to right, transparent 8px, var(--color-indigo) 8px);
+  }
+  /* Under a fine pointer the thumb answers the hover: a wash ring, as the other controls' borders darken. */
+  @media (hover: hover) and (pointer: fine) {
+    input[type='range']:hover::-webkit-slider-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 4px var(--color-indigo-wash);
+    }
+    input[type='range']:hover::-moz-range-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 4px var(--color-indigo-wash);
+    }
+  }
+  /* Under a finger the box is 44px, pulled up over the slider's label, and a ring around it ran through the label and
+     over the buttons below: there the focus is drawn on the thumb, an ink ring outside its paper one. */
+  @media (pointer: coarse) {
+    input[type='range']:focus-visible {
+      outline: none;
+    }
+    input[type='range']:focus-visible::-webkit-slider-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 3px var(--color-paper), 0 0 0 5px var(--color-ink);
+    }
+    input[type='range']:focus-visible::-moz-range-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 3px var(--color-paper), 0 0 0 5px var(--color-ink);
+    }
+  }
   @media (forced-colors: active) {
     input[type='range'] {
       -webkit-appearance: auto;
       appearance: auto;
+    }
+    /* Forced colours drop the thumb's shadows: the ring goes back on the box. */
+    input[type='range']:focus-visible {
+      outline: 2px solid;
     }
   }
 
@@ -301,6 +352,16 @@
   ::view-transition-group(*.figure) {
     animation-duration: 380ms;
     animation-timing-function: var(--ease-in-out);
+    overflow: clip;
+  }
+  /* Both pictures fill the card the group draws, from its top: at their own heights a figure taller than its 5:3
+     thumbnail overhung the thumbnail's picture, and in that band only the fading figure was left, the Contents reading
+     through the lower part of the card as it shrank back (22–48% of it on five papers). */
+  ::view-transition-old(*.figure),
+  ::view-transition-new(*.figure) {
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 0;
   }
 
   /* The two pictures (the thumbnail's drawing, the figure's) are not the same image, so the crossfade between them
@@ -407,6 +468,33 @@
   visibility: hidden;
 }
 
+/* The headings' fallback (h1–h3 are set at 600). next/font sizes its fallback, Times New Roman, to Source Serif's
+   regular weight only; a heading then came up in a synthesized bold of that face, 1.3% narrower than Source Serif 600,
+   and a title that took three lines in the real face took two before it arrived, moving the figure under it 49px at
+   the swap (/cricstate at 1440, CLS 0.017 on a slow load). This face joins next/font's family for the heavier
+   weights: Times New Roman Bold, sized to Source Serif 600 (112.78%: measured over the papers' titles, against
+   118.46% at 400), the ascent and descent next/font sets carried over (103.6% and 33.5% of the em). The family name
+   is next/font's own (tests/e2e/fonts.spec.ts checks it still is). */
+@font-face {
+  font-family: 'sourceSerif Fallback';
+  src: local('Times New Roman Bold'), local('TimesNewRomanPS-BoldMT');
+  font-weight: 500 900;
+  ascent-override: 91.86%;
+  descent-override: 29.7%;
+  line-gap-override: 0%;
+  size-adjust: 112.78%;
+}
+
+/* /iv-surface: the story's narration (in the stage's corner while the line under it is out of view) and the Skew note
+   meet, at 360px on a phone and on a laptop's first screen, one plate cutting the other's words. While the narration
+   speaks, the notes wait. */
+[data-note] {
+  transition: opacity 200ms var(--ease-out);
+}
+[data-narrating] [data-note] {
+  opacity: 0;
+}
+
 /* The supplement to the site's two faces: the Greek and mathematical characters the papers use (scripts/subset-
    fonts.py). Declared as further faces of the same families, with a unicode-range, so a browser fetches one only on a
    page that shows one of its characters; the home page, whose only Greek letter (σ) is in the main faces, never does. */
@@ -490,7 +578,7 @@
    stage one screen tall at most (--h), so on a laptop's first screen, and once in view on a phone, the shock lands in
    all three at once. Each pane's canvas is half the height left after the titles and axes (6.5rem in all). Outside
    any layer, so it wins over the panes' own sizes. */
-@media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem) {
+@media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem), print {
   [data-market-views] {
     --h: clamp(15rem, calc(100svh - 34.75rem), 24rem);
     display: grid;
@@ -527,6 +615,14 @@
 @media (min-width: 40rem) and (max-width: 63.99rem) and (max-height: 30rem) {
   [data-market-views] {
     --h: calc(100svh - 7rem);
+  }
+}
+/* On paper as on a laptop: stacked, the three views took a sheet and a half and were cut between the surface and the
+   other two; side by side they take half of one. */
+@media print {
+  [data-market-views] {
+    --h: 16rem;
+    break-inside: avoid;
   }
 }
 /* On a phone in portrait the three views fit one screen: the surface at its own 1.62 (not 1.1), and the book and the
@@ -655,6 +751,7 @@
 [data-contents-pause]:focus-visible {
   transition-duration: 0ms, 150ms, 240ms, 240ms, 240ms;
 }
+
 :root[data-futures-still] [data-futures-controls] {
   min-height: 0;
 }
@@ -676,6 +773,13 @@
     line-height: 1.3;
     font-variant-numeric: lining-nums proportional-nums;
     hyphens: manual;
+  }
+
+  /* On a phone's screen there is no sheet to keep to: the résumé reads at the site's leading (print is untouched). */
+  @media screen and (max-width: 47.99rem) {
+    .cv {
+      line-height: 1.45;
+    }
   }
 
   @media (min-width: 48rem) {
@@ -709,7 +813,8 @@
     margin-top: 0.45em;
   }
 
-  @media screen {
+  /* On a phone's screen only: the sheet (from 48rem) breaks its lines where the PDF does. */
+  @media screen and (max-width: 47.99rem) {
     .cv-honours {
       display: block;
     }
@@ -789,6 +894,24 @@
     font-weight: 600;
   }
 
+  /* The dot between an entry's note and its title belongs to the title, hung in the gap before it: where the title
+     moves to a line of its own, the dot falls outside the head's left edge and is clipped, so no line ends on a dot. */
+  .cv-entry-head > p:first-child {
+    overflow: hidden;
+  }
+  .cv-title {
+    white-space: nowrap;
+  }
+  /* In the flow (the PDF's text keeps its order): drawn back over the gap the note leaves, by its own width. */
+  .cv-title::before {
+    content: '·';
+    display: inline-block;
+    width: 0.75em;
+    margin-left: -0.75em;
+    text-align: center;
+    color: var(--color-graphite);
+  }
+
   .cv-date {
     font-family: var(--font-mono);
     font-size: 0.84em;
@@ -820,7 +943,8 @@
     content: '';
     display: inline-block;
     width: 0.45em;
-    margin: 0 0.5em 0 0.1em;
+    /* 0.1 + 0.45 + 0.4 = 0.95em, the hanging indent: a first line's text sits on the wrapped lines' edge. */
+    margin: 0 0.4em 0 0.1em;
     vertical-align: 0.3em;
     border-top: 1px solid var(--color-graphite);
   }
@@ -871,16 +995,19 @@
     font-size: 10.5pt;
   }
 
-  /* A figure prints whole, its title with its plot, where it fits on a sheet; a slider prints as nothing (its track is
-     a background, which printing drops, leaving a floating thumb); the day or value it set is in the readouts. */
+  /* A figure's title prints with its plot, never cut from it or through it; its readouts, hint and caption may follow
+     on the next sheet, so a paper's first page is not left two-thirds blank before a tall figure. A slider prints as
+     nothing (its track is a background, which printing drops, leaving a floating thumb); the day or value it set is in
+     the readouts. */
   figure {
-    break-inside: avoid;
+    break-inside: auto;
   }
   input[type='range'] {
     display: none;
   }
   /* On paper a link says where it goes (the CV's sheet, a printed page of its own, keeps its links as they are). */
-  main a[href^='/']:not([href^='/#'])::after {
+  main a[href^='/']:not([href^='/#'], [data-vt-thumb])::after,
+  main a[data-print-href]::after {
     content: ' (' var(--print-origin, '') attr(href) ')';
     color: var(--color-graphite);
   }
@@ -897,6 +1024,14 @@
 
   .cv a {
     text-decoration: none;
+  }
+  /* Except the papers' titles: links on the sheet with nothing to say so, read as bold text, and a reader of the PDF
+     never learned the figures are live. A hairline under each, in graphite; the sheet's height does not change. */
+  .cv .cv-stack strong a {
+    text-decoration: underline;
+    text-decoration-thickness: 0.5pt;
+    text-underline-offset: 0.18em;
+    text-decoration-color: var(--color-graphite);
   }
 
   /* The printable width is under the 48rem breakpoint, so the rail is put
@@ -933,13 +1068,59 @@
     visibility: visible !important;
     opacity: 1 !important;
   }
+  /* The order book's poster and /market's still frames are images, which carry the screen's paper (#faf9f7) and do not
+     see the print media (an SVG image keeps its own): on white paper their page showed as a tinted slab. A 3.5% lift
+     takes that paper to white and moves the inks by a step no one can see. */
+  [data-orderbook-poster] img,
+  [data-market-still] img {
+    filter: brightness(1.035);
+  }
+  /* The first-look replays print their finished figure (each also finishes on beforeprint): whatever the pre-paint mark
+     hides, and whatever is mid-transition, prints as it ends. */
+  :root[data-cricket-seq] #fig-replay [data-played],
+  #fig-pipeline ol > li {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  :root[data-cricket-seq] #fig-replay [data-played-rail] :is(dt, dd),
+  :root[data-closebooks-seq] #fig-pipeline :is([data-batch-rail] :is(dt, dd), [data-batch-gate]) {
+    visibility: visible;
+  }
+  /* A figure's marks drawn as backgrounds (the ranking's bars, the batch's confidence, a chosen option's fill) print:
+     printing drops backgrounds unless asked. */
+  /* Any figure fill in the site's inks, an opacity variant included (Fig. 2's keys, bg-indigo/70 and bg-rule, printed as
+     nothing and left their words unexplained). */
+  figure :is([class*='bg-indigo'], [class*='bg-graphite'], [class*='bg-ink'], [class*='bg-rule'], [aria-pressed='true'], [aria-checked='true'], [type='checkbox']) {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* A heading never ends a sheet without what it names, nor splits across two; a label and its value print together
+     (by their row: a dt's own break-after:avoid inside a grid list held the home masthead's whole front matter off
+     page 1). */
+  :is(h2, h3) {
+    break-after: avoid;
+    break-inside: avoid;
+  }
+  dl > div {
+    break-inside: avoid;
+  }
+  /* A figure's actions (Replay, Approve, Run the batch again, Reset, a typed amount) do nothing on paper; its chosen
+     options stay, since they say what is shown. */
+  figure :is(button:not([role='radio'], [aria-pressed]), input:not([type='range'], [type='radio'], [type='checkbox'])) {
+    display: none !important;
+  }
+  /* CloseBooks' batch prints whole (Live.tsx); should it ever outgrow a sheet, it breaks between rows, never through one. */
+  #fig-pipeline li {
+    break-inside: avoid;
+  }
   /* Controls and the hints that say how to use them do nothing on paper. */
   :is([data-futures-controls], [data-orderbook-controls], [data-orderflow-controls], [data-surface-controls], [data-membrane-controls]) {
     display: none !important;
   }
   /* A figure's views are not cut across two sheets: each prints whole on one (/market's surface, then its book and futures
      together, may each move to the next). */
-  [data-market-stage] > div,
+  [data-market-views] > div,
   div:has(> :is([data-futures-poster], [data-orderbook-poster], [data-orderflow-still], [data-surface-poster])) {
     break-inside: avoid;
   }

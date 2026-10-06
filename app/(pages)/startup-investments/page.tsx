@@ -101,7 +101,7 @@ export default function StartupInvestments() {
             hundreds of per cent. Measuring from each segment&rsquo;s first funded year moves the
             top pick again, to Software. And 2014 itself is incomplete in the source data — its
             last two months are a fraction of a normal month — so part of every &ldquo;decline&rdquo;
-            is under-reporting rather than a market signal.
+            is <span className="whitespace-nowrap">under-reporting</span> rather than a market signal.
           </p>
         </Section>
 

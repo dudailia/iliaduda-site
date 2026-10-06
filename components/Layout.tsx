@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { PERSON, SITE } from '@/lib/site'
 
 /**
@@ -15,8 +15,10 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">
       {children}
       {/* The running head and footer do not print, so a printed page carries its author here (the CV's sheet has its own). */}
-      <p className="text-meta mt-10 hidden font-mono text-graphite print:block">
-        {[PERSON.name, PERSON.email, SITE.public, PERSON.linkedin, PERSON.github].map((v) => v.replace(/^https?:\/\/(www\.)?/, '')).join(' · ')}
+      {/* As items, so a line never starts with the dot; on one line on paper (7pt), so it stays with the page's last lines
+          and can never split across two sheets. */}
+      <p className="text-meta mt-10 hidden font-mono text-graphite print:mt-3 print:block print:break-before-avoid print:text-[7pt]">
+        <Items items={[PERSON.name, PERSON.email, SITE.public, PERSON.linkedin, PERSON.github].map((v) => v.replace(/^https?:\/\/(www\.)?/, ''))} />
       </p>
     </div>
   )
@@ -38,9 +40,11 @@ export function Row({
 }) {
   return (
     <div
-      className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 ${className}`}
+      className={`grid grid-cols-1 gap-y-2 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter) lg:gap-y-0 print:block ${className}`}
     >
-      <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right">{rail}</div>
+      {/* On paper the row is a block (a grid row gives the printer nowhere to hold a heading with what follows): the
+          margin's label, a section's heading among them, keeps with what it names. */}
+      <div className="text-meta font-mono text-graphite lg:self-start lg:pt-1 lg:text-right print:mb-2 print:break-after-avoid">{rail}</div>
       <div className="min-w-0">{children}</div>
     </div>
   )
@@ -86,9 +90,9 @@ export function Annotated({
 }) {
   return (
     <div className="lg:-ml-[calc(var(--rail)+var(--gutter))] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-(--gutter)">
-      <div className="min-w-0 lg:col-start-2 lg:row-start-1">{children}</div>
+      <div className="min-w-0 lg:col-start-2 lg:row-start-1">{keepDashes(children)}</div>
       <aside className="text-note mt-3 border-l-2 border-rule pl-4 text-graphite lg:col-start-1 lg:row-start-1 lg:mt-0 lg:mb-2 lg:border-l-0 lg:pl-0 lg:text-right">
-        {note}
+        {keepDashes(note)}
       </aside>
     </div>
   )
@@ -96,7 +100,7 @@ export function Annotated({
 
 /** Body prose. One measure, one rhythm, no bullet lists. */
 export function Prose({ children }: { children: ReactNode }) {
-  return <div className="max-w-[var(--measure)] [&>p+p]:mt-[1.1em]">{children}</div>
+  return <div className="max-w-[var(--measure)] [&>p+p]:mt-[1.1em]">{keepDashes(children)}</div>
 }
 
 /**
@@ -143,11 +147,13 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
 }
 
 /**
- * Text whose hyphenated words stay on one line ("off-cycle" split as "off- / cycle" on a phone, "Hawkes- / driven" in a
- * title): the fonts carry no no-break hyphen, so each such word is held in a nowrap span.
+ * Text whose hyphenated words and en-dash compounds stay on one line ("off-cycle" split as "off- / cycle" on a phone,
+ * "Hawkes- / driven" in a title, "Fourier– / Bessel"): the fonts carry no no-break hyphen, so each such word is held in
+ * a nowrap span.
  */
 export function Whole({ text }: { text: string }) {
-  return text.split(/(\S+-\S+)/).map((part, i) =>
+  // A spaced em dash stays at the end of its line, never opening the next.
+  return text.replace(/ — /g, '\u00a0— ').split(/(\S+[-–]\S+)/).map((part, i) =>
     i % 2 ? (
       <span key={i} className="whitespace-nowrap">
         {part}
@@ -156,4 +162,22 @@ export function Whole({ text }: { text: string }) {
       part
     ),
   )
+}
+
+/**
+ * Prose whose spaced em dashes stay at the end of their line, never opening the next (as Whole does for one string):
+ * the text in it, down through its plain elements (a link, an emphasis, a paragraph, a fragment), gets a no-break space before each
+ * " — ". A component's own children are left as they are.
+ */
+export function keepDashes(node: ReactNode): ReactNode {
+  // A dash at a string's end ("… a log line —", then {' '} and the next words) is held to the word before it too.
+  if (typeof node === 'string') return node.includes(' —') ? node.replace(/ —( |$)/g, '\u00a0—$1') : node
+  if (Array.isArray(node)) return node.map(keepDashes)
+  if (isValidElement(node) && (typeof node.type === 'string' || node.type === Fragment)) {
+    const el = node as ReactElement<{ children?: ReactNode }>
+    const c = el.props.children
+    if (c === undefined) return node
+    return Array.isArray(c) ? cloneElement(el, undefined, ...c.map(keepDashes)) : cloneElement(el, undefined, keepDashes(c))
+  }
+  return node
 }

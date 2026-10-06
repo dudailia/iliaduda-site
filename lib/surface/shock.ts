@@ -52,7 +52,7 @@ export function params(a: number, size = 1): Params {
 }
 
 /** What the surface is doing, in words (components/figures/surface/Live.tsx says which, from the story or the slider). */
-export type Phase = 'shock' | 'relax' | 'calm'
+export type Phase = 'shock' | 'mild' | 'relax' | 'calm'
 
 /** Each phase in words: its name, the line under the figure, and the line's first sentence, for the stage itself. */
 export const PHASE_TEXT: Record<Phase, { name: string; line: string; short: string }> = {
@@ -60,6 +60,13 @@ export const PHASE_TEXT: Record<Phase, { name: string; line: string; short: stri
     name: 'Calm',
     line: 'Options are priced for modest swings. Insurance against a crash already costs a little more than the rest.',
     short: 'Options are priced for modest swings.',
+  },
+  // A shock the reader sets small (at 0.05× the 1-month at-the-money vol moves 25.6% → 26.8%): "prices drop fast"
+  // overstated it.
+  mild: {
+    name: 'A small shock',
+    line: 'Prices slip. Near-term protection costs a little more; the longer expiries barely move.',
+    short: 'Prices slip.',
   },
   shock: {
     name: 'Shock',

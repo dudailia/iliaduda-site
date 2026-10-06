@@ -90,7 +90,7 @@ function Legend({
   const secondY = stacked ? y + size * 1.6 : y
   return (
     <g className="font-mono" fontSize={size} fill={GRAPHITE}>
-      <rect x={x} y={y - size + 2} width="13" height={size} fill={RULE} opacity="0.85" />
+      <rect x={x} y={y - size + 2} width="13" height={size} fill={RULE} />
       <text x={x + 19} y={y}>
         {`ambiguous ${threshold(AMBIG_LO)} to ${threshold(JUSTIFY)}`}
       </text>
@@ -124,8 +124,9 @@ function Wide() {
         width={wScale(JUSTIFY - AMBIG_LO)}
         height={W.axisY - W.top}
         fill={RULE}
-        opacity="0.5"
       />
+      {/* The band's low edge, marked as its high one is (the 1% line): the band is the argument. */}
+      <line x1={W.x0 + wScale(AMBIG_LO)} y1={W.top} x2={W.x0 + wScale(AMBIG_LO)} y2={W.axisY} stroke={GRAPHITE} strokeWidth="0.75" />
       <line
         x1={W.x0 + wScale(JUSTIFY)}
         y1={W.top}
@@ -153,11 +154,26 @@ function Wide() {
               stroke={ACCENT}
               strokeWidth={stroke(s.role)}
             />
-            {/* A paper halo: the small gains' labels cross the ambiguous band
-                and the 1% line. */}
-            <text x={W.x0 + w + 9} y={y + 16} fontSize="12.5" fill={INK} stroke="var(--color-paper)" strokeWidth={4} paintOrder="stroke">
-              {gain(s.gain)}
-            </text>
+            {/* A gain that ends short of the 1% line is named past it, on paper, with a hairline back to its bar: set at
+                its bar's end, its figures crossed the ambiguous band's edge (the verdict's numbers, read through a
+                line). */}
+            {(() => {
+              const past = W.x0 + wScale(JUSTIFY) + 9
+              const at = W.x0 + w + 9
+              if (at >= past) return (
+                <text x={at} y={y + 16} fontSize="12.5" fill={INK}>
+                  {gain(s.gain)}
+                </text>
+              )
+              return (
+                <>
+                  <line x1={W.x0 + w + 3} y1={y + W.barH / 2} x2={past - 5} y2={y + W.barH / 2} stroke={GRAPHITE} strokeWidth="0.75" strokeDasharray="1 3" />
+                  <text x={past} y={y + 16} fontSize="12.5" fill={INK}>
+                    {gain(s.gain)}
+                  </text>
+                </>
+              )
+            })()}
           </g>
         )
       })}
@@ -186,7 +202,9 @@ function Wide() {
         </g>
       ))}
 
-      <Legend x={W.x0} y={W.axisY + 46} gapX={215} size={11.5} stacked={false} />
+      {/* Its second item ends inside the viewBox with room to spare: at a 230 gap "1.0% justifies further work" ended at
+          617.6 of 620 with this face's metrics on macOS, and ran 3 past the edge as Linux sets it (figures.spec on CI). */}
+      <Legend x={W.x0} y={W.axisY + 46} gapX={222} size={13} stacked={false} />
     </>
   )
 }
@@ -197,32 +215,27 @@ const nScale = (v: number) => ((N.x1 - N.x0) / AXIS_MAX) * v
 const nRowY = (i: number) => N.top + i * (N.barH + N.gap)
 
 function Narrow() {
+  // The ambiguous band and the 1% line run across each bar and down to the axis, never through the labels stacked
+  // above the bars (a dash between a label's letters read as a broken word).
+  // Each span is its bar's own height, and the last runs on down to the axis: a stub of its own above the axis read as a
+  // fourth, unlabelled bar, and spans 3px taller than the bars stood out above and below them.
+  const spans = SERIES.map((_, i) => [nRowY(i), i === SERIES.length - 1 ? N.axisY : nRowY(i) + N.barH] as const)
   return (
     <>
-      <rect
-        x={N.x0 + nScale(AMBIG_LO)}
-        y={N.top}
-        width={nScale(JUSTIFY - AMBIG_LO)}
-        height={N.axisY - N.top}
-        fill={RULE}
-        opacity="0.5"
-      />
-      <line
-        x1={N.x0 + nScale(JUSTIFY)}
-        y1={N.top}
-        x2={N.x0 + nScale(JUSTIFY)}
-        y2={N.axisY}
-        stroke={INK}
-        strokeWidth="1"
-        strokeDasharray="3 3"
-      />
+      {spans.map(([y0, y1]) => (
+        <g key={y0}>
+          <rect x={N.x0 + nScale(AMBIG_LO)} y={y0} width={nScale(JUSTIFY - AMBIG_LO)} height={y1 - y0} fill={RULE} />
+          <line x1={N.x0 + nScale(AMBIG_LO)} y1={y0} x2={N.x0 + nScale(AMBIG_LO)} y2={y1} stroke={GRAPHITE} strokeWidth="0.75" />
+          <line x1={N.x0 + nScale(JUSTIFY)} y1={y0} x2={N.x0 + nScale(JUSTIFY)} y2={y1} stroke={INK} strokeWidth="1" strokeDasharray="3 3" />
+        </g>
+      ))}
 
       {SERIES.map((s, i) => {
         const y = nRowY(i)
         const w = Math.max(nScale(s.gain), 1.5)
         return (
           <g key={s.key} className="font-mono">
-            <text x={N.x0} y={y - 7} fontSize="12" fill={INK} stroke="var(--color-paper)" strokeWidth={4} paintOrder="stroke">
+            <text x={N.x0} y={y - 8} fontSize="13" fill={INK}>
               {`${s.label}  ${gain(s.gain)}`}
             </text>
             <rect
@@ -251,10 +264,10 @@ function Narrow() {
           />
           <text
             x={N.x0 + nScale(t)}
-            y={N.axisY + 19}
+            y={N.axisY + 20}
             textAnchor={anchorFor(t)}
             className="font-mono"
-            fontSize="12"
+            fontSize="13"
             fill={GRAPHITE}
           >
             {t}%
@@ -262,7 +275,7 @@ function Narrow() {
         </g>
       ))}
 
-      <Legend x={N.x0} y={N.axisY + 46} gapX={0} size={11} stacked />
+      <Legend x={N.x0} y={N.axisY + 46} gapX={0} size={13} stacked />
     </>
   )
 }

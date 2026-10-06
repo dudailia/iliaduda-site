@@ -51,14 +51,14 @@ export default function Market() {
           </Annotated>
           <p>
             Realised volatility is the square root of an exponentially weighted mean of squared one-second log-returns of the
-            mid, with a sixty-second half-life, annualised over 252 trading days of 6.5 hours. The futures are drawn at it.
+            mid, with a sixty-second half-life, annualised over 252 trading days of 6.5{'\u00a0'}hours. The futures are drawn at it.
           </p>
           <p>
             Stress runs from 0 to 1 and combines four signals a trader watches, each 0 across the calm market&rsquo;s range and
-            1 at its extreme: the intensity of market sells against its stationary rate (0 at {STRESS.pressureFrom} times it, 1
-            at {STRESS.pressureTo}); realised volatility against a calm {(STRESS.sigma0 * 100).toFixed(1)}% (0 at{' '}
-            {STRESS.volFrom} times, 1 at {STRESS.volTo}); the spread (0 at {STRESS.spreadFrom} ticks, 1 at {STRESS.spreadTo});
-            and the shares within three ticks of the touch on the book&rsquo;s thinner side (0 at {STRESS.touchFloor}, 1 at
+            1 at its extreme: the intensity of market sells against its stationary rate, p (0 at {STRESS.pressureFrom} times it, 1
+            at {STRESS.pressureTo}); realised volatility against a calm {(STRESS.sigma0 * 100).toFixed(1)}%, a (0 at{' '}
+            {STRESS.volFrom} times, 1 at {STRESS.volTo}); the spread, b (0 at {STRESS.spreadFrom}{'\u00a0'}ticks, 1 at {STRESS.spreadTo});
+            and the shares within three ticks of the touch on the book&rsquo;s thinner side, c (0 at {STRESS.touchFloor}, 1 at
             none). They combine as an &ldquo;or&rdquo;,
             <span className="my-3 block text-center whitespace-nowrap">s = 1 − (1 − p)(1 − a)(1 − b)(1 − c),</span>
             so any one alone can carry the market to full stress, and the result follows on a {STRESS.halfLife}-second
@@ -116,7 +116,7 @@ export default function Market() {
             <li>The same seed and the same log of shocks are the same market however it is stepped; without the shock, another market.</li>
             <li>Fifty presses in a second deliver no more than one shock and the second&rsquo;s absorption, and leave the market&rsquo;s selling pressure, spread, fall and volatility within stated bounds.</li>
             <li>The stress rises with each of its four signals, is nothing across the calm market&rsquo;s range, stays between 0 and 1 whatever it is given, and averages under 0.05 over ten calm seeds.</li>
-            <li>The surface is the IV paper&rsquo;s calm surface at calm, its at-the-money volatility rises with the stress, and at every stress in steps of 0.05 it passes the butterfly, calendar and Gatheral–Jacquier checks.</li>
+            <li>The surface is the IV paper&rsquo;s calm surface at calm, its at-the-money volatility rises with the stress, and at every stress in steps of 0.05 it passes the butterfly, calendar and <span className="whitespace-nowrap">Gatheral–Jacquier</span> checks.</li>
             <li>The futures&rsquo; paths are the home figure&rsquo;s bit for bit; their percentiles are the lognormal&rsquo;s within Monte Carlo error, their mean a year out is the price grown at the rate within four standard errors, the at-the-money call is within its error of Black–Scholes, and a fan drawn at one volatility maps exactly onto the fan drawn at another.</li>
             <li>The worker&rsquo;s own core, in Node: the same market at 60 and at 120 frames a second, never more than a tenth of a second caught up, held while paused, a shock taken at the next frame&rsquo;s first quantum.</li>
             <li>Each frame carries the market as it is, the book now laid out as a row is, and the rows and trades since the last frame, and says what it had to leave out.</li>

@@ -56,7 +56,7 @@ export default function OrderBook() {
             are the touch, and the gap between them is the spread.
           </p>
           <p>
-            In Fig. 1 that list is a landscape. Across the valley runs price, bids to the left and asks to the right; the
+            In Fig.{'\u00a0'}1 that list is a landscape. Across the valley runs price, bids to the left and asks to the right; the
             height of a wall at a price is every share waiting between the touch and that price, so the walls rise away from
             the spread. Twelve times a simulated second the book is photographed into one ridge, and the ridges recede into
             the page, the newest at the front, as far back as twenty-one seconds where the device draws them all. The line along the valley floor is the mid-price; each spark is a
@@ -98,7 +98,7 @@ export default function OrderBook() {
           <p>
             Which earlier order set off a given one is never observed, only probable. Just before an order, its intensity
             is its baseline plus one decaying term for each earlier order; each term’s share of the total is the
-            probability that that order was its parent, and the baseline’s share is the chance it came on its own. Fig. 2
+            probability that that order was its parent, and the baseline’s share is the chance it came on its own. Fig.{'\u00a0'}2
             draws the flow the terrain is built from, and reads what set off any order you choose, by the kind of earlier order.
           </p>
         </Section>
@@ -114,8 +114,8 @@ export default function OrderBook() {
           </p>
           <p>
             It is calibrated to look like a busy stock opened at {open}. Measured over ten simulated minutes on the seed
-            Fig. 1 draws: {m.rate.toFixed(1)} events a second, a realised volatility of {(m.vol * 100).toFixed(1)}% a
-            year (one-second returns of the mid, over 252 trading days of 6.5 hours), and a spread of one or two ticks{' '}
+            Fig.{'\u00a0'}1 draws: {m.rate.toFixed(1)} events a second, a realised volatility of {(m.vol * 100).toFixed(1)}% a
+            year (one-second returns of the mid, over 252 trading days of 6.5{'\u00a0'}hours), and a spread of one or two ticks{' '}
             {(m.narrow * 100).toFixed(1)}% of the time.
           </p>
         </Section>
@@ -148,7 +148,7 @@ export default function OrderBook() {
             <li>The market’s exponential and logarithm agree with the platform’s to within two units in the last place.</li>
             <li>Chromium, WebKit and Firefox each run the seeded market to the fingerprint Node pins.</li>
             <li>
-              Fig. 2 draws each market order’s intensity exactly: just before every one, it equals the model’s intensity
+              Fig.{'\u00a0'}2 draws each market order’s intensity exactly: just before every one, it equals the model’s intensity
               rebuilt from the event times alone, to a billionth. What set an order off, by kind, and the chance it came on
               its own add up to one.
             </li>
@@ -168,7 +168,12 @@ export default function OrderBook() {
                 <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/orderbook-flowview.test.ts`}>tests/orderbook-flowview.test.ts</a>
               </span>,
             ],
-            ['renderer', <a key="r" href={`${SRC}/components/figures/orderbook/renderer.ts`}>components/figures/orderbook/renderer.ts</a>],
+            ['renderer', <a key="r" href={`${SRC}/components/figures/orderbook/renderer.ts`}>
+                {/* The line may break after the last slash, never inside the file's name. */}
+                components/figures/orderbook/<wbr />
+                <span className="whitespace-nowrap">renderer.ts</span>
+              </a>,
+            ],
             ['data', 'synthetic; parameters set by hand'],
             ['references', 'Hawkes, Spectra of some self-exciting and mutually exciting point processes, Biometrika 58(1), 1971 · Ogata, On Lewis’ simulation method for point processes, IEEE Transactions on Information Theory 27(1), 1981 · Bacry, Mastromatteo and Muzy, Hawkes processes in finance, Market Microstructure and Liquidity 1(1), 2015'],
           ]}

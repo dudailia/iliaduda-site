@@ -42,7 +42,7 @@ export function OrderBookFigure() {
         }
         table={
           <table>
-            <caption>{`The best five price levels on each side at the frame shown, and the shares waiting at each. Mid ${fmt.mid(s.mid)}, spread ${fmt.spread(s.spread)}.`}</caption>
+            <caption>{`The best five price levels on each side at the figure’s opening moment, its still frame, and the shares waiting at each. Mid ${fmt.mid(s.mid)}, spread ${fmt.spread(s.spread)}.`}</caption>
             <thead>
               <tr>
                 <th scope="col">Bid</th>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
+import { Items } from '@/components/Layout'
 import { zcy, type GParams } from '@/lib/gcurve'
 import { rangeFill } from '@/components/stage/range'
 
@@ -47,13 +48,39 @@ const TS = Array.from({ length: SAMPLES }, (_, i) => {
 })
 // Whole units of a 1000-unit box: a tenth of a pixel at most on screen, and
 // forty-four of these ship in the HTML.
+/**
+ * Where a phone's key-rate label stands: at the right or left end of its line, over or under it, the first of those
+ * (in that order) where neither the curve nor a bond runs through it. The label takes about 45% of a phone's plot and
+ * 8% of its height. On a laptop it keeps the right end, over the line, where it never meets them.
+ */
+function keyPlace(p: GParams, bonds: readonly (readonly [number, number])[], rate: number): { left: boolean; below: boolean } {
+  const ly = sy(rate)
+  const hits = (left: boolean, below: boolean) => {
+    const [x0, x1] = left ? [0, 0.45 * W] : [0.55 * W, W]
+    const [y0, y1] = below ? [ly, ly + 0.08 * H] : [ly - 0.08 * H, ly]
+    if (y0 < 0 || y1 > H) return Infinity
+    const inside = (x: number, y: number) => x >= x0 && x <= x1 && y >= y0 && y <= y1
+    return TS.filter((t) => inside(sx(t), sy(zcy(p, t)))).length + 4 * bonds.filter(([t, y]) => inside(sx(t), sy(y))).length
+  }
+  const places = [{ left: false, below: false }, { left: false, below: true }, { left: true, below: false }, { left: true, below: true }]
+  return places.reduce((best, c) => (hits(c.left, c.below) < hits(best.left, best.below) ? c : best))
+}
 const path = (p: GParams) => TS.map((t, i) => `${i ? 'L' : 'M'}${Math.round(sx(t))} ${Math.round(sy(zcy(p, t)))}`).join('')
 
 const pc = (y: number) => `${y.toFixed(2)}%`
-const bp = (d: number) => `${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(Math.round(d))} bp`
+// Rounded first, then signed: the sign of an unrounded −0.3 printed "−0 bp".
+const bp = (d: number) => {
+  const r = Math.round(d)
+  return `${r > 0 ? '+' : r < 0 ? '−' : '±'}${Math.abs(r)} bp`
+}
+/** A yield as printed, to the basis point: every gap the readout states is the difference of the yields it shows. */
+const shownY = (y: number) => Math.round(y * 100) / 100
 const tLabel = (t: number) => (t < 1 ? `${Math.round(t * 12)}m` : `${t}y`)
 const fmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const day = (iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`))
+const dayMonth = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+/** How soon after a decision its rate can come into force and still be read as that decision's. */
+const IN_FORCE_DAYS = 7
 
 export function OfzLive({
   days,
@@ -79,25 +106,45 @@ export function OfzLive({
   const d = days[at]!
   const prev = days[Math.max(0, at - 1)]!
   const rate = [...keyRate].reverse().find((k) => k.from <= d.date)!.rate
-  const short = zcy(d.params, T_MIN)
-  const long = zcy(d.params, 10)
-  const move = at > 0 ? (short - zcy(prev.params, T_MIN)) * 100 : 0
+  // On a decision's day whose rate comes into force later (21 July's, from the 24th), the readout says both: showing the
+  // old rate alone under "+100 bp" read as the figure's mistake.
+  const comes = marks.some((m) => m.index === at && m.sub) ? keyRate.find((k) => k.from > d.date) : undefined
+  const pending =
+    comes && Date.parse(`${comes.from}T00:00:00Z`) - Date.parse(`${d.date}T00:00:00Z`) <= IN_FORCE_DAYS * 86_400_000
+      ? `, ${comes.rate.toFixed(2)}% from ${dayMonth.format(new Date(`${comes.from}T00:00:00Z`))}`
+      : ''
+  const phoneKey = keyPlace(d.params, d.bonds, rate)
+  const short = shownY(zcy(d.params, T_MIN))
+  const long = shownY(zcy(d.params, 10))
+  const move = at > 0 ? (short - shownY(zcy(prev.params, T_MIN))) * 100 : 0
 
   const rows = [
     { label: 'Trading day', value: day(d.date) },
-    { label: 'Key rate', value: `${rate.toFixed(2)}%` },
+    // A phone sets 21 July's "7.50%, 8.50% from 24 Jul" on two lines: they are held on every day, so stepping onto it
+    // and off it moves nothing under the readouts.
+    { label: 'Key rate', value: <span className="block max-sm:min-h-[2lh]">{`${rate.toFixed(2)}%${pending}`}</span> },
     { label: '3-month', value: pc(short) },
     { label: '10-year', value: pc(long) },
     { label: 'Slope, 10y − 3m', value: bp((long - short) * 100) },
     { label: '3-month, on the day', value: at > 0 ? bp(move) : '—' },
   ]
-  const valueText = `${day(d.date)}: 3-month ${pc(short)}, 10-year ${pc(long)}, key rate ${rate.toFixed(2)}%`
+  const valueText = `${day(d.date)}: 3-month ${pc(short)}, 10-year ${pc(long)}, key rate ${rate.toFixed(2)}%${pending}`
 
   return (
     <FigureFrame
       {...frame}
       rail={<Readouts rows={rows} across={frame.inline ?? false} />}
-      hint="Drag the slider, tap a rate decision, or use the arrow keys to move a trading day at a time · the dashed curve is the session before · dots are the bonds the curve was fitted to"
+      // Under a finger the hint says what a finger does (the keys it taught are not there).
+      hint={
+        <>
+          <span className="pointer-coarse:hidden">
+            <Items items="Drag the slider, choose a rate decision, or use the arrow keys to move a trading day at a time · the dashed curve is the session before · dots are the bonds the curve was fitted to" />
+          </span>
+          <span className="hidden pointer-coarse:inline">
+            <Items items="Drag the slider or tap a rate decision · the dashed curve is the session before · dots are the bonds the curve was fitted to" />
+          </span>
+        </>
+      }
     >
       <div className="relative">
         <div className="flex">
@@ -169,9 +216,21 @@ export function OfzLive({
               ))}
             <span
               aria-hidden
-              className={`text-meta pointer-events-none absolute right-1.5 font-mono text-ink ${
+              // On paper, as a label over a plot is: at a phone's width the line's label falls among the bonds.
+              className={`text-meta pointer-events-none absolute right-1.5 rounded-sm bg-paper/85 px-1 font-mono text-ink max-sm:hidden ${
                 sy(rate) / H < 0.12 ? 'pt-0.5' : '-translate-y-full pb-0.5'
               }`}
+              style={{ top: `${(sy(rate) / H) * 100}%` }}
+            >
+              {`key rate ${rate.toFixed(2)}%`}
+            </span>
+            {/* On a phone the label takes half the plot, and at the right end over the line it covered the long bonds and
+                the curve (four dots under it on 15 August): there it takes the first end and side clear of both. */}
+            <span
+              aria-hidden
+              className={`text-meta pointer-events-none absolute rounded-sm bg-paper/85 px-1 font-mono text-ink sm:hidden ${
+                phoneKey.left ? 'left-1.5' : 'right-1.5'
+              } ${phoneKey.below ? 'pt-0.5' : '-translate-y-full pb-0.5'}`}
               style={{ top: `${(sy(rate) / H) * 100}%` }}
             >
               {`key rate ${rate.toFixed(2)}%`}
@@ -207,7 +266,7 @@ export function OfzLive({
               setAt(Number(e.currentTarget.value))
               setAnnounce('')
             }}
-            className="h-6 w-full"
+            className="h-6 w-full pointer-coarse:-mt-2.5 pointer-coarse:mb-[-2px] pointer-coarse:h-11 pointer-coarse:align-top"
             style={rangeFill(at, 0, days.length - 1)}
           />
           {/* Positions follow the thumb's centre, which travels the track
@@ -230,8 +289,9 @@ export function OfzLive({
                   }}
                   aria-pressed={at === m.index}
                   // A hairline box: without it the decision days read as axis labels, not as something to press.
-                  className={`absolute ${align} rounded-sm border px-1 py-0.5 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out ${
-                    at === m.index ? 'border-ink text-ink forced-colors:[outline:2px_solid_Highlight]' : 'border-rule text-graphite hover:border-graphite hover:text-ink'
+                  className={`absolute ${align} rounded-sm border px-1.5 py-1.5 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
+                    // Chosen as every other option on the site is: ink fill, paper text.
+                    at === m.index ? 'border-ink bg-ink text-paper forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink'
                   }`}
                   style={{ left: end ? `${f * 100}%` : `calc(8px + (100% - 16px) * ${f})` }}
                 >

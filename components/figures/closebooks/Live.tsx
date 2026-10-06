@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { categorise, exportable, type Account, type Line, type Result, type Status } from '@/lib/closebooks'
 import { arrivedByMorph } from '@/lib/arrival'
@@ -32,6 +33,8 @@ const SETTLE = 240
 /** The site's ease-out (app/globals.css, --ease-out). */
 const EASE_OUT = 'var(--ease-out)'
 
+const noop = () => () => {}
+
 export function CategorisationLive({
   chart,
   feed,
@@ -49,6 +52,7 @@ export function CategorisationLive({
 }) {
   const box = useRef<HTMLDivElement>(null)
   const reduced = useReducedMotion()
+  const hydrated = useSyncExternalStore(noop, () => true, () => false)
   const [run, setRun] = useState(0)
   const [arrived, setArrived] = useState(feed.length)
   const [settled, setSettled] = useState(true)
@@ -69,6 +73,10 @@ export function CategorisationLive({
   }
 
   const results: Result[] = feed.map((l) => categorise(l, chart))
+  const accountWords = (code: string) => {
+    const a = chart.find((x) => x.code === code)
+    return a ? `${a.code} ${a.name}` : code
+  }
 
   // A press while the rows are leaving does nothing more, as the cricket replay's does.
   const letting = useRef(false)
@@ -112,6 +120,27 @@ export function CategorisationLive({
   useEffect(() => {
     if (!settled) delete document.documentElement.dataset.closebooksSeq
   }, [settled])
+
+  // Printed before this visit's batch has come, or while it arrives: the whole batch goes on the paper, settled.
+  const toPrint = useRef<() => void>(() => {})
+  useEffect(() => {
+    toPrint.current = () => {
+      if (!armed.current && settled && !leaving) return
+      clearTimeout(letTimer.current)
+      letting.current = false
+      flushSync(() => {
+        setArrived(feed.length)
+        setSettled(true)
+        setLeaving(false)
+      })
+      release()
+    }
+  })
+  useEffect(() => {
+    const onPrint = () => toPrint.current()
+    addEventListener('beforeprint', onPrint)
+    return () => removeEventListener('beforeprint', onPrint)
+  }, [])
 
   // The batch arrives once a visit, when the figure is first properly on screen, but never under a reader who is
   // already inside it: replaying would unmount the very button they have focused.
@@ -174,7 +203,7 @@ export function CategorisationLive({
   const acted = Object.keys(human).length
   const lit = (value: string, key: keyof typeof counts) =>
     acted && before && before[key] !== counts[key] ? (
-      <span key={`${key}-${acted}`} data-lit="" className="-mx-0.5 rounded-sm px-0.5 transition-[background-color] duration-700 ease-(--ease-in-out) starting:bg-indigo-wash">
+      <span key={`${key}-${acted}`} data-lit="" className="-mx-0.5 rounded-sm px-0.5 transition-[background-color] duration-700 ease-[ease] starting:bg-indigo-wash">
         {value}
       </span>
     ) : (
@@ -195,6 +224,7 @@ export function CategorisationLive({
   return (
     <FigureFrame
       id="fig-pipeline"
+      breakable
       number="Fig. 1"
       vt="closebooks"
       title="A bank feed through the categorisation pipeline"
@@ -210,10 +240,15 @@ export function CategorisationLive({
       caption={caption}
       table={table}
     >
-      <div ref={box}>
+      {/* On paper the batch and its export line print whole (about three-quarters of a sheet): cut between its rows, one
+          sheet ended on half a batch and the next opened on the rest. */}
+      <div ref={box} className="print:break-inside-avoid">
+        {/* The gate and the rows in one block: pinned only while the rows scroll past, the gate lets go at the last row
+            (pinned to the end of the whole figure, it slid over the export line and the button under the batch). */}
+        <div>
         {/* The gate, where a phone reader can see it change: above the rows,
             pinned while they scroll past. The rail carries it on wide screens. */}
-        <p data-batch-gate="" className="text-meta sticky top-0 z-10 -mx-1 mb-2 bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
+        <p data-batch-gate="" className="text-meta sticky top-0 z-10 -mx-1 mb-2 border-b border-rule bg-paper px-1 py-1.5 font-mono text-ink lg:hidden" aria-hidden>
           {/* Each count kept whole, its dot held to it, so a wrapped line never starts with the separator. */}
           <span className="whitespace-nowrap">by the rules {counts.auto}{'\u00a0·'}</span>{' '}
           <span className="whitespace-nowrap">by a reviewer {lit(String(counts.reviewed), 'reviewed')}{'\u00a0·'}</span>{' '}
@@ -234,8 +269,9 @@ export function CategorisationLive({
             const final = settled || i < arrived - 3
             // A reviewer changes the status, not the model's confidence.
             const conf = final ? r.confidence : l.stated
+            // The arrow and its value are held to the word before them: a line never ends on "→" or starts with it.
             const finalNote = r.steps.length
-              ? r.steps.map((s) => `${s.why} → ${s.to.toFixed(2)}`).join(' · ')
+              ? r.steps.map((s) => `${s.why}\u00a0→\u00a0${s.to.toFixed(2)}`).join(' · ')
               : r.status === 'pending'
                 ? `below the ${threshold.toFixed(2)} threshold`
                 : ''
@@ -244,7 +280,7 @@ export function CategorisationLive({
                 ? 'remapped by a reviewer'
                 : 'approved by a reviewer'
               : final && r.steps.length
-                ? r.steps.map((s) => `${s.why} → ${s.to.toFixed(2)}`).join(' · ')
+                ? r.steps.map((s) => `${s.why}\u00a0→\u00a0${s.to.toFixed(2)}`).join(' · ')
                 : final && r.status === 'pending'
                   ? `below the ${threshold.toFixed(2)} threshold`
                   : ''
@@ -316,24 +352,34 @@ export function CategorisationLive({
                       key={final ? 'settled' : 'waiting'}
                       className={`inline-flex items-center ${!settled && final ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}
                     >
+                    {/* On paper, where the actions do not print, a row waiting for one says where it stands. */}
                     {st === 'pending' && final ? (
-                      <button
-                        type="button"
-                        onClick={() => act(i, 'approved-by-reviewer')}
-                        aria-label={`Approve line ${i}, ${l.description}`}
-                        className={CONTROL}
-                      >
-                        Approve
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => act(i, 'approved-by-reviewer')}
+                          aria-label={`Approve line ${i}, ${l.description}`}
+                          className={CONTROL}
+                        >
+                          Approve
+                        </button>
+                        <span className="text-meta hidden font-mono text-graphite print:inline">waiting</span>
+                      </>
                     ) : st === 'flagged' && final && remap[l.suggested.code] ? (
-                      <button
-                        type="button"
-                        onClick={() => act(i, 'remapped')}
-                        aria-label={`Map to ${remap[l.suggested.code]}: line ${i}, ${l.description}`}
-                        className={CONTROL}
-                      >
-                        Map to {remap[l.suggested.code]}
-                      </button>
+                      <>
+                        {/* Its code on the button, which fits the action column (the account's name beside it ran over the
+                            row's confidence); the account it maps to by name in its title and its accessible name. */}
+                        <button
+                          type="button"
+                          onClick={() => act(i, 'remapped')}
+                          aria-label={`Map to ${accountWords(remap[l.suggested.code]!)}: line ${i}, ${l.description}`}
+                          title={`Map to ${accountWords(remap[l.suggested.code]!)}`}
+                          className={CONTROL}
+                        >
+                          Map to {remap[l.suggested.code]}
+                        </button>
+                        <span className="text-meta hidden font-mono text-graphite print:inline">blocked</span>
+                      </>
                     ) : (
                       <span
                         ref={(el) => {
@@ -355,17 +401,19 @@ export function CategorisationLive({
             )
           })}
         </ol>
+        </div>
         <p className="sr-only" aria-live="polite">
           {said}
         </p>
         {/* The export gate as a state, at the foot of the batch: held while any line waits or is blocked, open once every
             line has cleared (its word swaps through the site's blur). */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pointer-coarse:gap-y-3.5">
           <p data-export-gate="" aria-hidden className="text-meta font-mono text-graphite">
             Export:{' '}
             <span
               key={settled && counts.out === feed.length ? 'open' : 'held'}
-              className="text-ink transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none"
+              // Through the blur only once the page is running: the server's word is simply there when it loads.
+              className={`text-ink ${hydrated ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}
             >
               {settled && counts.out === feed.length ? `open, all ${feed.length} lines` : `held, ${counts.out} of ${feed.length} lines ready`}
             </span>

@@ -142,3 +142,5 @@ export function gWithEta(k: number, T: number, eta: number): number {
 
 /** The η at which the sufficient condition η(1 + |ρ|) ≤ 2 stops holding. */
 export const ETA_BOUND = 2 / (1 + Math.abs(P.rho))
+/** Fig. 2's curvature slider moves in steps of this; its caption states the onset of arbitrage at it. */
+export const ETA_STEP = 0.01

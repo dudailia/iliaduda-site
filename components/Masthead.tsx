@@ -13,6 +13,8 @@ import { Items, Row, Whole } from './Layout'
  * landing-page hero.
  */
 
+const whole = (place: string) => place.replace(/ /g, '\u00a0')
+
 export function contactLinks() {
   return [
     { href: resumeLink.href, label: resumeLink.label },
@@ -31,6 +33,8 @@ export function ContactLinks({ className = '' }: { className?: string }) {
               meta size without moving a single glyph. */}
           <a href={l.href} className="inline-block max-w-full min-w-6 py-2 text-center leading-5 [overflow-wrap:anywhere]">
             {l.label}
+            {/* On paper a profile link says where it goes, as the site's own links do. */}
+            {l.href.startsWith('http') ? <span className="hidden text-graphite print:inline"> ({l.href.replace(/^https?:\/\/(www\.)?/, '')})</span> : null}
           </a>
         </li>
       ))}
@@ -39,12 +43,15 @@ export function ContactLinks({ className = '' }: { className?: string }) {
 }
 
 export function Masthead() {
+  const elsewhere = AVAILABILITY.locations.filter((l) => !PERSON.base.startsWith(l))
   const rows = [
     ['Seeking', AVAILABILITY.line],
     ['Roles', AVAILABILITY.roles.join(' · ')],
     [
       'Location',
-      `Based in ${PERSON.base}; open to ${AVAILABILITY.locations.slice(0, -1).join(', ')} or ${AVAILABILITY.locations.at(-1)}`,
+      // A city's name is never split across two lines ("San / Francisco"); the base is not listed again after it, as on
+      // /about ("Based in Boston, MA; open to Boston, …" said it twice).
+      `Based in ${PERSON.base}; open to ${elsewhere.slice(0, -1).map(whole).join(', ')} or ${whole(elsewhere.at(-1)!)}`,
     ],
   ] as const
 
@@ -54,7 +61,8 @@ export function Masthead() {
         <h1 className="text-h1 lg:text-display">{PERSON.name}</h1>
         {/* The full measure at lg: three lines instead of four, so the front matter and Fig. 1 share a laptop's first screen;
             on a short screen (a phone turned sideways) too, so the contact links are on its first. */}
-        <p className="mt-4 max-w-[36rem] lg:max-w-none [@media(max-height:30rem)]:max-w-none">{POSITIONING}</p>
+        {/* Wrapped, not balanced: pretty shortened its last lines into a notch on the first screen. */}
+        <p className="mt-4 max-w-[36rem] [text-wrap:wrap] lg:max-w-none [@media(max-height:30rem)]:max-w-none">{POSITIONING}</p>
       </Row>
 
       <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 lg:mt-6 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
@@ -65,8 +73,10 @@ export function Masthead() {
             <dd className="text-note min-w-0 text-ink">{k === 'Roles' ? <Items items={v} /> : k === 'Seeking' ? <Whole text={v} /> : v}</dd>
             {k === 'Seeking' ? (
               <>
-                <dt className="text-meta pt-2.5 font-mono text-graphite lg:text-right">Contact</dt>
-                <dd className="text-note min-w-0 -mt-1">
+                <dt className="text-meta pt-0.5 font-mono text-graphite lg:text-right">Contact</dt>
+                {/* -my-2 takes back the links' own py-2 above and below: the row sits on its label's line, and keeps
+                    its tap height. */}
+                <dd className="text-note min-w-0 -my-2">
                   <ContactLinks />
                 </dd>
               </>

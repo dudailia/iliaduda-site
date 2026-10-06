@@ -47,7 +47,9 @@ export function useSignature<P extends string>(name: string, box: RefObject<HTML
       if (armed.current && !seq.current.started) seq.current.start()
     }
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         // With `fit`, "seen" is of what can be seen at once: a box taller than the screen (a phone in portrait) counts
         // as wholly seen when as much of it as the screen holds is on it, so a story that waits for all of its views
         // still plays there.
@@ -101,11 +103,16 @@ export function useSignature<P extends string>(name: string, box: RefObject<HTML
       } catch {}
     const next: SignatureState = s.done ? 'done' : 'playing'
     if (next !== stateRef.current) {
-      set(next)
+      // Known at once; drawn into React on the next task, so the re-render it brings (rail, labels) never shares the
+      // drawing frame: each hand-over cost that frame 18–24ms.
+      stateRef.current = next
+      setTimeout(() => {
+        if (stateRef.current === next) setState(next)
+      }, 0)
       // The story is over: the mark that hid the poster for it goes, so a still frame later (a lost context) shows.
       if (next === 'done') delete document.documentElement.dataset[`${name}Seq`]
     }
-  }, [name, seq, set])
+  }, [name, seq])
 
   /** The figure will not go live here: show the finished picture. */
   const release = useCallback(() => {

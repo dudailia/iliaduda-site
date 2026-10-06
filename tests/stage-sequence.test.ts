@@ -62,6 +62,19 @@ describe('a signature sequence', () => {
     expect(s.done).toBe(true)
   })
 
+  it('settles a story not yet begun over the skip, from its first moment, never in one frame', () => {
+    const s = make()
+    s.settle()
+    expect(s.started).toBe(true)
+    expect(s.done).toBe(false)
+    expect(s.phases().rise).toBe(0)
+    s.advance(SKIP_MS / 2)
+    const mid = s.phases().rise
+    expect(mid).toBeGreaterThan(0)
+    expect(mid).toBeLessThan(1)
+    s.advance(SKIP_MS)
+    expect(s.done).toBe(true)
+  })
   it('says while a skip plays how far through it is, and where it began', () => {
     const s = make()
     s.start()

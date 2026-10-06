@@ -23,15 +23,23 @@ import localFont from 'next/font/local'
  * computed family by name and asserts document.fonts reports both as loaded.
  *
  * `adjustFontFallback` derives a size-adjusted fallback from the real font's
- * metrics, so the swap from fallback to webfont moves no text. That is what
- * keeps CLS at zero rather than merely low.
+ * metrics, so the swap from fallback to webfont moves little text. Little, not
+ * none: a fallback sized to the whole face cannot match each glyph, and on a
+ * slow first visit (the serif landing ~0.3s after first paint) a line that fit
+ * in one face did not in the other, and a title or an abstract rewrapped
+ * (CLS 0.024–0.029 on /closebooks at 360, /nucarbon at 1440, the 404).
+ * So the serif is `optional`: preloaded, it is used if it arrives with the
+ * first paint, as it does on any ordinary connection; if not, that page keeps
+ * the fallback and nothing moves, and the next page (every navigation here is a
+ * document load) has it from the cache. The mono face stays `swap`: its
+ * fallback is proportional, wrong for figures' numbers for a whole page.
  */
 
 export const sourceSerif = localFont({
   src: '../public/fonts/source-serif-4-latin-var.woff2',
   weight: '200 900',
   style: 'normal',
-  display: 'swap',
+  display: 'optional',
   variable: '--font-serif-face',
   adjustFontFallback: 'Times New Roman',
   fallback: ['Georgia', 'Times New Roman', 'serif'],

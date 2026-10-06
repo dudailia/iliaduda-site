@@ -372,14 +372,19 @@ export function createPricer(gl: GL, clock: Clock, phone: boolean): Pricer {
         // Read one frame after the fence is seen, never in the frame that wrote.
         if (clock.frameNo <= r.seen) break
         pending.shift()
+        // A batch of a run the reader has since moved on from is let go unread: a mapped read can wait for the whole
+        // queue, which now holds the new run's batches, and a drag of the sliders dropped frames waiting on results it
+        // then threw away.
+        if (r.gen !== self.gen) {
+          gl.deleteSync(r.sync)
+          free.push(r.pbo)
+          continue
+        }
         const t0 = performance.now()
         gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.pbo.sums)
         gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, sumsU)
-        const current = r.gen === self.gen
-        if (current) {
-          gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.pbo.hist)
-          gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, fine)
-        }
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.pbo.hist)
+        gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, fine)
         gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
         gl.deleteSync(r.sync)
         free.push(r.pbo)
@@ -399,7 +404,6 @@ export function createPricer(gl: GL, clock: Clock, phone: boolean): Pricer {
         if (clock.dtEma > clock.vsync * 1.25 || cost > cut) B = Math.max(1, Math.floor(B * 0.6))
         else if (readMs > shrink) B = Math.max(1, B - 1)
         else if (lag < RING && clock.dtEma < clock.vsync * 1.08 && readMs < grow) B = Math.min(BATCHES[q]!, B + 1)
-        if (!current) continue
         let paths = 0
         for (let b = 0; b < r.batches; b++) {
           const i = b * 4

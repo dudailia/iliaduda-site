@@ -33,7 +33,8 @@ const BAR_W = 300
 const TOP = 22
 const PITCH = 64
 const BAR_H = 18
-const H = TOP + STAGES.length * PITCH + 24
+// The last stage has no removed-rows line under it: the closing rule follows its bar.
+const H = TOP + (STAGES.length - 1) * PITCH + BAR_H + 52
 
 const scale = (n: number) => (n / RAW) * BAR_W
 const fmt = (n: number) => n.toLocaleString('en-US')

@@ -1,6 +1,8 @@
 import { cssColor } from '@/components/stage/env'
 import { BAR_D, ZWALL, project, restPose, viewProjection, type M4, type V3 } from '@/lib/futures/camera'
 import { HIST, MODEL, binWidth, lane, path } from '@/lib/futures/mc'
+import { ABOVE_SHOWN, aboveWords, shareAbove } from '@/lib/futures/hist'
+import { histLift } from '@/lib/futures/histLift'
 import { AXIS, HLEN, HX0, LABELS, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
 import { LABEL } from './Poster'
 
@@ -121,7 +123,14 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
 
   // The futures, a slice at a time. Ink absorbs by day; light adds by night.
   const n = stillCount(cssW)
-  const pays = css(pal.indigo), not = css(pal.graphite)
+  // Each stroke fades toward the stage's top, as the live figure's do: a high volatility's upper tail runs past it.
+  const topFade = (c: RGB) => {
+    const gr = g.createLinearGradient(0, 0, 0, 0.12 * H)
+    gr.addColorStop(0, css(c, 0))
+    gr.addColorStop(1, css(c, 1))
+    return gr
+  }
+  const pays = topFade(pal.indigo), not = topFade(pal.graphite)
   g.globalCompositeOperation = dark ? 'lighter' : 'multiply'
   g.lineJoin = 'round'
   g.lineCap = 'round'
@@ -231,6 +240,8 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     labels.replaceChildren()
     // Every label is added first, then all are measured at once, then all are placed: one layout, not one a label.
     const placed: { el: HTMLSpanElement; cls: string; sx: number; sy: number }[] = []
+    /** How many of the last placed labels are the histogram's words: its name, its price, and the share above. */
+    let histWords = 2
     const put = (text: string, cls: string, at: V3) => {
       const [sx, sy, w] = project(vp, at[0], at[1], at[2])
       if (w <= 0.05) return
@@ -242,6 +253,20 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     }
     const layout = () => {
       const sizes = placed.map(({ el }) => [el.offsetWidth, el.offsetHeight] as const)
+      // The histogram's words, the last two or three placed, rise clear of any bar grown under them, as the live ones do.
+      const block = sizes.slice(-histWords)
+      const hw = Math.max(...block.map((s) => s[0])), hh = block.reduce((a, s) => a + s[1], 0)
+      const toCss = (x: number, y: number, z: number) => {
+        const [sx, sy] = project(vp, x, y, z)
+        return [((sx + 1) / 2) * cssW, ((1 - sy) / 2) * cssH] as const
+      }
+      const lift = histLift(toCss, (b) => (input.payoff[b]! / maxPay < minLen ? 0 : input.payoff[b]! / maxPay), hw, hh)
+      if (lift > 0)
+        for (const p of placed.slice(-histWords)) {
+          const [sx, sy] = project(vp, LABELS.hist.at[0], LABELS.hist.at[1] + lift, 0)
+          p.sx = sx
+          p.sy = sy
+        }
       placed.forEach(({ el, cls, sx, sy }, i) => {
         const [ew, eh] = sizes[i]!
         const side = cls.includes('-translate-x-full') ? -1 : cls.includes('-translate-x-1/2') ? -0.5 : 0
@@ -269,6 +294,11 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
       `${LABELS.value.cls} text-indigo`,
       [LABELS.hist.at[0], LABELS.hist.at[1], 0],
     )
+    // The paths that end above the wall's top, where no bar is drawn, under the price, as the live figure says them.
+    const share = shareAbove(input.sigma)
+    const words = share >= ABOVE_SHOWN ? 3 : 2
+    if (words === 3) put(aboveWords(share), `${LABELS.above.cls}`, [LABELS.hist.at[0], LABELS.hist.at[1], 0])
+    histWords = words
     layout()
   }
 

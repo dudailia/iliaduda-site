@@ -63,7 +63,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'closebooks',
     href: '/closebooks',
-    title: 'CloseBooks: a multi-tenant month-end close with an LLM in the loop',
+    // "a" held to its noun: before the unbreakable "multi-tenant" a phone left it alone at a line's end.
+    title: 'CloseBooks: a\u00a0multi-tenant month-end close with an LLM in the loop',
     abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} API routes over Postgres with row-level security, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn, or a reviewer’s approval, before it is exported.`,
     dek: 'A multi-tenant month-end close for CPA firms that I built alone: an LLM pipeline maps every bank line to the client’s accounts, and only confident or reviewer-approved lines export.',
     figureNote: 'synthetic feed',
@@ -85,7 +86,11 @@ export const papers: readonly Paper[] = [
   {
     slug: 'cricstate',
     href: '/cricstate',
-    title: 'What ball-by-ball cricket predicts beyond the scoreboard',
+    // "the scoreboard" held together: no line ends on "the". Measured 320–1440: the Contents and every heading from
+    // 390 up set it with no word alone ("beyond the" held left "predicts" alone in the Contents, "scoreboard" alone in
+    // the heading at desktop). Under 390 the heading takes four lines and one word stands alone whatever is held;
+    // all three held overflow it.
+    title: 'What ball-by-ball cricket predicts beyond the\u00a0scoreboard',
     abstract: `A leakage-audited model of T20 cricket, built on ${n('crDeliveries')} T20 and ODI deliveries. Gradient boosting on match state cuts log-loss on win probability ${Math.round(fact('crT2Skill').value)}% below the base rate (${fact('crT2Nll').value.toFixed(3)} against ${fact('crT2Base').value.toFixed(3)}) on held-out matches, and the study measured what player identity adds before building on it: ${fact('crIdentityGain').value}%, under the bar.`,
     dek: `A leakage-audited model of T20 cricket, built on ${n('crDeliveries')} T20 and ODI deliveries: gradient boosting on match state cuts win-probability log-loss ${Math.round(fact('crT2Skill').value)}% below the base rate on held-out matches.`,
     byline: 'Independent research · July 2026',
@@ -97,8 +102,8 @@ export const papers: readonly Paper[] = [
     slug: 'order-book',
     href: '/order-book',
     title: 'Order flow that remembers: a Hawkes-driven limit order book',
-    standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig. 2 shows what set off any one.`,
-    abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300 events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
+    standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig.\u00a02 shows what set off any one.`,
+    abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
     dek: 'A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser and drawn as terrain: read the odds of what set off any market order.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
@@ -107,13 +112,14 @@ export const papers: readonly Paper[] = [
     slug: 'iv-surface',
     href: '/iv-surface',
     title: 'An implied-volatility surface free of static arbitrage',
-    standfirst: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and the Greeks at any point. It takes a simulated volatility shock and stays free of static arbitrage through every frame; Fig. 2 lets you break the condition.`,
-    abstract: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and Black–Scholes Greeks at any point. It takes a simulated volatility shock, the short end lifting and the skew steepening, and stays free of static arbitrage through every frame of it; the tests check Gatheral and Jacquier’s conditions on a dense grid, and Fig. 2 lets you break them.`,
+    standfirst: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and the Greeks at any point. It takes a simulated volatility shock and stays free of static arbitrage through every frame; Fig.\u00a02 lets you break the condition.`,
+    abstract: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and Black–Scholes Greeks at any point. It takes a simulated volatility shock, the short end lifting and the skew steepening, and stays free of static arbitrage through every frame of it; the tests check Gatheral and Jacquier’s conditions on a dense grid, and Fig.\u00a02 lets you break them.`,
     dek: 'A synthetic SSVI volatility surface in live 3D, with local vol and Black–Scholes Greeks at any point, that takes a shock and stays free of static arbitrage in every frame.',
     byline: 'Independent work · September 2026 · synthetic data',
     status: 'published',
     cvName: 'Implied-volatility surface free of static arbitrage',
-    cv: 'A synthetic SSVI surface free of static arbitrage, with Dupire local volatility and Black–Scholes Greeks at any point, the no-arbitrage conditions asserted by tests on a dense grid; drawn live in raw WebGL2.',
+    // Its name already says it is free of static arbitrage: the line goes on from there.
+    cv: 'A synthetic SSVI surface shaped like an equity index, with Dupire local volatility and Black–Scholes Greeks at any point, the no-arbitrage conditions asserted by tests on a dense grid; drawn live in raw WebGL2.',
   },
   {
     slug: 'startup-investments',

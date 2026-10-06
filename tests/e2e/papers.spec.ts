@@ -21,7 +21,7 @@ test('CloseBooks: approving a waiting row lets it through the export gate', asyn
   const before = await exportable.textContent()
   await page.getByRole('button', { name: /Approve line 4/ }).click()
   await expect(exportable).not.toHaveText(before ?? '')
-  await page.getByRole('button', { name: /^Map to \d+: line 3,/ }).click()
+  await page.getByRole('button', { name: /^Map to \d+ \w+: line 3,/ }).click()
   await expect(page.locator('#fig-pipeline dt:has-text("Blocked") + dd').first()).toHaveText('0')
 })
 

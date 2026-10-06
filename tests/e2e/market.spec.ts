@@ -212,7 +212,8 @@ test('a moment pointed at in the book is the moment every readout shows: one mom
     const dd = [...document.querySelectorAll('dd')].find((d) => d.querySelector('[data-market-value]') && d.previousElementSibling?.textContent?.startsWith('Stress'))
     return [document.querySelector('[data-market-book-title]')?.textContent ?? '', dd?.textContent ?? '']
   })
-  expect(stressShown).toBe(/stress (\d\.\d\d)/.exec(label)![1]!)
+  // The label keeps each item whole on screen (no-break spaces inside it): any space.
+  expect(stressShown).toBe(/stress\s(\d\.\d\d)/.exec(label)![1]!)
 })
 
 test('the book reads the market at a moment by keyboard, and the surface turns with the arrow keys', async ({ page, isMobile }) => {

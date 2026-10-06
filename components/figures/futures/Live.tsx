@@ -4,7 +4,7 @@ import { Items } from '@/components/Layout'
 import { EASE_OUT_CSS } from '@/lib/ease'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
 import { flushSync } from 'react-dom'
-import { FigureFrame } from '@/components/FigureFrame'
+import { FigureFrame, Steady } from '@/components/FigureFrame'
 import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, useColorScheme } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
@@ -97,6 +97,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
   const [strike, setStrike] = useState<number>(MODEL.strike)
   const [shown, setShown] = useState<Shown>({ ...initial.stats, rate: 0, mode: 'server', done: true })
   const [frame, setFrame] = useState<PosterFrame>(initial)
+  /** On paper, the poster's price is the readouts' own estimate, so a printed sheet never sets two prices for one call. */
+  const [paperPrice, setPaperPrice] = useState<number | null>(null)
+  const paperRef = useRef<number | null>(null)
   const [table, setTable] = useState<Table>({ sigma: MODEL.sigma, strike: MODEL.strike, ...initial.stats, counts: initial.counts, payoff: initial.payoff })
   const [history, setHistory] = useState<Point[]>([])
   // Why the live renderer declined, when it did.
@@ -216,7 +219,12 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       const was = f.flying
       f.advance(dtMs)
       if (was && !f.flying) setFlying(false)
-      if (armed.current && t.started) setSeqState(t.done ? 'done' : 'playing')
+      if (armed.current && t.started) {
+        setSeqState(t.done ? 'done' : 'playing')
+        // The story is over: the mark that hid the poster for it goes, as the other figures' do, so a still frame
+        // later (a lost context) shows.
+        if (t.done) delete document.documentElement.dataset.futuresSeq
+      }
     },
     [setSeqState],
   )
@@ -277,6 +285,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
                 onStats,
                 onSequenceFrame,
                 atRest: () => stillWasShown.current,
+                opening: () => frameRef.current.stats.mean,
               },
             )
             real.setQuality!(quality)
@@ -316,6 +325,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           interval = s
           real?.refresh?.(s)
         },
+        calm: () => !!real?.calm?.(),
         dispose: () => {
           gone = true
           window.clearTimeout(slow)
@@ -329,7 +339,12 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
   )
 
   // The quality waits to climb until the story is told, as the IV figure's does: the burst's glow and effects never change mid-moment.
-  const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seqRef.current === 'pending' || seqRef.current === 'playing' }))
+  // And while the camera moves (the swing into depth after the story, a flight and its return): the step's long frame
+  // landed in the middle of the swing, a hitch in the one move the reader is watching; at rest the drift is slow.
+  const [stageOpts] = useState(() => ({
+    ...STAGE_OPTS,
+    hold: () => seqRef.current === 'pending' || seqRef.current === 'playing' || ['settle', 'flight', 'return'].includes(labels.current?.dataset.camera ?? ''),
+  }))
   const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
 
   // One market, checked here: once the figure runs live, this browser builds the same seeded market in a worker
@@ -424,7 +439,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       if (armed.current && !timeline.current.started) timeline.current.start()
     }
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         const seen = e?.isIntersecting ? e.intersectionRatio : 0
         if (seen >= 0.35 || seen < 0.2) {
           clearTimeout(wait)
@@ -713,6 +730,27 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
   const priced = hasMean && fresh
   // The estimate held while a new option's run starts is the old option's: its gap to the new formula means nothing.
   const sameOption = !shown.for || (shown.for.sigma === sigma && shown.for.strike === strike)
+  // Far out of the money at a low volatility no simulated path pays: every payoff is 0, the standard error with them,
+  // and the gap has no standard errors to be counted in.
+  const gapText = !(priced && sameOption) ? '…' : shown.se > 0 ? `${(diff / shown.se).toFixed(1)} SE` : 'no path pays'
+  const paperEstimate = priced && sameOption ? shown.mean : null
+  useEffect(() => {
+    paperRef.current = paperEstimate
+  }, [paperEstimate])
+  useEffect(() => {
+    const on = () => flushSync(() => setPaperPrice(paperRef.current))
+    const off = () => setPaperPrice(null)
+    const print = matchMedia('print')
+    const onMedia = () => (print.matches ? on() : off())
+    addEventListener('beforeprint', on)
+    addEventListener('afterprint', off)
+    print.addEventListener('change', onMedia)
+    return () => {
+      removeEventListener('beforeprint', on)
+      removeEventListener('afterprint', off)
+      print.removeEventListener('change', onMedia)
+    }
+  }, [])
   const changed = sigma !== MODEL.sigma || strike !== MODEL.strike
 
   const running = shown.mode === 'gpu' || shown.mode === 'cpu'
@@ -788,23 +826,27 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       <dl className="grid grid-cols-1 gap-y-px [&_dd]:mb-2">
         <dt className="text-graphite">Simulated price ± 2 SE</dt>
         <dd className="tabular text-indigo" data-mc-price={priced ? shown.mean : ''} data-mc-se={priced ? shown.se : ''}>
-          {mc}
+          <Steady text={mc} ch={16} />
         </dd>
         <dt className="text-graphite">Black–Scholes formula</dt>
         <dd className="tabular text-ink" data-bs-price={exact}>
           {exact.toFixed(4)}
         </dd>
         <dt className="text-graphite">Gap to the formula</dt>
-        <dd className="tabular text-ink">{priced && sameOption ? `${(diff / shown.se).toFixed(1)} SE` : '…'}</dd>
+        <dd className="tabular text-ink">
+          <Steady text={gapText} ch={12} />
+        </dd>
       </dl>
       <dl className="mt-1 grid grid-cols-1 gap-y-px border-t border-rule pt-3 [&_dd]:mb-2">
-        <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
+        <dt className="text-graphite">
+          <Steady text={shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'} ch={16} />
+        </dt>
         <dd className="tabular text-ink" data-paths={fresh ? shown.n : 0}>
-          {paths}
+          <Steady text={paths} ch={11} />
         </dd>
         <dt className="text-graphite">{speedLabel}</dt>
         <dd className="tabular text-ink" data-speed={shown.mode}>
-          {speed}
+          <Steady text={speed} ch={13} />
         </dd>
       </dl>
       {/* Its room is kept from the first paint, and it fades in with the canvas it reports on. */}
@@ -845,8 +887,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         number="Fig. 1"
         className="mt-10 mb-12 lg:mt-6 lg:mb-16"
         title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
-        subtitle={`Simulated · geometric Brownian motion · σ ${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
-        subtitleRoom={`Simulated · geometric Brownian motion · σ ${pct(MODEL.sigma)}, the simulated market’s realised vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitle={`Simulated · geometric Brownian motion · σ\u00a0${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised\u00a0vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitleRoom={`Simulated · geometric Brownian motion · σ\u00a0${pct(MODEL.sigma)}, the simulated market’s realised\u00a0vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
         railBelow={false}
         // Room kept for the longest of its hints (a still frame's longest reason, and the live figure's), in one cell with
@@ -889,7 +931,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           onClick={onTap}
         >
           <div data-futures-poster="" className="absolute inset-0" style={underlay(live || stillShown)}>
-            <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={frame.stats.mean} />
+            <Poster strands={posterStrands} payBars={frame.payBars} outline={frame.outline} strike={strike} price={paperPrice ?? frame.stats.mean} />
           </div>
           {/* It arrives over a flat poster framed differently, so a 2px blur bridges the two pictures while it fades in. */}
           <canvas
@@ -919,7 +961,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           </span>
         </p>
 
-        {/* A phone gets the numbers that tell the story; the margin has the rest. */}
+        {/* A phone gets the margin's numbers too, in pairs: the estimate against the formula, how far apart they are
+            and on how many paths (what the caption says the readouts show), and the machine. */}
         <dl className="text-meta mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono lg:hidden">
           <div className="min-w-0">
             <dt className="text-graphite">Simulated ± 2 SE</dt>
@@ -928,6 +971,14 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           <div className="min-w-0">
             <dt className="text-graphite">Black–Scholes</dt>
             <dd className="tabular text-ink">{exact.toFixed(4)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">Gap to the formula</dt>
+            <dd className="tabular text-ink">{gapText}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
+            <dd className="tabular text-ink">{paths}</dd>
           </div>
           <div className="col-span-2 min-w-0">
             <dt className="text-graphite">{speedLabel}</dt>
@@ -952,7 +1003,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               value={Math.round(sigma * 100)}
               aria-valuetext={`${pct(sigma)} a year`}
               onChange={(e) => commit(Number(e.currentTarget.value) / 100, strike)}
-              className="mt-0.5 block h-6 w-full"
+              className="mt-0.5 block h-6 w-full pointer-coarse:-mb-2.5 pointer-coarse:mt-[calc(0.125rem-10px)] pointer-coarse:h-11"
               style={rangeFill(Math.round(sigma * 100), MODEL.sigmaMin * 100, MODEL.sigmaMax * 100)}
             />
           </label>
@@ -971,7 +1022,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               value={strike}
               aria-valuetext={`$${strike}`}
               onChange={(e) => commit(sigma, Number(e.currentTarget.value))}
-              className="mt-0.5 block h-6 w-full"
+              className="mt-0.5 block h-6 w-full pointer-coarse:-mb-2.5 pointer-coarse:mt-[calc(0.125rem-10px)] pointer-coarse:h-11"
               style={rangeFill(strike, MODEL.strikeMin, MODEL.strikeMax)}
             />
           </label>
@@ -980,13 +1031,13 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             where it never will (reduced motion, no WebGL2), the pre-paint script collapses it. */}
         {/* On a 360px phone the four buttons at full padding took a second line when Reset came, moving the caption 40px
             under the reader's thumb: there they close up (8px padding, 6px gaps), and the row keeps its one line. */}
-        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2">
+        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2 pointer-coarse:gap-y-3.5">
           {live && (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem] max-sm:min-w-[4rem]`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem] max-sm:min-w-[4.125rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
-              <button type="button" onClick={toggleFlight} className={`${CONTROL} min-w-[6.75rem] max-sm:min-w-[6.25rem]`}>
+              <button type="button" onClick={toggleFlight} className={`${CONTROL} min-w-[6.75rem] max-sm:min-w-[6.5rem]`}>
                 {flying ? 'Stop' : 'Fly through'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>

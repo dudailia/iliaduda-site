@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
+import { Items } from '@/components/Layout'
 import { arrivedByMorph } from '@/lib/arrival'
 import { useOnceSeen, useReducedMotion } from '@/components/stage/env'
 import { CONTROL } from '@/components/stage/controls'
@@ -195,7 +197,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     const el = box.current
     if (!el) return
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         seen.current = !!e?.isIntersecting
         const go = parked.current
         if (seen.current && go) {
@@ -211,6 +215,26 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       cancelAnimationFrame(raf.current)
       parked.current = null
     }
+  }, [])
+
+  // Printed before this visit's replay has come, or while it plays: the whole match goes on the paper, as a reader
+  // who had watched it to the end would have it. A reader's own scrub prints where they left it.
+  const toPrint = useRef<() => void>(() => {})
+  useEffect(() => {
+    toPrint.current = () => {
+      if (!armed.current && !playing) return
+      flushSync(() => {
+        stop()
+        setAt(n - 1)
+        setFrac(0)
+      })
+      release()
+    }
+  })
+  useEffect(() => {
+    const onPrint = () => toPrint.current()
+    addEventListener('beforeprint', onPrint)
+    return () => removeEventListener('beforeprint', onPrint)
   }, [])
 
   // The one self-drawing replay, once a visit, when the figure is actually seen, and not if the reader has already
@@ -255,17 +279,20 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   const hx = x(Math.min(n - 1, at + frac))
   const hy = frac > 0 && at < n - 1 ? y(p) + (y(balls[at + 1]![9]) - y(p)) * frac : y(p)
 
+  // Each value's longest, so in the margin (set right) a value that changes length while the replay runs holds still
+  // (ch: FigureFrame's Steady): "1 run" to "0 runs" moved the value's left edge on a hundred balls, a shift each.
+  const names = Math.max(first.length, second.length)
   const rows = [
     // The claim first: the model's probability before this ball.
-    { label: `P(${first} win)`, value: pct(p) },
-    { label: 'Innings', value: inn === 1 ? `1 · ${first} batting` : `2 · ${second} chasing` },
-    { label: 'Before ball', value: `over ${over}.${ball}` },
-    { label: 'Score', value: `${batting} ${runs}/${wkts}` },
+    { label: `P(${first} win)`, value: pct(p), ch: '> 99.9%'.length },
+    { label: 'Innings', value: inn === 1 ? `1 · ${first} batting` : `2 · ${second} chasing`, ch: Math.max(`1 · ${first} batting`.length, `2 · ${second} chasing`.length) },
+    { label: 'Before ball', value: `over ${over}.${ball}`, ch: 'over 99.9'.length },
+    { label: 'Score', value: `${batting} ${runs}/${wkts}`, ch: names + ' 999/10'.length },
     // Every row is always present, so the margin never changes height while
     // the replay runs — a row appearing mid-replay was a layout shift.
-    { label: 'Needs', value: target ? `${need} from ${left} balls` : '—' },
-    { label: 'This ball', value: thisBall },
-    { label: 'Result', value: done ? result : '—' },
+    { label: 'Needs', value: target ? `${need} from ${left} balls` : '—', ch: `999 from ${maxBalls} balls`.length },
+    { label: 'This ball', value: thisBall, ch: '9 wickets'.length },
+    { label: 'Result', value: done ? result : '—', ch: result.length },
   ]
 
   // Reading the match by pointer: a mouse drags or clicks along the chart; a finger scrubs once its drag is plainly
@@ -324,13 +351,23 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       }
       caption={caption}
       table={table}
-      hint="Drag across the chart, or use the slider or the arrow keys, to move ball by ball · Home and End jump · the line is the model’s output before each ball"
+      // Under a finger the hint says what a finger does (the keys it taught are not there).
+      hint={
+        <>
+          <span className="pointer-coarse:hidden">
+            <Items items="Drag across the chart, or use the slider or the arrow keys, to move ball by ball · Home and End jump · the line is the model’s output before each ball" />
+          </span>
+          <span className="hidden pointer-coarse:inline">
+            <Items items="Drag across the chart or the slider, or tap a ball, to move ball by ball · the line is the model’s output before each ball" />
+          </span>
+        </>
+      }
     >
       <div ref={box} className="relative">
         <div className="flex">
-          <div aria-hidden className="text-meta relative w-11 shrink-0 font-mono text-graphite">
+          <div aria-hidden className="text-meta relative w-12 shrink-0 font-mono text-graphite">
             {TICKS.map((v) => (
-              <span key={v} className="absolute right-2 -translate-y-1/2" style={{ top: `${(y(v) / H) * 100}%` }}>
+              <span key={v} className="absolute right-1.5 -translate-y-1/2" style={{ top: `${(y(v) / H) * 100}%` }}>
                 {tickLabel(v)}
               </span>
             ))}
@@ -384,7 +421,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
 
         {/* Innings, named under the axis rather than over the curve: each name centred under its own innings and kept
             to its width, so on a narrow screen it wraps rather than running into the other. */}
-        <div aria-hidden className="text-meta mt-1.5 ml-11 flex font-mono text-graphite">
+        <div aria-hidden className="text-meta mt-1.5 ml-12 flex font-mono text-graphite">
           <span className="px-1 text-center text-balance" style={{ width: `${(x(breakAt) / W) * 100}%` }}>
             {first} batting
           </span>
@@ -395,7 +432,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
 
         {/* The slider under the plot, on its time axis: its thumb stands where the playhead does (the thumb's 16px is
             let out past the plot's edges, so the first and last balls sit at them). */}
-        <div className="mt-2 ml-11">
+        <div className="mt-2 ml-12">
           <input
             type="range"
             min={0}
@@ -415,11 +452,11 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
               keep()
               if (playing) stop()
             }}
-            className="-mx-2 block h-6 w-[calc(100%+1rem)]"
+            className="range-inset -mx-2 block h-6 w-[calc(100%+1rem)] pointer-coarse:-my-2.5 pointer-coarse:h-11"
             style={rangeFill(at, 0, n - 1)}
           />
         </div>
-        <div className="mt-2 ml-11 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="mt-2 ml-12 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pointer-coarse:gap-y-3.5">
           <p aria-hidden className="text-meta font-mono text-graphite">
             <span className="mr-1 inline-block h-2.5 w-px translate-y-0.5 bg-ink" /> a wicket falls
           </p>

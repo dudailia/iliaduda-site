@@ -37,7 +37,7 @@ export default function Nucarbon() {
             The model runs from people to prompts to energy to carbon: population, queries per
             person per day and adoption per tool give a daily query volume; energy per query turns
             that into kilowatt hours, and the grid&rsquo;s carbon intensity turns those into
-            kilograms of CO₂. The grid figure is New England&rsquo;s from the EPA&rsquo;s eGRID;
+            kilograms of CO₂. The grid figure, {fact('ncCo2PerKwh').value}&nbsp;kg of CO₂ per kilowatt hour, comes from the EPA&rsquo;s eGRID;
             energy per query sits in the published range from Samsi et al. (2023), cited on the
             page where it is used.
           </p>

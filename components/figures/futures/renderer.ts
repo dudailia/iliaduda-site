@@ -5,7 +5,8 @@ import { BAR_D, ZWALL, driftAt, project, restPose, viewProjection, wallPrice, ty
 import { DENSITY_SCALE, densityFormat, glOverride, type Density } from '@/lib/futures/caps'
 import { Director, type CamMode } from '@/lib/futures/director'
 import { RNG } from '@/lib/futures/glsl'
-import { aggregate, binnedPrice } from '@/lib/futures/hist'
+import { ABOVE_SHOWN, aboveWords, aggregate, binnedPrice, shareAbove } from '@/lib/futures/hist'
+import { histLift } from '@/lib/futures/histLift'
 import { GROUPS, HIST, MODEL, binWidth, stepCoefficients } from '@/lib/futures/mc'
 import { type Phases } from '@/lib/futures/sequence'
 import { Stream, burstSlot } from '@/lib/futures/stream'
@@ -72,6 +73,8 @@ export interface Options {
   onSequenceFrame: () => void
   /** The still frame is on screen as the first frame is drawn: open on the resting view it shows. */
   atRest?: () => boolean
+  /** The price the still frame shows, which a visit that opens finished says until its own estimate is in. */
+  opening?: () => number
 }
 
 export interface FuturesRenderer extends Renderer {
@@ -209,11 +212,15 @@ void main() {
 // adds its share on average instead of rounding away.
 const RIBBON_FS = `${HEAD}${RNG}
 in float vD; in float vHalf; in float vA; flat in int vPays; flat in uint vId;
-uniform float uGain, uScale, uDither; uniform uint uFrame;
+uniform float uGain, uScale, uDither, uTopH; uniform uint uFrame;
 out vec4 o;
 void main() {
   float cov = 1.0 - smoothstep(vHalf - 0.5, vHalf + 0.5, abs(vD));
-  float w = uGain * vA * cov;
+  // Toward the stage's top every path fades out, by where the fragment is on screen: a high volatility carries the
+  // upper tail past the top, which cut on a ruler line. (Faded at its vertices, a segment from inside the stage to
+  // far above it still kept two thirds of its ink at the edge.)
+  float top = 1.0 - smoothstep(0.88 * uTopH, uTopH, gl_FragCoord.y);
+  float w = uGain * vA * cov * top;
   vec4 c = (vPays == 1 ? vec4(w, 0.0, 0.0, 0.0) : vec4(0.0, w, 0.0, 0.0)) * uScale;
   if (uDither > 0.5) {
     uvec4 h = pcg4d(uvec4(uvec2(gl_FragCoord.xy), vId, uFrame));
@@ -494,6 +501,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   /** How far the fade back in has come after a Replay (0…1, eased). */
   let fadeUp = 0
   let firstFrame = true
+  /** A visit that opens on the finished picture: its first bars are set, not grown. */
+  let openFinished = false
   /** The one batch priced while the sequence waits has gone out. */
   let warmed = false
   /** An input changed since the last pricing call: the next frame prices, paused or not. */
@@ -559,9 +568,17 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   for (const s of TICKS) label(`$${s}`, LABELS.tick.cls, () => [LABELS.tick.x, wy(s), zEdge()], () => labelU * tickShown(s - kv.x))
   // The strike stays named through the whole flight: it is what the colours mean.
   const strikeEl = label('', LABELS.strike.cls, () => [LABELS.strike.label, wy(kv.x), zEdge()], () => 1)
+  // At a high volatility a share of the paths ends above the wall's top, where no bar is drawn: it is said at the top of
+  // the price axis, so the histogram is never read as the whole of the distribution.
+  let aboveText = ''
+  const aboveEl = label('', LABELS.above.cls, () => [LABELS.hist.at[0], LABELS.hist.at[1] + histUp, 0], () =>
+    labelU * landing() * smooth(ABOVE_SHOWN * 0.8, ABOVE_SHOWN * 1.6, shareAbove(sig.x)),
+  )
   // One label for the histogram. Its words change halfway through the morph, through a 3px blur at full opacity (the
   // swap below), so one text never crossfades into another.
-  const histEl = label('Where the paths end', `${LABELS.hist.cls} text-ink`, () => [LABELS.hist.at[0], LABELS.hist.at[1], 0], () => labelU * landing(), true)
+  /** How far the histogram's words have risen clear of bars grown under them (lib/futures/histLift.ts), world y. */
+  let histUp = 0
+  const histEl = label('Where the paths end', `${LABELS.hist.cls} text-ink`, () => [LABELS.hist.at[0], LABELS.hist.at[1] + histUp, 0], () => labelU * landing(), true)
   let histText = 0
   // The words the histogram is to say, and when their swap began (seconds on the clock; −1: none under way).
   let histWant = 0
@@ -575,11 +592,14 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   // The number is the live Monte Carlo estimate, not a restatement of the formula.
   // In the composed frame it stands under the strike line, where the payoff bars are empty; in depth, a point further
   // along the time axis rises on screen, so it moves under the strike's own name on the wall's edge, stacked.
-  const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.hist.at[0], LABELS.hist.at[1], 0], () =>
+  const valueEl = label('', `${LABELS.value.cls} text-indigo`, () => [LABELS.hist.at[0], LABELS.hist.at[1] + histUp, 0], () =>
     est.n > 0 || held ? labelU * smooth(0.55, 1, morph.x) * (inSeq() ? EASE_OUT(clamp01(ph!.price / 0.24)) : 1) : 0,
     true,
   )
   let valueText = ''
+  /** When the price's words last changed (clock seconds). */
+  let valueAt = -1
+  const priceWords = (mean: number) => (cssW < 520 ? `Call price: $${mean.toFixed(2)}` : `Call price, the average discounted payoff: $${mean.toFixed(2)}`)
   /**
    * The last price shown, held through the moment after the reader moves an input and before the new run's first
    * estimate is back, so the claim does not blink out on every step of a drag. The sequence starts from nothing, as
@@ -638,21 +658,25 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       o.onStats({ n: 0, mean: 0, se: 0, forward: 0, rate: 0, done: false, hist: null })
       return
     }
-    const narrow = cssW < 520
     const now = clock.now
     const v =
       previewK != null && pricer.ready()
         ? `Call at $${Math.round(kv.x)}: about $${binnedPrice(pricer.fine, kv.x).toFixed(2)}`
         : est.n > 0
-          ? narrow
-            ? `Call price: $${est.mean.toFixed(2)}`
-            : `Call price, the average discounted payoff: $${est.mean.toFixed(2)}`
+          ? priceWords(est.mean)
           : inSeq()
             ? ''
             : held
     if (est.n > 0 && previewK == null) held = v
     else if (inSeq()) held = ''
-    if (v !== valueText) valueEl.textContent = valueText = v
+    // Outside the story the estimate's cents settle at most four times a second: on a visit that opens finished it took
+    // over from the still's price and read $10.55, .53, .56, .54, .57 inside 150ms. In the story the convergence is the
+    // point, a reader's preview answers at once, and a paused figure's words stop with its picture.
+    const settling = !inSeq() && previewK == null && !o.paused() && est.n > 0 && !pricer.doneAt && !!valueText && now - valueAt < 0.25
+    if (v !== valueText && !settling) {
+      valueEl.textContent = valueText = v
+      valueAt = now
+    }
     const rate = pricer.rate()
     if (!force && now - statsAt < 0.1) return
     statsAt = now
@@ -769,6 +793,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     gl.uniform1f(P.ribbon.u('uFar'), palette.dark ? 0.6 : DAY.far)
     gl.uniform1f(P.ribbon.u('uEdge'), edgeK.x)
     gl.uniform1f(P.ribbon.u('uDither'), density === 'rgba8' ? 1 : 0)
+    gl.uniform1f(P.ribbon.u('uTopH'), den.h)
     gl.uniform1ui(P.ribbon.u('uFrame'), clock.frameNo)
     gl.bindVertexArray(empty)
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 130, pathN)
@@ -865,15 +890,17 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
    * A bar as a slab behind the z = 0 plane, its front face the flat bar of the composed frame: written straight into
    * the vertex buffer, 36 vertices, without a call a face that would hand each of its numbers over boxed.
    */
-  function slab(x0: number, x1: number, y0: number, y1: number, base: Float64Array) {
+  function slab(x0: number, x1: number, y0: number, y1: number, base: Float64Array, k = 1) {
     const z0 = -2 * BAR_D, z1 = 0
     const dark = palette.dark
     // Lit from above and in front: the top catches the light, the far end and the back fall away from it. The
     // base at the wall takes the front's tone: every bar's base lies in one plane, and shaded apart they stacked
     // into a column that read as a tower rather than a distribution.
-    const top = mixInto(barTop, base, dark ? palette.ink : palette.paper, dark ? 0.2 : 0.24)
-    const end = mixInto(barEnd, base, dark ? palette.paper : palette.ink, dark ? 0.3 : 0.14)
-    const low = mixInto(barLow, base, dark ? palette.paper : palette.ink, dark ? 0.45 : 0.24)
+    // The shading fades with the bar (`k`, Replay's fade): at a fixed strength the faded bars' ends and bases stayed
+    // 14–24% ink, a grey wireframe of the old answer as the camera swung face-on.
+    const top = mixInto(barTop, base, dark ? palette.ink : palette.paper, (dark ? 0.2 : 0.24) * k)
+    const end = mixInto(barEnd, base, dark ? palette.paper : palette.ink, (dark ? 0.3 : 0.14) * k)
+    const low = mixInto(barLow, base, dark ? palette.paper : palette.ink, (dark ? 0.45 : 0.24) * k)
     const a = solid.room(36 * 7)
     let n = solid.n
     for (let f = 0; f < 6; f++) {
@@ -943,7 +970,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         const pays = lo + binWidth / 2 > kv.x
         const a = ((1 - w) * (pays ? (dark ? 0.62 : 0.5) : dark ? 0.4 : 0.28) + w * 0.95) * fadeMul
         // Opaque, so depth sorts them: the ink's strength is mixed into paper instead of blended over it.
-        slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixInto(barBase, palette.paper, pays ? palette.indigo : palette.graphite, a))
+        slab(HX0, HX0 + HLEN * len, wy(lo) + 0.0025, wy(lo + binWidth) - 0.0025, mixInto(barBase, palette.paper, pays ? palette.indigo : palette.graphite, a), fadeMul)
       }
     }
     // The first frame builds the bars' pipeline with one slab far off screen, before any bar is due.
@@ -1082,6 +1109,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   /** Places every label; true while any is still following its opacity, so the next frame is drawn too. */
   function placeLabels(dt: number): boolean {
     let following = false
+    const above = aboveWords(shareAbove(sig.x))
+    if (above !== aboveText) aboveEl.textContent = aboveText = above
     // Labels whose text changed are measured first, all together, before any style is written this frame: one
     // layout at most, never one for each label after another's write.
     for (const l of labels)
@@ -1091,6 +1120,31 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         l.h = l.el.offsetHeight
       }
     const follow = 1 - Math.exp(-dt / 0.06)
+    // The histogram's name and price rise clear of any drawn bar (two pixels and longer) grown under them, followed
+    // over the same 60ms.
+    const hl = labels.find((l) => l.el === histEl)!, vl = labels.find((l) => l.el === valueEl)!, al = labels.find((l) => l.el === aboveEl)!
+    // The third line's room comes and goes with the line itself (its own opacity, 0 to 1): taken whole the moment it
+    // switched on, it lifted the block 18px in one frame while the line was still invisible.
+    const aboveK = Math.max(0, Math.min(1, al.k ?? 0))
+    let want = 0
+    if (barsReady && hl.w > 0) {
+      const toCss = (x: number, y: number, z: number) => {
+        const s = project(vp, x, y, z)
+        return [((s[0] + 1) / 2) * cssW, ((1 - s[1]) / 2) * cssH] as const
+      }
+      const pxPerLen = Math.abs(toCss(HX0 + HLEN, 0, 0)[0] - toCss(HX0, 0, 0)[0])
+      const minLen = 2 / Math.max(1, pxPerLen)
+      const m = morph.x, land = landing()
+      const len = (b: number) => {
+        const l = land * ((1 - m) * cLen[b]! + m * gLen[b]!)
+        return l < minLen ? 0 : l
+      }
+      want = histLift(toCss, len, Math.max(hl.w, vl.w, aboveK > 0.01 ? al.w : 0), hl.h + Math.max(0, vl.h) + aboveK * Math.max(0, al.h))
+    }
+    // Up at once, as the bars grow (eased, the words lagged a volatility jump by 100ms, sitting on the top bars); down over
+    // the 60ms follow, as they shrink.
+    histUp = want >= histUp || Math.abs(want - histUp) < 1e-4 ? want : histUp + (want - histUp) * follow
+    if (histUp !== want) following = true
     for (const l of labels) {
       const [x, y, z] = l.at()
       const s = project(vp, x, y, z)
@@ -1157,7 +1211,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     return next
   }
 
+  let calmNow = false
   const r: FuturesRenderer = {
+    calm: () => calmNow,
     frame(t, dt) {
       if (!ready) {
         if (!programs.every((p) => p.ready())) return false
@@ -1214,11 +1270,29 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       // Alongside the fan the futures step back by half, so the camera is among them without drowning in them; at
       // the wall a little more, and the bars carry the view.
       spring(focus, cam === 'flight' ? 1 - 0.5 * smooth(0.28, 0.45, flightP) - 0.05 * smooth(0.6, 0.8, flightP) : 1, dt, 5)
-      spring(edgeK, cam === 'flight' ? smooth(0.2, 0.3, flightP) : 0, dt, 6)
+      // The edge fade comes in with the flight's first steps: from 20% the camera was already in among the paths, and
+      // for two seconds they stopped on the stage's edge as on a rectangle.
+      spring(edgeK, cam === 'flight' ? smooth(0.02, 0.14, flightP) : 0, dt, 6)
       if (firstFrame) {
         firstFrame = false
-        // A visit without a sequence opens on the finished picture: payoff bars and the price.
-        if (!inSeq()) morph.x = 1
+        // A visit without a sequence opens on the finished picture, the poster's: payoff bars at their lengths, the price,
+        // and the histogram's finished name (it opened on "Where the paths end" and blurred to it over a poster that
+        // already said it, and the bars grew in beside the poster's).
+        if (!inSeq()) {
+          morph.x = 1
+          histText = histWant = 1
+          histSwapAt = -1
+          histEl.textContent = 'Payoff × how often it happens'
+          openFinished = true
+          // And the still's price, at full strength from the first frame: arriving with the first estimate, from nothing
+          // over 60ms, the price faded to half its contrast as the canvas covered the still's.
+          const opening = o.opening?.()
+          if (opening != null && Number.isFinite(opening)) {
+            held = priceWords(opening)
+            valueEl.textContent = valueText = held
+            valueAt = clock.now
+          }
+        }
       }
       // The morph: the sequence's own clock while it plays; the flight's once
       // it faces the wall; and the finished payoff picture at rest or on the way home.
@@ -1233,6 +1307,12 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
 
       if (pricer.collect()) {
         barTargets()
+        if (openFinished) {
+          // The first counts of a visit that opens finished are the bars as they stand, not a growth from nothing.
+          openFinished = false
+          cLen.set(barC)
+          gLen.set(barG)
+        }
         if (paused) {
           // Paused, the bars do not ease: they take each new count as it lands, redrawn at most once a second, as a
           // table would be refreshed, while the estimate in the margin carries on converging.
@@ -1262,6 +1342,9 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       if (!arrived(morph, morphTarget, 1e-5)) why.push('morph')
       drawnFor = why
       const still = why.length === 0
+      // At rest, only the stream and the drift moving, the lean settled: the kit may draw every other frame at 120 Hz.
+      // Not through Pause's coast or Resume's ramp (timeK on its way): a control's answer is drawn at every frame.
+      calmNow = cam === 'rest' && (timeK === 0 || timeK === 1) && why.every((w) => w === 'moving') && Math.abs(par.x.v) + Math.abs(par.y.v) < 1e-4
       if (!still) {
         vp = viewProjection(pose, aspect)
         const ink = writeSlots()
@@ -1296,7 +1379,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
         }
         dirty = placeLabels(dt) || histSwapAt >= 0
         o.labels.dataset.draws = String(++draws)
-        o.labels.dataset.camera = cam
+        if (o.labels.dataset.camera !== cam) o.labels.dataset.camera = cam
       }
       // Waiting for its reader, the figure prices one batch, which builds and warms everything pricing uses (so the
       // burst does not stall on it), then holds until the sequence restarts the run from nothing. Paused, it holds

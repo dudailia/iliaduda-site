@@ -26,17 +26,30 @@ test('the self-hosted faces are the ones actually in use', async ({ page }) => {
 })
 
 /**
+ * The headings' bold fallback (app/globals.css) joins next/font's generated fallback family by name: if next/font ever
+ * names it otherwise, the face would sit unused and headings would reflow at the swap again, with nothing on screen to
+ * say so.
+ */
+test('the headings’ bold fallback belongs to the family next/font falls back to', async ({ page }) => {
+  await page.goto('/')
+  const info = await page.evaluate(() => ({
+    stack: getComputedStyle(document.documentElement).getPropertyValue('--font-serif-face'),
+    faces: [...document.fonts].filter((f) => f.weight === '500 900').map((f) => f.family.replace(/^["']|["']$/g, '')),
+  }))
+  expect(info.stack).toContain('"sourceSerif Fallback"')
+  expect(info.faces).toContain('sourceSerif Fallback')
+})
+
+/**
  * The faces are subsets, so a character outside them is drawn in whatever the
  * system falls back to: σ was, in the hero's subtitle, a heavier glyph from
  * another family. Every character a page shows must be in the site's fonts:
  * the main faces, or the supplement of Greek and mathematical characters that
- * a page fetches only when it shows one (app/globals.css). ∅ is in neither
- * Source face and waits for a change of copy; the list may not name a
- * character the fonts already have.
+ * a page fetches only when it shows one (app/globals.css). A character
+ * waiting on a change of copy may be listed per route; the list may not name a
+ * character the fonts already have (∅, the last, became an asterisk).
  */
-const PENDING: Record<string, string> = {
-  '/startup-investments': '∅',
-}
+const PENDING: Record<string, string> = {}
 
 test('every character a page shows is in the site\'s fonts', async ({ page }) => {
   const have = new Set([

@@ -16,7 +16,8 @@ export const metadata: Metadata = {
   },
   description: `${POSITIONING} ${AVAILABILITY.line}.`,
   twitter: { card: 'summary_large_image' },
-  robots: SITE.isProduction || !process.env.VERCEL_ENV ? { index: true, follow: true } : { index: false },
+  // Indexed and followed is the default, said by nothing; only a preview says noindex (and the 404 its own).
+  ...(SITE.isProduction || !process.env.VERCEL_ENV ? {} : { robots: { index: false } }),
   authors: [{ name: PERSON.name, url: PERSON.github }],
 }
 

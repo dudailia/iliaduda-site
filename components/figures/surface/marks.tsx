@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode, Ref } from 'react'
+import { EASE_OUT_CSS } from '@/lib/ease'
 
 /**
  * Markup shared by the server poster and the live layer: the frame the
@@ -39,7 +40,7 @@ export function AxisLabel({ text, align, kind, className = '', style, ref, movin
   return (
     <span ref={ref} className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
       <span
-        className={`block font-mono text-meta leading-none whitespace-nowrap ${kind === 'title' ? 'rounded-sm bg-paper/90 px-1 py-0.5 text-ink' : 'text-graphite'}`}
+        className={`block font-mono text-meta leading-none whitespace-nowrap ${kind === 'title' ? 'rounded-sm bg-paper/90 px-1 py-0.5 text-ink' : 'text-graphite [text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper)]'}`}
         style={{ transform: ALIGN[align] }}
       >
         {text}
@@ -66,17 +67,69 @@ export function noteRise(y: number, dy: number, h: number, top = 4, below = fals
   return up <= (below ? -16 : -10) ? up : 10
 }
 
-/** Hangs a note's words `dy` from its point, above it or (for a positive `dy`) below: the leader's end moves with them. */
-export function setNoteRise(el: HTMLElement, dy: number, align: string) {
+/** How far left of its own box a note's words start, by their alignment (as NOTE_ALIGN shifts them). */
+const NOTE_FX: Record<string, number> = { right: -1, left: 0, center: -0.5 }
+
+/**
+ * Hangs a note's words `dy` from its point, above it or (for a positive `dy`) below: the leader's end moves with them.
+ * Given where the point is on the stage (`at`: its x, the words' width, the stage's width), the words stay inside the
+ * stage across too, and where they would hang below the point, onto the sheet a shock has raised, they hang beside it
+ * instead, on whichever side has room, level with the point (below it only where neither side has).
+ */
+export function setNoteRise(el: HTMLElement, dy: number, align: string, at?: { x: number; w: number; stageW: number; h?: number }): readonly [number, number, number, number] | null {
   const words = el.querySelector<HTMLElement>('[data-note-words]')
   const lead = el.querySelector('line')
-  if (words) {
-    // Moved by its transform, never its top, so following the point runs no layout.
-    words.style.top = '0px'
-    const a = dy > 0 ? NOTE_ALIGN[align]!.replace('-100%)', '0)') : NOTE_ALIGN[align]!
-    words.style.transform = `translate3d(0, ${dy.toFixed(1)}px, 0) ${a}`
+  if (!words) return null
+  // Moved by its transform, never its top, so following the point runs no layout.
+  words.style.top = '0px'
+  const dx = Number((words.dataset.dx ??= String(parseFloat(words.style.left) || 0)))
+  let t: string, below = false, x2 = dx, y2 = dy
+  // Where the words now stand, from the point (x0, y0, x1, y1 in px), so the axis labels can make room for them.
+  let box: [number, number, number, number] | null = null
+  const h = at?.h ?? 0
+  // The side it hangs on is kept while it still fits (chosen afresh each frame, a falling shock flung the words 277px
+  // from one side to the other in a frame); any change of place, side to side or between above its point and beside
+  // it (130px across in one frame), fades them in where they land. Not their first placing: there is nowhere they left.
+  const fitsLeft = !!at && at.x - 12 - at.w >= 4, fitsRight = !!at && at.x + 12 + at.w <= at.stageW - 4
+  const placed = words.dataset.side !== undefined
+  const was = Number(words.dataset.side ?? 0)
+  const side = dy > 0 && at ? (was === -1 && fitsLeft ? -1 : was === 1 && fitsRight ? 1 : fitsLeft ? -1 : fitsRight ? 1 : 0) : 0
+  if (side !== was || !placed) {
+    if (placed && !matchMedia('(prefers-reduced-motion: reduce)').matches) words.animate([{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0px)' }], { duration: 140, easing: EASE_OUT_CSS })
+    words.dataset.side = String(side)
   }
-  lead?.setAttribute('y2', String(dy))
+  if (side) {
+    t = `translate3d(${(side < 0 ? -dx - 12 : -dx + 12).toFixed(1)}px, 0, 0) ${side < 0 ? 'translate(-100%, -50%)' : 'translate(0, -50%)'}`
+    x2 = side * 9
+    y2 = 0
+    if (at) box = side < 0 ? [-12 - at.w, -h / 2, -12, h / 2] : [12, -h / 2, 12 + at.w, h / 2]
+    // Beside its point, as below it, the words lie on the sheet (a side is taken only when they have dropped below):
+    // the halo, not a paper plate, which cut a box out of the surface's peak at a large shock.
+    below = true
+  } else {
+    const x0 = at ? at.x + dx + (NOTE_FX[align] ?? 0) * at.w : 0
+    const shift = at ? Math.max(4 - x0, Math.min(0, at.stageW - 4 - at.w - x0)) : 0
+    const a = dy > 0 ? NOTE_ALIGN[align]!.replace('-100%)', '0)') : NOTE_ALIGN[align]!
+    t = `translate3d(${shift.toFixed(1)}px, ${dy.toFixed(1)}px, 0) ${a}`
+    x2 = dx + shift
+    if (at) {
+      const left = dx + (NOTE_FX[align] ?? 0) * at.w + shift
+      box = dy > 0 ? [left, dy, left + at.w, dy + h] : [left, dy - h, left + at.w, dy]
+    }
+    // Below its point the words lie on the sheet: no paper plate there, which laid a band across the very lift a shock
+    // had raised; a paper halo keeps them legible on it.
+    below = dy > 0
+  }
+  if (words.style.transform !== t) words.style.transform = t
+  if (words.hasAttribute('data-below') !== below) words.toggleAttribute('data-below', below)
+  // Written only when they change: set every frame, even to the same values, they repainted the page 60 times a second
+  // at rest.
+  if (lead) {
+    const nx = x2.toFixed(1), ny = y2.toFixed(1)
+    if (lead.getAttribute('x2') !== nx) lead.setAttribute('x2', nx)
+    if (lead.getAttribute('y2') !== ny) lead.setAttribute('y2', ny)
+  }
+  return box
 }
 
 /**
@@ -117,7 +170,7 @@ export function NoteMark({
       </svg>
       <span
         data-note-words=""
-        className="absolute block w-max max-w-[12rem] rounded-sm bg-paper/90 px-1.5 py-0.5 text-note leading-snug text-ink sm:max-w-[16rem]"
+        className="absolute block w-max max-w-[12rem] rounded-sm bg-paper/90 px-1.5 py-1 text-note leading-snug text-ink data-[below]:bg-transparent data-[below]:[text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper),0_0_6px_var(--color-paper)] sm:max-w-[16rem]"
         style={{ left: dx, top: dy, transform: NOTE_ALIGN[align] }}
       >
         <span className="font-semibold">{lead}:</span> {text}

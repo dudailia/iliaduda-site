@@ -55,6 +55,12 @@ export interface Renderer {
   setPalette?(p: Palette): void
   /** The display's refresh interval as the governor has learned it, in seconds (1/60, 1/120, 1/30 in Low Power Mode). */
   refresh?(interval: number): void
+  /**
+   * The last frame moved only by itself, at rest: its drift or its stream, no story, flight, drag, spring or input. On a
+   * 120 Hz display the kit then draws every other frame, as smooth to the eye at half the heat; any of those brings
+   * every frame back.
+   */
+  calm?(): boolean
   dispose(): void
 }
 
@@ -200,9 +206,25 @@ export function useStage(
       if (changed && first && t0) renderer.frame((last - t0) / 1000, 0)
     }
 
+    let skip = false
+    let calmFor = 0
+    let heldUntil = 0
+    // Leaving the page, the loop stops: the way back to the Contents takes the old page's picture after pageswap, and
+    // a live canvas drawing on into it was caught blank about half the time (a paused one, drawing nothing, never was).
+    // A page the back-forward cache restores runs again.
+    let gone = false
     const tick = (now: number) => {
       raf = 0
-      if (!renderer || !visible || document.hidden) return
+      if (!renderer || !visible || document.hidden || gone) return
+      // Calm on a 120 Hz display, a dozen drawn frames running: every other frame (see Renderer.calm). Any input ends
+      // it on the next frame; the run keeps a figure that is calm only now and then from alternating 8 and 16ms frames.
+      calmFor = renderer.calm?.() ? calmFor + 1 : 0
+      const halve = gov.refresh < 12 && calmFor > 12
+      skip = halve && !skip
+      if (skip) {
+        raf = requestAnimationFrame(tick)
+        return
+      }
       if (!t0) t0 = now
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60
       last = now
@@ -222,7 +244,11 @@ export function useStage(
       // The governor (lib/stage/governor.ts), against this display's own refresh, which it learns: 120 Hz, 60 Hz, or a
       // 30 Hz clock (Low Power Mode) that no lighter quality would speed up. The renderer is told the refresh too, so
       // its own pacing (the home figure's pricing) judges its frames by the same clock.
-      if (gov.frame(dt, now, !!hold.current?.())) {
+      // Halved, a frame spans two of the display's: the governor judges each against the display's own interval.
+      // The hold outlasts the story by a second and a half: released on its last frame, the step up it had held back
+      // landed there, one long frame where the story ends.
+      if (hold.current?.()) heldUntil = now + 1500
+      if (gov.frame(halve ? dt / 2 : dt, now, now < heldUntil)) {
         const was = q
         q = gov.q
         // A step trades effects only: the canvas keeps its size (no buffers reallocated, no long frame), except into or
@@ -246,7 +272,7 @@ export function useStage(
     }
 
     const run = () => {
-      if (!raf && renderer && visible && !document.hidden) {
+      if (!raf && renderer && visible && !document.hidden && !gone) {
         last = 0
         raf = requestAnimationFrame(tick)
       }
@@ -296,7 +322,9 @@ export function useStage(
     }
 
     const io = new IntersectionObserver(
-      ([e]) => {
+      (es) => {
+        // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
+        const e = es[es.length - 1]
         // A fifth of the stage to start it; once it has started, it runs while any of it shows, so the strip still
         // on screen as the reader scrolls past does not freeze mid-motion.
         visible = !!e && e.isIntersecting && (started ? e.intersectionRatio > 0 : e.intersectionRatio >= threshold)
@@ -324,6 +352,42 @@ export function useStage(
     const unDpr = onDprChange(size)
     const onVis = () => run()
     document.addEventListener('visibilitychange', onVis)
+    // The old page's picture is taken after pageswap, from what the compositor holds, and a WebGL canvas's buffer was
+    // still caught empty now and then (the IV surface, about 1 in 7). So the last frame is drawn once more and copied
+    // into a plain 2D canvas laid over the live one: the picture the morph takes is that copy, whatever the GL buffer
+    // holds by then. A page the back-forward cache restores takes the copy away and runs again.
+    let snap: HTMLCanvasElement | null = null
+    const onSwap = () => {
+      gone = true
+      cancelAnimationFrame(raf)
+      raf = 0
+      if (!renderer || !first || !t0) return
+      try {
+        const r = cv.getBoundingClientRect()
+        // Marked as changed (a resize at the same size), so even a paused, idle renderer draws this frame.
+        renderer.resize(cv.width, cv.height, r.width, r.height)
+        renderer.frame((last - t0) / 1000, 0)
+        const copy = document.createElement('canvas')
+        copy.width = cv.width
+        copy.height = cv.height
+        copy.getContext('2d')?.drawImage(cv, 0, 0)
+        copy.className = cv.className
+        copy.style.cssText = cv.style.cssText
+        copy.setAttribute('aria-hidden', 'true')
+        copy.dataset.swapCopy = ''
+        cv.after(copy)
+        snap = copy
+      } catch {}
+    }
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return
+      snap?.remove()
+      snap = null
+      gone = false
+      run()
+    }
+    addEventListener('pageswap', onSwap)
+    addEventListener('pageshow', onShow)
     const onLost = (e: Event) => {
       e.preventDefault()
       cancelAnimationFrame(raf)
@@ -358,6 +422,9 @@ export function useStage(
       ro.disconnect()
       unDpr()
       document.removeEventListener('visibilitychange', onVis)
+      removeEventListener('pageswap', onSwap)
+      removeEventListener('pageshow', onShow)
+      snap?.remove()
       cv.removeEventListener('webglcontextlost', onLost)
       cv.removeEventListener('webglcontextrestored', onRestored)
       renderer?.dispose()

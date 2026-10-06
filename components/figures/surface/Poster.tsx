@@ -44,6 +44,14 @@ export function Poster({ at, mesh = IV_MESH, notes = true, lazy = false }: { at:
   )
 }
 
+/**
+ * The strike axis's title, a few pixels up: it stands between the 70% tick above it and the 100% one below, which come
+ * closer as the poster gets smaller while the words keep their size. Where /market's views stand side by side (its
+ * laptop layout, and on paper) the title sat on the 100%, the one tick a reader looks for; 6px clears both down to the
+ * smallest surface drawn, 240px tall.
+ */
+const TITLE_LIFT = { id: 'kt', px: 6 } as const
+
 function Marks({ d, kind, notes }: { d: PosterData; kind: FrameKind; notes: boolean }) {
   return (
     <>
@@ -54,7 +62,7 @@ function Marks({ d, kind, notes }: { d: PosterData; kind: FrameKind; notes: bool
           align={l.align}
           kind={l.kind}
           className={shown(kind)}
-          style={{ left: `${(l.x * 100).toFixed(2)}%`, top: `${(l.y * 100).toFixed(2)}%` }}
+          style={{ left: `${(l.x * 100).toFixed(2)}%`, top: l.id === TITLE_LIFT.id ? `calc(${(l.y * 100).toFixed(2)}% - ${TITLE_LIFT.px}px)` : `${(l.y * 100).toFixed(2)}%` }}
         />
       ))}
       {(notes ? d.notes : []).map((n) => (
