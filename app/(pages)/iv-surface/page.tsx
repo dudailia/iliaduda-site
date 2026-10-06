@@ -154,9 +154,8 @@ export default function IvSurface() {
             written directly against WebGL2 takes over, with no library: the vertex shader evaluates
             SSVI from the parameters of the moment, so the shock is the formula on every frame, not a
             mesh morphed between keyframes; the fragment shader draws the contours and the light;
-            picking marches a ray against the surface&rsquo;s own height function. On a first visit
-            the surface forms, its smiles first, and takes one shock; after that it rests, and the
-            shock is the slider&rsquo;s. Where the renderer does not run, the slider redraws the still
+            picking marches a ray against the surface&rsquo;s own height function. It forms its smiles
+            first and takes one shock; after that it rests, and the shock is the slider&rsquo;s. Where the renderer does not run, the slider redraws the still
             frame.
           </p>
         </Section>

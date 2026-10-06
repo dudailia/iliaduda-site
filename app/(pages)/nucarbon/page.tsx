@@ -6,6 +6,9 @@ import { fact } from '@/content/facts'
 import { otherWork } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 
+/** Small counts in words, as the figure and the rest of the site set them ("six constants", "eight integrations"). */
+const words = (n: number | string) => ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][Number(n)] ?? String(n)
+
 export const metadata = pageMeta(
   '/nucarbon',
   'nucarbon',
@@ -25,8 +28,8 @@ export default function Nucarbon() {
             <p>
               A modelling and visualisation tool for Northeastern&rsquo;s Sustainability
               Incubator that estimates the carbon cost of AI use across a campus. Every figure in
-              the application derives from {fact('ncConstants').value} constants and{' '}
-              {fact('ncTools').value} tools with adoption rates, so changing one assumption moves
+              the application derives from {words(fact('ncConstants').value)} constants and{' '}
+              {words(fact('ncTools').value)} tools with adoption rates, so changing one assumption moves
               every chart consistently.
             </p>
           }

@@ -85,7 +85,7 @@ export const roles: readonly Role[] = [
       'Gated the export behind chart-of-accounts validation: a suggested account that does not resolve against the client’s chart is held back until a reviewer maps it.',
     ],
     cv: [
-      'Built and deployed alone a multi-tenant month-end close for CPA firms: Next.js, TypeScript, Supabase Postgres with row-level security, Stripe billing in three tiers.',
+      'Built and deployed, alone, a multi-tenant month-end close for CPA firms: Next.js, TypeScript, Supabase Postgres with row-level security, Stripe billing in three tiers.',
       'Categorisation pipeline on the Claude API: parses CSV and PDF bank statements and maps each line to the client’s chart of accounts with a confidence score; low-confidence rows go to a human.',
     ],
     href: '/closebooks',

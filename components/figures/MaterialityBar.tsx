@@ -301,7 +301,7 @@ export const materialityArrangements = [
 
 export const materialityBar = {
   description:
-    `Relative improvement in negative log-likelihood over the level below, T1/T20, after calibration. ` +
+    `Relative improvement in negative log-likelihood over the level below, next ball in T20, after calibration. ` +
     `Match state improves on a marginal baseline by ${STATE} percent. Over match state, player identity adds ${IDENTITY} percent and a ` +
     `per-match latent adds ${LATENT} percent, both below the ${threshold(JUSTIFY)} threshold at which the ` +
     `decision rule would justify building the model, and player identity falls inside the ambiguous band ` +

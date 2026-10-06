@@ -29,7 +29,7 @@ export function OrderFlowFigure() {
   const theory = 1 - sum(market.map((u) => HAWKES.mu[u]!)) / sum(market.map((u) => rates[u]!))
   const initial = { buys: count(MARKET_BUY), sells: count(MARKET_SELL), setOff: 1 - fr.ownMarket, theory, emptied: fr.emptied.length }
   const open = fmt.usd(Math.round(value('mkOpen') / value('mkTick')))
-  const alt = `The order flow in the ${SECONDS} seconds to Fig. 1's still frame: ${initial.buys} market buys and ${initial.sells} market sells, in bursts, among the limit orders and cancellations; market orders arriving at well above the rate they would on their own; and the queues at the best bid and ask, which ran out ${initial.emptied} times.`
+  const alt = `The order flow in the ${SECONDS} seconds to Fig. 1’s still frame: ${initial.buys} market buys and ${initial.sells} market sells, in bursts, among the limit orders and cancellations; market orders arriving at well above the rate they would on their own; and the queues at the best bid and ask, which ran out ${initial.emptied} times.`
   const last = recent(sim, HAWKES, 20)
   return (
     <OrderFlowLive

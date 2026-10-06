@@ -19,7 +19,7 @@ function MaterialityTable() {
     <table>
       <caption>
         Relative improvement in negative log-likelihood over the level below (match state over a marginal
-        baseline; player identity over match state; the per-match latent on validation), T1/T20, after calibration.
+        baseline; player identity over match state; the per-match latent on validation), next ball in T20, after calibration.
       </caption>
       <thead>
         <tr>
