@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { CV_PHONE, RESUME } from '../../lib/site'
 
@@ -49,4 +53,37 @@ test('printing hides the site chrome', async ({ page }) => {
   await page.goto(RESUME.page)
   await expect(page.locator('footer')).toBeHidden()
   await expect(page.getByRole('navigation', { name: 'Site' })).toBeHidden()
+})
+
+/**
+ * The PDF as a résumé screener reads it: fonts embedded as ordinary TrueType (never Type 3, which some screeners garble),
+ * and a raw text extraction, which infers every space from the gap between words, keeping every word whole and in
+ * reading order. Runs where poppler's pdftotext and pdffonts are installed.
+ */
+test('the PDF reads cleanly to a résumé screener: TrueType fonts, every word whole, in order', async ({ request }) => {
+  const tool = (name: string) => {
+    try {
+      execFileSync(name, ['-v'], { stdio: 'ignore' })
+      return true
+    } catch {
+      return false
+    }
+  }
+  test.skip(!tool('pdftotext') || !tool('pdffonts'), 'poppler is not installed here')
+  const dir = mkdtempSync(join(tmpdir(), 'cv-'))
+  const file = join(dir, 'cv.pdf')
+  writeFileSync(file, await (await request.get(RESUME.pdf)).body())
+  const fonts = execFileSync('pdffonts', [file]).toString()
+  expect(fonts).not.toMatch(/Type 3/)
+  expect(fonts).toMatch(/TrueType/)
+  const raw = execFileSync('pdftotext', ['-raw', file, '-']).toString()
+  const layout = execFileSync('pdftotext', ['-layout', file, '-']).toString()
+  const words = (t: string) => t.match(/[A-Za-z0-9’'.&/+-]+/g) ?? []
+  const seen = new Set(words(layout))
+  // A word the raw reading makes that the page does not show is two words run together ("IliaDuda").
+  expect(words(raw).filter((w) => !seen.has(w))).toEqual([])
+  // Reading order: the name, then the sections in the page's order.
+  const at = (s: string) => raw.indexOf(s)
+  expect(at('Ilia Duda')).toBe(0)
+  for (const [a, b] of [['Ilia Duda', 'Education'], ['Education', 'Experience'], ['Experience', 'Research'], ['Research', 'Skills']]) expect(at(a)).toBeLessThan(at(b))
 })
