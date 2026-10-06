@@ -10,7 +10,7 @@ import type { HawkesParams } from './hawkes'
  * cancel bid, cancel ask. The excitation encodes three well-documented
  * regularities of order flow: market orders cluster (a buy makes another buy
  * likelier), a market order is followed by liquidity refilling the side it
- * ate, and a new limit order is often soon cancelled.
+ * ate, and a new limit order is often soon canceled.
  */
 
 export const HAWKES: HawkesParams = {

@@ -7,7 +7,7 @@ import { pageMeta } from '@/lib/meta'
 
 const paper = papers.find((p) => p.slug === 'debt-portal')!
 
-export const metadata = pageMeta('/debt-portal', paper.title, paper.abstract)
+export const metadata = pageMeta('/debt-portal', paper.title, paper.description)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
@@ -24,7 +24,7 @@ export default function DebtPortal() {
             People in debt avoid the phone call, so the product is the opposite of one: look the
             debt up, see what a settlement would cost and over what schedule, and reach an SBP payment screen whose amount the server recomputes — without
             speaking to anyone. I am the only developer, building it
-            end to end for a licensed collection organisation: the debtor flow, the arithmetic, the
+            end to end for a licensed collection organization: the debtor flow, the arithmetic, the
             statutory limits, the disclosures, and the build gates that keep them true.
           </p>
         </Section>
@@ -39,7 +39,7 @@ export default function DebtPortal() {
           <Annotated
             note={
               <>
-                A compile-time constant, deliberately not a feature flag: two live behaviours
+                A compile-time constant, deliberately not a feature flag: two live behaviors
                 would mean a login whose legality depends on a variable.
               </>
             }
@@ -60,7 +60,7 @@ export default function DebtPortal() {
           <p>
             Every amount is integer kopecks and every discount integer basis points; a float
             never touches money. The discount is floored, recurring payments round up to a whole
-            rouble and the final payment absorbs the remainder, a single payment is exact to the
+            ruble and the final payment absorbs the remainder, a single payment is exact to the
             kopeck, and the offered terms are pruned so that no longer term ever costs more a
             month than a shorter one. The payment step recomputes the amount on the server from
             the chosen term and the debtor&rsquo;s own obligation; it never accepts an amount from
@@ -96,7 +96,7 @@ export default function DebtPortal() {
           rows={[
             ['role', 'sole developer and project lead'],
             ['status', 'in active development'],
-            ['client', 'a licensed collection organisation; not named here'],
+            ['client', 'a licensed collection organization; not named here'],
             ['stack', 'Next.js 16 · React 19 · Turbopack · Tailwind 4 · Yandex Cloud'],
           ]}
         />

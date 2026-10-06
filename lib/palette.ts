@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
- * The six colour tokens as app/globals.css declares them, by day and by night,
+ * The six color tokens as app/globals.css declares them, by day and by night,
  * for images drawn at build time: an image cannot read the page's custom
  * properties. Read from the stylesheet itself, as tests/contrast.test.ts
  * does, so they cannot drift from it. Server only (it reads the file).

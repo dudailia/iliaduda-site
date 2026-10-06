@@ -26,7 +26,7 @@ export const H = {
   spread: 5,
   bestBid: 6,
   bestAsk: 7,
-  /** Realised volatility (annualised), stress (0 to 1), selling pressure (× stationary), shares at the thinner touch. */
+  /** Realised volatility (annualized), stress (0 to 1), selling pressure (× stationary), shares at the thinner touch. */
   sigma: 8,
   stress: 9,
   pressure: 10,
@@ -64,7 +64,7 @@ export const HEADER = 34
 
 /**
  * Per row: its time, the tick at its middle, mid, best bid, best ask, queues at the two touches, events in it, and
- * the realised volatility and stress when it was written (so a moment read in the book is the market's at that row).
+ * the realized volatility and stress when it was written (so a moment read in the book is the market's at that row).
  */
 export const ROW_META = 10
 const TRADE = 4
@@ -164,7 +164,7 @@ export interface FanMsg {
 
 /** The worker to the page. */
 export type FromWorker =
-  /** The market is built: its clock, its hash (lib/market/engine.ts), and its realised volatility then. */
+  /** The market is built: its clock, its hash (lib/market/engine.ts), and its realized volatility then. */
   | { kind: 'ready'; t: number; hash: string; sigma: number }
   | { kind: 'frame'; buf: ArrayBuffer }
   | FanMsg

@@ -1,7 +1,7 @@
 import { ogFan, OG_SIZE, shareCard } from '@/lib/og'
 import { PERSON } from '@/lib/site'
 
-export const alt = 'Ilia Duda — Quantitative Analyst and Engineer at a proprietary options trading firm; Mathematics and Business Administration at Northeastern, class of 2028'
+export const alt = 'Ilia Duda — Quantitative analyst and engineer at a proprietary options trading firm; Mathematics and Business Administration at Northeastern, class of 2028'
 export const size = OG_SIZE
 export const contentType = 'image/png'
 
@@ -15,7 +15,7 @@ export default async function OpengraphImage() {
     above: PERSON.base,
     title: PERSON.name,
     titleSize: 96,
-    below: `Quantitative Analyst and Engineer · Northeastern ’${year}`,
+    below: `Quantitative analyst and engineer · Northeastern ’${year}`,
     art: await ogFan(),
   })
 }

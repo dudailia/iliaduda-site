@@ -28,8 +28,12 @@ export const AVAILABILITY = {
 export const rolesInWords = () => `${AVAILABILITY.roles.slice(0, -1).join(', ').toLowerCase()} or ${AVAILABILITY.roles.at(-1)!.toLowerCase()}`
 
 /** One line, used by the masthead and the metadata description. */
+/** What a search result and a shared link show for the site: 155 characters at most, apart from the positioning. */
+export const DESCRIPTION =
+  'Quantitative analyst and engineer at a proprietary options trading firm; Northeastern mathematics and business, class of 2028. Co-op from January 2027.'
+
 export const POSITIONING =
-  'Quantitative Analyst and Engineer at a proprietary options trading firm since January\u00a02026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class\u00a0of\u00a02028.'
+  'Quantitative analyst and engineer at a proprietary options trading firm since January\u00a02026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class\u00a0of\u00a02028.'
 
 /**
  * The CV is a page (/cv) and a PDF printed from it at build time by

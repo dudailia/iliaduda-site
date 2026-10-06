@@ -60,19 +60,19 @@ export function MarketFigure() {
         hashes={{ start: m.hash(), shocked: shockedHash(SEED, POSTER_T) }}
         stillSurface={{ calm: calm.surface, shock: shock.surface }}
         title="One market’s vol surface, the last twenty seconds of its order book and a year of its futures, each drawn from the same copy of the market in the same frame."
-        subtitle={`Simulated · one seed · Hawkes order flow · realised volatility · SSVI · tick ${usd(1)} · not market data`}
+        subtitle={`Simulated · one seed · Hawkes order flow · realized volatility · SSVI · tick ${usd(1)} · not market data`}
         caption={
           <>
             First the vol surface, its shock set by the market&rsquo;s stress. Then the order book: price up the side and time
             across, each price in the tone of the shares waiting there, the price through the middle in ink and each trade a
             dot, and at its right edge the book&rsquo;s depth now, every share between a price and the best one. Then a year of its futures, simulated paths of its
-            price from now at its own realised volatility: the 5th to 95th and 25th to 75th percentiles as washes, and {FAN.strands} of the
+            price from now at its own realized volatility: the 5th to 95th and 25th to 75th percentiles as washes, and {FAN.strands} of the
             paths.
           </>
         }
         table={
           <table>
-            <caption>{`The market at the still frame: price ${usd(initial.mid)}, spread ${initial.spread} ${initial.spread === 1 ? 'tick' : 'ticks'}, realised volatility ${pct(initial.sigma)}, stress ${initial.stress.toFixed(2)}, one-month at-the-money volatility ${pct(atm)}, and a year out the 5th to 95th percentile of its futures from $${fan.lo.toFixed(2)} to $${fan.hi.toFixed(2)}. A second after a liquidity shock: price ${usd(shock.initial.mid)}, realised volatility ${pct(shock.initial.sigma)}, stress ${shock.initial.stress.toFixed(2)}.`}</caption>
+            <caption>{`The market at the still frame: price ${usd(initial.mid)}, spread ${initial.spread} ${initial.spread === 1 ? 'tick' : 'ticks'}, realized volatility ${pct(initial.sigma)}, stress ${initial.stress.toFixed(2)}, one-month at-the-money volatility ${pct(atm)}, and a year out the 5th to 95th percentile of its futures from $${fan.lo.toFixed(2)} to $${fan.hi.toFixed(2)}. A second after a liquidity shock: price ${usd(shock.initial.mid)}, realized volatility ${pct(shock.initial.sigma)}, stress ${shock.initial.stress.toFixed(2)}.`}</caption>
             <tbody>
               <tr>
                 <th scope="row">Events a second, over the last ten simulated seconds</th>

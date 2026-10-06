@@ -15,7 +15,7 @@ import { mulberry32 } from './rng'
  * cancel ask. The excitation encodes three well-documented regularities of
  * order flow: market orders cluster (a buy makes another buy likelier), a
  * market order is followed by liquidity refilling the side it ate, and a new
- * limit order is often soon cancelled.
+ * limit order is often soon canceled.
  */
 
 export { BOOK, HAWKES, MARKET, SEED } from './params'

@@ -12,7 +12,7 @@ import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'market')!
 
-export const metadata = pageMeta('/market', paper.title, paper.abstract)
+export const metadata = pageMeta('/market', paper.title, paper.description)
 
 const SRC = SOURCE
 const link = (path: string) => (
@@ -50,13 +50,13 @@ export default function Market() {
             </p>
           </Annotated>
           <p>
-            Realised volatility is the square root of an exponentially weighted mean of squared one-second log-returns of the
-            mid, with a sixty-second half-life, annualised over 252 trading days of 6.5{'\u00a0'}hours. The futures are drawn at it.
+            Realized volatility is the square root of an exponentially weighted mean of squared one-second log-returns of the
+            mid, with a sixty-second half-life, annualized over 252 trading days of 6.5{'\u00a0'}hours. The futures are drawn at it.
           </p>
           <p>
             Stress runs from 0 to 1 and combines four signals a trader watches, each 0 across the calm market&rsquo;s range and
             1 at its extreme: the intensity of market sells against its stationary rate, p (0 at {STRESS.pressureFrom} times it, 1
-            at {STRESS.pressureTo}); realised volatility against a calm {(STRESS.sigma0 * 100).toFixed(1)}%, a (0 at{' '}
+            at {STRESS.pressureTo}); realized volatility against {(STRESS.sigma0 * 100).toFixed(1)}%, a calm level set by hand for this scale rather than measured, a (0 at{' '}
             {STRESS.volFrom} times, 1 at {STRESS.volTo}); the spread, b (0 at {STRESS.spreadFrom}{'\u00a0'}ticks, 1 at {STRESS.spreadTo});
             and the shares within three ticks of the touch on the book&rsquo;s thinner side, c (0 at {STRESS.touchFloor}, 1 at
             none). They combine as an &ldquo;or&rdquo;,
@@ -81,7 +81,7 @@ export default function Market() {
           </p>
           <p>
             Over twenty seeds, within a second the spread opens, for a moment, to at least four ticks, the touch loses four fifths of its
-            shares and the stress passes 0.8; realised volatility is up by a quarter within two seconds and 1.4 to 5.6 times
+            shares and the stress passes 0.8; realized volatility is up by a quarter within two seconds and 1.4 to 5.6 times
             within ten; the spread is back within two ticks inside two seconds, and the stress below 0.05 inside five minutes.
             Shocks stack only up to one: what is still in the market is absorbed on a {SHOCK.halfLife}-second half-life, and a
             press tops it up to one whole shock, so fifty presses in a second deliver at most {delivered.toFixed(2)} shocks.
@@ -97,12 +97,12 @@ export default function Market() {
             {HOST.cap} of a second, so a tab left in the background finds the market where it left it, and answers in one buffer
             the page lends it and gets back. It also draws the futures, {FAN.paths.toLocaleString('en-US')} paths each simulated
             second, {HOST.pathsPerFrame} a frame, for a price of one, which the page scales by the price now, exact for geometric
-            Brownian motion, so the fan moves with the price in the frame the price moves. The fan carries the realised
+            Brownian motion, so the fan moves with the price in the frame the price moves. The fan carries the realized
             volatility of the moment for the whole year, as its readout says; just after a shock it runs wider than the
             surface&rsquo;s implied volatility, which prices the shock fading.
           </p>
           <p>
-            The market itself, its events, its book, its realised volatility, its stress and the shock still in it, comes out the
+            The market itself, its events, its book, its realized volatility, its stress and the shock still in it, comes out the
             same to the bit on every engine, from the same seed and the same log of shocks, each stamped with the quantum it took
             effect at: the clock moves in whole quanta, the market computes its own exponentials and logarithms, and a shock is an
             action taken at a quantum&rsquo;s start, not a moment of the wall clock. The futures are the one part drawn with the
@@ -112,7 +112,7 @@ export default function Market() {
 
         <Section heading="How it is tested">
           <ul className="grid list-disc gap-y-1.5 pl-5 marker:text-graphite">
-            <li>Over twenty seeds, the shock&rsquo;s claims above: the spread, the touch and the stress within a second, realised volatility within two and ten, the spread back inside two seconds and the stress inside five minutes.</li>
+            <li>Over twenty seeds, the shock&rsquo;s claims above: the spread, the touch and the stress within a second, realized volatility within two and ten, the spread back inside two seconds and the stress inside five minutes.</li>
             <li>The same seed and the same log of shocks are the same market however it is stepped; without the shock, another market.</li>
             <li>Fifty presses in a second deliver no more than one shock and the second&rsquo;s absorption, and leave the market&rsquo;s selling pressure, spread, fall and volatility within stated bounds.</li>
             <li>The stress rises with each of its four signals, is nothing across the calm market&rsquo;s range, stays between 0 and 1 whatever it is given, and averages under 0.05 over ten calm seeds.</li>

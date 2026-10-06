@@ -41,7 +41,7 @@ export interface Settlement {
 }
 
 /** A term's settlement: the discount floored in kopecks, a recurring payment
- *  rounded up to a whole rouble, and a final payment that absorbs the rest. A
+ *  rounded up to a whole ruble, and a final payment that absorbs the rest. A
  *  single payment is the exact payable amount, kopecks included. */
 export function settlementFor(debt: number, months: number): Settlement {
   assertInteger(debt, 'debt')

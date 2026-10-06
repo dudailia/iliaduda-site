@@ -88,7 +88,7 @@ export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dp
   })
   ctx.globalAlpha = 1
 
-  // Intensities, mirrored: μ in grey, the part set off by earlier orders in indigo (the claim), the intensity itself
+  // Intensities, mirrored: μ in gray, the part set off by earlier orders in indigo (the claim), the intensity itself
   // inked.
   fr.lam.forEach((E, d) => {
     const muY = lamY(d, HAWKES.mu[d === 0 ? MARKET_BUY : MARKET_SELL]!)

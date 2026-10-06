@@ -6,7 +6,7 @@ import type { Fact } from './facts'
  * client figure imports these numbers and not every project's.
  */
 export const rules = {
-  // ── CloseBooks categorisation (closebooks-app @6fdbb82d) ────────────────
+  // ── CloseBooks categorization (closebooks-app @6fdbb82d) ────────────────
   cbSmallAmount: {
     value: 20,
     unit: 'none',

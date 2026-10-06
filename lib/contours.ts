@@ -88,8 +88,3 @@ function join(segs: [Pt, Pt][]): Pt[][] {
   }
   return lines
 }
-
-/** An SVG path for a polyline, rounded to a tenth of a unit. */
-export function pathD(line: readonly Pt[]): string {
-  return line.map(([x, y], n) => `${n ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('')
-}

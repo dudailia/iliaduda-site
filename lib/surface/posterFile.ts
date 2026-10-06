@@ -10,7 +10,7 @@ import type { FrameKind } from './view'
  * fetches the one their screen shows), so the reader is sent it once rather
  * than twice (in the HTML and again in the page's RSC payload). The mesh is the markup the page would have
  * inlined (lib/surface/posterMarkup.ts); as an image it cannot read the page's
- * colour tokens, so its root defines the six itself, for both colour schemes,
+ * color tokens, so its root defines the six itself, for both color schemes,
  * read from the stylesheet (lib/palette.ts), and the stage's ramp over them.
  * No text: the axis labels and notes stay in the page, over it.
  */

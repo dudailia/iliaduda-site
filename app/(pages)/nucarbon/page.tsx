@@ -6,10 +6,13 @@ import { fact } from '@/content/facts'
 import { otherWork } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 
+/** Small counts in words, as the figure and the rest of the site set them ("six constants", "eight integrations"). */
+const words = (n: number | string) => ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][Number(n)] ?? String(n)
+
 export const metadata = pageMeta(
   '/nucarbon',
   'nucarbon',
-  'A carbon model for AI use across a university campus, built for Northeastern’s Sustainability Incubator: every chart derived from six constants, adjustable in the app, a choropleth drawn without a mapping library, and uncertainty reported on the page.',
+  'A carbon model for AI use across Northeastern’s campus: every chart derives from six constants you can change, and the uncertainty is reported.',
 )
 
 export default function Nucarbon() {
@@ -23,10 +26,10 @@ export default function Nucarbon() {
           title="A carbon model for campus AI use, built to be argued with"
           standfirst={
             <p>
-              A modelling and visualisation tool for Northeastern&rsquo;s Sustainability
+              A modeling and visualization tool for Northeastern&rsquo;s Sustainability
               Incubator that estimates the carbon cost of AI use across a campus. Every figure in
-              the application derives from {fact('ncConstants').value} constants and{' '}
-              {fact('ncTools').value} tools with adoption rates, so changing one assumption moves
+              the application derives from {words(fact('ncConstants').value)} constants and{' '}
+              {words(fact('ncTools').value)} tools with adoption rates, so changing one assumption moves
               every chart consistently.
             </p>
           }
@@ -37,14 +40,14 @@ export default function Nucarbon() {
             The model runs from people to prompts to energy to carbon: population, queries per
             person per day and adoption per tool give a daily query volume; energy per query turns
             that into kilowatt hours, and the grid&rsquo;s carbon intensity turns those into
-            kilograms of CO₂. The grid figure, {fact('ncCo2PerKwh').value}&nbsp;kg of CO₂ per kilowatt hour, comes from the EPA&rsquo;s eGRID;
+            kilograms of CO₂. The grid figure, {fact('ncCo2PerKwh').value}&nbsp;kg of CO₂ per kilowatt hour, is the US average in the EPA&rsquo;s eGRID2021 (852.3&nbsp;lb of CO₂e per megawatt hour);
             energy per query sits in the published range from Samsi et al. (2023), cited on the
             page where it is used.
           </p>
           <p>
             Because every number flows from the same small set of inputs, the tool is a way of
             making a set of assumptions legible and adjustable, and it reports its own
-            uncertainty, plus or minus {fact('ncSelfReportedError').value} per cent, rather than
+            uncertainty, plus or minus {fact('ncSelfReportedError').value} percent, rather than
             presenting estimates as measurements.
           </p>
         </Section>

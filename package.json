@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:cross": "playwright test -c playwright.cross.config.ts",
     "test:lh": "lhci autorun",
     "check:all": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e && pnpm test:lh",
     "test:lh:prod": "lhci autorun --config=lighthouserc.prod.json"
@@ -29,7 +30,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",

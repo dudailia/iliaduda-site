@@ -1,8 +1,8 @@
 /**
- * The look, as numbers both renderers read: the colour ramp and the lights.
+ * The look, as numbers both renderers read: the color ramp and the lights.
  * The live shader implements these in GLSL; the server poster approximates
  * them with CSS color-mix() over the site's tokens, which is why the ramp is
- * defined as oklab mixes of tokens rather than as colours — color-mix in oklab
+ * defined as oklab mixes of tokens rather than as colors — color-mix in oklab
  * is the same arithmetic the shader does, and it follows the reader's theme
  * without the poster knowing which one it is.
  *
@@ -25,11 +25,11 @@ export const STOPS = {
   nightTop: 0.42,
 } as const
 
-// ── colour arithmetic, as the shader does it (components/figures/surface/shaders.ts) ──
+// ── color arithmetic, as the shader does it (components/figures/surface/shaders.ts) ──
 
 export type Lab = [number, number, number]
 
-/** An sRGB colour (0…1 a channel) in oklab. */
+/** An sRGB color (0…1 a channel) in oklab. */
 export function oklab(c: readonly number[]): Lab {
   const r = toLinear(c[0]!), g = toLinear(c[1]!), b = toLinear(c[2]!)
   const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
@@ -42,7 +42,7 @@ export function oklab(c: readonly number[]): Lab {
   ]
 }
 
-/** An oklab colour in linear sRGB: the shader's `lin`. */
+/** An oklab color in linear sRGB: the shader's `lin`. */
 export function linOf(c: readonly number[]): [number, number, number] {
   const l_ = c[0]! + 0.3963377774 * c[1]! + 0.2158037573 * c[2]!
   const m_ = c[0]! - 0.1055613458 * c[1]! - 0.0638541728 * c[2]!
@@ -95,7 +95,7 @@ export const LIGHT = { ambient: 0.3, key: 0.75, fill: 0.22 } as const
 
 /**
  * Diffuse light reaching a surface with unit normal n, normalised so a flat,
- * upward-facing patch gets exactly 1 — the ramp colour is then the colour of
+ * upward-facing patch gets exactly 1 — the ramp color is then the color of
  * the plateau, and the lights only sculpt.
  */
 export function diffuse(n: readonly [number, number, number]): number {
@@ -104,5 +104,5 @@ export function diffuse(n: readonly [number, number, number]): number {
   return (LIGHT.ambient + LIGHT.key * d(n, KEY) + LIGHT.fill * d(n, FILL)) / up
 }
 
-/** The same normalisation constant, for the shader. */
+/** The same normalization constant, for the shader. */
 export const UP_LIGHT = LIGHT.ambient + LIGHT.key * KEY[1] + LIGHT.fill * FILL[1]

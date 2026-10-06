@@ -9,7 +9,7 @@ export const TH = 600
 export type Pts = readonly (readonly [number, number])[]
 
 export interface Shape {
-  /** Context marks: drawn in the rule or wash colour. */
+  /** Context marks: drawn in the rule or wash color. */
   readonly context: readonly Pts[]
   /** The claimed value: drawn in indigo. */
   readonly claim: readonly Pts[]
@@ -27,7 +27,7 @@ export const whole = (pts: Pts): Pts => pts.map(([x, y]) => [Math.round(x), Math
  * are seen (2:1 or more in both themes, tests/contrast.test.ts) and stay quieter than any text.
  */
 export const CONTEXT_MIX = 0.5
-/** The CSS the thumbnail's SVG strokes its context with; the canvas mixes the same colour (mixHex). */
+/** The CSS the thumbnail's SVG strokes its context with; the canvas mixes the same color (mixHex). */
 export const CONTEXT_CSS = `color-mix(in srgb, var(--color-graphite) ${CONTEXT_MIX * 100}%, var(--color-paper))`
 
 /** `a` mixed into `b` by `t`, in sRGB, as CSS's color-mix(in srgb, a t, b) does: #rrggbb. */

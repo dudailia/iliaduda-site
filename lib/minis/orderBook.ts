@@ -14,7 +14,7 @@ export interface BookSource {
 }
 
 /**
- * /order-book's Fig. 1 as a joy plot: five older ridges higher up in the rule colour, the newest in indigo, each the
+ * /order-book's Fig. 1 as a joy plot: five older ridges higher up in the rule color, the newest in indigo, each the
  * cumulative depth outward from the touch across the 128 ticks the figure shows. Each ridge is drawn the fraction of a
  * row the market is past its newest row, from the row before toward its own, and about its row's own mid, so the
  * ridges glide as the figure's terrain does rather than stepping twelve times a second.

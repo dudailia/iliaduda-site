@@ -24,7 +24,7 @@ import { TH, TW, type Pts, type Shape } from './minis/shape'
 export { TH, TW } from './minis/shape'
 
 export interface Thumb {
-  /** Context marks: drawn in the rule or wash colour. */
+  /** Context marks: drawn in the rule or wash color. */
   readonly context: readonly string[]
   /** The claimed value: drawn in indigo. */
   readonly claim: readonly string[]

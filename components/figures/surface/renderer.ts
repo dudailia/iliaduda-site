@@ -208,7 +208,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   let smileCount = 0
   /** The one-month smile's corners, first in the buffer: the smile a shock lifts most, which glows by night. */
   let frontCount = 0
-  /** Its glow's colour, indigo toward ink by night (kept, not made again every frame). */
+  /** Its glow's color, indigo toward ink by night (kept, not made again every frame). */
   const glowColor = new Float32Array(3)
   let smileKey = ''
   const buildSmiles = (p: Params, lines: number) => {
@@ -407,7 +407,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     gl.uniformMatrix4fv(prog.u('uMVP'), false, m)
   }
   const setLook = (prog: typeof surf, e: [number, number, number], probe: Probe | null, probeK = 1) => {
-    // The ramp's stops follow the palette, which changes only with the colour scheme: worked out once for each.
+    // The ramp's stops follow the palette, which changes only with the color scheme: worked out once for each.
     if (stopsFor !== palette) {
       stopsFor = palette
       stops = rampStops(palette)

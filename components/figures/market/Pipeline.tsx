@@ -98,7 +98,7 @@ export function PipelineLive({ title, subtitle, caption, table, paths }: { title
       <div data-market-follow="" className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] sm:gap-4">
         <Box label="A worker" title="The market, and its futures">
           <li>Hawkes order flow into a limit order book, in quanta of 1/60 of a second</li>
-          <li>its realised volatility, its stress, and the liquidity shock</li>
+          <li>its realized volatility, its stress, and the liquidity shock</li>
           <li>a fan of {paths.toLocaleString('en-US')} futures each simulated second, a slice a frame</li>
         </Box>
         <div className="flex flex-row items-center justify-center gap-6 sm:flex-col sm:justify-center sm:gap-5">

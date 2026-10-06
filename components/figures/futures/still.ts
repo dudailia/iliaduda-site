@@ -177,7 +177,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     g.globalCompositeOperation = 'source-over'
     g.globalAlpha = 1
     // The ink stops at the token, as the live figure's does: every stroke crosses at today, where they would
-    // otherwise multiply to black by day and add up to white by night. A fill in the token's colour, composited per
+    // otherwise multiply to black by day and add up to white by night. A fill in the token's color, composited per
     // channel (lighten keeps the larger value, darken the smaller), is that cap in one step on the GPU: no readback
     // and no loop over every pixel. The paper is lighter than the token by day and darker by night, so it is untouched.
     g.globalCompositeOperation = dark ? 'darken' : 'lighten'
