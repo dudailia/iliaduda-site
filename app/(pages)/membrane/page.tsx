@@ -9,7 +9,7 @@ import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'membrane')!
 
-export const metadata = pageMeta('/membrane', paper.title, paper.abstract)
+export const metadata = pageMeta('/membrane', paper.title, paper.description)
 
 const SRC = SOURCE
 

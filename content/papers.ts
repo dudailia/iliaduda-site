@@ -85,6 +85,7 @@ export const papers: readonly Paper[] = [
     standfirst:
       'A drum that rings in exactly the modes the reader keeps, released from the shapes of the exercises. Its Bessel functions and their zeros are computed in the page with no library, and agree with SciPy’s to within a trillionth.',
     dek: 'A drum ringing in the Fourier–Bessel modes the reader keeps, from a directed study’s exercises: Bessel functions and zeros computed in the page with no library, held to SciPy.',
+    description: 'A drum ringing in the Fourier–Bessel modes you keep, from a directed study’s exercises: its Bessel functions computed in the page and held to SciPy.',
     byline: 'Directed study · MATH 4992 · Spring 2026',
     status: 'published',
   },
