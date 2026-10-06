@@ -20,10 +20,13 @@ const DEBTS = [750_000, 6_000_000, 18_500_000] // kopecks
 const MIN = 60_000
 const DAY = 24 * 60 * MIN
 
+/** The simulated clock starts at 09:00 on day 1; past midnight it is the next day (it read "day 1, 00:00"). */
+const START = 9 * 60 * MIN
 const clock = (t: number) => {
-  const day = Math.floor(t / DAY) + 1
-  const m = Math.floor((t % DAY) / MIN) + 9 * 60
-  return `day ${day}, ${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  const at = t + START
+  const day = Math.floor(at / DAY) + 1
+  const m = Math.floor((at % DAY) / MIN)
+  return `day ${day}, ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
 
 function message(o: Outcome | null): string {
@@ -35,13 +38,11 @@ function message(o: Outcome | null): string {
 
 export function SettlementLive({
   caption,
-  table,
   loginCaption,
   loginTable,
   callCaps,
 }: {
   caption: ReactNode
-  table: ReactNode
   loginCaption: ReactNode
   loginTable: ReactNode
   callCaps: string
@@ -56,6 +57,42 @@ export function SettlementLive({
   const i = Math.min(index, offered.length - 1)
   const s = offered[i]!.s
   const hidden = all.filter((t) => !t.offered).length
+  /** The lines under a debt's plot: on a phone its first hidden term in words, and the plot's note. */
+  const ladderNote = (d: number, shown: boolean) => {
+    const all = terms(d)
+    const offered = offeredTerms(d)
+    const hidden = all.filter((t) => !t.offered).length
+    const h = all.find((t) => !t.offered)
+    const before = h && all.filter((t) => t.offered && t.months < h.months).at(-1)
+    return (
+      <>
+        {/* In the plot it ran off its left edge and over the lowest payment's label. */}
+        {h && before ? (
+          <p aria-hidden {...(shown ? { 'data-hidden-term-line': '' } : {})} className="text-meta mt-1 font-mono text-ink sm:hidden">
+            {`Hollow: ${h.months} months at ${rub(h.s.monthly)}, more a month than ${before.months} months at ${rub(before.s.monthly)}.`}
+          </p>
+        ) : null}
+        {/* Whole on paper: it was cut mid-sentence across two sheets. */}
+        <p className="text-meta mt-1.5 max-w-[36rem] font-mono text-graphite print:break-inside-avoid">
+          {all.length === 1
+            ? 'Under the monthly floor at any longer term: settles in one payment.'
+            : (
+              <>
+                {`Monthly payment by term. ${offered.length} terms offered up to ${all.length}\u00a0months`}
+                {hidden ? (
+                  <>
+                    {`; ${hidden} hidden (hollow`}
+                    <span className="hidden sm:inline">{hidden > 1 ? ', the first magnified in the corner' : ', magnified in the corner'}</span>
+                    {'): at a step in the discount ladder a longer term would cost more a month'}
+                  </>
+                ) : null}
+                {'. Dashed lines are the ladder’s steps.'}
+              </>
+            )}
+        </p>
+      </>
+    )
+  }
 
   // What typing an amount chose, said once the reader stops typing (the slider and readouts it moves say nothing).
   const [heard, setHeard] = useState('')
@@ -76,7 +113,9 @@ export function SettlementLive({
   const typedFor = (v: string): { text: string; invalid: boolean } => {
     if (!v.trim()) return { text: '', invalid: false }
     const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
-    if (!/\d/.test(v)) return { text: 'An amount in roubles, in figures.', invalid: true }
+    // In figures: digits, with spaces or a separator between thousands and kopecks, and a ₽ if the reader adds one
+    // ("1e4" is not ten thousand roubles).
+    if (!/\d/.test(v) || /[^\d\s.,\u00a0\u202f₽-]/.test(v)) return { text: 'An amount in roubles, in figures.', invalid: true }
     // A minus is not a payment: "-5" is not 5 ₽.
     if (!(roubles > 0) || /-\s*\d/.test(v)) return { text: 'More than 0 ₽ a month.', invalid: true }
     const t = offered.find((o) => o.months === termForMonthly(debt, roubles * 100))!
@@ -90,7 +129,7 @@ export function SettlementLive({
     setTyped(v)
     clearTimeout(heardTimer.current)
     const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
-    if (Number.isFinite(roubles) && roubles > 0 && !/-\s*\d/.test(v)) {
+    if (Number.isFinite(roubles) && roubles > 0 && !/-\s*\d/.test(v) && !/[^\d\s.,\u00a0\u202f₽-]/.test(v)) {
       const months = termForMonthly(debt, roubles * 100)
       setIndex(offered.findIndex((t) => t.months === months))
     }
@@ -102,12 +141,15 @@ export function SettlementLive({
   const [now, setNow] = useState(0)
   const [allowance, setAllowance] = useState<Allowance>({ episodes: [], refused: false })
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  /** The clock and the refusal the outcome was given under: once either moves, it is no longer the answer. */
+  const [outcomeAt, setOutcomeAt] = useState({ now: 0, refused: false })
   // Requests made, so a repeated outcome still reads as an answer: its sentence arrives again, through a 3px blur.
   const [asked, setAsked] = useState(0)
   const request = () => {
     const r = requestCode(allowance, now)
     setAllowance(r.next)
     setOutcome(r.outcome)
+    setOutcomeAt({ now, refused: allowance.refused })
     setAsked((n) => n + 1)
   }
   const inEpisode = allowance.episodes.length > 0 && now - allowance.episodes.at(-1)! < EPISODE_MS
@@ -122,7 +164,8 @@ export function SettlementLive({
         { label: 'Discount', value: `${(s.bp / 100).toFixed(0)}%` },
         { label: 'Pays in total', value: rub(s.payable) },
         { label: s.months === 1 ? 'Single payment' : 'Monthly', value: rub(s.monthly) },
-        { label: 'Last payment', value: rub(s.last) },
+        // One payment is its own last: the row says what it saves, as the phone's does (the rail said the same sum three times).
+        s.months === 1 ? { label: 'Saves', value: rub(s.saved) } : { label: 'Last payment', value: rub(s.last) },
       ]}
     />
   )
@@ -135,11 +178,37 @@ export function SettlementLive({
       ]}
     />
   )
-  // A refusal to send goes stale once the clock passes the time it named: then it says the allowance has reopened.
-  const said =
-    outcome && !outcome.ok && outcome.reason !== 'refused' && now >= outcome.nextAt
-      ? `The allowance reopened at ${clock(outcome.nextAt)}: the next code can be sent.`
-      : message(outcome)
+  // A refusal to send goes stale once the clock passes the time it named: then it says the allowance has reopened. One
+  // for the debtor's refusal goes stale when the refusal is withdrawn (the rail said "allowed" beside it).
+  // An answer stands until the clock or the refusal moves; then the line says what the next request would meet, asked
+  // of the allowance as it stands (nothing spent). "Code sent" stayed beside a refusal and an emptied day's meter, and
+  // "Resent inside the same episode" after the episode had closed. A refusal withdrawn, and a cap reopened, say so; a
+  // block that still holds as it was keeps its words.
+  const next = requestCode(allowance, now).outcome
+  const stale = !!outcome && (now !== outcomeAt.now || allowance.refused !== outcomeAt.refused)
+  const capWords = (o: Outcome) => (!o.ok && o.reason === 'cap' ? `${o.window.cap} of ${o.window.cap} in the last ${o.window.label}, until ${clock(o.nextAt)}` : '')
+  const nextWords = (o: Outcome) =>
+    o.ok
+      ? o.spent
+        ? 'A code can be requested: it would spend one contact from every window.'
+        : 'Still inside the verification episode: a request resends the same code.'
+      : o.reason === 'refused'
+        ? 'The debtor has refused interaction: no code can be sent.'
+        : `Not now: ${capWords(o)}.`
+  const sameBlock = !!outcome && !outcome.ok && !next.ok && next.reason === outcome.reason && (next.reason !== 'cap' || (outcome.reason === 'cap' && next.nextAt === outcome.nextAt))
+  const said = !outcome || !stale || sameBlock
+    ? message(outcome)
+    : !outcome.ok && outcome.reason === 'refused' && !allowance.refused
+      ? next.ok
+        ? 'The refusal is withdrawn: a code can be requested again.'
+        : `The refusal is withdrawn, but the cap still holds: ${capWords(next)}.`
+      : !outcome.ok && outcome.reason !== 'refused' && now >= outcome.nextAt
+        ? next.ok
+          ? `The allowance reopened at ${clock(outcome.nextAt)}: the next code can be sent.`
+          : !next.ok && next.reason === 'refused'
+            ? `The allowance reopened at ${clock(outcome.nextAt)}, but the debtor has refused interaction: nothing is sent.`
+            : nextWords(next)
+        : nextWords(next)
 
   // Monthly payment against term: every term up to the floor, the offered ones
   // joined, the pruned ones left hanging above the line where a longer term
@@ -150,26 +219,61 @@ export function SettlementLive({
   // Inset 2% each side, so the first and last dots sit inside the frame.
   const px = (m: number) => (maxM === 1 ? 50 : 2 + ((m - 1) / (maxM - 1)) * 96)
   const py = (v: number) => (maxPay === minPay ? 50 : 6 + (1 - (v - minPay) / (maxPay - minPay)) * 88)
+  // The floor's label stands at the right end of the plot, a little over the line's low end, and over every dot under
+  // its span (the right 42% of a phone's plot, the narrowest): a short ladder still has dots there (7,500 ₽ at 360px:
+  // the 4-month dot sat under the label). Its foot in % of the plot, 3.5% (a dot's radius and a gap) over the highest.
+  const floorFoot = Math.min(
+    ...all.filter((t) => px(t.months) >= 56 && py(t.s.monthly) > py(minPay) - 26).map((t) => py(t.s.monthly) - 3.5),
+  )
   const stepPath = offered.map((t, k) => `${k ? 'L' : 'M'}${px(t.months).toFixed(2)} ${py(t.s.monthly).toFixed(2)}`).join('')
 
   return (
     <>
     <FigureFrame
       id="fig-settlement"
+      breakable
       number="Fig. 1"
       vt="debt-portal"
       title="A settlement, with only the terms worth choosing"
       subtitle="the portal’s arithmetic · illustrative discount ladder, not the client’s terms"
       caption={caption}
-      table={table}
+      // The sr-only table and live line in the mono face: their ₽ is then the mono supplement this page fetches anyway,
+      // not a serif one for text no one sees (7,217 B).
+      // The terms of the debt chosen, as the plot shows them (the server's table stayed at 60,000 ₽ whichever was picked).
+      table={
+        <div className="font-mono">
+          <table>
+            <caption>{`Offered terms for a debt of ${rub(debt)}`}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Months</th>
+                <th scope="col">Discount</th>
+                <th scope="col">Monthly</th>
+                <th scope="col">Last payment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {offered.map((t) => (
+                <tr key={t.months}>
+                  <td>{t.months}</td>
+                  <td>{`${t.s.bp / 100}%`}</td>
+                  <td>{rub(t.s.monthly)}</td>
+                  <td>{rub(t.s.last)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      }
       rail={rail}
       railBelow={false}
     >
+        {/* Named by its label, not a heading: the paper's outline is its sections, and no figure's title is a heading. */}
         <section aria-labelledby="st-a">
-          <h2 id="st-a" className="text-meta font-mono font-normal tracking-normal text-graphite">
+          <p id="st-a" className="text-meta font-mono font-normal tracking-normal text-graphite">
             Settlement calculator
-          </h2>
-          <div role="radiogroup" aria-label="Debt" className="mt-2 flex flex-wrap gap-2">
+          </p>
+          <div role="radiogroup" aria-label="Debt" className="mt-2 flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
             {DEBTS.map((d, di) => (
               <button
                 key={d}
@@ -196,7 +300,8 @@ export function SettlementLive({
             ))}
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_12rem] sm:items-end sm:gap-6">
+          {/* The two labels share a top; the slider sits on the amount box's middle line. */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_12rem] sm:items-start sm:gap-6">
             <label className="block">
               <span className="text-meta font-mono text-graphite">
                 Term: {s.months === 1 ? 'one payment' : `${s.months} months`}
@@ -215,11 +320,12 @@ export function SettlementLive({
                   clearTimeout(heardTimer.current)
                   setHeard('')
                 }}
-                className="mt-1 h-6 w-full"
+                className="mt-1 h-6 w-full sm:my-[calc((2.3125rem-1.5rem)/2+0.25rem)] pointer-coarse:mt-[calc(0.25rem-10px)] pointer-coarse:mb-[-2px] pointer-coarse:h-11 pointer-coarse:align-top sm:pointer-coarse:my-[calc((2.3125rem-1.5rem)/2+0.25rem-10px)]"
                 style={rangeFill(i, 0, offered.length - 1)}
               />
             </label>
-            <label className="block">
+            {/* A typed amount does nothing on paper; the term above it says what is shown. */}
+            <label className="block print:hidden">
               <span className="text-meta font-mono text-graphite">Can pay per month, ₽</span>
               <input
                 inputMode="numeric"
@@ -228,14 +334,16 @@ export function SettlementLive({
                 placeholder="e.g. 4000"
                 aria-invalid={typedNote.invalid || undefined}
                 aria-describedby="settlement-typed"
-                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite pointer-coarse:text-small"
+                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite aria-invalid:border-ink aria-invalid:shadow-[inset_0_0_0_1px_var(--color-ink)] pointer-coarse:text-small"
               />
             </label>
-            {/* What the amount chose, for the eye at once (its line kept, so the page does not move as it appears). */}
-            <p id="settlement-typed" className="text-meta mt-1 min-h-[1lh] font-mono text-graphite">
+            {/* What the amount chose, for the eye at once, under the field it answers (beside the slider it sat under the
+                term, a column away from what was typed): the longest answer's lines kept, two under a phone's full-width
+                field and three in the narrow column, so the page does not move as it appears or changes. */}
+            <p id="settlement-typed" className="text-meta mt-1 min-h-[2lh] font-mono text-graphite sm:col-start-2 sm:-mt-4 sm:min-h-[3lh]">
               {typedNote.text}
             </p>
-            <p className="sr-only" aria-live="polite">
+            <p className="sr-only font-mono" aria-live="polite">
               {heard}
             </p>
           </div>
@@ -260,7 +368,7 @@ export function SettlementLive({
             </div>
           </dl>
 
-          <div className="relative mt-5 h-36 sm:h-44" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
+          <div className="relative mt-5 h-36 sm:h-44 print:break-inside-avoid" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
               <rect x={0} y={0} width={100} height={100} fill="none" stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
               {LADDER.slice(0, -1)
@@ -286,7 +394,7 @@ export function SettlementLive({
             <span
               aria-hidden
               className="text-meta absolute -translate-y-1/2 bg-paper px-0.5 font-mono text-graphite"
-              style={{ left: `calc(${px(1)}% + 0.75rem)`, top: `${py(maxPay)}%` }}
+              style={{ left: `calc(${px(1)}% + 0.5rem)`, top: `${py(maxPay)}%` }}
             >
               {all.length > 1 ? `${rub(maxPay)} in one payment` : `${rub(maxPay)} a month`}
             </span>
@@ -330,11 +438,12 @@ export function SettlementLive({
                 </>
               )
             })()}
-            {/* Above the line's low end, not on it: the last terms' dots sit there. */}
+            {/* Above the line's low end, clear of it: the last terms' dots sit there, and where the line still falls
+                toward them (a short ladder on a phone) a label at half the height lay on the line and the last dots. */}
             <span
               aria-hidden
               className="text-meta absolute right-1.5 -translate-y-full bg-paper px-0.5 font-mono text-graphite"
-              style={{ top: `calc(${py(minPay)}% - 0.5rem)` }}
+              style={{ top: Number.isFinite(floorFoot) ? `min(calc(${py(minPay)}% - 1rem), ${floorFoot}%)` : `calc(${py(minPay)}% - 1rem)` }}
             >
               {rub(minPay)} a month
             </span>
@@ -343,35 +452,15 @@ export function SettlementLive({
             <span>1 month</span>
             <span>{maxM} months</span>
           </div>
-          {/* On a phone the hidden term is named here, under the plot, in a sentence (in the plot it ran off its left edge
-              and over the lowest payment's label). */}
-          {(() => {
-            const h = all.find((t) => !t.offered)
-            const before = h && all.filter((t) => t.offered && t.months < h.months).at(-1)
-            if (!h || !before) return null
-            return (
-              <p aria-hidden data-hidden-term-line="" className="text-meta mt-1 font-mono text-ink sm:hidden">
-                {`Hollow: ${h.months} months at ${rub(h.s.monthly)}, more a month than ${before.months} months at ${rub(before.s.monthly)}.`}
-              </p>
-            )
-          })()}
-          <p className="text-meta mt-1.5 max-w-[36rem] font-mono text-graphite">
-            {all.length === 1
-              ? 'Under the monthly floor at any longer term: settles in one payment.'
-              : (
-                <>
-                  {`Monthly payment by term. ${offered.length} terms offered up to ${all.length} months`}
-                  {hidden ? (
-                    <>
-                      {`; ${hidden} hidden (hollow`}
-                      <span className="hidden sm:inline">, the first magnified in the corner</span>
-                      {'): at a step in the discount ladder a longer term would cost more a month'}
-                    </>
-                  ) : null}
-                  {'. Dashed lines are the ladder’s steps.'}
-                </>
-              )}
-          </p>
+          {/* Under the plot: on a phone the hidden term in a sentence, and the plot's note. Every debt's are laid in one cell,
+              the others unseen, so the room is the longest one's and choosing a debt moves nothing under the figure. */}
+          <div className="grid">
+            {DEBTS.map((d) => (
+              <div key={d} aria-hidden={d !== debt || undefined} className={`[grid-area:1/1] ${d === debt ? '' : 'invisible'}`}>
+                {ladderNote(d, d === debt)}
+              </div>
+            ))}
+          </div>
         </section>
     </FigureFrame>
 
@@ -380,18 +469,24 @@ export function SettlementLive({
       number="Fig. 2"
       title="What each login code costs the debtor’s legal allowance"
       subtitle="230-FZ, Russia’s debt-collection law: article 7 caps the messages a debtor receives, article 8 lets them refuse contact"
-      caption={loginCaption}
-      table={loginTable}
+      // The note on calls closes the caption: before the hint, it read as a second caption over the figure.
+      caption={
+        <>
+          {loginCaption} {callCaps}
+        </>
+      }
+      table={<div className="font-mono">{loginTable}</div>}
       rail={loginRail}
-      // On a phone its clock and the interaction state show under it: they are what +10 minutes and +1 day change.
-      railBelow
+      // On a phone its clock and the interaction state show under the meters (below): they are what +10 minutes and
+      // +1 day change, so they are read with the meters, before the note on calls.
+      railBelow={false}
       hint="Request a code, move the simulated clock, and request again: the meters show what each code spends"
     >
         <section aria-labelledby="st-b">
-          <h2 id="st-b" className="text-meta font-mono font-normal tracking-normal text-graphite">
+          <p id="st-b" className="text-meta font-mono font-normal tracking-normal text-graphite">
             The login’s statutory cost, in messages
-          </h2>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 pointer-coarse:gap-y-3.5">
             {/* Both labels in one cell, the one not shown kept invisible: the press changes its own words, never its
                 width, so the controls beside it stay under the pointer. */}
             <button type="button" onClick={request} className={CONTROL}>
@@ -419,17 +514,24 @@ export function SettlementLive({
             >
               Reset
             </button>
-            <label className="text-meta ml-1 inline-flex min-h-9 items-center gap-2 py-1 font-mono text-ink">
-              <input
-                type="checkbox"
-                checked={allowance.refused}
-                onChange={(e) => {
-                  // Read now: the updater runs later, when the event's currentTarget is already gone.
-                  const refused = e.currentTarget.checked
-                  setAllowance((a) => ({ ...a, refused }))
-                }}
-                className="size-5 accent-[var(--color-ink)]"
-              />
+            <label className="text-meta ml-1 inline-flex min-h-9 cursor-pointer items-center gap-2 py-1 font-mono text-ink">
+              {/* The site's own box, in its tokens (the browser's was a 2.4:1 grey by day and a grey slab by night): a
+                  graphite border on paper, ink with a paper tick when checked. */}
+              <span className="relative inline-grid size-5 shrink-0">
+                <input
+                  type="checkbox"
+                  checked={allowance.refused}
+                  onChange={(e) => {
+                    // Read now: the updater runs later, when the event's currentTarget is already gone.
+                    const refused = e.currentTarget.checked
+                    setAllowance((a) => ({ ...a, refused }))
+                  }}
+                  className="peer size-5 cursor-pointer appearance-none rounded-sm border border-graphite bg-paper transition-colors duration-150 ease-out checked:border-ink checked:bg-ink hover:border-ink focus-visible:transition-none forced-colors:appearance-auto"
+                />
+                <svg aria-hidden viewBox="0 0 20 20" className="pointer-events-none invisible absolute inset-0 size-5 peer-checked:visible forced-colors:hidden">
+                  <path d="M5 10.5l3.2 3.2L15 7" fill="none" stroke="var(--color-paper)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
               Interaction refused (art. 8)
             </label>
           </div>
@@ -437,12 +539,15 @@ export function SettlementLive({
           <div className="mt-3 grid gap-2">
             {WINDOWS.map((w) => {
               const n = used(allowance, now, w.ms)
+              // The count beside its squares, not at the far end of the row. On a phone the label and count columns are
+              // as wide as "24 hours" and "16/16", so the thirty-day row fits a 312px column.
               return (
-                <div key={w.key} className="grid grid-cols-[5.5rem_1fr_3rem] items-center gap-3">
+                <div key={w.key} className="grid grid-cols-[4.25rem_auto_2.5rem] items-center sm:grid-cols-[5.5rem_auto_3rem] justify-start gap-3">
                   <span className="text-meta font-mono text-graphite">{w.label}</span>
-                  <span className="flex flex-wrap gap-1" aria-hidden>
+                  {/* One row at any width: on a phone the thirty-day meter's sixteen boxes are a little smaller. */}
+                  <span className="flex gap-0.5 sm:flex-wrap sm:gap-1" aria-hidden>
                     {Array.from({ length: w.cap }, (_, k) => (
-                      <span key={k} className={`size-3 border ${k < n ? 'border-indigo bg-indigo' : 'border-rule'} transition-colors duration-150 ease-out`} />
+                      <span key={k} className={`size-[9px] shrink-0 border sm:size-3 ${k < n ? 'border-indigo bg-indigo' : 'border-rule'} transition-colors duration-150 ease-out`} />
                     ))}
                   </span>
                   <span className="text-meta tabular text-right text-ink">
@@ -452,13 +557,14 @@ export function SettlementLive({
               )
             })}
           </div>
-          <p className="text-note mt-3 min-h-[3em]" aria-live="polite">
+          {/* Room for the longest answer: two lines, three on a phone, so an answer arriving moves nothing below it. */}
+          <p className="text-note mt-3 min-h-[2lh] max-sm:min-h-[3lh]" aria-live="polite">
             {/* Through the blur only once an answer arrives: the page's first sentence is there when it loads. */}
             <span key={asked} className={`block ${asked ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px] motion-reduce:transition-none' : ''}`}>
               {said}
             </span>
           </p>
-          <p className="text-note mt-1 max-w-[36rem] text-graphite">{callCaps}</p>
+          <div className="mt-3 lg:hidden">{loginRail}</div>
         </section>
     </FigureFrame>
     </>

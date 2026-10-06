@@ -42,8 +42,8 @@ export const roles: readonly Role[] = [
     place: 'Remote',
     dates: 'January 2026 – present',
     brief: 'Building the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model.',
+    // /about's lead says what he builds here, in these words: the detail goes on from it rather than repeating it.
     detail: [
-      'I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model.',
       'Built a trade-validation service in Python and TypeScript that checks a proposed trade against the firm’s written rules and returns a verdict with its reasoning.',
       'Built the real-time dashboards the traders work from — Next.js on Vercel, Supabase, and a Python worker on Fly.io — replacing a cron-and-email pipeline, and moved strategy configuration out of code so non-engineers can tune it without a deploy.',
     ],
@@ -64,11 +64,11 @@ export const roles: readonly Role[] = [
     detail: [
       'Only developer on a self-service debt-settlement portal for a licensed collection organisation: debt lookup, a settlement calculator, SMS authentication, and an SBP payment screen whose amount the server recomputes from the chosen term, never taking it from the browser.',
       'Architecture set by statute: 152-FZ data localisation keeps personal data, hosting, fonts and analytics in Russia, and the portal counts every login SMS against the debtor’s 230-FZ contact allowance (the conservative reading of an unsettled question), enforced in code and by build gates.',
-      'Next.js 16 with Turbopack and Tailwind 4, hosted on Yandex Cloud.',
+      'Next.js\u00a016 with Turbopack and Tailwind\u00a04, hosted on Yandex\u00a0Cloud.',
     ],
     cv: [
       'Only developer: debt lookup, a settlement calculator in integer kopecks, SMS login, an SBP payment screen.',
-      'Built to 152-FZ data localisation and the 230-FZ contact cap, both enforced in code; Next.js 16, Yandex Cloud.',
+      'Built to 152-FZ data localisation and the 230-FZ contact cap, both enforced in code; Next.js\u00a016, Yandex\u00a0Cloud.',
     ],
     href: '/debt-portal',
   },
@@ -117,11 +117,11 @@ export const roles: readonly Role[] = [
     detail: [
       'Covered the Russian energy, metals and banking sectors.',
       'Built DCF, comparable-company and sensitivity models.',
-      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate rises in 25 days, the second an extraordinary 350 bp.',
+      'Wrote daily market briefings on OFZ government bond movements, index activity and Bank of Russia policy, through two key-rate rises in 25\u00a0days, the second an extraordinary 350\u00a0bp.',
     ],
     cv: [
       'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models.',
-      'Wrote daily briefings on OFZ, index activity and Bank of Russia policy through two rate rises in 25 days.',
+      'Wrote daily briefings on OFZ, index activity and Bank of Russia policy through two rate rises in 25\u00a0days.',
     ],
     figure: '/about#fig-ofz-curve',
   },
@@ -206,7 +206,7 @@ export const SKILLS = [
   ],
   [
     'Platforms',
-    'Next.js, React, Supabase (Postgres, Auth, Realtime), Vercel, Fly.io, Stripe, Yandex Cloud, Tailwind, Git, Jupyter; the Anthropic Claude API and LLM pipelines.',
+    'Next.js, React, Supabase (Postgres, Auth, Realtime), Vercel, Fly.io, Stripe, Yandex\u00a0Cloud, Tailwind, Git, Jupyter; the Anthropic Claude API and LLM pipelines.',
   ],
 ] as const
 

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { FigureFrame } from '@/components/FigureFrame'
+import { EASE_OUT_CSS } from '@/lib/ease'
 import { CONTROL } from '@/components/stage/controls'
-import { saveData, supportsWebGL2 } from '@/components/stage/env'
+import { saveData, supportsWebGL2, whenIdle } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
@@ -53,6 +54,9 @@ const noop = () => () => {}
 /** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright. */
 const posterVariant = (): 'wide' | 'narrow' => (matchMedia('(width < 40rem) and (orientation: portrait)').matches ? 'narrow' : 'wide')
 
+/** The probe's price is set in the width of the widest it reads, "$100.00". */
+const PRICE_CH = 7
+
 export function OrderBookLive({
   poster,
   initial,
@@ -98,7 +102,7 @@ export function OrderBookLive({
   const putStats = useCallback(
     (s: Pick<Stats, 'rate' | 'trades' | 'shares' | 'mid' | 'spread'>) => {
       statsAt.current = performance.now()
-      write('rate', `${s.rate.toFixed(1)} a second`)
+      write('rate', `${s.rate.toFixed(1)}\u00a0a\u00a0second`)
       write('mid', fmt.mid(s.mid))
       write('spread', fmt.spread(s.spread))
       write('trades', `${s.trades} · ${fmt.shares(s.shares)}`)
@@ -109,11 +113,14 @@ export function OrderBookLive({
     (s: Pick<Stats, 'rate' | 'trades' | 'shares' | 'mid' | 'spread'>) => {
       const since = performance.now() - statsAt.current
       clearTimeout(trailing.current)
+      // The mid at once, as the stage's own "Price" tag beside it is written: held to a quarter second, the two showed
+      // different prices in one frame (5 of 25 samples).
+      if (Number.isFinite(statsAt.current)) write('mid', fmt.mid(s.mid))
       if (since >= 250) return putStats(s)
       // Held back (printing holds the margin at the poster's moment: statsAt is then Infinity, and nothing is queued).
       if (Number.isFinite(statsAt.current)) trailing.current = window.setTimeout(() => putStats(s), 250 - since)
     },
-    [putStats],
+    [putStats, write],
   )
   useEffect(() => () => clearTimeout(trailing.current), [])
 
@@ -121,17 +128,21 @@ export function OrderBookLive({
     (r: Reading | null) => {
       last.current = r
       if (!r) {
-        write('p-price', '—')
-        write('p-side', 'point at the terrain')
+        write('p-price', '—'.padStart(PRICE_CH, '\u00a0'))
+        // A finger taps (the hint under the figure says so too).
+        write('p-side', `${(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'tap' : 'point at')} the terrain`)
         write('p-queue', '—')
         write('p-cum', '')
         write('p-ago', '—')
         return
       }
-      write('p-price', fmt.usd(r.price))
+      // Set right in the width of "$100.00" (no-break spaces: in the mono face every character is a digit's width, and a
+      // figure space is not in its subset): under $100 the price is a character shorter,
+      // and the side after it stepped sideways as a pointer crossed the line, a layout shift with no input to excuse it.
+      write('p-price', fmt.usd(r.price).padStart(PRICE_CH, '\u00a0'))
       write('p-side', fmt.side(r))
       write('p-queue', r.side === 'spread' ? 'no queue' : `${fmt.shares(r.queue)} at this price`)
-      write('p-cum', r.side === 'spread' ? `· mid ${fmt.mid(r.mid)}` : `· ${Math.round(r.cum).toLocaleString('en-US')} to the ${r.side === 'bid' ? 'best bid' : 'best ask'}`)
+      write('p-cum', r.side === 'spread' ? `mid ${fmt.mid(r.mid)}` : `${Math.round(r.cum).toLocaleString('en-US')} to the ${r.side === 'bid' ? 'best bid' : 'best ask'}`)
       write('p-ago', fmt.ago(r.ago))
     },
     [write],
@@ -170,6 +181,19 @@ export function OrderBookLive({
         fallbackApi.current?.fail(why)
       }
       const unwatch = fallbackApi.current?.watch()
+      let askedAt = 0
+      let cancelBuild = () => {}
+      const build = () => {
+        if (inner || dead || broken || !mod || !shared.current) return
+        try {
+          inner = mod.createBookRenderer({ ...env, palette: pal }, shared.current)
+          book.current = inner
+          if (size) inner.resize(...size)
+          inner.setQuality?.(q)
+        } catch {
+          fail('error')
+        }
+      }
       void import('./renderer').then(
         (m) => (mod = m),
         () => fail('load'),
@@ -190,6 +214,7 @@ export function OrderBookLive({
           drawnAt: () => market.drawnAt,
           highlight: () => market.highlight,
           sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
+          waiting: () => !!sigApi.current?.armed.current && !seq.current.started,
           lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
           tick: (dtMs) => {
             // Paused, the rise holds where it is, as everything does (WCAG 2.2.2).
@@ -210,10 +235,17 @@ export function OrderBookLive({
           try {
             if (!inner) {
               if (!mod || !shared.current) return false
-              inner = mod.createBookRenderer({ ...env, palette: pal }, shared.current)
-              book.current = inner
-              if (size) inner.resize(...size)
-              inner.setQuality?.(q)
+              // Built while the browser is idle, then drawn from the next frame: building it in the frame that draws
+              // first was a 90–130ms frame on a phone, the rise's very first. Half a second without idle time, and it
+              // is built here after all.
+              if (!askedAt) {
+                askedAt = performance.now()
+                cancelBuild = whenIdle(build)
+                return false
+              }
+              if (performance.now() - askedAt < 500) return false
+              build()
+              if (!inner) return false
             }
             return inner.frame(t, dt)
           } catch {
@@ -235,6 +267,7 @@ export function OrderBookLive({
         },
         dispose() {
           dead = true
+          cancelBuild()
           unwatch?.()
           if (book.current === inner) book.current = null
           inner?.dispose()
@@ -458,6 +491,10 @@ export function OrderBookLive({
         setProbing(true)
         settle()
         return
+      // End means nothing here, and it scrolled the page to its foot from a focused figure.
+      case 'End':
+        e.preventDefault()
+        return
       case 'Escape':
         setKey(null)
         setProbing(false)
@@ -486,6 +523,8 @@ export function OrderBookLive({
   return (
     <FigureFrame
       id="fig-order-book"
+      // On paper the stage may break: its poster keeps itself whole (app/globals.css, print).
+      breakable
       number="Fig. 1"
       title={title}
       subtitle={subtitle}
@@ -518,8 +557,10 @@ export function OrderBookLive({
           aria-label="Synthetic order book as terrain. Arrow keys move the probe across price and back in time; Home resets; Escape clears; Space pauses."
           aria-describedby="fig-order-book-probe"
           onKeyDown={onKey}
-          onFocus={() => {
-            if (!key.current) {
+          // The keyboard's starting point, for keyboard focus only (as Fig. 2's): a press to turn the terrain focuses it
+          // too, and pinned a probe that stayed after the hand let go and moved away.
+          onFocus={(e) => {
+            if (!key.current && e.currentTarget.matches(':focus-visible')) {
               setKey(PROBE_START)
               setProbing(true)
             }
@@ -530,7 +571,7 @@ export function OrderBookLive({
             lean.onTap()
             onStillPick(e)
           }}
-          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)]"
+          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)] print:h-[26rem]"
         >
           <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
@@ -546,7 +587,14 @@ export function OrderBookLive({
               </svg>
             )}
           </div>
-          <canvas ref={canvas} aria-hidden className="absolute inset-0 size-full" style={fade(live)} />
+          {/* On a visit after the first it arrives over a poster of a later moment of the market, so a 2px blur bridges
+              the two terrains while it fades in, as the home figure's still frame does (two sharp outlines showed). */}
+          <canvas
+            ref={canvas}
+            aria-hidden
+            className="absolute inset-0 size-full"
+            style={{ ...fade(live), filter: live ? 'none' : 'blur(2px)', transition: `${fade(live).transition}, filter 240ms ${EASE_OUT_CSS}` }}
+          />
           <div ref={labels} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={fade(live)} />
         </div>
         <FocusRing />
@@ -556,22 +604,24 @@ export function OrderBookLive({
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
         {/* The reading wraps rather than lose its end (enlarged text included), in room kept for its longest: four lines,
             in the reading's own line height, so the room grows with the text. */}
-        <dl id="fig-order-book-probe" className="text-meta grid min-h-[4lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono" aria-label="Probe reading">
+        <dl id="fig-order-book-probe" className="text-meta grid min-h-[4lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono print:hidden" aria-label="Probe reading">
           <dt className="text-graphite">Probe</dt>
           <dd className="text-ink">
             <span ref={ref('p-price')} className="tabular">
-              —
+              {'—'.padStart(PRICE_CH, '\u00a0')}
             </span>{' '}
             <span ref={ref('p-side')} className="text-graphite">
-              point at the terrain
+              {mounted && matchMedia('(pointer: coarse)').matches ? 'tap the terrain' : 'point at the terrain'}
             </span>
           </dd>
           <dt className="text-graphite">Queue</dt>
-          <dd className="text-ink">
+          {/* The distance to the best price has a line of its own, kept: run on after the queue, it stepped sideways as
+              the count before it changed width, and on a phone it wrapped and unwrapped and the When row jumped. */}
+          <dd className="min-h-[2lh] text-ink">
             <span ref={ref('p-queue')} className="tabular">
               —
-            </span>{' '}
-            <span ref={ref('p-cum')} className="text-graphite" />
+            </span>
+            <span ref={ref('p-cum')} className="block text-graphite" />
           </dd>
           <dt className="text-graphite">When</dt>
           <dd ref={ref('p-ago')} className="tabular text-ink">
@@ -581,7 +631,8 @@ export function OrderBookLive({
         <div data-orderbook-controls="" className="flex min-h-8 shrink-0 gap-2">
           {live ? (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">
+              {/* Figs. 1 and 2 are one market: either Pause stops both, and its name says so (two buttons were both "Pause"). */}
+              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button
@@ -616,16 +667,16 @@ function Readouts({ initial, set, suffix = '', across = false }: { initial: Init
   const rows: [string, string, string][] = [
     ['mid', 'Mid', fmt.mid(initial.mid)],
     ['spread', 'Spread', fmt.spread(initial.spread)],
-    ['trades', 'Trades, 10 s', `${initial.trades} · ${fmt.shares(initial.shares)}`],
-    ['rate', 'Events, 10 s', `${initial.rate.toFixed(1)} a second`],
-    ['expected', 'Stationary rate', `${initial.expected.toFixed(1)} a second`],
+    ['trades', 'Trades, 10\u00a0s', `${initial.trades} · ${fmt.shares(initial.shares)}`],
+    ['rate', 'Events, 10\u00a0s', `${initial.rate.toFixed(1)}\u00a0a\u00a0second`],
+    ['expected', 'Stationary rate', `${initial.expected.toFixed(1)}\u00a0a\u00a0second`],
     ['rho', 'Branching ratio', initial.rho.toFixed(2)],
   ]
   return (
     <dl
       className={
         across
-          ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3'
+          ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4'
           : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
       }
     >

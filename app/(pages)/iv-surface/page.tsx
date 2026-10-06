@@ -61,7 +61,7 @@ export default function IvSurface() {
               This one uses SSVI, the surface parametrisation Gatheral and Jacquier published in
               2014. Total implied variance w = σ²T is written as a function of log-moneyness k and
               the at-the-money total variance θ(T), with a correlation-like skew ρ and a curvature
-              function φ(θ) = η / (θ<sup>γ</sup>(1 + θ)<sup>1−γ</sup>). The at-the-money term
+              function <span className="whitespace-nowrap">φ(θ) = η / (θ<sup>γ</sup>(1 + θ)<sup>1−γ</sup>)</span>. The at-the-money term
               structure decays from a short-end volatility to a long-run one at rate κ, the shape a
               variance term structure takes under mean reversion.
             </p>
@@ -80,7 +80,7 @@ export default function IvSurface() {
           <p>
             Static arbitrage comes in two kinds and the surface has to rule out both. Across
             strikes, the smile at one expiry must imply a non-negative probability density —
-            Durrleman&rsquo;s condition g(k) ≥ 0 — or a butterfly spread prices below zero. Across
+            Durrleman&rsquo;s condition g(k){'\u00a0'}≥{'\u00a0'}0 — or a butterfly spread prices below zero. Across
             expiries, total variance must not fall as maturity lengthens, or a calendar spread
             does.
           </p>
@@ -88,7 +88,7 @@ export default function IvSurface() {
             SSVI makes both checkable in closed form. θ(T) here is strictly increasing, which
             settles the calendar condition at the money, and with γ = ½ the inequality η(1 + |ρ|)
             ≤ 2 is sufficient for no butterfly arbitrage at any strike. For the calm parameters it is{' '}
-            {(eta * (1 + Math.abs(rho))).toFixed(2)}. The shock in Fig. 1 steepens ρ, so η is capped as it does: the
+            {(eta * (1 + Math.abs(rho))).toFixed(2)}. The shock in Fig.{'\u00a0'}1 steepens ρ, so η is capped as it does: the
             product never passes {ETA_CAP.toFixed(2)}, and every frame of the shock is checked directly.
           </p>
         </Section>
@@ -129,8 +129,8 @@ export default function IvSurface() {
           <p>
             Because the parameters are chosen rather than fitted, the tests hold the surface to
             the standard real quotes would face. Durrleman&rsquo;s g is evaluated across the drawn expiries at strikes well beyond the drawn range and
-            must stay positive; ∂w/∂T must stay positive everywhere the figure draws. Each Greek is
-            compared with a finite difference of the price, and put–call parity is checked away
+            must stay positive; <span className="whitespace-nowrap">∂w/∂T</span> must stay positive everywhere the figure draws. Each Greek is
+            compared with a finite difference of the price, and <span className="whitespace-nowrap">put–call</span> parity is checked away
             from the money.
           </p>
           <p>
@@ -174,7 +174,12 @@ export default function IvSurface() {
                 <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/surface-greeks.test.ts`}>tests/surface-greeks.test.ts</a>
               </span>,
             ],
-            ['renderer', <a key="r" href={`${SRC}/components/figures/surface/renderer.ts`}>components/figures/surface/renderer.ts</a>],
+            ['renderer', <a key="r" href={`${SRC}/components/figures/surface/renderer.ts`}>
+                {/* The line may break after the last slash, never inside the file's name. */}
+                components/figures/surface/<wbr />
+                <span className="whitespace-nowrap">renderer.ts</span>
+              </a>,
+            ],
             ['data', 'synthetic; parameters set by hand'],
             ['reference', 'Gatheral and Jacquier, Arbitrage-free SVI volatility surfaces, Quantitative Finance 14(1), 2014'],
           ]}

@@ -1,4 +1,5 @@
-import { HIST, binWidth, discount } from './mc'
+import { cdf } from '@/lib/bs'
+import { HIST, MODEL, binWidth, discount } from './mc'
 
 /**
  * Where the paths end, as the GPU counts it on every device: in fine bins,
@@ -50,3 +51,16 @@ export function binnedPrice(fine: ArrayLike<number>, K: number): number {
   }
   return n ? (discount() * s) / n : NaN
 }
+
+/**
+ * The share of paths that end above the histogram's top, where no bar is drawn. The paths are geometric Brownian motion
+ * stepped exactly, so it is the model's own N(d2) at that price, not an estimate: under 0.01% at the figure's own
+ * volatility, about 7% at 80%.
+ */
+export function shareAbove(sigma: number, m = MODEL): number {
+  return cdf((Math.log(m.s0 / HIST.hi) + (m.r - 0.5 * sigma * sigma) * m.T) / (sigma * Math.sqrt(m.T)))
+}
+
+/** The words for it, at the top of the price axis: shown from half a percent. */
+export const aboveWords = (share: number) => `${share < 0.0095 ? (share * 100).toFixed(1) : Math.round(share * 100)}% of paths end above $${HIST.hi}`
+export const ABOVE_SHOWN = 0.005

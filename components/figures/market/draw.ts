@@ -89,6 +89,8 @@ export class BookView {
   private drawnHover: number | null = null
   private builtPal: Palette | null = null
   private last = -1
+  /** The landing's clock at the frame last drawn (seconds since it landed). */
+  private drawnFlash = NaN
   /** Where the reader points, in CSS pixels across the strip, or null. */
   hover: number | null = null
   /** The page's margin on a phone, where the canvas runs to the screen's edges: the book at now keeps inside it. */
@@ -127,16 +129,22 @@ export class BookView {
     }
   }
 
-  /** Draws the book as `m` has it; `now` is the page's clock (ms), for the landing's streak. */
-  draw(m: Mirror, pal: Palette, now: number, landing: Landing | null, dt: number): boolean {
+  /**
+   * Draws the book as `m` has it; `now` is the page's clock (ms), for the landing's streak. `rate`: how fast the market
+   * runs, 0 to 1 (it coasts to rest on Pause): the price window's follow coasts with it, as the fan's breathing does.
+   */
+  draw(m: Mirror, pal: Palette, now: number, landing: Landing | null, dt: number, rate = 1): boolean {
     const g = this.g
     if (!g || !m.rows) return false
     const resized = fit(this.cv, this.box)
     if (!this.win) this.win = new PriceWindow(m.h.mid)
-    this.win.step(m.h.mid, dt)
+    this.win.step(m.h.mid, dt * rate)
     const flash = landing ? (now - landing.at) / 1000 : Infinity
+    // A landing's streak over (past 1.2s) or held where it was drawn (paused, its clock stands still): nothing moves.
+    const flashStill = flash > 1.2 || Math.abs(flash - this.drawnFlash) < 2e-3
     // Nothing new since the last frame drawn (the window where it was, to a thousandth of a tick): nothing to draw.
-    if (!resized && this.last === m.frames && flash > 1.2 && this.hover === this.drawnHover && this.builtPal === pal && Math.abs(this.win.centre - this.drawnCentre) < 1e-3) return false
+    if (!resized && this.last === m.frames && flashStill && this.hover === this.drawnHover && this.builtPal === pal && Math.abs(this.win.centre - this.drawnCentre) < 1e-3) return false
+    this.drawnFlash = flash
     this.last = m.frames
     this.drawnCentre = this.win.centre
     this.drawnHover = this.hover
@@ -338,6 +346,8 @@ export class FanView {
   private strands = new Float64Array(0)
   private readonly sig = { x: 0, v: 0 }
   private last = -1
+  /** The landing's clock at the frame last drawn (seconds since it landed). */
+  private drawnFlash = NaN
   private lastSig = NaN
   private lastPal: Palette | null = null
   /** The volatility the fan is drawn at while the reader points at a past moment. */
@@ -373,7 +383,8 @@ export class FanView {
     return this.sig.x
   }
 
-  draw(m: Mirror, pal: Palette, now: number, landing: Landing | null, dt: number): boolean {
+  /** `rate`: how fast the market runs, 0 to 1 (it coasts to rest on Pause): the fan's breathing follows it. */
+  draw(m: Mirror, pal: Palette, now: number, landing: Landing | null, dt: number, rate = 1): boolean {
     const g = this.g
     const fan = m.fan
     if (!g || !fan) return false
@@ -383,11 +394,15 @@ export class FanView {
     // The market's own moves breathe the fan out on ω 8; a moment the reader points at, and the return from it, on the
     // surface's quick ω 30, so the three views agree about "then" within a sixth of a second.
     if (this.as !== null) this.pointedAt = now
-    spring(this.sig, target, dt, now - this.pointedAt < 600 ? 30 : 8)
+    const quick = now - this.pointedAt < 600
+    spring(this.sig, target, quick ? dt : dt * rate, quick ? 30 : 8)
     const flash = landing ? (now - landing.at) / 1000 : Infinity
-    // Lit while its volatility moves fast, as after a shock's jump, so the landing and the widening are one gesture.
-    const moving = Math.min(1, Math.abs(this.sig.v) / Math.max(0.05, this.sig.x) / 1.2)
-    if (!resized && this.last === m.frames && Math.abs(this.sig.x - this.lastSig) < 1e-7 && flash > 1.1 && moving < 0.01 && this.lastPal === pal) return false
+    const flashStill = flash > 1.1 || Math.abs(flash - this.drawnFlash) < 2e-3
+    // Lit while its volatility moves fast, as after a shock's jump, so the landing and the widening are one gesture;
+    // held by Pause (rate 0) its spring keeps the speed it had, and nothing moves.
+    const moving = !quick && rate === 0 ? 0 : Math.min(1, Math.abs(this.sig.v) / Math.max(0.05, this.sig.x) / 1.2)
+    if (!resized && this.last === m.frames && Math.abs(this.sig.x - this.lastSig) < 1e-7 && flashStill && moving < 0.01 && this.lastPal === pal) return false
+    this.drawnFlash = flash
     this.last = m.frames
     this.lastSig = this.sig.x
     this.lastPal = pal

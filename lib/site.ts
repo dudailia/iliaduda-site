@@ -17,14 +17,19 @@ export const PERSON = {
 } as const
 
 export const AVAILABILITY = {
-  line: 'Open to a 6-month co-op (an off-cycle internship) from January 2027',
+  // A month and its year are one item: "January / 2027" read as two facts at a line's end.
+  line: 'Open to a 6-month co-op (an off-cycle internship) from January\u00a02027',
   roles: ['Quant and risk', 'Investments', 'Investment banking', 'Data science in finance'],
-  locations: ['Boston', 'New York', 'San Francisco', 'London'],
+  // A city's name is never split across two lines ("New / York" on /about and /cv): no-break spaces inside each.
+  locations: ['Boston', 'New\u00a0York', 'San\u00a0Francisco', 'London'],
 } as const
+
+/** The roles as a phrase, "quant and risk, investments, investment banking or data science in finance" (/cv, /about). */
+export const rolesInWords = () => `${AVAILABILITY.roles.slice(0, -1).join(', ').toLowerCase()} or ${AVAILABILITY.roles.at(-1)!.toLowerCase()}`
 
 /** One line, used by the masthead and the metadata description. */
 export const POSITIONING =
-  'Quantitative Analyst and Engineer at a proprietary options trading firm since January 2026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class of 2028.'
+  'Quantitative Analyst and Engineer at a proprietary options trading firm since January\u00a02026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class\u00a0of\u00a02028.'
 
 /**
  * The CV is a page (/cv) and a PDF printed from it at build time by
@@ -86,7 +91,7 @@ export const SITE = {
    * page that exists only on this branch still resolves; locally, the public
    * host rather than localhost.
    */
-  public: deployment ?? production ?? https(FALLBACK)!,
+  public: deployment ?? production ?? https(DOMAIN_LIVE ? 'iliaduda.com' : FALLBACK)!,
   origin: deployment ?? production ?? 'http://localhost:3000',
   /** Previews render pending work; production never does. */
   isProduction: process.env.VERCEL_ENV === 'production',

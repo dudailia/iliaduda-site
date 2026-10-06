@@ -45,12 +45,16 @@ export interface Sim {
 
 export interface Hooks {
   sim: Sim
+  /** The kit may draw every other frame at rest on a 120 Hz display: only where no other view draws in step with this. */
+  halveAtRest?: boolean
   /** Which framing the stage shows (a phone's, or the wide one): its camera, and its labels. */
   frame(): FrameKind
   /** The signature's phases while it waits or plays; null once it is over, or on a visit without one. */
   sequence(): { lines: number; rise: number; labels: number; shock: number; relax: number } | null
   /** The story has started and is not over: every frame of it is drawn, paused or not. */
   playing(): boolean
+  /** The story is armed and waits to be seen: the stage is paper until it starts, so a frame need not be redrawn. */
+  waiting?(): boolean
   /** The shock the signature shows now: its own, or, while a reader's skip plays, draining from where it stood. */
   shown(): number
   /** A drawn frame took this long: the signature's clock moves on it. */
@@ -294,6 +298,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   // The soft limits the drag eases into, and their inverses: a surface grabbed again near a limit picks up from where
   // it is, not from a second pass through the limit.
   const soft = { yaw: (r: number) => 0.9 * Math.tanh(r / 0.9), pitch: (r: number) => 0.1 + 0.4 * Math.tanh((r - 0.1) / 0.4) }
+  /** How far the camera stands back at each soft limit: a share of its distance. */
+  const PULL = { yaw: 0.18, pitch: 0.3 }
   const raw = {
     yaw: (y: number) => 0.9 * Math.atanh(Math.max(-0.999, Math.min(0.999, y / 0.9))),
     pitch: (p: number) => 0.1 + 0.4 * Math.atanh(Math.max(-0.999, Math.min(0.999, (p - 0.1) / 0.4))),
@@ -437,14 +443,85 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     placed[1] = sy
     if (el) el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`
   }
+  /** Each axis label's size (measured once a size and once the page's face has arrived), and whether it is shown. */
+  const labelSize: ([number, number] | undefined)[] = []
+  const labelOn: boolean[] = []
+  const labelXY: number[] = []
+  const SHIFT: Record<string, readonly [number, number]> = { center: [-0.5, -0.5], left: [0, -0.5], right: [-1, -0.5], above: [-0.5, -1] }
+  /**
+   * Turned far, an axis foreshortens and its ticks close up ("1M3M6M"), or a label's point leaves the stage and its words
+   * fall onto the lines below it, or the edge an axis hangs on turns behind the sheet. The titles are placed first, then
+   * each tick in order: one on an edge turned away, one that would touch a label already kept, or one outside the stage
+   * gives way (a 120ms fade), and comes back when there is room again.
+   */
+  const thinLabels = (els: readonly (HTMLElement | null)[], e: readonly number[]) => {
+    // The strike axis hangs on the front edge, the expiry axis on the right one: past the drag's soft limit the eye can
+    // stand behind either, and its words would be painted over the sheet that hides it.
+    const turned = (id: string) => (id[0] === 'k' ? e[2]! < ZW : id[0] === 't' ? e[0]! < XW : false)
+    // The notes' words and the reading point first: they are the figure's reading, and an axis label that would touch
+    // them gives way (held at a drag's limit, the dot sat on "implied vol").
+    const kept: number[] = noteBox.flatMap((b) => (b ? [b[0], b[1], b[2], b[3]] : []))
+    if (dotAt) kept.push(dotAt[0] - 8, dotAt[1] - 8, dotAt[0] + 8, dotAt[1] + 8)
+    if (tagAt) kept.push(tagAt[0], tagAt[1], tagAt[2], tagAt[3])
+    /** Each kept tick's axis, by its box's index in `kept` (a note or the dot has none). */
+    const axisOf: (string | null)[] = kept.map(() => null)
+    const order = [...LABELS.keys()].sort((a, b) => (LABELS[a]!.kind === 'title' ? 0 : 1) - (LABELS[b]!.kind === 'title' ? 0 : 1))
+    for (const i of order) {
+      const el = els[i]
+      if (!el) continue
+      const size = (labelSize[i] ||= [el.offsetWidth, el.offsetHeight])
+      // The other framing's labels are in the layer too, not shown: nothing to place, nothing to make room for.
+      if (!size[0]) continue
+      const [fx, fy] = SHIFT[LABELS[i]!.align]!
+      const x0 = labelXY[i * 2]! + fx * size[0], y0 = labelXY[i * 2 + 1]! + fy * size[1]
+      const x1 = x0 + size[0], y1 = y0 + size[1]
+      const inside = x0 >= -2 && y0 >= -2 && x1 <= cssW + 2 && y1 <= cssH + 2
+      let clear = inside && !turned(LABELS[i]!.id)
+      // Boxes, not ink: a label's box is its line, taller than its glyphs (about 3px above and below them, at
+      // leading-none), so two may share that much and still read apart (the 1M and 3M ticks of /market's short pane do,
+      // at rest, as the poster draws them); across, a box is its glyphs' advance, and words closer than 1px touch.
+      // Ticks of one axis stacked one over another (most of the narrower's width shared, as a foreshortened axis piles
+      // them) need a real gap: there the 3px of shared line read as one block of figures.
+      const axis = LABELS[i]!.kind === 'tick' ? LABELS[i]!.id[0]! : null
+      // A label given way comes back only with 4px more room on every side: at the edge of room, "implied volatility"
+      // went and came five times in 50ms as the view moved a pixel either way.
+      const m = labelOn[i] === false ? 4 : 0
+      for (let k = 0; clear && k < kept.length; k += 4) {
+        const ox = Math.min(x1, kept[k + 2]!) - Math.max(x0, kept[k]!)
+        const stacked = axis !== null && axisOf[k] === axis && ox > 0.5 * Math.min(x1 - x0, kept[k + 2]! - kept[k]!)
+        const slack = stacked ? -1 : 3
+        // Across, a gap of 4px: words of two axes closer than that read as one ("130%2Y").
+        if (x0 - m < kept[k + 2]! + 4 && x1 + m > kept[k]! - 4 && y0 - m < kept[k + 3]! - slack && y1 + m > kept[k + 1]! + slack) clear = false
+      }
+      if (clear) {
+        axisOf[kept.length] = axis
+        kept.push(x0, y0, x1, y1)
+      }
+      if (labelOn[i] !== clear) {
+        labelOn[i] = clear
+        el.style.transition = `opacity 120ms ${EASE_OUT_CSS}`
+        el.style.opacity = clear ? '' : '0'
+      }
+    }
+  }
   /** Each note's words: their height (measured once a size), and how far above the point they last stood. */
   const noteH: number[] = []
+  const noteW: number[] = []
+  /** Where each note's words stood last frame, on the stage: the axis labels give way to them (thinLabels). */
+  const noteBox: (readonly [number, number, number, number] | null)[] = []
+  /** Where the reading point stood last frame, on the stage (an obstacle the axis labels give way to too). */
+  let dotAt: readonly [number, number] | null = null
+  /** Where the reading's tag stood last frame, and its size (measured once a text). */
+  let tagAt: readonly [number, number, number, number] | null = null
+  let tagSize: [number, number] | null = null
   const noteDy: (number | undefined)[] = []
   // A note mid-way through its word swap to the other side of its point.
   const noteSwap: boolean[] = []
   // The page's own face may arrive after the first frame and set the words a little taller: measured again then.
   void document.fonts?.ready.then(() => {
+    labelSize.length = 0
     noteH.length = 0
+    noteW.length = 0
     noteDy.length = 0
     noteSwap.length = 0
     sim.dirty = true
@@ -457,8 +534,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   let flash = 0
   const reads = () => hooks.reading?.() ?? true
   let lastZoom = 1
+  let calmNow = false
 
   return {
+    calm: () => calmNow,
     frame(_t, dt) {
       if (!linked) {
         if (!progs.every((p) => p.ready())) return false
@@ -505,8 +584,11 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const reading = sim.hover !== null
       const leaning = paused || drag?.live || reading ? null : hooks.lean()
       const ly = leaning ? -LEAN.yaw * leaning.x : lean.yaw, lp = leaning ? -LEAN.pitch * leaning.y : lean.pitch
-      step2(lean, 'yaw', 'vy', ly, dt, 4)
-      step2(lean, 'pitch', 'vp', lp, dt, 4)
+      // Paused, it brakes (ω 12, not the lean's own 4) and is at rest below 2e-4 rad/s: on the lean's own spring it
+      // coasted on for a second after Pause, the last half of it in frames no one could see move.
+      step2(lean, 'yaw', 'vy', ly, dt, paused ? 12 : 4)
+      step2(lean, 'pitch', 'vp', lp, dt, paused ? 12 : 4)
+      if (paused && Math.abs(lean.vy) + Math.abs(lean.vp) < 2e-4) lean.vy = lean.vp = 0
 
       // The shock: the signature's while it plays; after it, the reader's level on a quick spring (ω = 30/s).
       let x: number
@@ -566,7 +648,27 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const story = ph ? ph.lines + ph.rise + ph.labels + ph.shock + ph.relax : -1
       const storyMoved = story !== lastStory
       lastStory = story
-      if (drawnOnce && paused && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return 'idle'
+      // At rest: only the drift moving, no story, drag, lowering, spring, lean, shock, reading or flash.
+      calmNow =
+        !!hooks.halveAtRest &&
+        !ph &&
+        // Not through the sway's coast or ramp (Pause, Resume, a reading taken up or let go): drawn at every frame.
+        (swayK === 0 || swayK === 1) &&
+        !drag &&
+        sinking === null &&
+        Math.abs(spring.yaw - spring.ty) + Math.abs(spring.pitch - spring.tp) + Math.abs(spring.vy) + Math.abs(spring.vp) < 1e-4 &&
+        Math.abs(lean.vy) + Math.abs(lean.vp) < 1e-5 &&
+        Math.abs(shock.v) < 1e-5 &&
+        Math.abs(hooks.level() - shock.x) < 1e-4 &&
+        !sim.hover &&
+        !hooks.pinned() &&
+        flash <= 0
+      // Paused, or with the sway stilled by a reading (a resting pointer on a point): only a change is drawn. The reading
+      // drew the same picture 120 times a second; a pointer that moves marks the sheet dirty.
+      if (drawnOnce && (paused || swayK === 0) && !moving && !storyMoved && !hooks.playing() && !sim.dirty && !resized) return 'idle'
+      // Waiting for the reader to bring the stage on screen, the paper on it is already drawn (a phone held a third of
+      // it in view for as long as it liked, at 120 frames a second).
+      if (drawnOnce && hooks.waiting?.() && !moving && !storyMoved && !sim.dirty && !resized) return 'idle'
       sim.dirty = false
       resized = false
 
@@ -579,7 +681,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       const kind = hooks.frame()
       const cam = camera(kind, Math.sin((2 * Math.PI * swayT) / SWAY_PERIOD) * EASE_IN_OUT_QUAD(swayIn), spring.yaw + lean.yaw + nod.yaw, spring.pitch + lean.pitch + nod.pitch)
       lastZoom = hooks.zoom?.() ?? 1
-      cam.dist *= lastZoom
+      // Turned toward a soft limit, the camera stands back (by the square of the turn, so rest is untouched): the slab's
+      // front and corners stay on the stage instead of being cut on its edge.
+      cam.dist *= lastZoom * (1 + PULL.yaw * (spring.yaw / 0.9) ** 2 + PULL.pitch * (Math.max(0, spring.pitch) / 0.5) ** 2 + PULL.pitch * (Math.min(0, spring.pitch) / 0.3) ** 2)
       const m = mvp(kind, cam, cssW / cssH)
       inv = invert(m, invBuf)
       const e = eye(cam)
@@ -669,36 +773,47 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
 
       // Labels, notes and the reading point ride the same projection; the labels arrive with the sheet.
       const els = hooks.labels()
-      LABELS.forEach((l, i) => place(els[i] ?? null, m, l.at[0], l.at[1], l.at[2]))
+      LABELS.forEach((l, i) => {
+        place(els[i] ?? null, m, l.at[0], l.at[1], l.at[2])
+        labelXY[i * 2] = placed[0]!
+        labelXY[i * 2 + 1] = placed[1]!
+      })
+      thinLabels(els, e)
       const layer = hooks.labelLayer()
       if (layer) layer.style.opacity = labelsK.toFixed(3)
       const notes = hooks.notes()
       NOTES.forEach((nt, i) => {
         const el = notes[i] ?? null
         place(el, m, wx(nt.k), wy(iv(p, nt.k, nt.T)) * rise, wz(nt.T))
-        const sy = placed[1]!
+        const sx = placed[0]!, sy = placed[1]!
         const o = nt.offset[kind]
         if (!el || !o) return
         // At a shock's peak the words would rise past the stage's top: they stop there, and the leader shortens.
-        noteH[i] ||= el.querySelector<HTMLElement>('[data-note-words]')?.offsetHeight ?? 0
+        const words = el.querySelector<HTMLElement>('[data-note-words]')
+        noteH[i] ||= words?.offsetHeight ?? 0
+        noteW[i] ||= words?.offsetWidth ?? 0
+        // Where the point is, so the words stay inside the stage across as well, and hang beside it rather than below.
+        const at = { x: sx, w: noteW[i]!, stageW: cssW, h: noteH[i]! }
         const below = (noteDy[i] ?? -1) > 0
         if (noteSwap[i]) {
           // Mid-swap the words keep riding the point on the side they are leaving.
           const keep = below ? 10 : Math.min(-10, Math.max(o[1], 4 + noteH[i]! - sy))
-          if (keep !== noteDy[i]) setNoteRise(el, (noteDy[i] = keep), o[2])
+          const b = setNoteRise(el, (noteDy[i] = keep), o[2], at)
+          noteBox[i] = b ? [sx + b[0], sy + b[1], sx + b[2], sy + b[3]] : null
           return
         }
         const dy = noteRise(sy, o[1], noteH[i]!, 4, below)
         if (noteDy[i] !== undefined && dy > 0 !== below) {
-          // To the other side of its point through the site's word swap: blur out where they are, move, blur back in.
+          // To the other side of its point: out where they are and in where they go, through the site's blur and with
+          // the opacity too (a 3px blur alone did not hide a 50–80px move of two lines), on the ease-out.
           const words = el.querySelector<HTMLElement>('[data-note-words]')
           const ease = EASE_OUT_CSS
           const land = () => {
-            setNoteRise(el, (noteDy[i] = dy), o[2])
+            setNoteRise(el, (noteDy[i] = dy), o[2], at)
             noteSwap[i] = false
-            words?.animate([{ filter: 'blur(3px)' }, { filter: 'blur(0px)' }], { duration: 120, easing: ease })
+            words?.animate([{ filter: 'blur(3px)', opacity: 0 }, { filter: 'blur(0px)', opacity: 1 }], { duration: 140, easing: ease })
           }
-          const out = words?.animate([{ filter: 'blur(0px)' }, { filter: 'blur(3px)' }], { duration: 120, easing: ease, fill: 'forwards' })
+          const out = words?.animate([{ filter: 'blur(0px)', opacity: 1 }, { filter: 'blur(3px)', opacity: 0 }], { duration: 90, easing: ease, fill: 'forwards' })
           if (!out) return land()
           noteSwap[i] = true
           out.onfinish = () => {
@@ -707,12 +822,15 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
           }
           return
         }
-        if (dy !== noteDy[i]) setNoteRise(el, (noteDy[i] = dy), o[2])
+        // Every frame: the point moves across the stage as the surface turns, and the words are held inside it.
+        const b = setNoteRise(el, (noteDy[i] = dy), o[2], at)
+        noteBox[i] = b ? [sx + b[0], sy + b[1], sx + b[2], sy + b[3]] : null
       })
       const dot = hooks.dot()
       const at = iv(p, probe.k, probe.T)
       place(dot, m, wx(probe.k), wy(at) * rise, wz(probe.T))
       const dotX = placed[0]!
+      dotAt = dot && labelsK > 0.01 ? [placed[0]!, placed[1]!] : null
       // The reading point arrives with the labels, once the sheet is up to be read.
       if (dot) dot.style.opacity = labelsK.toFixed(3)
       // While the reader reads a point, its tag names the volatility there, beside the dot, on whichever side has room.
@@ -721,7 +839,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         tagK += ((sim.hover || hooks.pinned() ? 1 : 0) - tagK) * (1 - Math.exp(-dt / 0.05))
         if (tagK < 0.005) tagK = 0
         const text = `vol ${(at * 100).toFixed(1)}%`
-        if (text !== tagText) tag.textContent = tagText = text
+        if (text !== tagText) {
+          tag.textContent = tagText = text
+          tagSize = null
+        }
         // Over to the left past 96px from the edge, and back only under 120px, so a dot at the edge never flips it.
         const left = tagLeft ? dotX > cssW - 120 : dotX > cssW - 96
         if (left !== tagLeft) {
@@ -729,7 +850,15 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
           tag.style.transform = left ? 'translateX(calc(-100% - 1.25rem))' : ''
         }
         tag.style.opacity = (tagK * labelsK).toFixed(3)
-      }
+        // Where it stands (it hangs 10px right of the dot and 8px above it, or as far left), for the axis labels to give
+        // way to next frame: held at a drag's limit it covered "implied vol" and the 60% tick.
+        if (tagK * labelsK > 0.05) {
+          tagSize ??= [tag.offsetWidth, tag.offsetHeight]
+          const [tw, th] = tagSize
+          const x0 = tagLeft ? dotX - 10 - tw : dotX + 10
+          tagAt = [x0, placed[1]! - 8 - th, x0 + tw, placed[1]! - 8]
+        } else tagAt = null
+      } else tagAt = null
 
       hooks.sync(p, x)
       drawnOnce = true
@@ -751,8 +880,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       cssW = cw
       cssH = ch
       resized = true
-      // A new size may wrap a note's words differently: measured again.
+      // A new size may wrap a note's words differently: measured again (and the labels, whose text size may step).
+      labelSize.length = 0
       noteH.length = 0
+      noteW.length = 0
       noteDy.length = 0
       noteSwap.length = 0
     },

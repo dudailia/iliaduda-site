@@ -12,11 +12,11 @@ export function BookPoster({ ticks, usd, moment = 'calm' }: { ticks: readonly { 
   return (
     <div className="absolute inset-0" data-market-poster="book" data-moment={moment}>
       {/* eslint-disable-next-line @next/next/no-img-element -- drawn at build time and served as it is; next/image would only add a client runtime */}
-      <img src={file('book', moment)} alt="" decoding="async" loading={moment === 'shock' ? 'lazy' : undefined} className="absolute inset-y-0 left-0 h-full w-[calc(100%-5rem)] sm:w-[calc(100%-3.5rem)]" />
+      <img src={file('book', moment)} alt="" decoding="async" loading={moment === 'shock' ? 'lazy' : undefined} className="absolute inset-y-0 left-0 h-full w-[calc(100%-3.5rem)]" />
       {/* eslint-disable-next-line @next/next/no-img-element -- as above */}
-      <img src={file('ladder', moment)} alt="" decoding="async" loading={moment === 'shock' ? 'lazy' : undefined} className="absolute inset-y-0 right-6 h-full w-14 sm:right-0" />
+      <img src={file('ladder', moment)} alt="" decoding="async" loading={moment === 'shock' ? 'lazy' : undefined} className="absolute inset-y-0 right-0 h-full w-14" />
       {ticks.map((t) => (
-        <span key={t.p} className="text-meta absolute left-6 -translate-y-1/2 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite sm:left-1" style={{ top: pct(t.y) }}>
+        <span key={t.p} className="text-meta absolute left-1 -translate-y-1/2 rounded-sm bg-paper/90 px-0.5 font-mono leading-none text-graphite" style={{ top: pct(t.y) }}>
           {usd(t.p)}
         </span>
       ))}
@@ -28,11 +28,11 @@ export function FanPoster({ ticks, moment = 'calm' }: { ticks: readonly { d: num
   return (
     <div className="absolute inset-0" data-market-poster="fan" data-moment={moment}>
       {/* eslint-disable-next-line @next/next/no-img-element -- drawn at build time and served as it is; next/image would only add a client runtime */}
-      <img src={file('fan', moment)} alt="" decoding="async" loading={moment === 'shock' ? 'lazy' : undefined} className="absolute top-2 left-8 h-[calc(100%-1rem)] w-[calc(100%-6.25rem)] sm:left-2 sm:w-[calc(100%-3.25rem)]" />
+      <img src={file('fan', moment)} alt="" decoding="async" loading={moment === 'shock' ? 'lazy' : undefined} className="absolute top-2 left-2 h-[calc(100%-1rem)] w-[calc(100%-3.25rem)]" />
       {ticks.map((t) => (
         <span
           key={t.d}
-          className="text-meta absolute right-7 -translate-y-1/2 font-mono leading-none text-graphite sm:right-1"
+          className="text-meta absolute right-1 -translate-y-1/2 font-mono leading-none text-graphite"
           style={{ top: `calc(0.5rem + (100% - 1rem) * ${t.y.toFixed(4)})` }}
         >
           {`$${Math.round(t.d).toLocaleString('en-US')}`}

@@ -14,8 +14,8 @@ import { rule } from '@/content/rules'
  * resend inside the episode spends nothing more.
  *
  * Order of checks, as shipped: a refusal of interaction (art. 8) first, then
- * every cap. When a cap blocks a send, the figure states when the allowance
- * reopens: the moment the oldest contact in that window ages out of it. (The
+ * every cap. When caps block a send, the figure states when the allowance
+ * reopens: the moment every window is back under its cap. (The
  * portal's own lockout screen is more conservative — now plus the window —
  * which is safe for a debtor but not a time to print as "the next moment".)
  */
@@ -45,13 +45,17 @@ export function requestCode(a: Allowance, now: number): { next: Allowance; outco
   if (a.refused) return { next: a, outcome: { ok: false, reason: 'refused' } }
   const open = a.episodes.at(-1)
   if (open !== undefined && now - open < EPISODE_MS) return { next: a, outcome: { ok: true, spent: 0 } }
+  // Every window at its cap blocks, and each reopens when enough of its contacts have aged out to leave it under the
+  // cap: its (count − cap + 1)th oldest. Counts only fall as time passes, so the allowance reopens at the latest of
+  // those moments, and the window that sets it is the one that binds. (Reporting the first window at its cap named a
+  // day the weekly cap still blocked, and then said "the next code can be sent" when it could not.)
+  let block: { window: (typeof WINDOWS)[number]; nextAt: number } | null = null
   for (const w of WINDOWS) {
-    const inWindow = a.episodes.filter((t) => t > now - w.ms && t <= now)
-    if (inWindow.length >= w.cap) {
-      // The allowance reopens when the oldest contact still counted leaves.
-      const oldest = Math.min(...inWindow)
-      return { next: a, outcome: { ok: false, reason: 'cap', window: w, nextAt: oldest + w.ms } }
-    }
+    const inWindow = a.episodes.filter((t) => t > now - w.ms && t <= now).sort((x, y) => x - y)
+    if (inWindow.length < w.cap) continue
+    const nextAt = inWindow[inWindow.length - w.cap]! + w.ms
+    if (!block || nextAt > block.nextAt) block = { window: w, nextAt }
   }
+  if (block) return { next: a, outcome: { ok: false, reason: 'cap', ...block } }
   return { next: { ...a, episodes: [...a.episodes, now] }, outcome: { ok: true, spent: 1 } }
 }

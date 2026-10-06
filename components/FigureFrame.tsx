@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Items } from './Layout'
+import { Items, Whole, keepDashes } from './Layout'
 
 /**
  * The layout every live figure shares: number and readouts in the rail, title
@@ -29,6 +29,7 @@ export function FigureFrame({
   railBelow = true,
   inline = false,
   span = false,
+  breakable = false,
   className,
   children,
 }: {
@@ -44,6 +45,8 @@ export function FigureFrame({
   caption: ReactNode
   table?: ReactNode
   vt?: string
+  /** On paper, a stage taller than a sheet may break inside (between its rows): its own parts keep themselves whole. */
+  breakable?: boolean
   /** Repeat the rail under the figure on narrow screens. Off when the figure
    *  already shows its state inline where a phone reader needs it. */
   railBelow?: boolean
@@ -81,7 +84,8 @@ export function FigureFrame({
         </div>
         <div className={`min-w-0 ${wide ? 'lg:col-start-2 lg:row-span-2 lg:row-start-1' : ''}`}>
           <div className="text-note border-b border-rule pb-2 print:break-inside-avoid print:break-after-avoid">
-            <span id={`${id}-title`} className="block text-pretty text-ink">
+            {/* At the text's measure, even where the figure spans the rail too: a title is read as a line. */}
+            <span id={`${id}-title`} className="block max-w-(--measure) text-pretty text-ink">
               {title}
             </span>
             {/* A subtitle wraps between its items, never inside one (DESIGN.md, the Whole Item Rule). */}
@@ -98,13 +102,16 @@ export function FigureFrame({
               </span>
             </span>
           </div>
-          <div className="mt-5" style={vt ? vtStyle(vt) : undefined}>
+          {/* On the page's paper: the morph's snapshot of it is one opaque picture, as the thumbnail it shrinks into is.
+              Transparent, the Contents' titles showed through the shrinking figure on the way back. */}
+          <div className={`mt-5 ${vt ? 'bg-paper' : ''} ${breakable ? '' : 'print:break-inside-avoid'}`} style={vt ? vtStyle(vt) : undefined}>
             {children}
           </div>
-          {rail && (railBelow || inline) ? <div className={`mt-5 ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
+          {/* On paper the readouts keep to the figure they read (a few lines; printed a sheet after it, they read nothing). */}
+          {rail && (railBelow || inline) ? <div className={`mt-5 print:break-before-avoid ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
           {/* A hint written as items (" · ") wraps between them, never inside one or before its dot. */}
           {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite print:hidden">{typeof hint === 'string' ? <Items items={hint} /> : hint}</p> : null}
-          <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{caption}</figcaption>
+          <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{keepDashes(caption)}</figcaption>
           {table ? <div className="sr-only">{table}</div> : null}
         </div>
         {/* The margin's readouts, under the number and sticking as the figure scrolls. After the figure in the page's
@@ -120,20 +127,39 @@ export function FigureFrame({
 }
 
 /** A rail readout list: label over value, right-aligned in the margin. */
+/**
+ * A readout that holds still as it changes. In the margin (from lg) readouts are set right, so a value that grew or
+ * lost a character moved its own left edge, a layout shift with no input to excuse it: there it is set in a fixed
+ * width, no-break spaces before it (in the mono face every character is one width; a figure space is not in its
+ * subset). Below lg they are set left, and the text is as is.
+ */
+export function Steady({ text, ch }: { text: string; ch: number }) {
+  return (
+    <>
+      <span className="lg:hidden">{text}</span>
+      <span className="hidden lg:inline">{text.padStart(ch, '\u00a0')}</span>
+    </>
+  )
+}
+
 export function Readouts({
   rows,
   across = false,
 }: {
-  rows: readonly { readonly label: string; readonly value: ReactNode }[]
+  /** `ch`: the longest the value can be, for one that changes while the figure runs (held still in the margin). */
+  rows: readonly { readonly label: string; readonly value: ReactNode; readonly ch?: number }[]
   /** Label over value in a row of columns, for a figure with no margin to stack them in. */
   across?: boolean
 }) {
   if (across) {
     return (
-      <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3">
+      // On paper the readouts print together, a few lines, on one sheet: never split between two.
+      <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4">
         {rows.map((r) => (
-          <div key={r.label} className="min-w-0">
-            <dt className="text-graphite">{r.label}</dt>
+          <div key={r.label} className="min-w-0 break-inside-avoid">
+            <dt className="text-graphite">
+              <Whole text={r.label} />
+            </dt>
             <dd className="tabular text-ink">{r.value}</dd>
           </div>
         ))}
@@ -141,11 +167,13 @@ export function Readouts({
     )
   }
   return (
-    <dl className="text-meta grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono lg:grid-cols-1 lg:gap-y-px lg:[&_dd]:mb-2">
+    // On a phone each label sits over its value: beside it, a long label ("Growth lookup fixed") squeezed the value
+    // into a column that wrapped it over three lines, and the figure's height changed with the reading.
+    <dl className="text-meta grid grid-cols-1 font-mono max-sm:[&_dd]:mb-1.5 sm:grid-cols-[auto_1fr] sm:gap-x-4 sm:gap-y-1 lg:grid-cols-1 lg:gap-y-px print:break-inside-avoid lg:[&_dd]:mb-2">
       {rows.map((r) => (
         <div key={r.label} className="contents">
           <dt className="text-graphite">{r.label}</dt>
-          <dd className="tabular text-ink">{r.value}</dd>
+          <dd className="tabular text-ink">{r.ch && typeof r.value === 'string' ? <Steady text={r.value} ch={r.ch} /> : r.value}</dd>
         </div>
       ))}
     </dl>

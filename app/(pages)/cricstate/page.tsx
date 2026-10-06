@@ -51,6 +51,10 @@ export default function Cricstate() {
           byline={paper.byline}
           level="h1"
           title={paper.title}
+          // From lg the column is 646px, and "predicts beyond the scoreboard" fit it in the fallback face by 4px and not
+          // in Source Serif: two lines, then three when the face arrived, and Fig. 1 dropped 49px (CLS 0.017 on a slow
+          // load). At 38rem it takes three lines in either face.
+          measure="lg:max-w-[38rem]"
           standfirst={<p>{paper.abstract}</p>}
         />
 
@@ -86,7 +90,7 @@ export default function Cricstate() {
             against {fact('crT2Base').value.toFixed(3)} for the base rate — {Math.round(fact('crT2Skill').value)}%
             lower, over {n('crT2TestMatches')} held-out matches. On the far harder next-ball task,
             eleven outcome classes, it is {fact('crStateGain').value}% better than the baseline.
-            Fig. 1 is that model, unchanged, scoring a match from the test period.
+            Fig.{'\u00a0'}1 is that model, unchanged, scoring a match from the test period.
           </p>
         </Section>
 
@@ -154,7 +158,7 @@ export default function Cricstate() {
           <p>
             Identity is worth {fact('crIdentityGain').value}% in log-likelihood and a per-match
             latent for pitch and conditions {fact('crLatentGain').value}%, both below the
-            materiality bar, so the per-player model was not built: the measurement fell short of the
+            materiality bar, so the <span className="whitespace-nowrap">per-player</span> model was not built: the measurement fell short of the
             bar that would justify it, rather than instinct deciding.
           </p>
           <p>
@@ -187,7 +191,7 @@ export default function Cricstate() {
         <Meta
           rows={[
             ['repo', <a key="r" href="https://github.com/dudailia/cricstate">github.com/dudailia/cricstate</a>],
-            ['data', 'Cricsheet ball-by-ball, snapshot of 2 July 2026, pinned by hash'],
+            ['data', 'Cricsheet ball-by-ball, snapshot of 2 July 2026, pinned by\u00a0hash'],
             ['stack', 'Python · polars · scikit-learn · scipy · uv · GitHub Actions'],
           ]}
         />

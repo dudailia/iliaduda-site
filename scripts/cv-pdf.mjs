@@ -13,7 +13,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from '@playwright/test'
 
@@ -56,6 +56,33 @@ try {
   await page.emulateMedia({ media: 'print', colorScheme: 'light', reducedMotion: 'reduce' })
   await page.goto(`${ORIGIN}/cv`, { waitUntil: 'networkidle' })
   await page.evaluate(() => document.fonts.ready)
+
+  // Printed from fixed instances of the same two faces (scripts/cv-fonts.py): a variable font prints as Type 3, which
+  // some résumé screeners and viewers handle badly. Same outlines and metrics, so the page lays out as it does on screen.
+  // Served at the page's own origin (its content security policy allows fonts from 'self' only).
+  await page.route(`${ORIGIN}/__cv-fonts/*`, (route) =>
+    route.fulfill({ contentType: 'font/woff2', body: readFileSync(join(process.cwd(), 'scripts/cv-fonts', new URL(route.request().url()).pathname.split('/').pop())) }),
+  )
+  const face = (family, file, weight) => `@font-face{font-family:${family};font-weight:${weight};src:url(/__cv-fonts/${file}) format('woff2')}`
+  await page.addStyleTag({
+    content: [
+      face('cvSerif', 'serif-400.woff2', 400),
+      face('cvSerif', 'serif-600.woff2', 600),
+      face('cvSerif', 'serif-700.woff2', 700),
+      face('cvMono', 'mono-400.woff2', 400),
+      'html{--font-serif-face:cvSerif,Georgia,serif!important;--font-mono-face:cvMono,ui-monospace,monospace!important}',
+    ].join(''),
+  })
+  await page.evaluate(async () => {
+    await Promise.all(['400 1em cvSerif', '600 1em cvSerif', '700 1em cvSerif', '400 1em cvMono'].map((f) => document.fonts.load(f)))
+    await document.fonts.ready
+  })
+  const unfixed = await page.evaluate(() =>
+    [...new Set([...document.querySelectorAll('.cv, .cv *')].map((el) => getComputedStyle(el).fontFamily.split(',')[0].trim()))].filter(
+      (f) => !/^"?cv(Serif|Mono)"?$/.test(f),
+    ),
+  )
+  if (unfixed.length) throw new Error(`/cv: text not in the fixed print faces: ${unfixed.join(', ')}`)
 
   // Chromium paints positioned boxes after in-flow content, and writes the
   // PDF's text layer in paint order. One absolutely positioned bullet dash

@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import { Items, Row } from './Layout'
+import { Items, Row, keepDashes } from './Layout'
 
 /**
  * Every figure goes through here so the accessibility wiring cannot be
@@ -55,7 +55,8 @@ export function Figure({
   table,
 }: FigureProps) {
   return (
-    <figure id={id} className="my-12 lg:my-16" aria-labelledby={`${id}-title`} aria-describedby={`${id}-caption`}>
+    // A quiet diagram is short: it prints whole, never cut between its title and its picture.
+    <figure id={id} className="my-12 lg:my-16 print:break-inside-avoid!" aria-labelledby={`${id}-title`} aria-describedby={`${id}-caption`}>
       <Row rail={number}>
         <div className="text-note border-b border-rule pb-2">
           <span id={`${id}-title`} className="block text-pretty text-ink">{title}</span>
@@ -88,7 +89,7 @@ export function Figure({
           )
         })}
 
-        <figcaption id={`${id}-caption`} className="text-note mt-5 max-w-[39.2rem] text-graphite">{caption}</figcaption>
+        <figcaption id={`${id}-caption`} className="text-note mt-5 max-w-[39.2rem] text-graphite">{keepDashes(caption)}</figcaption>
 
         {table ? <div className="sr-only">{table}</div> : null}
       </Row>

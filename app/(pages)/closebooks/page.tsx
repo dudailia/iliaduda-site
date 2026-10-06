@@ -34,7 +34,7 @@ export default function CloseBooks() {
             front of a reviewer, and exports the result or pushes journal entries to QuickBooks
             Online. Around it: firms, clients and roles in a multi-tenant Postgres database, a
             client portal, and Stripe subscriptions across three tiers. I designed, built and
-            deployed all of it — {n('cbApiRoutes')} API routes, {n('cbDashboardPages')} dashboard
+            deployed all of it{'\u00a0'}— {n('cbApiRoutes')} API routes, {n('cbDashboardPages')} dashboard
             pages and {n('cbMigrations')} SQL migrations.
           </p>
         </Section>
@@ -50,7 +50,7 @@ export default function CloseBooks() {
             fails outright flags only its own rows and the run moves on.
           </p>
           <p>
-            What comes back is treated as evidence, not an answer. The rules in Fig. 1 are the
+            What comes back is treated as evidence, not an answer. The rules in Fig.{'\u00a0'}1 are the
             product&rsquo;s: confidence comes down for small amounts and uninformative
             descriptions; the suggested account is resolved against the client&rsquo;s chart by
             code and then by name, and the category written is always the chart&rsquo;s own, never
@@ -69,8 +69,8 @@ export default function CloseBooks() {
         <Section heading="Tenant isolation">
           <p>
             Isolation is enforced in the database, not the interface. Row-level security policies
-            scope every query to firm membership, and a five-level role hierarchy — owner, admin,
-            senior accountant, staff, read-only — is expressed as security-definer functions, so
+            scope every query to firm membership, and a <span className="whitespace-nowrap">five-level</span> role hierarchy — owner, admin,
+            senior accountant, staff, <span className="whitespace-nowrap">read-only</span> — is expressed as <span className="whitespace-nowrap">security-definer</span> functions, so
             reading, writing, approving and managing billing are separate privileges checked in
             SQL.
           </p>

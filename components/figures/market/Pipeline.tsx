@@ -66,7 +66,9 @@ export function PipelineLive({ title, subtitle, caption, table, paths }: { title
     return marketRates.subscribe(show)
   }, [])
   const IDS = ['events', 'frames', 'paths', 'headroom', 'held'] as const
-  const LABELS = ['Events', 'Frames to the page', 'Futures drawn', 'Headroom', 'Held while away'] as const
+  // The futures row is the worker's pace, timed over its own slices: it draws 4,096 a simulated second, and could draw this
+  // many (named "Futures drawn", it read as a contradiction of the diagram's 4,096).
+  const LABELS = ['Events', 'Frames to the page', 'Futures it could draw', 'Headroom', 'Held while away'] as const
   const rows = IDS.map((id, i) => ({
     label: LABELS[i]!,
     value: (

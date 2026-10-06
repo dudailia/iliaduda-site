@@ -136,12 +136,13 @@ test('a pinned order stays readable after the strips move past it, and says so',
   if (!(await streams(page))) return test.skip(true, 'no GPU here: the strips do not move past a pinned order')
   const stage = page.locator(`${FIG} [role="group"]`)
   await stage.focus()
-  await expect(reading(page)).toContainText(/Market buy · \d+ shares? at \$\d+\.\d{2}/)
+  await expect(reading(page)).toContainText(/Market buy\s*\d+ shares? at \$\d+\.\d{2}/)
   const first = await reading(page).locator('dd').first().innerText()
   // Focus moves on to the figure's own Pause, so the market runs again with the figure in view; the order stays pinned.
   await page.locator(FIG).getByRole('button', { name: 'Pause' }).focus()
   await expect(reading(page)).toContainText('off the strip', { timeout: 15_000 })
-  expect((await reading(page).locator('dd').first().innerText()).split(' · ').slice(0, 2)).toEqual(first.split(' · ').slice(0, 2))
+  // The kind and the order (its size and price) are the same; only its age, and the note, have moved on.
+  expect((await reading(page).locator('dd').first().innerText()).split(' · ')[0]).toEqual(first.split(' · ')[0])
 })
 
 test('reads an order from the keyboard: what it was, and what set it off, adding up to all of it', async ({ page }) => {
@@ -149,7 +150,7 @@ test('reads an order from the keyboard: what it was, and what set it off, adding
   await page.goto('/order-book')
   const stage = page.locator(`${FIG} [role="group"]`)
   await stage.focus()
-  await expect(reading(page)).toContainText(/Market buy · \d+ shares? at \$\d+\.\d{2}/)
+  await expect(reading(page)).toContainText(/Market buy\s*\d+ shares? at \$\d+\.\d{2}/)
   const text = await reading(page).innerText()
   // A market buy is set off by earlier market buys, market sells and cancelled asks, or comes on its own: all of it.
   const shares = pct(text)

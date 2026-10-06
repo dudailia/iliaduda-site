@@ -46,6 +46,8 @@ export interface Shared {
   drawnAt(): number
   /** The order chosen in Fig. 2, which this figure marks with its probe when the reader is not probing it: price, time. */
   highlight(): { price: number; t: number } | null
+  /** The story is armed and waits to be seen: the stage is the flat page until it starts. */
+  waiting?(): boolean
   /** The signature's phases while it waits or plays (lib/orderbook/sequence.ts); null once it is over, or on a visit without one. */
   sequence(): { rise: number; river: number; settle: number; labels: number } | null
   /** The reader's lean, −1…1 each way, from the pointer or the tilt (components/stage/useLean.ts). */
@@ -110,7 +112,8 @@ void main() {
   int j = int(aGrid.x), a = int(aGrid.y);
   float d = dep(j, a);
   float ra = rise(a);
-  float y = hgt(d) * ra;
+  // A row past the eased count (a quality step up adds 48 at once) rises in as the count reaches it.
+  float y = hgt(d) * ra * clamp(uRowsF - float(a), 0.0, 1.0);
   float x = (float(j) - ${VIS / 2}.0 - uFracX) * DX;
   float z = ZNOW - (float(a) + uFracZ) * DZ;
   float hl = hgt(dep(j - 1, a)) * ra, hr = hgt(dep(j + 1, a)) * ra, hb = hgt(dep(j, a + 1)) * rise(a + 1), hf = hgt(dep(j, max(a - 1, 0))) * rise(max(a - 1, 0));
@@ -248,6 +251,9 @@ export interface BookRenderer extends Renderer {
   sink(done: () => void): void
 }
 
+/** How far a drag tilts the terrain (radians, the soft limit it eases into). */
+const PITCH_MAX = 0.22
+
 export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const gl: GL = env.gl
   const { canvas } = env
@@ -300,6 +306,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const gridBuf = gl.createBuffer()!
   const idxBuf = gl.createBuffer()!
   let rows: number = ROWS_BY_Q[2]
+  /** The rows the quality asks for: a step down keeps the deeper grid until the eased count has come down to it. */
+  let rowsWant: number = rows
   let rowsF = 0
   let idxCount = 0
   const buildGrid = (nz: number) => {
@@ -416,7 +424,24 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   // One list with the poster (lib/orderbook/labels.ts), kept by id: a label that stops applying (a price tick
   // scrolled out of the window) fades where it last stood, and one that starts fades in; none is retexted in place.
   type Kind = LabelKind | 'probe'
-  type Label = { el: HTMLSpanElement; kind: Kind; text: string; w: number; h: number; o: number; want: number; seen: boolean }
+  type Label = { el: HTMLSpanElement; kind: Kind; text: string; w: number; h: number; o: number; want: number; seen: boolean; gx?: { x: number; v: number }; gy?: { x: number; v: number } }
+  /**
+   * A label's place glides on the site's quick spring (ω 30): the front ridge it rides takes a new row of the market
+   * twelve times a second, and a label snapped to each would step at 12 fps beside the terrain's glide. It snaps where
+   * the picture itself jumps or the reader is turning it: its first place, a jump of more than 60px (a Replay, a new
+   * size), a drag or a turn, a pause, a still frame.
+   */
+  const GLIDE_W = 30
+  const glide = (l: Label, at: [number, number], dt: number, snap: boolean): [number, number] => {
+    if (!l.gx || !l.gy || snap || Math.abs(at[0] - l.gx.x) + Math.abs(at[1] - l.gy.x) > 60) {
+      l.gx = { x: at[0], v: 0 }
+      l.gy = { x: at[1], v: 0 }
+    } else {
+      spring(l.gx, at[0], dt, GLIDE_W)
+      spring(l.gy, at[1], dt, GLIDE_W)
+    }
+    return [l.gx.x, l.gy.x]
+  }
   const LOOK: Record<Kind, string> = {
     // As wide as its longest price ("Price $100.215", 14 of the mono face's 0.6em characters, and its padding), so it
     // does not jump a few pixels each way as the mid passes between whole and half cents.
@@ -446,6 +471,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   /** Boxes already placed this frame: a label that would cover one, or leave the frame, is not shown. */
   const placed: Box[] = []
   const place = (l: Label, text: string, at: [number, number] | null, anchor: Anchor = 'c') => {
+    // The probe's tag keeps the widest it has been while a reading stands: its age ticks ("2.0 s" to "10.0 s"), and a
+    // box that grew and shrank a character at a time crowded its neighbour out and back in, a flicker.
+    const keep = l.kind === 'probe' && !!text && !!l.text ? l.w : 0
     if (l.text !== text) {
       l.el.textContent = text
       l.text = text
@@ -453,7 +481,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     }
     if (at && text) {
       if (!l.w) {
-        l.w = l.el.offsetWidth
+        l.w = Math.max(keep, l.el.offsetWidth)
         l.h = l.el.offsetHeight
       }
       const b = boxAt(at[0], at[1], l.w, l.h, anchor)
@@ -514,6 +542,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
    * with the hand's speed.
    */
   const turn = { yaw: { x: 0, v: 0 }, pitch: { x: 0, v: 0 } }
+  /** How far the camera stands back at each soft limit: a share of its distance. */
+  const PULL = { yaw: 0.22, pitch: 0.22 }
   let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; touch: boolean; live: boolean } | null = null
   const follow = { x: centre, v: 0 }
   /** The drift's speed: 1 running, coasting to 0 over 240ms on Pause and back over 400ms on Resume, as the home figure's. */
@@ -521,6 +551,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   /** Whether the pointer was reading the terrain last frame. */
   let reading0 = false
   let hover: [number, number] | null = null
+  /** Where the resting pointer last read the terrain, and the level and market moment it read there. */
+  let lastHit: { x: number; y: number; price: number; t: number } | null = null
   let mvp: M4 = new Float32Array(16)
   let inv: M4 | null = null
   let fracZ = 0
@@ -538,7 +570,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const cam = (t: number, k: number): Camera => ({
     yaw: REST.yaw + (SWAY.drift * Math.sin((2 * Math.PI * t) / SWAY.period) + lean.yaw.x + turn.yaw.x) * k,
     pitch: page.pitch + (rest.pitch - page.pitch) * k + (lean.pitch.x + turn.pitch.x) * k,
-    dist: page.dist + (rest.dist - page.dist) * k,
+    // Turned toward a soft limit, the camera stands back (by the square of the turn, so the rest pose is untouched): the
+    // terrain's corners stay on the stage instead of being cut on its edge.
+    dist: (page.dist + (rest.dist - page.dist) * k) * (1 + PULL.yaw * (turn.yaw.x / 0.6) ** 2 + PULL.pitch * (turn.pitch.x / PITCH_MAX) ** 2),
     tx: page.tx + (rest.tx - page.tx) * k,
     ty: rest.ty,
     tz: rest.tz,
@@ -569,11 +603,13 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   }
   // The soft limits a drag eases into (tanh), and their inverses, so a terrain grabbed again near a limit picks up from
   // where it is.
-  const soft = { yaw: (r: number) => 0.6 * Math.tanh(r / 0.6), pitch: (r: number) => 0.3 * Math.tanh(r / 0.3) }
+  // The pitch stops at 0.22: at 0.3 the bid wall's far edge stood nearly edge-on and read as a jagged white-and-ink
+  // fringe.
+  const soft = { yaw: (r: number) => 0.6 * Math.tanh(r / 0.6), pitch: (r: number) => PITCH_MAX * Math.tanh(r / PITCH_MAX) }
   const unsoft = (y: number, a: number) => a * Math.atanh(Math.max(-0.999, Math.min(0.999, y / a)))
   const onDown = (e: PointerEvent) => {
     if (drag) return
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, 0.3), touch: e.pointerType === 'touch', live: false }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, PITCH_MAX), touch: e.pointerType === 'touch', live: false }
     canvas.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent) => {
@@ -587,7 +623,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         if (!drag.live) {
           drag.live = true
           drag.rawYaw = unsoft(turn.yaw.x, 0.6)
-          drag.rawPitch = unsoft(turn.pitch.x, 0.3)
+          drag.rawPitch = unsoft(turn.pitch.x, PITCH_MAX)
           turn.yaw.v = turn.pitch.v = 0
         }
         // The hand's grip shows while the terrain turns under it.
@@ -771,7 +807,24 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     inv = invert(mvp)
 
     // Probe: hover wins; else the keyboard/tap probe.
-    const hovered = hover ? pick(hover[0], hover[1]) : null
+    // A pointer held still keeps its reading: the terrain moves under it every simulated second, and at the front edge
+    // the ray fell off and back on, the reading blinking between a value and "point at the terrain". Moved (over 2px),
+    // it reads afresh, and off the terrain it reads nothing.
+    // ...and keeps reading what it read, the same level at the same market moment, as that moment ages: picked afresh
+    // every frame, the reading flickered between neighbouring rows and levels (4.4, 4.5, 4.4 s ago, forty times in
+    // three seconds) as the rows slid under a still pointer. The moment gone off the back, it reads afresh.
+    let hovered: KeyProbe | null = null
+    const resting = !!hover && !!lastHit && Math.hypot(hover[0] - lastHit.x, hover[1] - lastHit.y) <= 2
+    if (resting && lastHit) {
+      const age = rowAfter(sim, lastHit.t)
+      if (age < Math.min(rows, sim.written) - 1) hovered = { dp: lastHit.price - Math.round(centre), age }
+    }
+    if (!hovered && hover) {
+      hovered = pick(hover[0], hover[1])
+      if (hovered) lastHit = { x: hover[0], y: hover[1], price: Math.round(centre) + hovered.dp, t: sim.times[sim.row(hovered.age)]! }
+      else if (!resting) lastHit = null
+    }
+    if (!hover) lastHit = null
     reading0 = hovered !== null
     // The reader's own probe wins; otherwise the order chosen in Fig. 2, where and when it was, while it is in view.
     const chosen = !hovered && !sh.key ? sh.highlight() : null
@@ -804,12 +857,15 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     gl.bindTexture(gl.TEXTURE_2D, centreTex)
     gl.uniform1i(terrain.u('uCentre'), 1)
     gl.uniform1i(terrain.u('uHead'), head)
-    gl.uniform1i(terrain.u('uRows'), Math.min(rows, sim.written))
     // The age fade eases toward a new history depth (τ ≈ 250ms) instead of
     // rescaling in one frame when quality steps: rows a step adds emerge out
-    // of the fade rather than the whole terrain jumping 23% deeper.
-    const rowsTarget = Math.min(rows, sim.written)
+    // of the fade rather than the whole terrain jumping 23% deeper, and rows a
+    // step down takes sink back into the page as the count passes them (cut at
+    // once, the back of both walls went in one frame, "10 s ago" with it).
+    const rowsTarget = Math.min(rowsWant, sim.written)
     rowsF = rowsF ? rowsF + (rowsTarget - rowsF) * (1 - Math.exp(-dt * 4)) : rowsTarget
+    if (rows > rowsWant && rowsF < rowsWant + 0.5) buildGrid(rowsWant)
+    gl.uniform1i(terrain.u('uRows'), Math.min(rows, Math.max(rowsWant, Math.ceil(rowsF)), sim.written))
     gl.uniform1f(terrain.u('uRowsF'), Math.max(1, rowsF))
     gl.uniform1i(terrain.u('uBase'), b - START)
     const wmod = (sim.written - 1) % 1200
@@ -833,7 +889,9 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     gl.uniform1f(terrain.u('uProbeRow'), wmod - probeAge)
     gl.uniform1f(terrain.u('uProbePx'), probePrice - START - (b - START) + ((((b - START) % 10) + 10) % 10))
     gl.bindVertexArray(gridVao)
-    gl.drawElements(gl.TRIANGLES, idxCount, gl.UNSIGNED_SHORT, 0)
+    // Only as many rows as the eased count reaches: a step up in quality rebuilt the grid 48 rows deeper, and the
+    // terrain stood a third taller in one frame. The index buffer runs row by row, so a row is a run of its indices.
+    gl.drawElements(gl.TRIANGLES, Math.min(idxCount, Math.max(1, Math.ceil(rowsF) - 1) * (NX - 1) * 6), gl.UNSIGNED_SHORT, 0)
     gl.disable(gl.POLYGON_OFFSET_FILL)
 
     // Overlays: premultiplied; additive at night so the glow reads as light.
@@ -850,7 +908,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     if (reading) {
       const r = sim.row(probeAge)
       const x = xOf(probePrice), z = zOf(probeAge)
-      const y = height(sim.depthAt(r, probePrice))
+      // On the terrain as it stands: through Replay's lowering and the rise after it, the pin rides the ground.
+      const y = height(sim.depthAt(r, probePrice)) * rowRise(rise, probeAge, rowsF || rows) * lift
       dropPts[0] = x
       dropPts[1] = y
       dropPts[2] = z
@@ -919,7 +978,8 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // First every label's text and where it would go; then the new texts are measured, all at once; then they are
     // placed: one layout a frame at most, never one after another label's write.
     const todo: { l: Label; text: string; at: [number, number] | null; anchor: Anchor }[] = []
-    for (const l of labelSpecs(sim, { centre, fracZ, narrow: aspect < 1, rows, rise, lift })) {
+    // Time is marked only as deep as the terrain is drawn: as a step down sinks the back rows, their label fades with them.
+    for (const l of labelSpecs(sim, { centre, fracZ, narrow: aspect < 1, rows: rowsF ? Math.min(rows, Math.ceil(rowsF)) : rows, rise, lift })) {
       const at = S(l.at[0], l.at[1], l.at[2])
       todo.push({ l: label(l.id, l.kind), text: l.text, at: at ? [at[0] + l.dx, at[1] + l.dy] : null, anchor: l.anchor })
       if (l.id !== 'price') continue
@@ -927,9 +987,26 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       const probeTag = label('probe', 'probe')
       if (reading) {
         const r = sim.row(probeAge)
-        const pin = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) + 0.16, zOf(probeAge))
-        const text = reading.side === 'spread' ? `${fmt.usd(reading.price)} · inside the spread` : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)} · ${fmt.ago(reading.ago)}`
-        todo.push({ l: probeTag, text, at: pin ? [pin[0] + 6, pin[1] - 10] : null, anchor: 'l' })
+        const pin = S(xOf(probePrice), height(sim.depthAt(r, probePrice)) * rowRise(rise, probeAge, rowsF || rows) * lift + 0.16, zOf(probeAge))
+        // On a phone's stage the age is left to the readout under it: with it the tag took two-thirds of the width.
+        const text =
+          reading.side === 'spread'
+            ? `${fmt.usd(reading.price)} · inside the spread`
+            : `${fmt.usd(reading.price)} · ${fmt.shares(reading.queue)}${cssW < 480 ? '' : ` · ${fmt.ago(reading.ago)}`}`
+        // Right of the pin where it fits, else to its left: always to the right, it ran off the stage (or onto a label)
+        // over the terrain's right half and was never shown there. Where it fits on neither side (the middle of a
+        // narrow stage), it stands over the pin, held inside the stage: dropped there, a tap left no mark of what it read.
+        const wide = probeTag.w || 0.6 * cssW
+        const right = !!pin && pin[0] + 6 + wide <= cssW - 8
+        const left = !!pin && !right && pin[0] - 6 - wide >= 8
+        const over = !!pin && !right && !left
+        const tall = probeTag.h || 18
+        todo.push({
+          l: probeTag,
+          text,
+          at: pin ? (over ? [Math.min(Math.max(pin[0], 8 + wide / 2), cssW - 8 - wide / 2), pin[1] - 12 - tall / 2] : [left ? pin[0] - 6 : pin[0] + 6, pin[1] - 10]) : null,
+          anchor: over ? 'c' : left ? 'r' : 'l',
+        })
       } else todo.push({ l: probeTag, text: '', at: null, anchor: 'c' })
     }
     for (const t of todo)
@@ -943,7 +1020,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         t.l.w = t.l.el.offsetWidth
         t.l.h = t.l.el.offsetHeight
       }
-    for (const t of todo) place(t.l, t.text, t.at, t.anchor)
+    // A redraw with no time passing (a quality step's) leaves each label where it is: a spring stepped by 0 does not move.
+    const snap = sh.paused || drag !== null || Math.abs(turn.yaw.v) + Math.abs(turn.pitch.v) > 1e-3 || sinking !== null
+    // The probe's tag is the reader's own hand: it follows it at once.
+    for (const t of todo) place(t.l, t.text, t.at && t.text ? glide(t.l, t.at, dt, snap || t.l.kind === 'probe') : t.at, t.anchor)
 
     const fading = fadeLabels(dt, labelsK)
     settling =
@@ -960,7 +1040,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     sh.labels.dataset.draws = String(++draws)
     sh.labels.dataset.simT = sim.t.toFixed(3)
     sh.labels.dataset.turn = turn.yaw.x.toFixed(3)
-    sh.onFrame(sim.stats(), reading, !!hovered)
+    // The margin's mid is the front row's, the one the stage's "Price" tag is written from: the book's own, which moves
+    // between the twelve photographs a second, stood half a tick from the tag beside it now and then.
+    const stats = sim.stats()
+    if (sim.written > 0) stats.mid = sim.mids[sim.row(0)]!
+    sh.onFrame(stats, reading, !!hovered)
     first = true
     return true
   }
@@ -988,6 +1072,14 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       pending = 0
       return 'idle'
     }
+    // Waiting for the reader to bring the stage on screen, the flat page on it is already drawn: the market moves on
+    // (Fig. 2 draws it too) and its rows are uploaded, all of them, by the first frame that draws (a phone held 40% of
+    // the stage in view redrew it at 120 frames a second, and the flat sheet streamed).
+    if (first && !dirty && sh.waiting?.()) {
+      sh.advance()
+      pending = 0
+      return 'idle'
+    }
     lastKey = key
     lastChosen = chosen
     dirty = false
@@ -1012,7 +1104,10 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
       dirty = true
       q = level
       const nz = ROWS_BY_Q[Math.max(0, Math.min(3, level))]!
-      if (nz !== rows) buildGrid(nz)
+      rowsWant = nz
+      // Deeper at once (the new rows rise in as the eased count reaches them); shallower once the count has come down
+      // (the frame rebuilds it), unless nothing has been drawn yet.
+      if (nz > rows || (nz < rows && !rowsF)) buildGrid(nz)
     },
     setPalette(p) {
       dirty = true

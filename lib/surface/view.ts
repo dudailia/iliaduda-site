@@ -291,6 +291,9 @@ export const VOL_TICKS = [0.2, 0.4, 0.6, 0.8, 1.0] as const
 /** The corner post that carries the volatility scale: back right. */
 export const POST: readonly [number, number] = [XW, -ZW]
 
+/** Where the IV figure's reading point starts: at the money, three months out (its crosshair is in the poster too). */
+export const PROBE_START = { k: 0, T: 0.25 } as const
+
 export interface Label {
   readonly id: string
   readonly text: string
@@ -316,15 +319,18 @@ export const LABELS: readonly Label[] = [
     id: `k${K}`, text: `${Math.round(K * 100)}%`, at: [wx(Math.log(K)), 0, ZW + 0.12], align: 'center', kind: 'tick',
     ...(TALL_STRIKES.has(K) ? {} : { only: 'wide' as const }),
   })),
-  { id: 'kt', text: 'strike, % of forward', at: [wx(Math.log(0.76)), 0, ZW + 0.55], align: 'center', kind: 'title', only: 'wide' },
+  // From the slab's left corner, reading right, as the phone's: centred on the strikes it ran past the frame's edge on
+  // a short stage (/market at 1280×800).
+  { id: 'kt', text: 'strike, % of forward', at: [-XW + 0.35, 0, ZW + 0.55], align: 'left', kind: 'title', only: 'wide' },
   { id: 'kts', text: 'strike, % of forward', at: [-XW + 0.35, 0, ZW + 0.7], align: 'left', kind: 'title', only: 'tall' },
   ...EXPIRY_TICKS.map(([T, s]): Label => ({
     id: `t${s}`, text: s, at: [XW + 0.1, 0, wz(T)], align: 'left', kind: 'tick',
     ...(TALL_EXPIRIES.has(s) ? {} : { only: 'wide' as const }),
   })),
   { id: 'tt', text: 'expiry', at: [XW + 0.3, 0, ZW * 0.1], align: 'left', kind: 'title', only: 'wide' },
-  { id: 'tts', text: 'expiry', at: [XW + 0.12, 0, ZW + 0.3], align: 'left', kind: 'title', only: 'tall' },
-  ...VOL_TICKS.map((v): Label => ({
+  { id: 'tts', text: 'expiry', at: [XW + 0.12, 0, ZW + 0.42], align: 'left', kind: 'title', only: 'tall' },
+  // Not the 20% tick: at the post's foot it meets the 1M expiry tick (as on a phone's frame).
+  ...VOL_TICKS.filter((v) => v !== 0.2).map((v): Label => ({
     id: `v${v}`, text: `${Math.round(v * 100)}%`, at: [POST[0] + 0.06, wy(v), POST[1]], align: 'left', kind: 'tick', only: 'wide',
   })),
   // A phone's frame ends at the post: its ticks read inward from it, so none runs past the right edge.

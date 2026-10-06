@@ -1,7 +1,7 @@
 import { otherWork, visiblePapers } from '@/content/papers'
 import { roles } from '@/content/experience'
 import { SITE } from '@/lib/site'
-import { Items, Row } from './Layout'
+import { Items, Row, Whole } from './Layout'
 import { PaperThumb } from './PaperThumb'
 import { ContentsLive } from './thumbs/ContentsLive'
 
@@ -27,10 +27,12 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 /**
  * The morph, from this side. Opening a paper names its thumbnail (and says so, for the paper's page to check: only a
  * morph that really happened counts as one); a click that opens a new tab or window names nothing. Coming back from a
- * paper, the thumbnail it came from takes the figure's name for that one transition, when it is on screen, so the
- * figure shrinks back into it; a page restored from the back-forward cache drops any name a click left behind.
+ * paper, the thumbnail it came from takes the figure's name for that one transition, so the figure shrinks back into
+ * it: brought on screen first if the page landed away from it (the running head's link to /#contents lands on the
+ * heading, and papers 5–7 sat below the fold, never morphing back); a page restored from the back-forward cache drops
+ * any name a click left behind.
  */
-const VT_CLICK = `document.addEventListener('click',function(e){if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target.closest&&e.target.closest('[data-vt-contents] a[href]');if(!a)return;var li=a.closest('li');var t=li&&li.querySelector('[data-vt-thumb]');if(!t||!t.offsetWidth)return;t.style.viewTransitionName=t.dataset.vtThumb;t.style.viewTransitionClass='figure';try{sessionStorage.setItem('vt-morph',t.dataset.vtThumb)}catch(x){}},true);var back=null;addEventListener('pagereveal',function(e){var n=null;try{n=sessionStorage.getItem('vt-back');sessionStorage.removeItem('vt-back')}catch(x){}if(!e.viewTransition||!n)return;var t=document.querySelector('[data-vt-thumb="'+n+'"]');if(!t||!t.offsetWidth)return;var r=t.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)return;t.style.viewTransitionName=n;t.style.viewTransitionClass='figure';back=t;e.viewTransition.finished.then(function(){if(back===t){t.style.viewTransitionName='';back=null}})});addEventListener('pageshow',function(e){if(!e.persisted)return;document.querySelectorAll('[data-vt-thumb]').forEach(function(t){if(t!==back)t.style.viewTransitionName='';});});`
+const VT_CLICK = `document.addEventListener('click',function(e){if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target.closest&&e.target.closest('[data-vt-contents] a[href]');if(!a)return;var li=a.closest('li');var t=li&&li.querySelector('[data-vt-thumb]');if(!t||!t.offsetWidth)return;t.style.viewTransitionName=t.dataset.vtThumb;t.style.viewTransitionClass='figure';try{sessionStorage.setItem('vt-morph',t.dataset.vtThumb)}catch(x){}},true);var back=null;addEventListener('pagereveal',function(e){var n=null;try{n=sessionStorage.getItem('vt-back');sessionStorage.removeItem('vt-back')}catch(x){}if(!e.viewTransition||!n)return;var t=document.querySelector('[data-vt-thumb="'+n+'"]');if(!t||!t.offsetWidth)return;var r=t.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight){t.scrollIntoView({block:'nearest',behavior:'instant'});r=t.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)return}t.style.viewTransitionName=n;t.style.viewTransitionClass='figure';back=t;e.viewTransition.finished.then(function(){if(back===t){t.style.viewTransitionName='';back=null}})});addEventListener('pageshow',function(e){if(!e.persisted)return;document.querySelectorAll('[data-vt-thumb]').forEach(function(t){if(t!==back)t.style.viewTransitionName='';});});`
 
 export function Contents() {
   const papers = visiblePapers(SITE.isProduction)
@@ -57,13 +59,15 @@ export function Contents() {
             >
               <h3 className="text-h3 min-w-0 [grid-area:title]">
                 <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
-                  {p.title}
+                  <Whole text={p.title} />
                 </a>
               </h3>
               <p className="text-meta mt-1.5 min-w-0 font-mono text-graphite [grid-area:byline]">
                 <Items items={[...p.byline.split(' · '), p.figureNote, p.status === 'pending' && 'pending publication']} />
               </p>
-              <p className="text-note mt-3 max-w-[38rem] min-w-0 [grid-area:dek]">{p.dek}</p>
+              <p className="text-note mt-3 max-w-[38rem] min-w-0 [grid-area:dek]">
+                <Whole text={p.dek} />
+              </p>
               <div className="mt-4 [grid-area:thumb] sm:mt-0 sm:self-start sm:pt-1.5">
                 <PaperThumb slug={p.slug} href={p.href} />
               </div>
@@ -77,18 +81,20 @@ export function Contents() {
 
 export function OtherWork() {
   return (
-    <section aria-labelledby="other-work" className="mt-14 lg:mt-20">
+    // Two entries: on paper the section prints whole, its heading never left at the foot of a sheet.
+    <section aria-labelledby="other-work" className="mt-14 lg:mt-20 print:break-inside-avoid">
       <Row rail={<SectionHeading id="other-work">Other work</SectionHeading>}>
         <ul role="list" className="grid list-none border-t border-rule">
           {otherWork.map((o) => (
-            <li key={o.slug} className="border-b border-rule py-4">
+            <li key={o.slug} className="border-b border-rule py-4 print:break-inside-avoid">
               <a href={o.href} className="text-body underline decoration-transparent hover:decoration-ink">
                 {o.name}
               </a>
-              <span className="text-note mt-1 block max-w-[38rem]">{o.what}</span>
-              <span className="text-meta mt-1 block font-mono text-graphite">
+              {/* Title, its meta, then what it is: the order of every entry above it. */}
+              <span className="text-meta mt-0.5 block font-mono text-graphite">
                 <Items items={o.status} />
               </span>
+              <span className="text-note mt-1.5 block max-w-[38rem]">{o.what}</span>
             </li>
           ))}
         </ul>
@@ -101,9 +107,11 @@ export function ExperienceBrief() {
   return (
     <section aria-labelledby="experience" className="mt-14 lg:mt-20">
       <Row rail={<SectionHeading id="experience">Experience</SectionHeading>}>
-        <ul role="list" className="grid list-none gap-y-5 border-t border-rule pt-5">
+        {/* A block on paper, its gaps as margins: a grid list kept the heading above from holding to its first entry. */}
+        <ul role="list" className="grid list-none gap-y-5 border-t border-rule pt-5 print:block print:space-y-5">
           {roles.map((r) => (
-            <li key={r.id}>
+            // On paper an entry is whole: its last line never opens the next sheet alone.
+            <li key={r.id} className="print:break-inside-avoid">
               <p>
                 <span className="font-semibold">{r.org}</span>
                 <span className="text-graphite">, {r.orgNote}</span>
@@ -112,18 +120,19 @@ export function ExperienceBrief() {
                 <Items items={[r.title, r.place, r.dates]} />
               </p>
               <p className="text-note mt-1.5 max-w-[38rem]">
-                {r.brief}
+                <Whole text={r.brief} />
                 {r.href ? (
                   <>
                     {' '}
-                    <a href={r.href} className="whitespace-nowrap">
+                    {/* Named in one string: an sr-only span was read as "Read the paper : X". */}
+                    <a href={r.href} aria-label={`Read the paper: ${r.org}`} className="whitespace-nowrap">
                       Read the paper
                     </a>
                   </>
                 ) : r.figure ? (
                   <>
                     {' '}
-                    <a href={r.figure} className="whitespace-nowrap">
+                    <a href={r.figure} aria-label={`See the curve: ${r.org}`} className="whitespace-nowrap">
                       See the curve
                     </a>
                   </>

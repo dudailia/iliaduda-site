@@ -106,8 +106,11 @@ function pathOf(pts: readonly (readonly [number, number])[], close: boolean, min
   return close ? `${d}z` : d
 }
 
-/** The poster through one framing's camera, with that framing's labels and notes. */
-export function poster(p: Params, kind: FrameKind = 'wide'): PosterData {
+/**
+ * The poster through one framing's camera, with that framing's labels and notes; with `probe`, the reading point's
+ * crosshair too, for a figure that has one (the IV paper's; /market's surface has none).
+ */
+export function poster(p: Params, kind: FrameKind = 'wide', probe?: { readonly k: number; readonly T: number }): PosterData {
   const f = FRAMES[kind]
   const width = Math.round(f.aspect * FRAME_H)
   const m = mvp(kind, camera(kind))
@@ -224,6 +227,32 @@ export function poster(p: Params, kind: FrameKind = 'wide'): PosterData {
       if (seg.length > 1) segs.push(pathOf(seg, false))
       if (segs.length) lines.push({ d: segs.join(''), c: lineCss(t, major), w: major ? 1 : 0.6 })
     }
+  }
+
+  // The smiles at the ticked expiries, a graphite hairline just above the sheet, as the live figure draws them over it
+  // (components/figures/surface/renderer.ts, buildSmiles): its first frame takes the poster's place adding nothing.
+  const SN = 48
+  for (const [T] of EXPIRY_TICKS) {
+    const pts = Array.from({ length: SN + 1 }, (_, i) => {
+      const k = kOfU(i / SN)
+      return proj(wx(k), wy(iv(p, k, T)) + 0.008, wz(T))
+    })
+    lines.push({ d: pathOf(pts, false, 5), c: 'var(--color-graphite)', w: 1 })
+  }
+  // The reading point's crosshair, where the figure has one: its strike across the expiries and its expiry across the
+  // strikes, drawn on the sheet toward ink (or paper, high on the ramp) at 70%, as the shader mixes it.
+  if (probe) {
+    const t = rampT(iv(p, probe.k, probe.T))
+    const c = `color-mix(in oklab,${rampCss(t)},${t < LINE_FLIP ? 'var(--color-ink)' : 'var(--color-paper)'} 70%)`
+    const along = Array.from({ length: SN + 1 }, (_, i) => {
+      const k = kOfU(i / SN)
+      return proj(wx(k), wy(iv(p, k, probe.T)), wz(probe.T))
+    })
+    const across = Array.from({ length: SN + 1 }, (_, j) => {
+      const T = tOfV(j / SN)
+      return proj(wx(probe.k), wy(iv(p, probe.k, T)), wz(T))
+    })
+    lines.push({ d: pathOf(along, false, 5) + pathOf(across, false, 5), c, w: 1.2 })
   }
 
   // Ticks: strikes along the front, expiries along the right, the volatility post at the back right.

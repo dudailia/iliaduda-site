@@ -1,7 +1,8 @@
 import { certifications, education, roles, SKILLS } from '@/content/experience'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
-import { AVAILABILITY, CV_PHONE, PERSON, RESUME, SITE } from '@/lib/site'
+import { AVAILABILITY, CV_PHONE, PERSON, RESUME, SITE, rolesInWords } from '@/lib/site'
+import { Whole } from '@/components/Layout'
 
 export const metadata = pageMeta(
   '/cv',
@@ -58,8 +59,9 @@ export default function Cv() {
   const others = AVAILABILITY.locations.filter((l) => l !== base)
   const places = `based in ${base}, open to ${others.slice(0, -1).join(', ')} or ${others.at(-1)}`
 
+  // From lg the sheet is Letter at screen scale (68em at 13.5px, 918px), so its lines break where the printed page's do.
   return (
-    <div className="mx-auto w-full max-w-[872px] px-6 pt-8 sm:px-8 min-[936px]:px-0 lg:pt-12 print:max-w-none print:p-0">
+    <div className="mx-auto w-full max-w-[918px] px-6 pt-8 sm:px-8 lg:px-0 lg:pt-12 print:max-w-none print:p-0">
       <p className="text-meta mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-graphite print:hidden">
         <span>One page · prints to Letter or A4</span>
         {/* Opened, not downloaded: on a phone a download files it away unseen; the reader can save it from the viewer. */}
@@ -72,8 +74,7 @@ export default function Cv() {
         <header className="cv-header">
           <h1 className="cv-name">{PERSON.name}</h1>
           <p className="cv-line">
-            {AVAILABILITY.line} in {AVAILABILITY.roles.slice(0, -1).join(', ').toLowerCase()} or{' '}
-            {AVAILABILITY.roles.at(-1)!.toLowerCase()}; {places}.
+            {AVAILABILITY.line} in {rolesInWords()}; {places}.
           </p>
           <ul className="cv-contact">
             {contact.map((c) => (
@@ -118,19 +119,21 @@ export default function Cv() {
                 <div className="cv-entry-head">
                   <p>
                     <strong>{r.org}</strong>
-                    {/* The dot is held to the note before it (a line never starts with it), and the title is one item: it
-                        moves to the next line whole rather than breaking inside itself. */}
+                    {/* The title is one item: it moves to the next line whole rather than breaking inside itself. Its dot
+                        hangs in the gap before it (globals.css, .cv-title), so a wrapped head never ends on a dot. */}
                     <span className="cv-muted">
                       , {r.orgNote}
-                      {'\u00a0· '}
+                      {'\u00a0\u00a0 '}
                     </span>
-                    <span className="whitespace-nowrap">{r.title}</span>
+                    <span className="cv-title">{r.title}</span>
                   </p>
                   <p className="cv-date">{shortDates(r.dates)}</p>
                 </div>
                 <ul className="cv-bullets">
                   {(r.cv ?? r.detail).map((b) => (
-                    <li key={b}>{b}</li>
+                    <li key={b}>
+                      <Whole text={b} />
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -146,7 +149,7 @@ export default function Cv() {
                 <strong>
                   <a href={url(p.href)}>{p.cvName ?? p.title}</a>.
                 </strong>{' '}
-                {p.cv}
+                {p.cv ? <Whole text={p.cv} /> : null}
               </p>
             ))}
           </div>
@@ -155,10 +158,12 @@ export default function Cv() {
         <section className="cv-section">
           <Head>Skills</Head>
           <dl className="cv-skills">
-            {[...SKILLS, ['Certifications', `${certifications.join('; ')}.`] as const].map(([k, v]) => (
+            {[...SKILLS, ['Certifications', `${certifications.map((c) => c.replace(' — ', '\u00a0— ')).join('; ')}.`] as const].map(([k, v]) => (
               <div key={k}>
                 <dt>{k}</dt>
-                <dd>{v}</dd>
+                <dd>
+                  <Whole text={v} />
+                </dd>
               </div>
             ))}
           </dl>
