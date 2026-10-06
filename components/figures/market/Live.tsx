@@ -723,7 +723,7 @@ export function MarketLive({
   )
   useEffect(() => putInitial(write), [putInitial, write])
   // On paper the still frames stand in for the live views (a canvas is the screen's), so the readouts print the still
-  // frames' moment, not the live market's: a 70% realised volatility never prints beside a calm fan. Live writing
+  // frames' moment, not the live market's: a 70% realized volatility never prints beside a calm fan. Live writing
   // resumes after.
   useEffect(() => {
     const toPaper = () => {
@@ -1084,11 +1084,11 @@ export function MarketLive({
     ['time', 'Simulated time'],
     ['mid', 'Price'],
     ['spread', 'Spread'],
-    ['sigma', 'Realised vol'],
+    ['sigma', 'Realized vol'],
     ['stress', 'Stress, 0 to 1'],
     ['atm', '1-month ATM vol'],
-    // The fan is drawn at the realised vol of the moment, and says so: it is not the surface's one-year implied.
-    ['range', 'A year out at realised vol, 5–95%'],
+    // The fan is drawn at the realized vol of the moment, and says so: it is not the surface's one-year implied.
+    ['range', 'A year out at realized vol, 5–95%'],
   ] as const
   // Rendered with the still frame's numbers on the server, so the rail arrives full and nothing below it moves.
   const first: Record<(typeof READOUTS)[number][0], string> = {
@@ -1145,7 +1145,7 @@ export function MarketLive({
             {...(surfaceLive || (mounted && !why)
               ? { role: 'group', tabIndex: 0, 'aria-label': 'Vol surface. The arrow keys turn it; Space pauses the market; Home turns it back.', onKeyDown: onSurfaceKey }
               : {})}
-            // iv-fig: the IV figure's colour ramp (STAGE_CSS, RAMP_CSS) is scoped to it, and the still surface draws with it.
+            // iv-fig: the IV figure's color ramp (STAGE_CSS, RAMP_CSS) is scoped to it, and the still surface draws with it.
             className="iv-fig peer relative aspect-[1.1] w-full cursor-grab overflow-hidden bg-paper select-none focus-visible:outline-none sm:aspect-[1.62] sm:max-w-[calc(88svh*1.62)]"
             data-market-surface=""
             data-hold=""

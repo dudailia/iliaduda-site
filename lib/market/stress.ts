@@ -10,8 +10,8 @@ import { dexp } from './detmath'
  *   99.9th percentile is 1.47 ×, its largest 1.71 ×, over five seeds of ten
  *   minutes, every quantum), all at 2.2 ×: the one signal that answers
  *   within the quantum, as implied volatility answers a crash at once while
- *   realised volatility trails;
- * - realised volatility (σ̂) past 1.2 × a calm 25% a year (the calm market's
+ *   realized volatility trails;
+ * - realized volatility (σ̂) past 1.2 × a calm 25% a year (the calm market's
  *   median is 25.7%, its 95th percentile 29.4%, over five seeds of ten
  *   simulated minutes), all at 4 ×: a liquidity shock lifts σ̂ 1.4 to 5.6 ×
  *   within ten seconds (median 2.8 ×, over twenty seeds, in
@@ -47,7 +47,7 @@ export const STRESS = {
 const unit = (x: number) => (x > 0 ? (x < 1 ? x : 1) : 0)
 
 /**
- * The stress of a market whose market sells arrive at `pressure` times their stationary rate, with realised
+ * The stress of a market whose market sells arrive at `pressure` times their stationary rate, with realized
  * volatility `sigma`, a spread of `spread` ticks and `touch` shares on the thinner side near the touch.
  */
 export function stressOf(pressure: number, sigma: number, spread: number, touch: number): number {

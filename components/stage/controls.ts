@@ -11,7 +11,7 @@ export const CONTROL =
 
 /**
  * An option in a radio group (a treatment, a debt amount): the control's size, target and focus, but a choice changes
- * fill rather than pressing in. Selected: ink fill, paper text; where the system forces its own colours (a Windows
+ * fill rather than pressing in. Selected: ink fill, paper text; where the system forces its own colors (a Windows
  * contrast theme drops the fill), a Highlight outline. A click fades the fill over 150ms; an arrow key moves it at once,
  * in both the option it leaves and the one it reaches (keyboard steps are never animated).
  */

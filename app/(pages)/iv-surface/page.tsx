@@ -11,7 +11,7 @@ import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'iv-surface')!
 
-export const metadata = pageMeta('/iv-surface', paper.title, paper.abstract)
+export const metadata = pageMeta('/iv-surface', paper.title, paper.description)
 
 const SRC = SOURCE
 
@@ -45,7 +45,7 @@ export default function IvSurface() {
         <Section heading="What it is">
           <p>
             An implied-volatility surface says what volatility the market prices into an option at
-            each strike and expiry. Quoting it well is a modelling problem, because a surface drawn
+            each strike and expiry. Quoting it well is a modeling problem, because a surface drawn
             freehand will usually admit arbitrage somewhere: a butterfly that costs less than
             nothing, or a longer-dated option that is cheaper than a shorter one.
           </p>
@@ -58,7 +58,7 @@ export default function IvSurface() {
             }
           >
             <p>
-              This one uses SSVI, the surface parametrisation Gatheral and Jacquier published in
+              This one uses SSVI, the surface parametrization Gatheral and Jacquier published in
               2014. Total implied variance w = σ²T is written as a function of log-moneyness k and
               the at-the-money total variance θ(T), with a correlation-like skew ρ and a curvature
               function <span className="whitespace-nowrap">φ(θ) = η / (θ<sup>γ</sup>(1 + θ)<sup>1−γ</sup>)</span>. The at-the-money term

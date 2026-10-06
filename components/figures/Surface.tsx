@@ -28,7 +28,7 @@ export function SurfaceFigure() {
         subtitle={`Synthetic SSVI · forward ${forward} · rates and dividends zero · one simulated shock · not market data`}
         caption={
           <>
-            Height and colour are implied volatility, strikes run across, and time to expiry comes toward you: the shortest expiries are at the back. The surface is
+            Height and color are implied volatility, strikes run across, and time to expiry comes toward you: the shortest expiries are at the back. The surface is
             highest at low strikes and short expiries: insurance against a fall costs more than the rest, and most of all
             for the near term. On a first visit it forms, then takes one simulated shock, the textbook shape of a
             sell-off: one-month at-the-money volatility jumps from {pct(iv(CALM, 0, 1 / 12))} to {pct(iv(full, 0, 1 / 12))},

@@ -148,7 +148,7 @@ void main() {
   float sp = pow(max(dot(N, Hh), 0.0), 56.0) * uSpec;
   vec3 c = lin(lab) * dif + vec3(sp);
 #endif
-  // Rising out of the page: a sheet still on the floor is the paper itself, and takes its colour and its light as it
+  // Rising out of the page: a sheet still on the floor is the paper itself, and takes its color and its light as it
   // lifts (mixed after the lighting, so the flat sheet carries no ghost of the shape's shading).
   c = mix(lin(uPaper), c, uRise);
   o = vec4(srgb(c), 1.0);

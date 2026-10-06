@@ -37,7 +37,7 @@ function MonitoRounds() {
     // table is whole and goes with the entry it belongs to (on A4 it opened a sheet alone, under no heading).
     <div className="mt-4 border-y border-rule print:break-before-avoid print:break-inside-avoid">
     <table className="text-note w-full">
-      <caption className="sr-only">Monito in the Young Enterprise company programme, round by round</caption>
+      <caption className="sr-only">Monito in the Young Enterprise company program, round by round</caption>
       <thead className="sr-only">
         <tr>
           <th scope="col">Result</th>

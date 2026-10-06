@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Footer } from '@/components/Footer'
 import { SkipLink } from '@/components/SkipLink'
 import { sourceCodePro, sourceSerif } from '@/lib/fonts'
-import { AVAILABILITY, PERSON, POSITIONING, SITE } from '@/lib/site'
+import { AVAILABILITY, DESCRIPTION, PERSON, POSITIONING, SITE } from '@/lib/site'
 import './globals.css'
 import { Analytics } from '@vercel/analytics/next'
 
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     default: 'Ilia Duda',
     template: '%s — Ilia Duda',
   },
-  description: `${POSITIONING} ${AVAILABILITY.line}.`,
+  description: DESCRIPTION,
   twitter: { card: 'summary_large_image' },
   // Indexed and followed is the default, said by nothing; only a preview says noindex (and the 404 its own).
   ...(SITE.isProduction || !process.env.VERCEL_ENV ? {} : { robots: { index: false } }),
@@ -46,13 +46,13 @@ const person = {
     addressRegion: 'MA',
     addressCountry: 'US',
   },
-  jobTitle: 'Quantitative Analyst and Engineer',
+  jobTitle: 'Quantitative analyst and engineer',
   affiliation: { '@type': 'CollegeOrUniversity', name: PERSON.school },
   knowsAbout: [
     'Quantitative finance',
     'Options pricing',
     'Implied volatility',
-    'Statistical modelling',
+    'Statistical modeling',
     'Python',
     'TypeScript',
   ],

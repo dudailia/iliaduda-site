@@ -154,7 +154,7 @@ export class BookView {
     g.fillStyle = css(pal.paper)
     g.fillRect(0, 0, this.box.w, lay.h)
 
-    // The heat, a column a row, built again when a row comes in, the window moves a tick, or the colours change.
+    // The heat, a column a row, built again when a row comes in, the window moves a tick, or the colors change.
     const base = Math.round(this.win.centre)
     if (this.builtTaken !== m.taken || this.builtBase !== base || this.builtPal !== pal) this.build(m, base, pal)
     const t = m.h.t
@@ -287,7 +287,7 @@ export class BookView {
   }
 
   /**
-   * The heat image, a column a row, newest at the right. When only rows have come in (the window and the colours as
+   * The heat image, a column a row, newest at the right. When only rows have come in (the window and the colors as
    * they were), the image moves left by that many columns and only the new ones, and the one before them (the smoothing
    * reaches a row either side), are worked out: at twelve rows a second, two columns, not the whole strip.
    */
@@ -329,7 +329,7 @@ export class BookView {
 
 
 /**
- * The futures: a year of the market's futures from its price now, at its realised volatility (lib/futures/fan.ts,
+ * The futures: a year of the market's futures from its price now, at its realized volatility (lib/futures/fan.ts,
  * drawn in the worker), price up the side on a log scale so a doubling and a halving are the same step, the next
  * twelve months across. The 5th to 95th percentile and the 25th to 75th are washes of indigo, the median a line,
  * and 48 of the paths themselves thin lines, glowing by night. The fan is drawn at the volatility shown, which

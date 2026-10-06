@@ -1,6 +1,6 @@
 import { CONTEXT_MIX, mixHex, TH, TW, type Pts, type Shape } from '@/lib/minis/shape'
 
-/** The colours a miniature draws in: the thumbnail's own (components/PaperThumb.tsx). */
+/** The colors a miniature draws in: the thumbnail's own (components/PaperThumb.tsx). */
 export interface MiniPalette {
   paper: string
   rule: string

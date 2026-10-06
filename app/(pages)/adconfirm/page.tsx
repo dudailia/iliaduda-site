@@ -9,7 +9,7 @@ import { pageMeta } from '@/lib/meta'
 export const metadata = pageMeta(
   '/adconfirm',
   'AdConfirm',
-  'Advertising placement inside invoices and receipts: eight accounting and point-of-sale integrations mapped onto one internal type, with metered billing in sub-penny units and Stripe Connect payouts.',
+  'AdConfirm places ads inside invoices and receipts: eight accounting and point-of-sale integrations, a sub-penny billing ledger and Stripe Connect payouts.',
 )
 
 export default function AdConfirm() {
@@ -88,7 +88,7 @@ export default function AdConfirm() {
             </li>
             <li>a webhook signature header that still carries the company&rsquo;s previous brand name;</li>
             <li>
-              no webhook at all, so it is polled, with its payload keys read defensively in four capitalisations because it
+              no webhook at all, so it is polled, with its payload keys read defensively in four capitalizations because it
               uses them inconsistently.
             </li>
           </ul>
@@ -99,7 +99,7 @@ export default function AdConfirm() {
             body parser above it would break every webhook silently.
           </p>
           <p>
-            The architecture is type-driven normalisation. There is no central reconciler to
+            The architecture is type-driven normalization. There is no central reconciler to
             drift out of date: the shared invoice type is the seam, and each adapter owns a private
             mapper that lands on it. The type is deliberately the intersection of what eight
             vendors can supply — {fact('acAdaptersWithoutLineItems').value} of the{' '}

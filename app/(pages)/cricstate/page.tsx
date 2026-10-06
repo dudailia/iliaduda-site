@@ -9,7 +9,7 @@ import { pageMeta } from '@/lib/meta'
 
 const paper = papers.find((p) => p.slug === 'cricstate')!
 
-export const metadata = pageMeta('/cricstate', paper.title, paper.abstract)
+export const metadata = pageMeta('/cricstate', paper.title, paper.description)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
@@ -64,13 +64,13 @@ export default function Cricstate() {
           <p>
             Given the state of a T20 match — score, wickets, balls left, the target, who is at the
             crease and how long they have been there — how well can you price the next ball and
-            the result, and how much more do you gain by modelling the players themselves? The
+            the result, and how much more do you gain by modeling the players themselves? The
             second half is the expensive decision: a hierarchical model with a parameter per
             batter and bowler is easy to propose and costly to maintain, so the study measured its
             value before building it.
           </p>
           <p>
-            It is a measurement problem more than a modelling one, and measurement problems fail
+            It is a measurement problem more than a modeling one, and measurement problems fail
             quietly: a leak or an optimistic interval produces a number that looks like a
             discovery. So most of the engineering went into making the measurement trustworthy.
           </p>

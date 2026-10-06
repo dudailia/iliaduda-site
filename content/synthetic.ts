@@ -115,8 +115,8 @@ export const synthetic = {
   fuSigma: {
     value: 0.23,
     unit: 'none',
-    label: 'default volatility of the simulated stock: the simulated market’s realised volatility where /market opens, rounded to 1%',
-    source: 'lib/market/engine.ts — synthetic: the seeded market’s realised volatility at the moment /market’s figure opens on, rounded to the slider’s 1% step; tests/futures.test.ts holds them equal',
+    label: 'default volatility of the simulated stock: the simulated market’s realized volatility where /market opens, rounded to 1%',
+    source: 'lib/market/engine.ts — synthetic: the seeded market’s realized volatility at the moment /market’s figure opens on, rounded to the slider’s 1% step; tests/futures.test.ts holds them equal',
     kind: 'synthetic',
   },
   fuStrike: {
@@ -161,7 +161,7 @@ export const synthetic = {
   stFloorRub: {
     value: 1000,
     unit: 'none',
-    label: 'illustrative minimum monthly payment, roubles',
+    label: 'illustrative minimum monthly payment, rubles',
     source: 'lib/settlement.ts — synthetic, illustrative; not the client’s terms',
     kind: 'synthetic',
   },

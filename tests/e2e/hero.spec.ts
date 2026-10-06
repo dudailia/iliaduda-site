@@ -39,7 +39,7 @@ test.describe('before any script runs', () => {
 test('its volatility is the simulated market’s: this browser builds the same market and gets the server’s number', async ({ page }) => {
   test.setTimeout(90_000)
   await page.goto('/')
-  await expect(page.locator('#fig-futures')).toContainText('the simulated market’s realised vol')
+  await expect(page.locator('#fig-futures')).toContainText('the simulated market’s realized vol')
   await expect(page.locator('#fig-futures')).toContainText('The volatility starts at the simulated market’s own')
   await expect(page.locator('[data-one-market] a[href="/market"]')).toHaveText('These futures, its order book and its vol surface: one simulated market, running in your browser.')
   const box = page.locator('[data-sigma-server]')

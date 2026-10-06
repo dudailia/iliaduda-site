@@ -10,12 +10,12 @@ import {
  * The poster, computed on the server: the same surface at the same moment
  * from the same camera as the first live frame, flat-shaded as a projected
  * quad mesh. It is the first paint, the reduced-motion figure and the
- * no-WebGL figure, so it carries the whole reading on its own: colour by
+ * no-WebGL figure, so it carries the whole reading on its own: color by
  * volatility, the lights, iso-volatility contours, the axes and the notes.
  *
  * Weight matters because the markup ships twice (HTML and the RSC payload):
- * quads that share a colour in a row merge into one polygon, coordinates are
- * whole units of a 1000-high frame and written as deltas, and a colour is a
+ * quads that share a color in a row merge into one polygon, coordinates are
+ * whole units of a 1000-high frame and written as deltas, and a color is a
  * class holding a CSS color-mix() of the site's tokens, so the poster follows
  * the reader's theme without a second copy.
  */
@@ -41,7 +41,7 @@ export interface PosterData {
   readonly notes: readonly { id: string; lead: string; text: string; x: number; y: number; dx: number; dy: number; align: string; kind: FrameKind }[]
 }
 
-// ── colour, as CSS ───────────────────────────────────────────────────────────
+// ── color, as CSS ───────────────────────────────────────────────────────────
 
 const p1 = (x: number) => `${Math.round(x * 1000) / 10}%`
 /** The ramp at t, as a color-mix of the stage's --c-lo / --c-mid / --c-top (tokens, both themes). */
@@ -62,7 +62,7 @@ export const STAGE_CSS =
 export const RAMP_CSS = `.iv-fig{${Array.from({ length: RAMP_STEPS + 1 }, (_, i) => `--r${i}:${rampCss(i / RAMP_STEPS)}`).join(';')}}`
 
 /**
- * Light `L` applied to a colour. Mixing with black in oklab by 1 − ∛L scales
+ * Light `L` applied to a color. Mixing with black in oklab by 1 − ∛L scales
  * L, a and b by ∛L — which is exactly multiplying linear RGB by L, the
  * shader's arithmetic. Above 1 it mixes toward white, an approximation.
  */
@@ -278,7 +278,7 @@ export function describe(p: Params, moment = 'at calm, where it rests'): string 
   const at = (K: number, T: number) => `${Math.round(iv(p, Math.log(K), T) * 100)}%`
   return (
     `Implied volatility for strikes from ${Math.round(Math.exp(DOMAIN.kMin) * 100)}% to ${Math.round(Math.exp(DOMAIN.kMax) * 100)}% ` +
-    `of today’s price and expiries from one month to two years, drawn as a lit solid whose height and colour are the volatility. ` +
+    `of today’s price and expiries from one month to two years, drawn as a lit solid whose height and color are the volatility. ` +
     `As shown, ${moment}, one-month volatility is ${at(0.7, 1 / 12)} at a 70% strike, ${at(1, 1 / 12)} at the money ` +
     `and ${at(1.3, 1 / 12)} at 130%; at two years the same strikes read ${at(0.7, 2)}, ${at(1, 2)} and ${at(1.3, 2)}.`
   )

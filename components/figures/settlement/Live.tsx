@@ -115,7 +115,7 @@ export function SettlementLive({
     const roubles = Number.parseInt(v.replace(/[.,]\d{1,2}\s*$/, '').replace(/[^\d]/g, ''), 10)
     // In figures: digits, with spaces or a separator between thousands and kopecks, and a ₽ if the reader adds one
     // ("1e4" is not ten thousand roubles).
-    if (!/\d/.test(v) || /[^\d\s.,\u00a0\u202f₽-]/.test(v)) return { text: 'An amount in roubles, in figures.', invalid: true }
+    if (!/\d/.test(v) || /[^\d\s.,\u00a0\u202f₽-]/.test(v)) return { text: 'An amount in rubles, in figures.', invalid: true }
     // A minus is not a payment: "-5" is not 5 ₽.
     if (!(roubles > 0) || /-\s*\d/.test(v)) return { text: 'More than 0 ₽ a month.', invalid: true }
     const t = offered.find((o) => o.months === termForMonthly(debt, roubles * 100))!
@@ -399,7 +399,7 @@ export function SettlementLive({
               {all.length > 1 ? `${rub(maxPay)} in one payment` : `${rub(maxPay)} a month`}
             </span>
             {/* The figure's claim, named where it is: the first hidden term and what it would cost, against the shorter
-                term that costs less. The step is tens of roubles on an axis of tens of thousands, a fraction of a
+                term that costs less. The step is tens of rubles on an axis of tens of thousands, a fraction of a
                 pixel, so from a phone's width up it is drawn magnified in the empty corner above it, on a scale of its
                 own; on a phone, where the corner is too small, a line under the axis names it (below). */}
             {(() => {
@@ -515,7 +515,7 @@ export function SettlementLive({
               Reset
             </button>
             <label className="text-meta ml-1 inline-flex min-h-9 cursor-pointer items-center gap-2 py-1 font-mono text-ink">
-              {/* The site's own box, in its tokens (the browser's was a 2.4:1 grey by day and a grey slab by night): a
+              {/* The site's own box, in its tokens (the browser's was a 2.4:1 gray by day and a gray slab by night): a
                   graphite border on paper, ink with a paper tick when checked. */}
               <span className="relative inline-grid size-5 shrink-0">
                 <input

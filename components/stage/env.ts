@@ -27,7 +27,7 @@ export function useReducedMotion(): boolean {
   )
 }
 
-/** Changes whenever the reader's colour scheme does, for canvas colours. */
+/** Changes whenever the reader's color scheme does, for canvas colors. */
 export function useColorScheme(): 'light' | 'dark' {
   return useSyncExternalStore(
     onColorScheme,
@@ -108,7 +108,7 @@ export function whenIdle(fn: () => void): () => void {
   return () => clearTimeout(id)
 }
 
-/** A CSS colour custom property as 0–1 sRGB. The tokens are #rrggbb. */
+/** A CSS color custom property as 0–1 sRGB. The tokens are #rrggbb. */
 export function cssColor(name: string): [number, number, number] {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(v)

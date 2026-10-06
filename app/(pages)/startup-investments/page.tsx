@@ -11,7 +11,7 @@ import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'startup-investments')!
 
-export const metadata = pageMeta('/startup-investments', paper.title, paper.abstract)
+export const metadata = pageMeta('/startup-investments', paper.title, paper.description)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
@@ -39,7 +39,7 @@ export default function StartupInvestments() {
 
         <Section heading="The question">
           <p>
-            Which startup market segments should an investor favour for the coming year? The
+            Which startup market segments should an investor favor for the coming year? The
             analysis starts from {n('siRowsRaw')} funding records spanning 2000 to 2014 and ends at
             a recommendation, and every step in between is a decision about data: what counts as a
             duplicate, what to do with a missing date, which extreme rounds to trust, how to
@@ -98,7 +98,7 @@ export default function StartupInvestments() {
           <p>
             The compound growth has a second sensitivity: measured from 2000, a segment with no
             funding that year starts from a dollar, which inflates its growth rate into the
-            hundreds of per cent. Measuring from each segment&rsquo;s first funded year moves the
+            hundreds of percent. Measuring from each segment&rsquo;s first funded year moves the
             top pick again, to Software. And 2014 itself is incomplete in the source data — its
             last two months are a fraction of a normal month — so part of every &ldquo;decline&rdquo;
             is <span className="whitespace-nowrap">under-reporting</span> rather than a market signal.

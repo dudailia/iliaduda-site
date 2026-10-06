@@ -86,7 +86,7 @@ const DPR_MAX = 3
  */
 const LAST_RESORT = 0.75
 
-/** The page's colour tokens as a renderer takes them: for a figure's 2D views drawn beside a live stage. */
+/** The page's color tokens as a renderer takes them: for a figure's 2D views drawn beside a live stage. */
 export function palette(dark: boolean): Palette {
   return {
     paper: cssColor('--color-paper'),

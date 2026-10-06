@@ -10,7 +10,7 @@ import { paint, type MakeMini } from '../paint'
 /**
  * /market's miniature: the paper's own market, built on the page four milliseconds a frame to the thumbnail's
  * moment, and its year of futures drawn a slice a frame there, as the worker draws them; then trading at real time, the
- * price running into the futures, which breathe with its realised volatility (mapped exactly from the one fan, as the
+ * price running into the futures, which breathe with its realized volatility (mapped exactly from the one fan, as the
  * paper's figure does between fans), and the surface at its stress.
  */
 /** The fan's paths the thumbnail draws (lib/minis/market.ts). */

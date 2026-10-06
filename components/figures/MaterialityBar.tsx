@@ -1,7 +1,7 @@
 import { value } from '@/content/facts'
 
 /**
- * Fig 1. The only place on this site where the accent colour appears above the
+ * Fig 1. The only place on this site where the accent color appears above the
  * fold, and the only bold element on the page.
  *
  * Everything is on ONE unit: relative improvement in negative log-likelihood

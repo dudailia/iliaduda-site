@@ -557,7 +557,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           : null
 
   // A figure that will not go live keeps a still frame worth keeping: its sheet painted smooth (./still.ts), drawn again
-  // for a new framing (a phone turned to landscape, or back) and for the other colour scheme.
+  // for a new framing (a phone turned to landscape, or back) and for the other color scheme.
   const scheme = useColorScheme()
   const stillFor = mounted && !live && why !== null
   // The build's picture is the first frame; the smooth one, and its code, wait until the page has loaded and gone

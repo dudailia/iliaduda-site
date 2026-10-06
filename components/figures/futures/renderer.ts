@@ -274,12 +274,12 @@ void main() {
 
 // The futures laid over the scene (paper and the bars), by blending, so the
 // bars show through where the futures are thin.
-// Night: each layer of the old glow is a mix toward a colour, so over any
+// Night: each layer of the old glow is a mix toward a color, so over any
 // background c it is E + c·T — emitted as (E, T), blended (ONE, SRC_ALPHA).
 // Over paper it is the glow as it was: the densest cores stay lavender rather
 // than washing out to white.
 // Day: ink on paper. Each strand absorbs light — Beer–Lambert, in linear light,
-// with absorption per unit of density set from the token's colour — and the
+// with absorption per unit of density set from the token's color — and the
 // total depth saturates (at most 0.9 units, shared between the two inks in
 // proportion), so where every future crosses, at today, the paper goes deep
 // indigo-slate, never black, and keeps its hue. Emitted as the transmittance
@@ -566,7 +566,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   label(`Today · $${MODEL.s0}`, LABELS.today.cls, () => [LABELS.today.at[0], LABELS.today.at[1], 0], () => (cam === 'flight' ? 1 - smooth(0.36, 0.42, flightP) : labelU))
   label('One year out', LABELS.expiry.cls, () => [LABELS.expiry.at[0], LABELS.expiry.at[1], zEdge()], () => labelU)
   for (const s of TICKS) label(`$${s}`, LABELS.tick.cls, () => [LABELS.tick.x, wy(s), zEdge()], () => labelU * tickShown(s - kv.x))
-  // The strike stays named through the whole flight: it is what the colours mean.
+  // The strike stays named through the whole flight: it is what the colors mean.
   const strikeEl = label('', LABELS.strike.cls, () => [LABELS.strike.label, wy(kv.x), zEdge()], () => 1)
   // At a high volatility a share of the paths ends above the wall's top, where no bar is drawn: it is said at the top of
   // the price axis, so the histogram is never read as the whole of the distribution.
@@ -869,7 +869,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
 
   // The bars, as slabs: each bin a box behind the z = 0 plane, its front face the flat bar of the composed frame.
   const solid = new Floats()
-  /** Mixes two colours into `out`, one of the few kept for the bars, so no bar makes colours of its own each frame. */
+  /** Mixes two colors into `out`, one of the few kept for the bars, so no bar makes colors of its own each frame. */
   const mixInto = (out: Float64Array, a: ArrayLike<number>, b: ArrayLike<number>, t: number) => {
     out[0] = a[0]! + (b[0]! - a[0]!) * t
     out[1] = a[1]! + (b[1]! - a[1]!) * t
@@ -879,7 +879,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   const barBase = new Float64Array(3), barTop = new Float64Array(3), barEnd = new Float64Array(3), barLow = new Float64Array(3)
   /**
    * A slab's six faces, as its box's corners (bit 0 the far end in x, bit 1 the top, bit 2 the front), each quad
-   * counter-clockwise from outside so back faces are culled, and the tone each is lit in: 0 the base colour, 1 the
+   * counter-clockwise from outside so back faces are culled, and the tone each is lit in: 0 the base color, 1 the
    * top, 2 the far end, 3 the back and underside.
    */
   const SLAB_FACES = [4, 5, 7, 6, 6, 7, 3, 2, 5, 1, 3, 7, 0, 4, 6, 2, 1, 0, 2, 3, 0, 1, 5, 4] as const
@@ -897,7 +897,7 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
     // base at the wall takes the front's tone: every bar's base lies in one plane, and shaded apart they stacked
     // into a column that read as a tower rather than a distribution.
     // The shading fades with the bar (`k`, Replay's fade): at a fixed strength the faded bars' ends and bases stayed
-    // 14–24% ink, a grey wireframe of the old answer as the camera swung face-on.
+    // 14–24% ink, a gray wireframe of the old answer as the camera swung face-on.
     const top = mixInto(barTop, base, dark ? palette.ink : palette.paper, (dark ? 0.2 : 0.24) * k)
     const end = mixInto(barEnd, base, dark ? palette.paper : palette.ink, (dark ? 0.3 : 0.14) * k)
     const low = mixInto(barLow, base, dark ? palette.paper : palette.ink, (dark ? 0.45 : 0.24) * k)

@@ -14,7 +14,7 @@ import { QUANTA } from './flow'
  * volatility, the stress. Over twenty seeds (tests/market-shock.test.ts),
  * within a second the spread is at least four ticks and the touch has lost
  * four fifths of its shares; the stress passes 0.8 within a second and
- * realised volatility is up a quarter within two; the spread is back within
+ * realized volatility is up a quarter within two; the spread is back within
  * two ticks inside two seconds, and the stress below 0.05 inside five minutes.
  *
  * Shocks stack only up to one. The load is the shocks' worth still in the

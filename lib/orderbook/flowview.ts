@@ -20,7 +20,7 @@ import type { HawkesParams } from '@/lib/market/hawkes'
 export const SECONDS = 10
 /** Lanes, top to bottom: the three kinds of order that change the bid side's queues, then the ask side's three. */
 export const LANES = [LIMIT_BUY, CANCEL_BID, MARKET_SELL, MARKET_BUY, CANCEL_ASK, LIMIT_SELL] as const
-export const LANE_NAMES = ['Limit buys', 'Cancelled bids', 'Market sells', 'Market buys', 'Cancelled asks', 'Limit sells'] as const
+export const LANE_NAMES = ['Limit buys', 'Canceled bids', 'Market sells', 'Market buys', 'Canceled asks', 'Limit sells'] as const
 /** Event type → its lane. */
 export const LANE_OF: readonly number[] = LANES.reduce<number[]>((a, u, i) => ((a[u] = i), a), [])
 /** The intensities drawn, in the ring's excitation layout (lib/market/flow.ts): market buys, then market sells. */

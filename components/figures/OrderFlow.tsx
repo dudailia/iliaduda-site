@@ -41,9 +41,9 @@ export function OrderFlowFigure() {
       caption={
         <>
           Each mark in the six lanes at the top is one order, the newest at the right. Limit orders and cancellations are
-          the grey texture; market orders, the ones that trade, are the solid ticks, and they come in bursts. The middle
+          the gray texture; market orders, the ones that trade, are the solid ticks, and they come in bursts. The middle
           strip is how fast market sells (above) and market buys (below) are arriving, the intensity λ(t) of the model: the
-          grey band is the rate at which they would arrive on their own, μ, and the indigo beyond it is the part set off by
+          gray band is the rate at which they would arrive on their own, μ, and the indigo beyond it is the part set off by
           earlier orders, {`${fmt.pct(theory)}`} of all market orders in the long run (the margin&rsquo;s &ldquo;in theory&rdquo;). The bottom strip is
           the shares waiting at the best bid and the best ask; each solid mark is a moment one ran out and the price
           stepped. Choose any order to see what set it off, by the kind of earlier order, and the chance it came on its

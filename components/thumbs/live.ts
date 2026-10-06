@@ -238,9 +238,9 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
   }
   still.addEventListener('change', onStill)
   const scheme = matchMedia('(prefers-color-scheme: dark)')
-  // A new colour scheme: every canvas steps back to the thumbnail under it (which follows the page's colours at once)
+  // A new color scheme: every canvas steps back to the thumbnail under it (which follows the page's colors at once)
   // and crossfades in again on its next frame, drawn in the new palette.
-  // A new colour scheme: every shown canvas is drawn again at once, where it was (its own time, no time passing), in
+  // A new color scheme: every shown canvas is drawn again at once, where it was (its own time, no time passing), in
   // the new palette, so one held or paused keeps its frame and none shows the old scheme's paper.
   const onScheme = () => {
     pal = palette()
