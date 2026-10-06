@@ -21,6 +21,7 @@ const FIGURES: readonly { route: string; fig: string; p75?: number }[] = [
   { route: '/market', fig: '#fig-1', p75: 2.3 },
   { route: '/order-book', fig: '#fig-order-book' },
   { route: '/iv-surface', fig: '#fig-iv-surface', p75: 2.3 },
+  { route: '/membrane', fig: '#fig-membrane', p75: 2.3 },
 ]
 
 const SCREENS = [

@@ -279,7 +279,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         <div data-membrane-poster="" className="absolute inset-0" style={underlay(live)}>
           {eligible && !reduced && !declined ? poster : <Poster w={still} />}
         </div>
-        <canvas ref={canvas} className="absolute inset-0 h-full w-full" style={fade(live)} />
+        <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={fade(live)} />
       </div>
 
       <div data-membrane-controls="" className="mt-3 grid gap-y-3">
