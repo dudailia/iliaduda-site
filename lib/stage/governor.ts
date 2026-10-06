@@ -26,6 +26,11 @@ export class Governor {
   constructor(
     public q: number,
     readonly maxQ: number,
+    /**
+     * The lowest level it may fall to: 0, the lightest effects, for every device but a low-tier one, which has a
+     * level below (useStage.ts: its last resort, fewer pixels). Never below 0 on a laptop or a phone with Apple's GPU.
+     */
+    readonly minQ = 0,
   ) {}
 
   /** One drawn frame of `dt` seconds, ending at `now` (ms); `held` keeps it from climbing. Returns whether q changed. */
@@ -65,7 +70,7 @@ export class Governor {
     }
     // Hysteresis: a level the device has just failed to hold is off limits for 30s, doubling each time it fails
     // again, so a marginal phone does not climb and fall every four seconds.
-    if (this.slow > 1 && this.q > 0 && !this.probe) {
+    if (this.slow > 1 && this.q > this.minQ && !this.probe) {
       const q = this.q
       this.failures[q] = (this.failures[q] ?? 0) + 1
       this.blockedUntil[q] = now + 30000 * 2 ** (this.failures[q]! - 1)

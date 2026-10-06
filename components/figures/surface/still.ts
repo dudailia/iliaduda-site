@@ -29,7 +29,7 @@ const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[
 export function drawSheet(canvas: HTMLCanvasElement, p: Params, kind: FrameKind, pal: Pal): void {
   const box = canvas.getBoundingClientRect()
   const w = Math.max(1, box.width), h = Math.max(1, box.height)
-  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  const dpr = Math.min(3, window.devicePixelRatio || 1)
   canvas.width = Math.round(w * dpr)
   canvas.height = Math.round(h * dpr)
   const g = canvas.getContext('2d')

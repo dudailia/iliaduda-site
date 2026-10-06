@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { GL } from '@/lib/gl'
 import { Governor } from '@/lib/stage/governor'
 import { deviceTier, type Tier } from '@/lib/tier'
-import { cssColor, saveData, supportsWebGL2, useColorScheme, useReducedMotion, whenIdle } from './env'
+import { cssColor, onDprChange, saveData, supportsWebGL2, useColorScheme, useReducedMotion, whenIdle } from './env'
 
 /**
  * The life cycle every lab hero shares.
@@ -73,7 +73,18 @@ export type Create = (env: StageEnv) => Renderer | null
 const given = new WeakMap<HTMLCanvasElement, WEBGL_lose_context>()
 
 const MAX_Q: Record<Tier, number> = { software: 0, low: 1, mid: 2, high: 3 }
-const DPR_CAP = [1, 1.25, 1.5, 2] as const
+/**
+ * Resolution is not a quality level. Every stage draws at the screen's own device pixels, a 3× phone's at most (and
+ * within what its GPU can hold), from its first frame: quality steps trade paths, glow and effects, never sharpness.
+ * Tied to the level (1, 1.25, 1.5, 2 device pixels a CSS pixel), every figure opened at 1.5 and drew its whole
+ * signature soft, a 3× iPhone never got past 2, and the IV surface stayed at 1.5 on a phone for good.
+ */
+const DPR_MAX = 3
+/**
+ * The one exception, a last resort: a low-tier device (a coarse pointer with few cores, never an iPhone or a laptop)
+ * that cannot hold its frames at the lightest effects gets a level below them, drawn at three-quarters of its pixels.
+ */
+const LAST_RESORT = 0.75
 
 /** The page's colour tokens as a renderer takes them: for a figure's 2D views drawn beside a live stage. */
 export function palette(dark: boolean): Palette {
@@ -121,9 +132,9 @@ export function useStage(
     createRef.current = create
   })
   const threshold = opts.threshold ?? 0.2
-  // A figure may let a tier go higher than the kit's default: the home figure lets a phone draw at two device pixels.
+  // A figure may let a tier go higher than the kit's default: the home figure lets a phone have its full effects.
   const tierMax = useRef(opts.maxQ)
-  // A figure may hold the quality from climbing while its signature plays, so it never sharpens mid-moment; a step down
+  // A figure may hold the quality from climbing while its signature plays, so its effects never change mid-moment; a step down
   // is never held.
   const hold = useRef(opts.hold)
   useEffect(() => {
@@ -149,6 +160,11 @@ export function useStage(
     let gl: GL | null = null
     let q = 0
     let maxQ = 0
+    /** The largest canvas side this GPU takes (texture, renderbuffer and viewport limits). */
+    let maxSide = 4096
+    /** The canvas's content box in device pixels, exactly, where the browser reports it (no rounding to resample). */
+    let devW = 0
+    let devH = 0
     let gov = new Governor(0, 0)
     /** The refresh the renderer was last told, in ms. */
     let told = 1000 / 60
@@ -159,17 +175,28 @@ export function useStage(
     let first = false
 
     // Setting a canvas's size clears its drawing buffer, and with alpha off a
-    // cleared buffer is black. So a resize — a window change, or the governor
-    // stepping quality after this tick's frame was already drawn — redraws in
-    // the same task (dt 0: the scene holds, nothing advances). Without it,
-    // every MacBook visit flashed one black frame about three seconds in, at
-    // the first step up.
+    // cleared buffer is black. So a resize — a window change, a move to another
+    // screen, a zoom, or the last-resort step after this tick's frame was
+    // already drawn — redraws in the same task (dt 0: the scene holds, nothing
+    // advances).
     const size = () => {
       if (!renderer) return
       const r = cv.getBoundingClientRect()
-      const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP[q]!)
-      const w = Math.max(1, Math.round(r.width * dpr))
-      const h = Math.max(1, Math.round(r.height * dpr))
+      const native = window.devicePixelRatio || 1
+      const scale = q < 0 ? LAST_RESORT : 1
+      // The browser's own device-pixel box where it gives one and the screen is within the cap: the canvas then maps
+      // one to one onto the screen's pixels. Otherwise the CSS box at the capped ratio, rounded. Taken only when it
+      // agrees with the CSS box at that ratio (within two pixels): an emulated density reports CSS pixels there.
+      const exact =
+        devW > 0 && native <= DPR_MAX && scale === 1 && Math.abs(devW - r.width * native) < 2 && Math.abs(devH - r.height * native) < 2
+      const dpr = Math.min(native, DPR_MAX) * scale
+      let w = Math.max(1, exact ? devW : Math.round(r.width * dpr))
+      let h = Math.max(1, exact ? devH : Math.round(r.height * dpr))
+      if (w > maxSide || h > maxSide) {
+        const k = maxSide / Math.max(w, h)
+        w = Math.max(1, Math.floor(w * k))
+        h = Math.max(1, Math.floor(h * k))
+      }
       const changed = cv.width !== w || cv.height !== h
       if (changed) {
         cv.width = w
@@ -222,10 +249,13 @@ export function useStage(
       // landed there, one long frame where the story ends.
       if (hold.current?.()) heldUntil = now + 1500
       if (gov.frame(halve ? dt / 2 : dt, now, now < heldUntil)) {
+        const was = q
         q = gov.q
-        renderer.setQuality?.(q)
-        size()
-        setQuality(q)
+        // A step trades effects only: the canvas keeps its size (no buffers reallocated, no long frame), except into or
+        // out of the last resort.
+        renderer.setQuality?.(Math.max(0, q))
+        if (was < 0 !== q < 0) size()
+        setQuality(Math.max(0, q))
       }
       // Told only when it has really moved (3%): the refresh relaxes a little every frame.
       if (Math.abs(gov.refresh - told) > told * 0.03) {
@@ -268,7 +298,9 @@ export function useStage(
       const t = deviceTier(gl)
       maxQ = tierMax.current?.[t] ?? MAX_Q[t]
       q = Math.min(maxQ, 2)
-      gov = new Governor(q, maxQ)
+      const vp = gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array | null
+      maxSide = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE) as number, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number, vp?.[0] ?? 4096, vp?.[1] ?? 4096) || 4096
+      gov = new Governor(q, maxQ, t === 'low' ? -1 : 0)
       told = gov.refresh
       setTier(t)
       setQuality(q)
@@ -302,8 +334,22 @@ export function useStage(
       { threshold: [0, 0.01, threshold] },
     )
     io.observe(el)
-    const ro = new ResizeObserver(size)
-    ro.observe(cv)
+    const ro = new ResizeObserver((es) => {
+      const d = es[es.length - 1]?.devicePixelContentBoxSize?.[0]
+      if (d) {
+        devW = Math.round(d.inlineSize)
+        devH = Math.round(d.blockSize)
+      }
+      size()
+    })
+    try {
+      ro.observe(cv, { box: 'device-pixel-content-box' })
+    } catch {
+      ro.observe(cv)
+    }
+    // A move to a screen of another density, or a zoom: redrawn at the new screen's pixels (the observer above reports
+    // it too, where it can).
+    const unDpr = onDprChange(size)
     const onVis = () => run()
     document.addEventListener('visibilitychange', onVis)
     // The old page's picture is taken after pageswap, from what the compositor holds, and a WebGL canvas's buffer was
@@ -374,6 +420,7 @@ export function useStage(
       cancelAnimationFrame(raf)
       io.disconnect()
       ro.disconnect()
+      unDpr()
       document.removeEventListener('visibilitychange', onVis)
       removeEventListener('pageswap', onSwap)
       removeEventListener('pageshow', onShow)
