@@ -202,7 +202,9 @@ function Wide() {
         </g>
       ))}
 
-      <Legend x={W.x0} y={W.axisY + 46} gapX={230} size={13} stacked={false} />
+      {/* Its second item ends inside the viewBox with room to spare: at a 230 gap "1.0% justifies further work" ended at
+          617.6 of 620 with this face's metrics on macOS, and ran 3 past the edge as Linux sets it (figures.spec on CI). */}
+      <Legend x={W.x0} y={W.axisY + 46} gapX={222} size={13} stacked={false} />
     </>
   )
 }
