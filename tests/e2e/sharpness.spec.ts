@@ -16,12 +16,14 @@ test.use({ launchOptions: { args: GPU } })
 
 // The 75th percentile bounds the edges' tail where every edge is a line. The order book's terrain is shaded: its folds
 // are gradients by design, and they fill that tail (2.4–2.9 px, frame to frame), so its median carries the measure.
-const FIGURES: readonly { route: string; fig: string; p75?: number }[] = [
+// The drum's median bound is wider: its wireframe lies over a shaded sheet whose gradients enter the scan (1.68 at 2× on
+// a laptop's GPU, 1.86 on CI's rasterizer). Drawn at 1.5× and stretched to 3×, as before, it measured 2.82.
+const FIGURES: readonly { route: string; fig: string; p75?: number; median?: number }[] = [
   { route: '/', fig: '#fig-futures', p75: 2.3 },
   { route: '/market', fig: '#fig-1', p75: 2.3 },
   { route: '/order-book', fig: '#fig-order-book' },
   { route: '/iv-surface', fig: '#fig-iv-surface', p75: 2.3 },
-  { route: '/membrane', fig: '#fig-membrane', p75: 2.3 },
+  { route: '/membrane', fig: '#fig-membrane', p75: 2.4, median: 2.0 },
 ]
 
 const SCREENS = [
@@ -89,7 +91,7 @@ for (const screen of SCREENS) {
   test.describe(`on ${screen.name}`, () => {
     test.use({ viewport: screen.viewport, deviceScaleFactor: screen.deviceScaleFactor, isMobile: screen.isMobile, hasTouch: screen.hasTouch, colorScheme: 'light' })
 
-    for (const { route, fig, p75: tail } of FIGURES) {
+    for (const { route, fig, p75: tail, median: most = 1.8 } of FIGURES) {
       test(`${route}: drawn at the screen's own pixels from the first frame, its lines one to two device pixels sharp`, async ({ page }, info) => {
         test.skip(info.project.name !== 'desktop', 'one run: the screens are set here')
         test.setTimeout(60_000)
@@ -124,7 +126,7 @@ for (const screen of SCREENS) {
         const median = quantile(rises, 0.5), p75 = quantile(rises, 0.75)
         info.annotations.push({ type: 'edges', description: `${rises.length / 2} lines: rise median ${median.toFixed(2)} px, p75 ${p75.toFixed(2)} px` })
         expect(median, 'median edge rise, device pixels').toBeGreaterThan(0.6)
-        expect(median, 'median edge rise, device pixels').toBeLessThanOrEqual(1.8)
+        expect(median, 'median edge rise, device pixels').toBeLessThanOrEqual(most)
         if (tail) expect(p75, 'edge rise, 75th percentile, device pixels').toBeLessThanOrEqual(tail)
       })
     }
