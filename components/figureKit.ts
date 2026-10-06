@@ -22,7 +22,6 @@ export const WASH = 'var(--color-indigo-wash)'
 
 /** Intrinsic width every non-hero figure is authored at. */
 export const DIAGRAM_W = 336
-export const DIAGRAM_CAP = 'max-w-[336px]'
 
 export const LABEL = 12
 export const SMALL = 12

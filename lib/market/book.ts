@@ -27,7 +27,6 @@ export const MARKET_BUY = 2
 export const MARKET_SELL = 3
 export const CANCEL_BID = 4
 export const CANCEL_ASK = 5
-export const EVENT_NAMES = ['limit buy', 'limit sell', 'market buy', 'market sell', 'cancel bid', 'cancel ask'] as const
 
 export interface Trade {
   t: number

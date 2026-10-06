@@ -34,7 +34,6 @@ export const tOfV = (v: number) => {
 export const wx = (k: number) => (fu(k) * 2 - 1) * XW
 export const wz = (T: number) => (fv(T) * 2 - 1) * ZW
 export const wy = (vol: number) => ((vol - V0) / (V1 - V0)) * H
-export const volOfY = (y: number) => V0 + (y / H) * (V1 - V0)
 export const uOfX = (x: number) => (x / XW + 1) / 2
 export const vOfZ = (z: number) => (z / ZW + 1) / 2
 
