@@ -5,7 +5,7 @@ export const TRADING_SECONDS = 252 * 6.5 * 3600
 
 /**
  * Realised volatility: an exponentially weighted mean of squared one-second
- * log-returns of the mid, annualised. `push` takes the mid once a simulated
+ * log-returns of the mid, annualized. `push` takes the mid once a simulated
  * second; the half-life is in seconds. The weights are normalised by their
  * own sum, so the estimate is unbiased from the first returns on.
  */

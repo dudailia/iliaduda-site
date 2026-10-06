@@ -4,6 +4,9 @@ import { categorise } from '@/lib/closebooks'
 import { prepaint } from '@/lib/stage/prepaint'
 import { CategorisationLive } from './closebooks/Live'
 
+/** A row's status in the figure's own words (the table said flagged and pending, the batch blocked and waiting). */
+const STATUS_WORD = { approved: 'approved', pending: 'waiting', flagged: 'blocked' } as const
+
 /**
  * Fig. 1 of the CloseBooks paper: a synthetic bank feed run through the real
  * post-model rules. The server renders every row settled, so the figure reads
@@ -51,7 +54,7 @@ export function CategorisationPipeline() {
                 <td>{`${l.suggested.code} ${l.suggested.name}`}</td>
                 <td>{l.stated.toFixed(2)}</td>
                 <td>{results[i]!.confidence.toFixed(2)}</td>
-                <td>{results[i]!.status}</td>
+                <td>{STATUS_WORD[results[i]!.status]}</td>
               </tr>
             ))}
           </tbody>

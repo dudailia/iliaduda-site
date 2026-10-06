@@ -18,7 +18,7 @@ export interface Logged {
 /**
  * The market behind /market: the order book's own market (lib/market/flow.ts,
  * the same seed and parameters), with what the three views read from it kept
- * alongside, each on the market's own clock, never the wall's. Its realised
+ * alongside, each on the market's own clock, never the wall's. Its realized
  * volatility takes the mid once a simulated second (lib/market/realised.ts),
  * from the burn-in on, so it is warm when first shown.
  *
@@ -61,7 +61,7 @@ export class Market {
     return this.flow.t
   }
 
-  /** Annualised realised volatility of the mid, now. */
+  /** Annualised realized volatility of the mid, now. */
   get sigma(): number {
     return this.realised.sigma
   }
@@ -133,7 +133,7 @@ export class Market {
 
   /**
    * Everything the market is, the volatility included, as one string: two runs compared in one comparison. Its
-   * floating-point state (the clock, the Hawkes excitations, every trade's time, realised volatility, stress and the
+   * floating-point state (the clock, the Hawkes excitations, every trade's time, realized volatility, stress and the
    * shock's load) is hashed by its exact bits, so two markets that agree on it agree to the bit.
    */
   hash(): string {

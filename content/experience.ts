@@ -14,7 +14,7 @@
 export interface Role {
   readonly id: string
   readonly org: string
-  /** What the organisation is, in a few words, for a reader who has not heard of it. */
+  /** What the organization is, in a few words, for a reader who has not heard of it. */
   readonly orgNote: string
   readonly title: string
   readonly place?: string
@@ -38,7 +38,7 @@ export const roles: readonly Role[] = [
     id: 'glacier',
     org: 'Glacier Capital Systems',
     orgNote: 'proprietary options trading firm',
-    title: 'Quantitative Analyst and Engineer',
+    title: 'Quantitative analyst and engineer',
     place: 'Remote',
     dates: 'January 2026 – present',
     brief: 'Building the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model.',
@@ -56,19 +56,19 @@ export const roles: readonly Role[] = [
   {
     id: 'debt-portal',
     org: 'Debt-settlement portal',
-    orgNote: 'licensed Russian collection organisation',
-    title: 'Sole Developer and Project Lead',
+    orgNote: 'licensed Russian collection organization',
+    title: 'Sole developer and project lead',
     place: 'Remote',
     dates: 'July 2026 – present',
     brief: 'Building a regulated consumer product end to end: debt lookup, a settlement calculator, SMS authentication and an SBP payment screen, under 152-FZ and 230-FZ.',
     detail: [
-      'Only developer on a self-service debt-settlement portal for a licensed collection organisation: debt lookup, a settlement calculator, SMS authentication, and an SBP payment screen whose amount the server recomputes from the chosen term, never taking it from the browser.',
-      'Architecture set by statute: 152-FZ data localisation keeps personal data, hosting, fonts and analytics in Russia, and the portal counts every login SMS against the debtor’s 230-FZ contact allowance (the conservative reading of an unsettled question), enforced in code and by build gates.',
+      'Only developer on a self-service debt-settlement portal for a licensed collection organization: debt lookup, a settlement calculator, SMS authentication, and an SBP payment screen whose amount the server recomputes from the chosen term, never taking it from the browser.',
+      'Architecture set by statute: 152-FZ data localization keeps personal data, hosting, fonts and analytics in Russia, and the portal counts every login SMS against the debtor’s 230-FZ contact allowance (the conservative reading of an unsettled question), enforced in code and by build gates.',
       'Next.js\u00a016 with Turbopack and Tailwind\u00a04, hosted on Yandex\u00a0Cloud.',
     ],
     cv: [
       'Only developer: debt lookup, a settlement calculator in integer kopecks, SMS login, an SBP payment screen.',
-      'Built to 152-FZ data localisation and the 230-FZ contact cap, both enforced in code; Next.js\u00a016, Yandex\u00a0Cloud.',
+      'Built to 152-FZ data localization and the 230-FZ contact cap, both enforced in code; Next.js\u00a016, Yandex\u00a0Cloud.',
     ],
     href: '/debt-portal',
   },
@@ -78,15 +78,15 @@ export const roles: readonly Role[] = [
     orgNote: 'month-end close for accounting firms',
     title: 'Founder',
     dates: 'April 2026 – present',
-    brief: 'Built and deployed a multi-tenant month-end close product for CPA firms on my own, with an AI categorisation pipeline on the Claude API.',
+    brief: 'Built and deployed a multi-tenant month-end close product for CPA firms on my own, with an AI categorization pipeline on the Claude API.',
     detail: [
       'Built and deployed a multi-tenant month-end close product for CPA firms on my own: Next.js and TypeScript, Supabase Postgres with row-level security, and Stripe billing across three subscription tiers.',
-      'Wrote the categorisation pipeline on the Anthropic Claude API: it parses bank statements from CSV and PDF, maps each line to the client’s chart of accounts with a confidence score, and routes low-confidence rows to an exception queue for a human to approve.',
+      'Wrote the categorization pipeline on the Anthropic Claude API: it parses bank statements from CSV and PDF, maps each line to the client’s chart of accounts with a confidence score, and routes low-confidence rows to an exception queue for a human to approve.',
       'Gated the export behind chart-of-accounts validation: a suggested account that does not resolve against the client’s chart is held back until a reviewer maps it.',
     ],
     cv: [
-      'Built and deployed alone a multi-tenant month-end close for CPA firms: Next.js, TypeScript, Supabase Postgres with row-level security, Stripe billing in three tiers.',
-      'Categorisation pipeline on the Claude API: parses CSV and PDF bank statements and maps each line to the client’s chart of accounts with a confidence score; low-confidence rows go to a human.',
+      'Built and deployed, alone, a multi-tenant month-end close for CPA firms: Next.js, TypeScript, Supabase Postgres with row-level security, Stripe billing in three tiers.',
+      'Categorization pipeline on the Claude API: parses CSV and PDF bank statements and maps each line to the client’s chart of accounts with a confidence score; low-confidence rows go to a human.',
     ],
     href: '/closebooks',
   },
@@ -94,7 +94,7 @@ export const roles: readonly Role[] = [
     id: 'adconfirm',
     org: 'AdConfirm',
     orgNote: 'advertising inside invoices and receipts',
-    title: 'Co-Founder',
+    title: 'Co-founder',
     dates: 'May 2026 – present',
     brief: 'Co-founded a product placing ads inside invoices and receipts, with metered billing and Stripe Connect payouts.',
     detail: [
@@ -110,7 +110,7 @@ export const roles: readonly Role[] = [
     id: 'bcs',
     org: 'BCS Bank',
     orgNote: 'Investment Banking Division',
-    title: 'Investment Banking Intern',
+    title: 'Investment banking intern',
     place: 'Moscow',
     dates: 'July – August 2023',
     brief: 'Covered Russian energy, metals and banking; built DCF, comparable-company and sensitivity models; wrote daily briefings on government bonds through two rate rises.',
@@ -129,7 +129,7 @@ export const roles: readonly Role[] = [
     id: 'monito',
     org: 'Monito',
     orgNote: 'Young Enterprise UK',
-    title: 'Co-Founder and Financial Director',
+    title: 'Co-founder and financial director',
     place: 'UK',
     dates: '2022 – 2023',
     brief: 'Won UK National Company of the Year and reached the European Finals.',
@@ -198,7 +198,7 @@ export const monitoRounds = [
 export const SKILLS = [
   [
     'Quantitative',
-    'Options pricing and Black–Scholes, Greeks, volatility surface modelling, calibration, temporal cross-validation, bootstrap intervals, hypothesis testing, Fama–French and CAPM regression.',
+    'Options pricing and Black–Scholes, Greeks, volatility surface modeling, calibration, temporal cross-validation, bootstrap intervals, hypothesis testing, Fama–French and CAPM regression.',
   ],
   [
     'Languages',

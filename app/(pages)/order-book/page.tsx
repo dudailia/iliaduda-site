@@ -12,7 +12,7 @@ import { SOURCE } from '@/lib/site'
 
 const paper = papers.find((p) => p.slug === 'order-book')!
 
-export const metadata = pageMeta('/order-book', paper.title, paper.abstract)
+export const metadata = pageMeta('/order-book', paper.title, paper.description)
 
 const SRC = SOURCE
 
@@ -84,7 +84,7 @@ export default function OrderBook() {
                 a<sub>ij</sub> e<sup>−β<sub>j</sub>(t − t<sub>k</sub>)</sup>.
               </span>
               That is how real order flow behaves: a market
-              buy makes another likelier, liquidity that was taken refills, and a new limit order is often soon cancelled.
+              buy makes another likelier, liquidity that was taken refills, and a new limit order is often soon canceled.
             </p>
           </Annotated>
           <p>
@@ -113,9 +113,10 @@ export default function OrderBook() {
             stationary instead of growing without bound.
           </p>
           <p>
-            It is calibrated to look like a busy stock opened at {open}. Measured over ten simulated minutes on the seed
-            Fig.{'\u00a0'}1 draws: {m.rate.toFixed(1)} events a second, a realised volatility of {(m.vol * 100).toFixed(1)}% a
-            year (one-second returns of the mid, over 252 trading days of 6.5{'\u00a0'}hours), and a spread of one or two ticks{' '}
+            It is tuned to look like a busy stock opened at {open}. Measured over ten simulated minutes on the seed
+            Fig.{'\u00a0'}1 draws: {m.rate.toFixed(1)} events a second, a realized volatility of {(m.vol * 100).toFixed(1)}% a
+            year averaged over those ten minutes (one-second returns of the mid, over 252 trading days of 6.5{'\u00a0'}hours; the
+            home figure&rsquo;s {Math.round(syntheticValue('fuSigma') * 100)}% is the same market&rsquo;s at one moment), and a spread of one or two ticks{' '}
             {(m.narrow * 100).toFixed(1)}% of the time.
           </p>
         </Section>
@@ -141,7 +142,7 @@ export default function OrderBook() {
               over five seeds, each family (per kind, and pooled) at a 1% family-wise level; the intensity it integrates is rebuilt from the event times and
               the model alone, so a simulation that drifted from the model would fail it.
             </li>
-            <li>Over ten seeds: the event rate, the realised volatility and the spread stay in the calm market’s range.</li>
+            <li>Over ten seeds: the event rate, the realized volatility and the spread stay in the calm market’s range.</li>
             <li>The share of events that arrive on their own, not set off by another, matches Σμ over the stationary total.</li>
             <li>The book never crosses, no queue goes negative, and every market order fills at the touch of its moment, over a million events.</li>
             <li>Six hundred single steps are the same market as ten one-second ones, and the still frame followed by the live run is one straight run.</li>

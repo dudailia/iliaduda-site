@@ -10,10 +10,10 @@ import { levelTone, logTicks, priceTicks, smoothedQueue, WINDOW } from './views'
 /**
  * /market's still frames, drawn on the server from the same seeded market at the same moment the live figure starts
  * from (POSTER_T), so the page opens on the market it then runs (components/figures/Market.tsx). The book and the
- * futures are images of their own (app/(pages)/market/*.svg), each defining the site's colour tokens for both
+ * futures are images of their own (app/(pages)/market/*.svg), each defining the site's color tokens for both
  * schemes, as the IV figure's poster does, so one file serves both; the book's heat is an image of opacities (lib/png.ts)
  * the indigo is flooded through, as the live strip mixes it (components/figures/market/draw.ts): each queue's tone is
- * its pixel's opacity, exactly, in any colour space. No text: the page places
+ * its pixel's opacity, exactly, in any color space. No text: the page places
  * the axes' words over them. Server only.
  */
 
@@ -24,7 +24,7 @@ const COLS = 20 * HZ
 /**
  * The two moments there are still frames of: calm, where the live figure starts, and the same market one simulated
  * second after a liquidity shock pressed at that moment, at the height of its stress (0.86, the price 14 ticks down,
- * realised volatility nearly doubled), for a reader who asked for reduced motion (or whose device does not run the
+ * realized volatility nearly doubled), for a reader who asked for reduced motion (or whose device does not run the
  * market), whose Liquidity shock swaps one for the other. Both are the worker's own market: the same seed, the same
  * shock log (tests/market-shock.test.ts), run here.
  */

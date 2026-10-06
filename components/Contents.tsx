@@ -109,7 +109,8 @@ export function ExperienceBrief() {
       <Row rail={<SectionHeading id="experience">Experience</SectionHeading>}>
         {/* A block on paper, its gaps as margins: a grid list kept the heading above from holding to its first entry. */}
         <ul role="list" className="grid list-none gap-y-5 border-t border-rule pt-5 print:block print:space-y-5">
-          {roles.map((r) => (
+          {/* AdConfirm is named once on the home page, under Other work (the owner, 2026-10-06); /about and the CV list it. */}
+          {roles.filter((r) => r.id !== 'adconfirm').map((r) => (
             // On paper an entry is whole: its last line never opens the next sheet alone.
             <li key={r.id} className="print:break-inside-avoid">
               <p>

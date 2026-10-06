@@ -1,7 +1,7 @@
 import { rule } from '@/content/rules'
 
 /**
- * CloseBooks' categorisation rules, ported for the live figure. What the model
+ * CloseBooks' categorization rules, ported for the live figure. What the model
  * returns is synthetic here; what happens to it afterwards is the shipped
  * logic, rule for rule:
  *

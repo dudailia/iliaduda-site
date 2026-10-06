@@ -9,7 +9,7 @@ import { pageMeta } from '@/lib/meta'
 
 const paper = papers.find((p) => p.slug === 'closebooks')!
 
-export const metadata = pageMeta('/closebooks', paper.title, paper.abstract)
+export const metadata = pageMeta('/closebooks', paper.title, paper.description)
 
 const n = (k: Parameters<typeof fact>[0]) => fact(k).value.toLocaleString('en-US')
 
@@ -25,11 +25,11 @@ export default function CloseBooks() {
           <p>
             A small accounting firm closes every client&rsquo;s books every month: pull the bank
             statements, decide which account each transaction belongs to, review, and post. The
-            categorisation is the step that eats the week, and it is pattern recognition against a
+            categorization is the step that eats the week, and it is pattern recognition against a
             chart of accounts that is different for every client.
           </p>
           <p>
-            CloseBooks takes bank statements in as CSV or PDF, categorises every line against
+            CloseBooks takes bank statements in as CSV or PDF, categorizes every line against
             that client&rsquo;s own chart with a model in the loop, puts what it is unsure of in
             front of a reviewer, and exports the result or pushes journal entries to QuickBooks
             Online. Around it: firms, clients and roles in a multi-tenant Postgres database, a
@@ -60,7 +60,7 @@ export default function CloseBooks() {
           </p>
           <p>
             Statements arrive in whatever shape a bank exports. The CSV parser finds the real
-            header row beneath a bank&rsquo;s preamble lines, reads parenthesised negatives, and
+            header row beneath a bank&rsquo;s preamble lines, reads parenthesized negatives, and
             handles both signed-amount and split debit-and-credit layouts; a PDF&rsquo;s text layer
             is extracted and structured by the model into dated, signed lines.
           </p>

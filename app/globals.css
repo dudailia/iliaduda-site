@@ -763,6 +763,11 @@
     line-height: 1.3;
     font-variant-numeric: lining-nums proportional-nums;
     hyphens: manual;
+    /* A PDF's text carries no spaces: a reader (and a résumé screener) infers each one from the gap between words.
+       At the face's own spacing, with the name's tight tracking and a few kerned pairs, three gaps read as none in a
+       raw extraction ("IliaDuda", "CSVand", "firms·"); a hair more space between words, and every word comes out
+       whole. Screen and paper alike, so they keep the same line breaks. */
+    word-spacing: 0.03em;
   }
 
   /* On a phone's screen there is no sheet to keep to: the résumé reads at the site's leading (print is untouched). */

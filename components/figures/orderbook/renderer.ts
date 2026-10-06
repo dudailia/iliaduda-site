@@ -26,7 +26,7 @@ import { pickTerrain, type KeyProbe, type Terrain } from '@/lib/orderbook/pick'
  * age drives a short rise-and-fade spark and then a dot that rides the
  * terrain into the past. Picking is a ray marched on the CPU against the
  * stored depth, so the readout is the snapshot under the cursor, not a
- * colour read back from the GPU.
+ * color read back from the GPU.
  */
 
 export type { KeyProbe }
@@ -137,7 +137,7 @@ void main() {
   vec3 n = normalize(vN);
   // Ink comes with height: a row still flat on the page is paper, with the graph-paper grid on it.
   float t = clamp(pow(abs(vCum) / REF, POW), 0.0, 1.3) * vRise;
-  // The shares waiting are the figure's claim, so both walls are indigo, the one colour a figure keeps for what it
+  // The shares waiting are the figure's claim, so both walls are indigo, the one color a figure keeps for what it
   // claims: bids the lighter, asks the deeper, either side of the price, which is ink, the threshold between them.
   vec3 bid = uDark > 0.5 ? mix(uWash, uIndigo, 0.16 + 0.34 * t) : mix(uWash, uIndigo, 0.36 + 0.4 * t);
   vec3 ask = uDark > 0.5 ? mix(uWash, uIndigo, 0.45 + 0.45 * t) : mix(uWash, uIndigo, 0.6 + 0.36 * t);
@@ -938,7 +938,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     gl.uniform1f(points.u('uHist'), rowsF || rows)
     gl.uniform1f(points.u('uMode'), 0)
     gl.uniform1f(points.u('uShow'), Math.min(1, Math.max(0, (rise - 0.55) / 0.45)) * lift)
-    // Trades are the price's own marks: ink, the threshold's colour, which by night is light.
+    // Trades are the price's own marks: ink, the threshold's color, which by night is light.
     setVec(points, 'uColor', pal.ink)
     over()
     gl.drawArrays(gl.POINTS, 0, MAXP)

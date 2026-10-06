@@ -82,7 +82,7 @@ export interface Target {
 
 /**
  * The texture formats the figures render to. The integer formats are
- * colour-renderable in WebGL2 itself, on every device, which is why pricing
+ * color-renderable in WebGL2 itself, on every device, which is why pricing
  * keeps its floats in them as raw bits; rgba16f needs EXT_color_buffer_float
  * or EXT_color_buffer_half_float enabled (see `probeHalfFloat`); rgba8 is
  * always there.
@@ -199,5 +199,5 @@ export function disposeTarget(gl: GL, t: Target | null | undefined) {
   gl.deleteTexture(t.tex)
 }
 
-/** Linear-light conversion for colours passed to shaders that blend. */
+/** Linear-light conversion for colors passed to shaders that blend. */
 export const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)

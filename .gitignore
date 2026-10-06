@@ -53,3 +53,6 @@ next-env.d.ts
 # the CV PDF is printed from /cv at build time (scripts/cv-pdf.mjs)
 /public/ilia-duda-resume.pdf
 
+
+# Impeccable design-tool context and review notes: local to the owner, not part of the published source.
+/.impeccable/

@@ -32,7 +32,7 @@ test.describe('before any script runs', () => {
     await page.goto('/market')
     for (const f of ['book', 'ladder', 'fan']) await expect(page.locator(`#fig-1 img[src="/market/${f}.svg"]`)).toHaveCount(1)
     await expect(page.locator('#fig-1 img[src="/market/surface.svg"]')).toHaveCount(1)
-    await expect(page.locator('#fig-1 table caption')).toContainText(/price \$\d+\.\d\d.*realised volatility \d+\.\d%.*stress \d\.\d\d/)
+    await expect(page.locator('#fig-1 table caption')).toContainText(/price \$\d+\.\d\d.*realized volatility \d+\.\d%.*stress \d\.\d\d/)
   })
 })
 

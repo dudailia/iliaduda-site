@@ -887,8 +887,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         number="Fig. 1"
         className="mt-10 mb-12 lg:mt-6 lg:mb-16"
         title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
-        subtitle={`Simulated · geometric Brownian motion · σ\u00a0${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realised\u00a0vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
-        subtitleRoom={`Simulated · geometric Brownian motion · σ\u00a0${pct(MODEL.sigma)}, the simulated market’s realised\u00a0vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitle={`Simulated · geometric Brownian motion · σ\u00a0${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realized\u00a0vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
+        subtitleRoom={`Simulated · geometric Brownian motion · σ\u00a0${pct(MODEL.sigma)}, the simulated market’s realized\u00a0vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
         railBelow={false}
         // Room kept for the longest of its hints (a still frame's longest reason, and the live figure's), in one cell with
@@ -909,8 +909,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             Black–Scholes. A call pays whatever the stock finishes above the strike, and its price is that payoff averaged
             over every path and discounted to today: the indigo bars, what each ending pays weighted by how often it
             happens, add up to it. The readouts show the estimate closing in on the formula as the paths pile up. The
-            volatility starts at the simulated market&rsquo;s own realised volatility,{' '}
-            {(market.sigma * 100).toFixed(1)}% (to the slider&rsquo;s 1% step), computed again by your browser.
+            volatility starts at the simulated market&rsquo;s own realized volatility at one moment, the one /market opens
+            on, {(market.sigma * 100).toFixed(1)}% (to the slider&rsquo;s 1% step), computed again by your browser.
           </>
         }
         table={tableView}

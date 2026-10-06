@@ -19,7 +19,7 @@ export function MarketPipelineFigure() {
           The page never runs the market: each animation frame it asks the worker for the market at the page&rsquo;s own clock, and
           the worker answers with one buffer the page lent it, moved between the threads rather than copied, carrying the
           market as it is and what changed since the last frame. The rates in the margin are this browser&rsquo;s, as it
-          runs; the futures it could draw is its pace at drawing them, timed alone (it draws {FAN.paths.toLocaleString('en-US')} a
+          runs; &ldquo;futures it could draw&rdquo; is how fast it draws them, timed on their own (it draws {FAN.paths.toLocaleString('en-US')} each
           simulated second), headroom is how many times faster than real time the worker could run the market, and the time
           held is how long the market waited while the page was away.
         </>

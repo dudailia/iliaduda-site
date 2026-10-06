@@ -227,7 +227,7 @@ export function CategorisationLive({
       breakable
       number="Fig. 1"
       vt="closebooks"
-      title="A bank feed through the categorisation pipeline"
+      title="A bank feed through the categorization pipeline"
       subtitle="synthetic feed and model outputs · the rules applied to them are the product’s own, from the shipped code"
       rail={
         <div data-batch-rail="">
@@ -258,7 +258,7 @@ export function CategorisationLive({
         </p>
         <p className="text-meta mb-2 font-mono text-graphite lg:hidden print:hidden">{HINT}</p>
         {/* The title's rule is the top rule on a laptop; below lg the gate and hint come between, and the rows have their own. */}
-        <ol role="list" className="grid list-none border-t border-rule lg:border-t-0" aria-label="Categorised bank lines">
+        <ol role="list" className="grid list-none border-t border-rule lg:border-t-0" aria-label="Categorized bank lines">
           {feed.map((l, i) => {
             const r = results[i]!
             const st = status(i)

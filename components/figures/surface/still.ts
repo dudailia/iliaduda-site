@@ -9,8 +9,8 @@ import { apply, camera, EXPIRY_TICKS, kOfU, mvp, tOfV, wx, wy, wz, type FrameKin
  * The still frame's sheet, drawn smooth on a 2D canvas: the figure a reader
  * keeps where the live one does not run (reduced motion, no WebGL2), under the
  * poster's own walls, contours and ticks (lib/surface/posterMarkup.ts). The
- * poster's image has to share a few colours between its facets to stay small,
- * and they fall in steps along the grid; here every facet has its own colour
+ * poster's image has to share a few colors between its facets to stay small,
+ * and they fall in steps along the grid; here every facet has its own color
  * and its own light, the shader's arithmetic on the CPU (lib/surface/look.ts),
  * on a grid fine enough that no facet is seen as one.
  */
@@ -76,7 +76,7 @@ export function drawSheet(canvas: HTMLCanvasElement, p: Params, kind: FrameKind,
       g.closePath()
       g.fillStyle = col
       g.fill()
-      // Stroked in its own colour, so no seam of paper shows between two facets.
+      // Stroked in its own color, so no seam of paper shows between two facets.
       g.strokeStyle = col
       g.stroke()
     }
@@ -120,7 +120,7 @@ const SMILE_N = 96
  * The still frame put in place of a poster's picture, and drawn for surface `p`: the first time, the poster's image
  * ([data-iv-poster] [data-mesh], inside `root`) gives way to the sheet painted smooth on a canvas and, over it, inline,
  * the walls, contours and ticks, with their style beside them; every time, both are drawn for `p` in the page's
- * colours now. Returns the poster's data for `p`, for a figure that places marks of its own (the IV paper's notes).
+ * colors now. Returns the poster's data for `p`, for a figure that places marks of its own (the IV paper's notes).
  */
 export function smoothStill(root: HTMLElement, p: Params, kind: FrameKind, probe?: { readonly k: number; readonly T: number }): PosterData {
   const d = poster(p, kind, probe)
