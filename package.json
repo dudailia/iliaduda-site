@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:cross": "playwright test -c playwright.cross.config.ts",
     "test:lh": "lhci autorun",
     "check:all": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e && pnpm test:lh",
     "test:lh:prod": "lhci autorun --config=lighthouserc.prod.json"
