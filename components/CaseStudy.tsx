@@ -107,7 +107,9 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
         {/* On a phone each label sits on its value (a pair per row, further apart from the next); from sm, two columns.
             On paper a block of whole rows, which may break between rows: kept whole as a list, it jumped onto a sheet
             of its own with only the colophon under it. */}
-        <dl className="text-note grid gap-y-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2 print:block">
+        {/* One column on a phone, as wide as the page and no wider: left to size itself, a long path
+            ("tests/membrane-bessel.test.ts · …") widened it past the screen, and the page scrolled sideways at 360px. */}
+        <dl className="text-note grid grid-cols-1 gap-y-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2 print:block">
           {rows.map(([k, v]) => (
             <div key={k} className="sm:contents print:mb-2 print:grid! print:grid-cols-[7.5rem_minmax(0,1fr)] print:break-inside-avoid">
               <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5">{k}</dt>

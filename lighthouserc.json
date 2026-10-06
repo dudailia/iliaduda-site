@@ -8,6 +8,7 @@
         "http://127.0.0.1:4500/market",
         "http://127.0.0.1:4500/order-book",
         "http://127.0.0.1:4500/iv-surface",
+        "http://127.0.0.1:4500/membrane",
         "http://127.0.0.1:4500/closebooks",
         "http://127.0.0.1:4500/cricstate",
         "http://127.0.0.1:4500/startup-investments",
@@ -26,7 +27,7 @@
       "_comment": "aggregationMethod is set PER ASSERTION below, never only at the top level. median is the right correction for a numeric budget and the wrong one for a boolean: minScore 1 means «never fails», and a median over five runs cannot express that — an audit failing two of five runs medians to a pass and reports green while the thing it guards is broken forty per cent of the time. pessimistic takes the worst run, so one failure in five fails the assertion, which is what minScore 1 was always asking for. This is the same bug I found and fixed in the debt-portal project's own Lighthouse config; it would have been careless to repeat it here.",
       "assertMatrix": [
         {
-          "matchingUrlPattern": "^(?!.*/(order-book|iv-surface|closebooks|startup-investments|debt-portal|nucarbon)$).*$",
+          "matchingUrlPattern": "^(?!.*/(order-book|iv-surface|membrane|closebooks|startup-investments|debt-portal|nucarbon)$).*$",
           "assertions": {
             "categories:accessibility": [
               "error",
@@ -136,7 +137,7 @@
           }
         },
         {
-          "matchingUrlPattern": "/(order-book|iv-surface|closebooks|startup-investments|debt-portal|nucarbon)$",
+          "matchingUrlPattern": "/(order-book|iv-surface|membrane|closebooks|startup-investments|debt-portal|nucarbon)$",
           "assertions": {
             "categories:accessibility": [
               "error",

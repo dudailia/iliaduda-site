@@ -139,10 +139,23 @@ export async function shareCard({
         >
           <div style={{ display: 'flex', fontFamily: 'Source Code Pro', fontSize: 22, color: OG.muted }}>{above}</div>
           {/* 20px inside the square on each side, so no line of the title reaches the safe zone's edge. A compound keeps
-              its hyphen with both halves (U+2011, which the serif carries): "multi-" never ends a line. */}
-          <div style={{ display: 'flex', fontSize: titleSize, lineHeight: 1.12, letterSpacing: '-0.015em', marginTop: 22, maxWidth: SAFE.w - 40, textWrap: 'balance' }}>
-            {title.replace(/(?<=\p{L})-(?=\p{L})/gu, '\u2011')}
-          </div>
+              its hyphen with both halves (U+2011, which the serif carries): "multi-" never ends a line. A title with an
+              en-dash compound ("Fourier–Bessel") is set word by word, so a line breaks only at a space: the renderer
+              breaks after an en dash, and a word joiner after it drew as a gap. */}
+          {/(?<=\p{L})–(?=\p{L})/u.test(title) ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', columnGap: '0.25em', fontSize: titleSize, lineHeight: 1.12, letterSpacing: '-0.015em', marginTop: 22, maxWidth: SAFE.w - 40 }}>
+              {/* A one-letter word goes with the word after it: "on a" ended a line. */}
+              {title.split(' ').reduce<string[]>((ws, w) => (ws.length && ws[ws.length - 1]!.length === 1 ? [...ws.slice(0, -1), `${ws[ws.length - 1]}\u00a0${w}`] : [...ws, w]), []).map((w, i) => (
+                <div key={i} style={{ display: 'flex' }}>
+                  {w.replace(/(?<=\p{L})-(?=\p{L})/gu, '\u2011')}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', fontSize: titleSize, lineHeight: 1.12, letterSpacing: '-0.015em', marginTop: 22, maxWidth: SAFE.w - 40, textWrap: 'balance' }}>
+              {title.replace(/(?<=\p{L})-(?=\p{L})/gu, '\u2011')}
+            </div>
+          )}
           {below ? (
             <div style={{ display: 'flex', fontSize: 28, color: OG.text, marginTop: 22, maxWidth: SAFE.w, lineHeight: 1.3 }}>{below}</div>
           ) : null}
@@ -163,5 +176,7 @@ export async function paperCard({ kicker, title, art }: { kicker: string; title:
 export async function paperOg(slug: string) {
   const { papers } = await import('@/content/papers')
   const p = papers.find((x) => x.slug === slug)!
-  return shareCard({ above: `${PERSON.name} · working paper`, title: p.title, titleSize: p.title.length > 48 ? 46 : 54, art: ogThumb(slug) })
+  // Coursework is named as coursework, on the card as on the page.
+  const kind = p.byline.startsWith('Directed study') ? 'directed study' : 'working paper'
+  return shareCard({ above: `${PERSON.name} · ${kind}`, title: p.title, titleSize: p.title.length > 48 ? 46 : 54, art: ogThumb(slug) })
 }

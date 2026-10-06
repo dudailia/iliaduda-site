@@ -11,6 +11,7 @@ import { offeredTerms } from './settlement'
 import { marketShape } from './minis/market'
 import { orderBookShape } from './minis/orderBook'
 import { ivSurfaceShape } from './minis/ivSurface'
+import { membraneShape } from './minis/membrane'
 import { TH, TW, type Pts, type Shape } from './minis/shape'
 
 /**
@@ -44,6 +45,7 @@ const toThumb = (sh: Shape): Thumb => ({ context: sh.context.map(ints), claim: s
 
 // Fig. 1 of /iv-surface, /order-book and /market, from the functions their live miniatures draw with (lib/minis/).
 const ivSurface = () => toThumb(ivSurfaceShape(CALM))
+const membrane = () => toThumb(membraneShape(0))
 const orderBook = () => toThumb(orderBookShape(posterFlow()))
 function market(): Thumb {
   const { m, fan, surface } = marketFrame()
@@ -133,6 +135,7 @@ function bcs(): Thumb {
 const BUILDERS: Record<string, () => Thumb> = {
   market,
   'iv-surface': ivSurface,
+  membrane,
   cricstate: cricket,
   'startup-investments': startup,
   closebooks,

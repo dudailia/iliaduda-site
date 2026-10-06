@@ -231,6 +231,28 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
     if (slug && at !== undefined) handOff(slug, at)
   }
   document.addEventListener('click', onClick, true)
+  // Leaving through the morph: a miniature that hands no moment to its paper steps back to its thumbnail at once (the
+  // build's own picture, which the paper's figure opens on), so the morph never crosses a drum mid-swing, or a surface
+  // mid-shock, into the same figure at rest. pageswap comes before the old page's picture is taken.
+  const onSwap = (e: Event) => {
+    if (!(e as Event & { viewTransition?: unknown }).viewTransition) return
+    for (const l of live.values()) {
+      if (!l.shown || l.mini.time || !l.cv.parentElement?.style.viewTransitionName) continue
+      l.cv.style.transition = 'none'
+      l.cv.style.opacity = '0'
+    }
+  }
+  // Back to this page from the back-forward cache: the miniatures are where they were.
+  const onShow = (e: PageTransitionEvent) => {
+    if (!e.persisted) return
+    for (const l of live.values())
+      if (l.shown) {
+        l.cv.style.opacity = '1'
+        l.cv.style.transition = ''
+      }
+  }
+  addEventListener('pageswap', onSwap)
+  addEventListener('pageshow', onShow)
   // Reduced motion asked for mid-visit: the miniatures stop, and the thumbnails are the build's pictures again.
   const still = matchMedia('(prefers-reduced-motion: reduce)')
   const onStill = () => {
@@ -257,6 +279,8 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
     cancels.forEach((c) => c())
     document.removeEventListener('visibilitychange', onVis)
     document.removeEventListener('click', onClick, true)
+    removeEventListener('pageswap', onSwap)
+    removeEventListener('pageshow', onShow)
     removeEventListener('scroll', onScroll)
     list?.removeEventListener('pointerover', onPoint)
     list?.removeEventListener('focusin', onPoint)

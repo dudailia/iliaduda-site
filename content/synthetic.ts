@@ -84,6 +84,20 @@ export const synthetic = {
   // The home figure's model: one stock, one year, geometric Brownian motion
   // under the risk-neutral measure. Round numbers chosen for the reader, not
   // fitted to anything; the figure labels itself simulated.
+  mbModesMax: {
+    value: 20,
+    unit: 'count',
+    label: 'Fourier–Bessel modes of each kind the drum may keep',
+    source: 'lib/membrane/view.ts — synthetic, set by hand (MODES_MAX)',
+    kind: 'synthetic',
+  },
+  mbRadius: {
+    value: 1,
+    unit: 'none',
+    label: 'the drum’s radius, and its wave speed (both 1, as in the exercises)',
+    source: 'lib/membrane/expand.ts — synthetic, set by hand, as in the exercises',
+    kind: 'synthetic',
+  },
   fuS0: {
     value: 100,
     unit: 'none',

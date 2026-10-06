@@ -6,6 +6,7 @@
         "https://iliaduda-site.vercel.app/market",
         "https://iliaduda-site.vercel.app/order-book",
         "https://iliaduda-site.vercel.app/iv-surface",
+        "https://iliaduda-site.vercel.app/membrane",
         "https://iliaduda-site.vercel.app/closebooks",
         "https://iliaduda-site.vercel.app/cricstate",
         "https://iliaduda-site.vercel.app/startup-investments",
@@ -190,7 +191,7 @@
           }
         },
         {
-          "matchingUrlPattern": "/iv-surface$",
+          "matchingUrlPattern": "/(iv-surface|membrane)$",
           "assertions": {
             "categories:accessibility": [
               "error",
