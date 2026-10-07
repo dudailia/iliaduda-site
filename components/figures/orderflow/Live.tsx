@@ -255,6 +255,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     return { e: i, t: f.ev.t[i]! }
   }
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Where the pointer went down, so a swipe can be told from a tap. */
+  const downAt = useRef<[number, number] | null>(null)
   const pin = (r: Ref | null) => {
     pinned.current = r
     hovered.current = null
@@ -411,8 +413,15 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
             void e
           }}
           onBlur={() => market.hold('focus', false)}
-          // A click pins the order being read, the one under the pointer a moment ago, not whatever slid under it.
-          onPointerUp={(e) => pin(e.pointerType === 'mouse' && hovered.current && alive(market.flow, hovered.current) ? hovered.current : under(e))}
+          // A click pins the order being read, the one under the pointer a moment ago, not whatever slid under it. A
+          // finger's swipe that the page did not take as a scroll (sideways, diagonal) pins nothing: only a tap does.
+          onPointerDown={(e) => void (downAt.current = [e.clientX, e.clientY])}
+          onPointerUp={(e) => {
+            const at = downAt.current
+            downAt.current = null
+            if (e.pointerType !== 'mouse' && at && Math.hypot(e.clientX - at[0], e.clientY - at[1]) > 10) return
+            pin(e.pointerType === 'mouse' && hovered.current && alive(market.flow, hovered.current) ? hovered.current : under(e))
+          }}
           className="peer relative cursor-crosshair touch-pan-y touch-pinch-zoom select-none [--g:0px] focus-visible:outline-none @min-[520px]:[--g:124px]"
           style={{ height: HEIGHT }}
         >

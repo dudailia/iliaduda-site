@@ -23,7 +23,7 @@ export default function Nucarbon() {
           figure={false}
           byline={otherWork.find((o) => o.slug === 'nucarbon')!.status}
           level="h1"
-          title="A carbon model for campus AI use, built to be argued with"
+          title={'A carbon model for campus\u00a0AI use, built to be argued with'}
           standfirst={
             <p>
               A modeling and visualization tool for Northeastern&rsquo;s Sustainability

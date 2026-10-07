@@ -329,6 +329,8 @@ export function SettlementLive({
               <span className="text-meta font-mono text-graphite">Can pay per month, ₽</span>
               <input
                 inputMode="numeric"
+                enterKeyHint="done"
+                autoComplete="off"
                 value={typed}
                 onChange={(e) => onTyped(e.currentTarget.value)}
                 placeholder="e.g. 4000"
@@ -514,7 +516,7 @@ export function SettlementLive({
             >
               Reset
             </button>
-            <label className="text-meta ml-1 inline-flex min-h-9 cursor-pointer items-center gap-2 py-1 font-mono text-ink">
+            <label className="text-meta ml-1 inline-flex min-h-9 pointer-coarse:min-h-11 cursor-pointer items-center gap-2 py-1 font-mono text-ink">
               {/* The site's own box, in its tokens (the browser's was a 2.4:1 gray by day and a gray slab by night): a
                   graphite border on paper, ink with a paper tick when checked. */}
               <span className="relative inline-grid size-5 shrink-0">

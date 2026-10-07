@@ -55,6 +55,68 @@ describe('the quality governor', () => {
     expect(Math.max(...seen.slice(-300))).toBeLessThanOrEqual(2)
   })
 
+  it('does not mistake a GPU that holds every heavy frame at 33ms for a 30 Hz clock, once it has seen the display run faster', () => {
+    // A 60 Hz phone: its light frames (the figure before its story) come every 16.7ms; at 2 and 1 its GPU holds frames to
+    // two refreshes, 33.3ms, steady, which alone would read as Low Power Mode's clock; at 0 it draws in 13ms.
+    const g = new Governor(2, 3)
+    for (let i = 0; i < 30; i++) g.observe(1000 / 60)
+    let now = 0
+    const seen: number[] = []
+    while (now < 20000) {
+      const dt = [13, 1000 / 30, 1000 / 30, 1000 / 30][g.q]!
+      // The display's own frames: a 13ms frame shows on the next 60 Hz refresh.
+      const shown = Math.ceil(dt / (1000 / 60)) * (1000 / 60)
+      now += shown
+      g.observe(shown)
+      g.frame(shown / 1000, now)
+      seen.push(g.q)
+    }
+    expect(Math.max(...seen.slice(-300))).toBe(0)
+    expect(g.refresh).toBeLessThan(20)
+  })
+
+  it('still learns a real 30 Hz clock when every frame it sees, light or heavy, is a thirtieth of a second apart', () => {
+    const g = new Governor(2, 3)
+    let now = 0
+    const seen: number[] = []
+    while (now < 20000) {
+      now += 1000 / 30
+      g.observe(1000 / 30)
+      g.frame(1 / 30, now)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen.slice(-300))).toBe(3)
+  })
+
+  it('learns a 30 Hz clock mid-story without stepping down: the signature keeps its effects throughout', () => {
+    const g = new Governor(2, 3)
+    let now = 0
+    const seen: number[] = []
+    // Four seconds of a story held at 30 Hz (an iPhone in Low Power Mode), every frame a thirtieth apart.
+    while (now < 4000) {
+      now += 1000 / 30
+      g.observe(1000 / 30)
+      g.frame(1 / 30, now, true)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBe(2)
+    expect(g.refresh).toBeCloseTo(1000 / 30, 0)
+  })
+
+  it('still steps down mid-story a GPU that holds frames at 33ms on a display seen running at 60 Hz', () => {
+    const g = new Governor(2, 3)
+    for (let i = 0; i < 30; i++) g.observe(1000 / 60)
+    let now = 0
+    const seen: number[] = []
+    while (now < 4000) {
+      now += 1000 / 30
+      g.observe(1000 / 30)
+      g.frame(1 / 30, now, true)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBeLessThan(2)
+  })
+
   it('follows the clock back when it speeds up again (Low Power Mode turned off)', () => {
     const g = new Governor(3, 3)
     const a = run(g, 10, () => 1000 / 30)

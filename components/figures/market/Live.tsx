@@ -1236,7 +1236,7 @@ export function MarketLive({
                     }
                   : {})}
                 data-market-pane=""
-                className="peer relative h-28 overflow-hidden bg-paper focus-visible:outline-none sm:h-52"
+                className="peer relative h-28 overflow-hidden bg-paper select-none focus-visible:outline-none sm:h-52"
                 style={{ touchAction: 'pan-y pinch-zoom' }}
                 onPointerMove={onBookMove}
                 onPointerDown={onBookDown}

@@ -51,8 +51,9 @@ const STAGE_OPTS = { maxQ: { mid: 3 } } as const
 
 type Mod = typeof import('./renderer')
 const noop = () => () => {}
-/** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright. */
-const posterVariant = (): 'wide' | 'narrow' => (matchMedia('(width < 40rem) and (orientation: portrait)').matches ? 'narrow' : 'wide')
+/** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright, the short one turned sideways. */
+const posterVariant = (): 'wide' | 'narrow' | 'short' =>
+  matchMedia('(width < 40rem) and (orientation: portrait)').matches ? 'narrow' : matchMedia('(min-width: 40rem) and (max-height: 30rem)').matches ? 'short' : 'wide'
 
 /** The probe's price is set in the width of the widest it reads, "$100.00". */
 const PRICE_CH = 7
@@ -571,7 +572,7 @@ export function OrderBookLive({
             lean.onTap()
             onStillPick(e)
           }}
-          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)] print:h-[26rem]"
+          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] short:h-[calc(88svh-1rem)] lg:h-[clamp(26rem,56svh,36rem)] print:h-[26rem]"
         >
           <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}

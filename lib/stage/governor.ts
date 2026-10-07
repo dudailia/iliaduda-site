@@ -6,7 +6,10 @@
  * A clock slower than any seen yet (an iPhone in Low Power Mode, a laptop saving energy: 30 frames a second, however
  * light the frame) reads as slow frames at first. So a step down is a test: if a second and a half later the frames
  * are no quicker, steady, and at a rate a page's frames come at, the work was not what held them, the clock was. The governor takes that interval as the refresh
- * and goes back to the quality it left, forgiven, rather than falling level by level to its lightest.
+ * and goes back to the quality it left, forgiven, rather than falling level by level to its lightest. Unless the
+ * display has been seen running faster: a 60 Hz phone whose GPU holds every heavy frame at 33ms looks like a 30 Hz
+ * clock, but its light frames (a paused or settled figure, the frames before the story) came every 16.7ms, so the
+ * work held them and the step down stands.
  */
 export class Governor {
   /** The smoothed frame interval, and the display's refresh interval as learned, in ms. */
@@ -22,6 +25,8 @@ export class Governor {
   private jitter = 0
   /** A level to go back to, once the figure stops holding the quality (a clock learned mid-story). */
   private restoreTo: number | null = null
+  /** The shortest interval between two of the page's animation frames seen, light or heavy, in ms: the clock's own. */
+  fastest = Infinity
 
   constructor(
     public q: number,
@@ -32,6 +37,14 @@ export class Governor {
      */
     readonly minQ = 0,
   ) {}
+
+  /**
+   * Any animation frame's interval, in ms, a drawn one or not (an idle frame, a skipped one): the display's clock is at
+   * least this fast. Two callbacks in one frame (under 4ms apart) say nothing about it.
+   */
+  observe(ms: number): void {
+    if (ms >= 4) this.fastest = Math.min(this.fastest, ms)
+  }
 
   /** One drawn frame of `dt` seconds, ending at `now` (ms); `held` keeps it from climbing. Returns whether q changed. */
   frame(dt: number, now: number, held = false): boolean {
@@ -51,11 +64,12 @@ export class Governor {
     }
     // A step down tested: frames no quicker than before it (within 10%), steady (their spread within a fifth of their
     // interval), at a display's own rate, means the clock set their pace, not the work. A 60 Hz display on a device
-    // missing frames does not pass: its frames alternate, 17 and 33ms, about 25ms, which is no display's rate.
+    // missing frames does not pass: its frames alternate, 17 and 33ms, about 25ms, which is no display's rate. Nor does
+    // a display seen giving frames a quarter quicker than these: its clock is faster, and the work held them.
     if (this.probe && now - this.probe.at > 1500) {
       const p = this.probe
       this.probe = null
-      if (this.ema > p.ema * 0.9 && this.jitter < this.ema * 0.2 && isDisplayRate(this.ema)) {
+      if (this.ema > p.ema * 0.9 && this.jitter < this.ema * 0.2 && isDisplayRate(this.ema) && this.fastest > this.ema * 0.75) {
         this.refresh = this.ema
         this.failures[p.from] = Math.max(0, (this.failures[p.from] ?? 1) - 1)
         this.blockedUntil[p.from] = 0
@@ -67,6 +81,14 @@ export class Governor {
         this.q = p.from
         return true
       }
+    }
+    // Mid-story (held), frames steady at a display's own rate on a display never seen faster are a clock's: learned at
+    // once, with no step down to test it, so the signature's effects never change mid-moment (Low Power Mode stepped
+    // every figure down 0.3–1.3s into its story, and back up after it).
+    if (this.slow > 1 && held && !this.probe && this.jitter < this.ema * 0.2 && isDisplayRate(this.ema) && this.fastest > this.ema * 0.75) {
+      this.refresh = this.ema
+      this.slow = this.fast = 0
+      return false
     }
     // Hysteresis: a level the device has just failed to hold is off limits for 30s, doubling each time it fails
     // again, so a marginal phone does not climb and fall every four seconds.

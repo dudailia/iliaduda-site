@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+/* A phone turned sideways: wide enough for two columns, too short for a figure and its controls one above the other. */
+@custom-variant short (@media (min-width: 40rem) and (max-height: 30rem));
+/* A phone held upright whose screen is under 600px tall (an iPhone SE, 548px under Safari's bars). */
+@custom-variant low (@media (max-height: 37.5rem) and (orientation: portrait));
+
 /* ---------------------------------------------------------------------------
    Palette — six values, and one rule that gives them meaning.
 
@@ -119,7 +124,9 @@
     text-rendering: optimizeLegibility;
   }
 
-  @media (min-width: 48rem) {
+  /* The text column's own size from 40rem: an iPad held upright (744) and a phone turned sideways (667–863) set 17px
+     across a 600–700px column, 75–83 characters a line; at 19px it is the measure's ~68. */
+  @media (min-width: 40rem) {
     body {
       font-size: var(--text-body);
       line-height: 1.62;
@@ -144,16 +151,35 @@
 
   p,
   li,
-  figcaption {
+  figcaption,
+  aside,
+  dd {
     text-wrap: pretty;
   }
 
   /* iOS paints its own grey rectangle on a tapped control, over the control's own press (and its corners); the
-     controls and the Contents' thumbnails have feedback of their own. Text links keep it: they have no other. */
+     controls and the Contents' thumbnails have feedback of their own. (Tailwind's base takes the highlight off
+     everywhere, links too: they press as below.) */
   button,
   [role='radio'],
   [data-vt-thumb] {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* A tap is taken at once: no wait to see whether it was the first of a double tap's zoom (pinching still zooms). A
+     long press on a control never selects its label. */
+  a,
+  button,
+  label,
+  summary,
+  [role='radio'],
+  input[type='range'] {
+    touch-action: manipulation;
+  }
+  button,
+  [role='radio'] {
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   /* Links — ink with a graphite-mixed underline going to ink on hover (focus
@@ -178,6 +204,14 @@
     a:hover {
       text-decoration-color: var(--color-ink);
     }
+  }
+  /* Pressed, a link answers at once, under any pointer: its line goes to ink and its box (a finger's 44px, where it has
+     one) takes the rule's tone. A thumbnail presses as its own. */
+  a:not([data-vt-thumb]):active {
+    text-decoration-color: var(--color-ink);
+    background-color: color-mix(in oklab, var(--color-rule) 55%, transparent);
+    border-radius: 2px;
+    transition: none;
   }
 
   :focus-visible {
@@ -616,6 +650,28 @@
   [data-market-views] {
     --h: calc(100svh - 7rem);
   }
+  /* A phone turned sideways: stacked in the right column the book and the futures were 55–68px strips (two titles and
+     two axes took half of it). Side by side, as on a phone held upright, each is the column's height less one title
+     (three lines kept for the book's reading, as there) and one axis. */
+  [data-market-views] > [data-market-lower] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.75rem;
+  }
+  [data-market-views] > [data-market-lower] > div > p {
+    min-height: 3lh;
+  }
+  /* Less the title (three 13px lines at 1.45 and its 0.375rem margin) and the axis (one line and 0.25rem over it). */
+  [data-market-views] [data-market-pane] {
+    height: calc(var(--h) - 5.35rem);
+  }
+}
+/* An iPad turned sideways (a touch screen at the laptop's layout, 673px tall): the laptop's clamp left the three views at
+   its 240px floor and the book and futures 68px strips. A touch screen has no browser chrome to leave room for under
+   the title, so the views take the screen less the page's head and the story's line: 384px on an iPad mini. */
+@media (min-width: 64rem) and (pointer: coarse) {
+  [data-market-views] {
+    --h: clamp(15rem, calc(100svh - 18rem), 24rem);
+  }
 }
 /* On paper as on a laptop: stacked, the three views took a sheet and a half and were cut between the surface and the
    other two; side by side they take half of one. */
@@ -797,6 +853,13 @@
       border: 1px solid var(--color-rule);
     }
   }
+  /* A phone turned sideways (a touch screen 48–64rem wide) reads the sheet at 15px, a phone's reading size, not the
+     printed page's 13.5px; its lines then break where they fall, not where the PDF's do. Print is untouched. */
+  @media screen and (min-width: 48rem) and (max-width: 63.99rem) and (pointer: coarse) {
+    .cv {
+      font-size: 15px;
+    }
+  }
 
   .cv p,
   .cv li,
@@ -892,6 +955,16 @@
       display: inline-block;
       padding: 0.4em 0;
       min-height: 1.5rem;
+    }
+    /* Under a finger, 44px: its line and the rest above and below (a wrapped row's links stand 44px apart). */
+    @media (pointer: coarse) {
+      .cv-contact a {
+        padding-block: calc((44px - 1lh) / 2);
+      }
+      /* A paper's name, inline at the head of its entry: its padding reaches 44px without moving a line. */
+      .cv-stack strong a {
+        padding-block: calc((44px - 1lh) / 2);
+      }
     }
   }
 

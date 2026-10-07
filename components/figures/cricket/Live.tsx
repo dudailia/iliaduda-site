@@ -373,7 +373,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             ))}
           </div>
           <div
-            className="relative aspect-[5/3] min-w-0 flex-1 cursor-ew-resize [container-type:size] sm:aspect-[16/7] [@media(max-height:30rem)]:aspect-[16/5]"
+            className="relative aspect-[5/3] min-w-0 flex-1 cursor-ew-resize select-none [container-type:size] sm:aspect-[16/7] [@media(max-height:30rem)]:aspect-[16/5]"
             // A finger scrolls the page up and down over the chart; sideways, it moves along the match.
             style={{ touchAction: 'pan-y pinch-zoom' }}
             onPointerDown={onPlotDown}

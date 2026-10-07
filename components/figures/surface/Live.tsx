@@ -665,7 +665,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           }}
           // The narration and the Skew note want the same corner: while it speaks, the notes wait (globals.css).
           data-narrating={onStage ? '' : undefined}
-          className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
+          className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] short:max-w-[calc((100svh-6rem)*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
         >
           <div data-surface-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
@@ -784,7 +784,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
       {/* The slider first: it is there in every mode, so the buttons a live figure adds arrive after it, moving nothing. */}
       <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3 pointer-coarse:gap-y-3.5">
-        <label className="text-meta flex items-center gap-3 font-mono text-graphite">
+        {/* On a phone the slider takes the row (the buttons wrap under it anyway): at 128px, 30 steps were 3.7px apart. */}
+        <label className="text-meta flex items-center gap-3 font-mono text-graphite max-sm:w-full">
           {/* The reader's own shock: while the story plays its shock, this one still reads 0.00×, and says whose it is. */}
           <span>Your shock</span>
           <input
@@ -796,7 +797,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             value={shock}
             onChange={(e) => onShock(Number(e.target.value))}
             aria-valuetext={shock < 0.025 ? 'calm' : `${shock.toFixed(2)} times a full shock; 1-month at-the-money volatility ${peakAtm}%`}
-            className="h-6 w-32 sm:w-40 pointer-coarse:-my-2.5 pointer-coarse:h-11"
+            className="h-6 w-32 max-sm:min-w-0 max-sm:flex-1 sm:w-40 pointer-coarse:-my-2.5 pointer-coarse:h-11"
             style={rangeFill(shock, 0, SIZE_MAX)}
           />
           {/* The mark at 1: the size of the story's own shock. */}
@@ -908,7 +909,7 @@ function Margin({
       {/* The Greeks, one step away: the margin leads with what the figure shows. */}
       {/* Closed, it would print a summary with nothing under it. */}
       <details className={`text-meta font-mono print:hidden ${across ? '' : 'mt-2 lg:text-right'}`}>
-        <summary onClick={glideDetails} className="cursor-pointer py-1 text-graphite marker:text-graphite hover:text-ink">
+        <summary onClick={glideDetails} className="cursor-pointer py-1 pointer-coarse:py-[calc((44px-1lh)/2)] text-graphite marker:text-graphite hover:text-ink">
           Greeks at the point
         </summary>
         <dl className={`${dl} mt-2 ${across ? 'border-t-0 pt-0' : ''}`}>
