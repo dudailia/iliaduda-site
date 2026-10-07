@@ -79,7 +79,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'membrane',
     href: '/membrane',
-    title: 'The vibrating drum: Fourier–Bessel series on a circular membrane',
+    // "Fourier–Bessel series" and "circular membrane" held together: phones split the name or left "membrane" alone.
+    title: 'The vibrating drum: Fourier–Bessel\u00a0series on a circular\u00a0membrane',
     abstract:
       'A drum that rings in exactly the Fourier–Bessel modes the reader keeps, released from the initial shapes of a directed study’s exercises (MATH 4992, Spring 2026). Its Bessel functions and their zeros are computed in the page with no library and agree with SciPy’s to within a trillionth, and its coefficients match the exercises’ to four places.',
     standfirst:
@@ -108,7 +109,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'order-book',
     href: '/order-book',
-    title: 'Order flow that remembers: a Hawkes-driven limit order book',
+    // "a Hawkes-driven" held together: balanced, the heading ended a line on "a" on every phone and the iPad.
+    title: 'Order flow that remembers: a\u00a0Hawkes-driven limit order book',
     standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig.\u00a02 shows what set off any one.`,
     abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
     dek: 'A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser and drawn as terrain: read the odds of what set off any market order.',

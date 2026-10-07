@@ -55,7 +55,7 @@ const dollars = (x: number) => `$${x.toFixed(2)}`
 
 type Mode = 'server' | 'cpu' | 'gpu'
 type Seq = 'off' | 'pending' | 'playing' | 'done'
-type Declined = 'software' | 'targets' | 'load' | 'error' | 'lost' | null
+type Declined = 'software' | 'targets' | 'load' | 'error' | 'lost' | 'slow' | null
 interface Shown {
   /** The option a live estimate is for (absent: the one on screen, as the server's and the CPU's are). */
   for?: { sigma: number; strike: number }
@@ -257,7 +257,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       // Whatever becomes of it — a failed load, a shader that will not link, a
       // renderer that throws — the reader is left with the finished picture,
       // never an empty frame waiting on a figure that will not come.
-      const fail = (why: 'targets' | 'load' | 'error') => {
+      const fail = (why: 'targets' | 'load' | 'error' | 'slow') => {
         if (gone || broken) return
         broken = true
         setDeclined(why)
@@ -298,10 +298,19 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           }
         })
         .catch(() => fail('load'))
+      // At its lightest and still under 13 frames a second for six seconds (a phone whose GPU cannot draw it, measured at
+      // 3–5), the figure gives way to its still frame, as it does where WebGL runs in software: a picture that crawls
+      // reads worse than the finished one, and costs the phone its battery.
+      let crawl = 0
       const wrap: Renderer = {
         frame: (t, dt) => {
           if (broken) return null
           if (!real) return false
+          crawl = quality === 0 && dt >= 0.075 ? crawl + dt : 0
+          if (crawl > 6) {
+            fail('slow')
+            return null
+          }
           try {
             return real.frame(t, dt)
           } catch {
@@ -643,7 +652,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
     drag.current = null
-    if (d.moved) return
+    // A tap sets the strike; a swipe that was neither a drag nor a scroll (a diagonal the browser kept) sets nothing.
+    if (d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return
     const k = kAt(e.clientX, e.clientY)
     renderer.current?.preview(null)
     if (k != null && k !== strike) commit(sigma, k, true)
@@ -768,6 +778,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           ? 'Still frame: this browser cannot render to a target the live figure needs.'
           : declined === 'lost'
             ? 'Still frame: the graphics context was lost.'
+            : declined === 'slow'
+              ? 'Still frame: this device could not draw the live figure smoothly.'
             : declined === 'load' || declined === 'error'
               ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
               : !eligible
@@ -915,6 +927,10 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         }
         table={tableView}
       >
+        {/* A phone turned sideways sets the controls and the readouts beside the stage, not under it: one above the other
+            they ran 581–604px on a 326–352px screen, and a slider moved the stage out of sight. */}
+        <div className="short:grid short:grid-cols-[minmax(0,1fr)_13.5rem] short:items-start short:gap-x-6">
+        <div>
         <div
           ref={box}
           data-sigma-server={MODEL.sigma}
@@ -961,32 +977,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           </span>
         </p>
 
-        {/* A phone gets the margin's numbers too, in pairs: the estimate against the formula, how far apart they are
-            and on how many paths (what the caption says the readouts show), and the machine. */}
-        <dl className="text-meta mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono lg:hidden">
-          <div className="min-w-0">
-            <dt className="text-graphite">Simulated ± 2 SE</dt>
-            <dd className="tabular text-indigo">{mc}</dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-graphite">Black–Scholes</dt>
-            <dd className="tabular text-ink">{exact.toFixed(4)}</dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-graphite">Gap to the formula</dt>
-            <dd className="tabular text-ink">{gapText}</dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
-            <dd className="tabular text-ink">{paths}</dd>
-          </div>
-          <div className="col-span-2 min-w-0">
-            <dt className="text-graphite">{speedLabel}</dt>
-            <dd className="tabular text-ink">{speed}</dd>
-          </div>
-        </dl>
-
-        <div className="mt-4 grid grid-cols-2 gap-x-6">
+        </div>
+        <div>
+        <div className="mt-4 grid grid-cols-2 gap-x-6 short:mt-0 short:grid-cols-1 short:gap-y-2">
           <label className="block">
             <span className="text-meta font-mono text-graphite">
               Volatility{' '}
@@ -1059,6 +1052,34 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               Reset
             </button>
           )}
+        </div>
+        {/* A phone gets the margin's numbers too, in pairs: the estimate against the formula, how far apart they are
+            and on how many paths (what the caption says the readouts show), and the machine. Under the controls, so a
+            slider and the stage it moves share a phone's screen (between them they ran 733–794px). */}
+        <dl className="text-meta mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono short:grid-cols-1 lg:hidden">
+          <div className="min-w-0">
+            <dt className="text-graphite">Simulated ± 2 SE</dt>
+            <dd className="tabular text-indigo">{mc}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">Black–Scholes</dt>
+            <dd className="tabular text-ink">{exact.toFixed(4)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">Gap to the formula</dt>
+            <dd className="tabular text-ink">{gapText}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
+            <dd className="tabular text-ink">{paths}</dd>
+          </div>
+          <div className="col-span-2 min-w-0">
+            <dt className="text-graphite">{speedLabel}</dt>
+            <dd className="tabular text-ink">{speed}</dd>
+          </div>
+        </dl>
+
+        </div>
         </div>
         <p className="sr-only" aria-live="polite">
           {spoken}

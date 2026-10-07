@@ -26,9 +26,24 @@ const FIGURES: readonly { route: string; fig: string; p75?: number; median?: num
   { route: '/membrane', fig: '#fig-membrane', p75: 2.4, median: 2.0 },
 ]
 
+// The phones and the small tablet the site is checked on, at their own densities, the browser's bars taken out of the
+// viewport as they are on the device: the fractional Android ratios (2.625, 2.8125) are the ones a canvas sized by
+// rounding gets wrong. Landscape where a figure is framed by the screen's height: the shortest phone and an Android.
+const phone = { isMobile: true, hasTouch: true } as const
 const SCREENS = [
   { name: 'a 2× laptop', viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, isMobile: false, hasTouch: false },
-  { name: 'a 3× phone', viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
+  { name: 'a 3× phone', viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, ...phone },
+  { name: 'an iPhone SE (2×)', viewport: { width: 375, height: 548 }, deviceScaleFactor: 2, ...phone },
+  { name: 'an iPhone 15 (3×)', viewport: { width: 393, height: 659 }, deviceScaleFactor: 3, ...phone },
+  { name: 'an iPhone 17 (3×)', viewport: { width: 402, height: 681 }, deviceScaleFactor: 3, ...phone },
+  { name: 'an iPhone Pro Max (3×, 430)', viewport: { width: 430, height: 739 }, deviceScaleFactor: 3, ...phone },
+  { name: 'an iPhone Pro Max (3×, 440)', viewport: { width: 440, height: 763 }, deviceScaleFactor: 3, ...phone },
+  { name: 'a Pixel 8 (2.625×)', viewport: { width: 412, height: 839 }, deviceScaleFactor: 2.625, ...phone },
+  { name: 'a Galaxy S24 (3×)', viewport: { width: 360, height: 780 }, deviceScaleFactor: 3, ...phone },
+  { name: 'a Galaxy S24 at 384 (2.8125×)', viewport: { width: 384, height: 832 }, deviceScaleFactor: 2.8125, ...phone },
+  { name: 'an iPad mini (2×)', viewport: { width: 744, height: 1062 }, deviceScaleFactor: 2, ...phone },
+  { name: 'an iPhone SE in landscape (2×)', viewport: { width: 667, height: 326 }, deviceScaleFactor: 2, ...phone },
+  { name: 'a Pixel 8 in landscape (2.625×)', viewport: { width: 863, height: 360 }, deviceScaleFactor: 2.625, ...phone },
 ] as const
 
 /** Each isolated line's edge rise (10→90% of its depth) along vertical profiles of a luminance image, in pixels. */
@@ -128,6 +143,58 @@ for (const screen of SCREENS) {
         expect(median, 'median edge rise, device pixels').toBeGreaterThan(0.6)
         expect(median, 'median edge rise, device pixels').toBeLessThanOrEqual(most)
         if (tail) expect(p75, 'edge rise, 75th percentile, device pixels').toBeLessThanOrEqual(tail)
+      })
+    }
+  })
+}
+
+/**
+ * Every canvas on every page (the Contents' minis, the 2D panes, the stills) and every raster image, on the phones'
+ * three densities: a canvas's backing store is its CSS box at the screen's density, and a photograph's chosen source
+ * has at least as many pixels as the box shows. Vector images (SVG) are sharp at any density and are not counted.
+ */
+const DENSITIES = [
+  { name: 'a 3× iPhone', viewport: { width: 393, height: 659 }, deviceScaleFactor: 3 },
+  { name: 'a 2.625× Pixel', viewport: { width: 412, height: 839 }, deviceScaleFactor: 2.625 },
+  { name: 'a 2.8125× Galaxy', viewport: { width: 384, height: 832 }, deviceScaleFactor: 2.8125 },
+  { name: 'a 3× phone in landscape', viewport: { width: 734, height: 343 }, deviceScaleFactor: 3 },
+] as const
+
+for (const screen of DENSITIES) {
+  test.describe(`every canvas and photograph on ${screen.name}`, () => {
+    test.use({ viewport: screen.viewport, deviceScaleFactor: screen.deviceScaleFactor, isMobile: true, hasTouch: true, colorScheme: 'light' })
+    for (const route of ['/', '/market', '/order-book', '/iv-surface', '/membrane', '/about', '/cricstate', '/closebooks']) {
+      test(`${route}: at the screen's own pixels`, async ({ page }, info) => {
+        test.skip(info.project.name !== 'desktop', 'one run: the screens are set here')
+        test.setTimeout(90_000)
+        await page.goto(route)
+        // Down the page a screen at a time, so each figure scrolls into view and starts.
+        const height = await page.evaluate(() => document.documentElement.scrollHeight)
+        for (let y = 0; y < height; y += screen.viewport.height * 0.8) {
+          await page.evaluate((top) => window.scrollTo(0, top), y)
+          await page.waitForTimeout(350)
+        }
+        await page.waitForTimeout(1500)
+        const off = await page.evaluate(async () => {
+          const out: string[] = []
+          for (const c of document.querySelectorAll('canvas')) {
+            const r = c.getBoundingClientRect()
+            if (!r.width || !r.height || Number(getComputedStyle(c).opacity) === 0 || !c.width) continue
+            const w = r.width * devicePixelRatio, h = r.height * devicePixelRatio
+            if (Math.abs(c.width - w) > 1 || Math.abs(c.height - h) > 1) out.push(`canvas ${c.closest('[id]')?.id ?? '?'} ${c.width}×${c.height} for ${w.toFixed(1)}×${h.toFixed(1)}`)
+          }
+          for (const img of document.querySelectorAll('img')) {
+            const r = img.getBoundingClientRect()
+            if (!r.width || !img.naturalWidth || /\.svg(\?|$)/.test(img.currentSrc)) continue
+            // naturalWidth is the srcset's density-corrected width (the `sizes` slot): the file's own pixels, decoded.
+            const file = new Image()
+            file.src = img.currentSrc
+            await file.decode()
+            if (file.naturalWidth < r.width * devicePixelRatio - 1) out.push(`img ${img.currentSrc.split('/').pop()} ${file.naturalWidth}w for ${(r.width * devicePixelRatio).toFixed(0)} device px`)
+          }
+          return out
+        })
+        expect(off, 'drawn below the screen’s density').toEqual([])
       })
     }
   })

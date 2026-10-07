@@ -2,7 +2,7 @@ import { otherWork, visiblePapers } from '@/content/papers'
 
 const CURRENT = `document.currentScript.closest('footer').querySelectorAll('nav a[href]').forEach(function(a){if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page')})`
 import { AVAILABILITY, SITE } from '@/lib/site'
-import { Row, Shell, Whole } from './Layout'
+import { Row, Shell, TAP, Whole } from './Layout'
 import { ContactLinks } from './Masthead'
 
 /**
@@ -27,17 +27,18 @@ export function Footer() {
         <Row rail="Papers">
           <nav aria-label="Papers">
             {/* Down each column, in Contents order: row by row, the order zig-zagged. */}
-            <ul className="text-note grid gap-y-1.5 sm:block sm:columns-2 sm:gap-x-8 sm:[&>li]:mb-1.5 sm:[&>li]:break-inside-avoid">
+            {/* Under a finger the links are 44px lines stacked on each other, so the gaps go. */}
+            <ul className="text-note grid gap-y-1.5 sm:block sm:columns-2 sm:gap-x-8 sm:[&>li]:mb-1.5 sm:[&>li]:break-inside-avoid pointer-coarse:gap-y-0 sm:pointer-coarse:[&>li]:mb-0">
               {papers.map((p) => (
                 <li key={p.href}>
-                  <a href={p.href} className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
+                  <a href={p.href} className={`inline-block py-1 ${TAP} [text-wrap:balance] aria-[current=page]:text-ink aria-[current=page]:no-underline`}>
                     <Whole text={p.title} />
                   </a>
                 </li>
               ))}
               {otherWork.map((o) => (
                 <li key={o.href}>
-                  <a href={o.href} className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
+                  <a href={o.href} className={`inline-block py-1 ${TAP} aria-[current=page]:text-ink aria-[current=page]:no-underline`}>
                     {o.name}
                   </a>
                 </li>
@@ -48,19 +49,20 @@ export function Footer() {
         <div className="h-6" />
         <Row rail="Pages">
           <nav aria-label="Pages">
-            <ul className="text-note flex flex-wrap gap-x-5 gap-y-1.5">
+            <ul className="text-note flex flex-wrap gap-x-5 gap-y-1.5 pointer-coarse:gap-y-0">
               <li>
-                <a href="/#contents" className="inline-block py-1">
+                <a href="/#contents" className={`inline-block py-1 ${TAP}`}>
                   Contents
                 </a>
               </li>
               <li>
-                <a href="/about" className="inline-block py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
+                <a href="/about" className={`inline-block py-1 ${TAP} aria-[current=page]:text-ink aria-[current=page]:no-underline`}>
                   About
                 </a>
               </li>
               <li>
-                <a href="/cv" className="-mx-1 inline-block px-1 py-1 aria-[current=page]:text-ink aria-[current=page]:no-underline">
+                {/* Two letters, 29px wide: under a finger its target reaches 8px further each side, into the row's 20px gap. */}
+                <a href="/cv" className={`-mx-1 inline-block px-1 py-1 ${TAP} relative pointer-coarse:after:absolute pointer-coarse:after:inset-y-0 pointer-coarse:after:-inset-x-2 pointer-coarse:after:content-[''] aria-[current=page]:text-ink aria-[current=page]:no-underline`}>
                   CV
                 </a>
               </li>

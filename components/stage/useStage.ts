@@ -226,6 +226,7 @@ export function useStage(
         return
       }
       if (!t0) t0 = now
+      if (last) gov.observe(now - last)
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60
       last = now
       const drawn = renderer.frame((now - t0) / 1000, dt)

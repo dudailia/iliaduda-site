@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { CONTROL, option } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
@@ -192,7 +192,16 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         : null
 
   const rows = [
-    { label: 'Initial shape', value: shape.formula },
+    // Each clause whole ("f = 2 sin 2θ," then "g = 0"): at 360px the line broke inside the last, leaving "0" alone.
+    {
+      label: 'Initial shape',
+      value: shape.formula.split(', ').map((c, i, all) => (
+        <Fragment key={i}>
+          <span className="whitespace-nowrap">{i < all.length - 1 ? `${c},` : c}</span>
+          {i < all.length - 1 ? ' ' : null}
+        </Fragment>
+      )),
+    },
     { label: 'Modes kept', value: `${modes}, in Bessel J${e.order}` },
     { label: 'Energy, conserved', value: num(E, 3) },
     { label: 'Error (L², relative)', value: `${(100 * err).toFixed(1)}%` },
@@ -265,13 +274,14 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
       caption={caption}
       table={table}
     >
+      {/* Edge to edge on a phone, as the other Fig. 1s: inside the column the drum stood a third of the screen tall. */}
       <div
         ref={box}
         data-membrane-stage=""
         data-seq={sig.state}
         role="group"
         aria-label={`A circular drum, initial shape ${shape.formula}, in ${modes} modes`}
-        className="relative mx-auto aspect-[1000/620] w-full touch-pan-y sm:max-w-[calc(88svh*1000/620)]"
+        className="relative -mx-6 aspect-[1000/620] w-[calc(100%+3rem)] touch-pan-y touch-pinch-zoom sm:mx-auto sm:w-full sm:max-w-[calc(88svh*1000/620)] short:max-w-[calc(60svh*1000/620)]"
         onPointerMove={lean.onPointerMove}
         onPointerLeave={lean.onPointerLeave}
         onClick={lean.onTap}
@@ -282,7 +292,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={fade(live)} />
       </div>
 
-      <div data-membrane-controls="" className="mt-3 grid gap-y-3">
+      {/* Sideways on a phone the drum takes 60% of the screen and the two groups of shapes stand side by side, so a shape and
+          the drum it sets share the screen. */}
+      <div data-membrane-controls="" className="mt-3 grid gap-y-3 short:grid-cols-2 short:gap-x-6">
         {/* One choice of shape, in two groups: a radio group each, the arrow keys moving within it. */}
         {GROUPS.map((g) => {
           const ids = SHAPES.filter((x) => x.from === g.from)
@@ -291,7 +303,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
               <p id={`membrane-shapes-${g.from}`} className="text-meta font-mono text-graphite">
                 {g.label}
               </p>
-              <div role="radiogroup" aria-labelledby={`membrane-shapes-${g.from}`} className="mt-1 flex flex-wrap gap-2">
+              <div role="radiogroup" aria-labelledby={`membrane-shapes-${g.from}`} className="mt-1 flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
                 {ids.map((x) => (
                   <button key={x.id} {...radio(x.id, ids.map((y) => y.id))} className={option(x.id === shapeId)}>
                     {x.label}
@@ -318,7 +330,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
               setModes(Number(ev.currentTarget.value))
               changedRef.current = true
             }}
-            className="mt-0.5 block h-6 w-full"
+            className="mt-0.5 block h-6 w-full pointer-coarse:-mb-2.5 pointer-coarse:mt-[calc(0.125rem-10px)] pointer-coarse:h-11"
             style={rangeFill(modes, 1, MODES_MAX)}
           />
         </label>

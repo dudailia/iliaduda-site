@@ -2,7 +2,7 @@ import { certifications, education, roles, SKILLS } from '@/content/experience'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 import { AVAILABILITY, CV_PHONE, PERSON, RESUME, SITE, rolesInWords } from '@/lib/site'
-import { Whole } from '@/components/Layout'
+import { TAP, Whole } from '@/components/Layout'
 
 export const metadata = pageMeta(
   '/cv',
@@ -65,7 +65,7 @@ export default function Cv() {
       <p className="text-meta mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-graphite print:hidden">
         <span>One page · prints to Letter or A4</span>
         {/* Opened, not downloaded: on a phone a download files it away unseen; the reader can save it from the viewer. */}
-        <a href={RESUME.pdf} className="inline-block py-2.5 text-ink">
+        <a href={RESUME.pdf} className={`inline-block py-2.5 ${TAP} text-ink`}>
           Open the PDF
         </a>
       </p>

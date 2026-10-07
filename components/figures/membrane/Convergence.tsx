@@ -131,14 +131,14 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
       </p>
 
       <div className="mt-3 grid gap-y-3">
-        <div role="radiogroup" aria-label="Profile" className="flex flex-wrap gap-2">
+        <div role="radiogroup" aria-label="Profile" className="flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
           {PROFILES.map((x) => (
             <button key={x.id} {...profileRadio(x.id, pids)} className={option(x.id === pid)}>
               {x.label}
             </button>
           ))}
         </div>
-        <div role="radiogroup" aria-label="Expanded in" className="flex flex-wrap gap-2">
+        <div role="radiogroup" aria-label="Expanded in" className="flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
           {([0, 1] as const).map((n) => (
             <button key={n} {...orderRadio(n, [0, 1])} className={option(order === n)}>
               {`J${n}`}
@@ -157,7 +157,7 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
             value={terms}
             aria-valuetext={`${terms} terms`}
             onChange={(ev) => setTerms(Number(ev.currentTarget.value))}
-            className="mt-0.5 block h-6 w-full"
+            className="mt-0.5 block h-6 w-full pointer-coarse:-mb-2.5 pointer-coarse:mt-[calc(0.125rem-10px)] pointer-coarse:h-11"
             style={rangeFill(terms, 1, MODES_MAX)}
           />
         </label>

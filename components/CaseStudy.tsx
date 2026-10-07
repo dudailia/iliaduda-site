@@ -34,9 +34,12 @@ export function CaseStudyTitle({
   const Heading = level
   // At lg the first figure sits 2.5rem under the abstract's rule rather than the 4rem between figures (its own margin,
   // less this block's 1.5rem), so a laptop's first screen shows more of Fig. 1's stage.
+  // A phone turned sideways keeps the phone's title size: at 44px the title took up to 148px of a 326–390px screen. Under
+  // 25rem the size follows the width down to 28px, 8% of it: at 31px a 360px phone left "beyond" and "membrane" alone
+  // on a line and set CloseBooks in five.
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={`${level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'} ${measure}`}>
+      <Heading className={`${level === 'h1' ? 'text-h2 max-[25rem]:text-[clamp(1.75rem,8vw,1.9375rem)] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
         <Whole text={title} />
       </Heading>
       {byline ? (
@@ -114,8 +117,10 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
             <div key={k} className="sm:contents print:mb-2 print:grid! print:grid-cols-[7.5rem_minmax(0,1fr)] print:break-inside-avoid">
               <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5">{k}</dt>
               {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
-                  long address still wraps at 360px. */}
-              <dd className="min-w-0 break-words font-mono [&_a]:py-1">{typeof v === 'string' ? <Items items={v} /> : v}</dd>
+                  long address still wraps at 360px. Under a finger each is a 44px line of its own (inline-block, so a
+                  wrapped list's lines stand 44px apart instead of covering each other; it still wraps, never wider
+                  than the column). */}
+              <dd className="min-w-0 break-words font-mono [&_a]:py-1 pointer-coarse:[&_a]:inline-block pointer-coarse:[&_a]:max-w-full pointer-coarse:[&_a]:py-[calc((44px-1lh)/2)]">{typeof v === 'string' ? <Items items={v} /> : v}</dd>
             </div>
           ))}
         </dl>

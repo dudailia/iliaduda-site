@@ -10,6 +10,13 @@ import { PERSON, SITE } from '@/lib/site'
  * it. Below 64rem the rail collapses and its contents move inline.
  */
 
+/**
+ * A link that stands on its own (a list's, a row's, the running head's) under a finger: its block padding grows to make
+ * a 44px line ((44px − its line) / 2 above and below), so a tap target is never shorter than that. A mouse keeps the
+ * tighter rhythm. Rows of such links stack 44px apart, so one never covers another.
+ */
+export const TAP = 'pointer-coarse:py-[calc((44px-1lh)/2)]'
+
 export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">

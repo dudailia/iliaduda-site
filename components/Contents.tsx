@@ -1,7 +1,7 @@
 import { otherWork, visiblePapers } from '@/content/papers'
 import { roles } from '@/content/experience'
 import { SITE } from '@/lib/site'
-import { Items, Row, Whole } from './Layout'
+import { Items, Row, TAP, Whole } from './Layout'
 import { PaperThumb } from './PaperThumb'
 import { ContentsLive } from './thumbs/ContentsLive'
 
@@ -58,7 +58,8 @@ export function Contents() {
               className="grid grid-cols-1 gap-x-6 border-b border-rule py-6 print:break-inside-avoid [grid-template-areas:'title'_'byline'_'thumb'_'dek'] sm:grid-cols-[minmax(0,1fr)_9rem] sm:grid-rows-[auto_auto_1fr] sm:[grid-template-areas:'title_thumb'_'byline_thumb'_'dek_thumb']"
             >
               <h3 className="text-h3 min-w-0 [grid-area:title]">
-                <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
+                {/* Under a finger an inline title reaches 44px a line by its padding (inline: nothing moves). */}
+                <a href={p.href} className="underline decoration-transparent hover:decoration-ink pointer-coarse:py-[calc((44px-1lh)/2)]">
                   <Whole text={p.title} />
                 </a>
               </h3>
@@ -87,7 +88,7 @@ export function OtherWork() {
         <ul role="list" className="grid list-none border-t border-rule">
           {otherWork.map((o) => (
             <li key={o.slug} className="border-b border-rule py-4 print:break-inside-avoid">
-              <a href={o.href} className="text-body underline decoration-transparent hover:decoration-ink">
+              <a href={o.href} className="text-body underline decoration-transparent hover:decoration-ink pointer-coarse:py-[calc((44px-1lh)/2)]">
                 {o.name}
               </a>
               {/* Title, its meta, then what it is: the order of every entry above it. */}
@@ -143,10 +144,10 @@ export function ExperienceBrief() {
           ))}
         </ul>
         <p className="text-note mt-6 flex flex-wrap gap-x-5">
-          <a href="/about" className="inline-block py-1">
+          <a href="/about" className={`inline-block py-1 ${TAP}`}>
             Every role in full, with education and coursework
           </a>
-          <a href="/cv" className="inline-block py-1">
+          <a href="/cv" className={`inline-block py-1 ${TAP}`}>
             The one-page CV
           </a>
         </p>
