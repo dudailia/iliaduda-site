@@ -257,6 +257,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
       number="Fig. 1"
       title="A circular drum, ringing in the modes its shape is made of."
       subtitle={`Fourier–Bessel series · radius 1 · wave speed 1 · ${modes} mode${modes === 1 ? '' : 's'} · the exercises' shapes`}
+      // Room kept for its longest (two digits, the plural): at 1↔2 and 9↔10 modes the line wrapped and moved the slider
+      // under the reader's thumb.
+      subtitleRoom={`Fourier–Bessel series · radius 1 · wave speed 1 · ${MODES_MAX} modes · the exercises' shapes`}
       rail={
         <>
           {/* Under the figure on a phone, label over value in two columns, so a formula is not broken across lines
@@ -274,6 +277,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
       caption={caption}
       table={table}
     >
+      {/* Sideways on a phone the shapes, the modes and the buttons stand beside the drum, as the home figure's controls do:
+          under it, a shape and the drum it sets never shared a 343px screen. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
       {/* Edge to edge on a phone, as the other Fig. 1s: inside the column the drum stood a third of the screen tall. */}
       <div
         ref={box}
@@ -281,7 +287,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         data-seq={sig.state}
         role="group"
         aria-label={`A circular drum, initial shape ${shape.formula}, in ${modes} modes`}
-        className="relative -mx-6 aspect-[1000/620] w-[calc(100%+3rem)] touch-pan-y touch-pinch-zoom sm:mx-auto sm:w-full sm:max-w-[calc(88svh*1000/620)] short:max-w-[calc(60svh*1000/620)]"
+        className="relative -mx-6 aspect-[1000/620] w-[calc(100%+3rem)] touch-pan-y touch-pinch-zoom sm:mx-auto sm:w-full sm:max-w-[calc(88svh*1000/620)]"
         onPointerMove={lean.onPointerMove}
         onPointerLeave={lean.onPointerLeave}
         onClick={lean.onTap}
@@ -292,9 +298,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={fade(live)} />
       </div>
 
-      {/* Sideways on a phone the drum takes 60% of the screen and the two groups of shapes stand side by side, so a shape and
-          the drum it sets share the screen. */}
-      <div data-membrane-controls="" className="mt-3 grid gap-y-3 short:grid-cols-2 short:gap-x-6">
+      <div data-membrane-controls="" className="mt-3 grid gap-y-3 short:mt-0">
         {/* One choice of shape, in two groups: a radio group each, the arrow keys moving within it. */}
         {GROUPS.map((g) => {
           const ids = SHAPES.filter((x) => x.from === g.from)
@@ -346,6 +350,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
             </>
           ) : null}
         </div>
+      </div>
       </div>
       <DebugSlot title="Membrane, Fig. 1" read={readDebug} />
     </FigureFrame>

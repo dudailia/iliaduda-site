@@ -10,6 +10,11 @@
  * display has been seen running faster: a 60 Hz phone whose GPU holds every heavy frame at 33ms looks like a 30 Hz
  * clock, but its light frames (a paused or settled figure, the frames before the story) came every 16.7ms, so the
  * work held them and the step down stands.
+ *
+ * Both readings are medians, never one interval: Safari stamps a frame when its update starts, so a late frame and the
+ * on-time one after it read 9–24ms apart on a 30 Hz clock, and one such reading (the shortest ever seen, as it was)
+ * said the display ran faster for the rest of the visit: Low Power Mode then stepped every figure to its lightest
+ * mid-story (42 of 45 stories on WebKit).
  */
 export class Governor {
   /** The smoothed frame interval, and the display's refresh interval as learned, in ms. */
@@ -21,12 +26,24 @@ export class Governor {
   private readonly blockedUntil: number[] = []
   /** A step down being tested: the level it left, the frame interval then, and when. */
   private probe: { from: number; ema: number; at: number } | null = null
-  /** How far frames stray from their smoothed interval, smoothed, in ms: a clock's are steady. */
-  private jitter = 0
   /** A level to go back to, once the figure stops holding the quality (a clock learned mid-story). */
   private restoreTo: number | null = null
-  /** The shortest interval between two of the page's animation frames seen, light or heavy, in ms: the clock's own. */
-  fastest = Infinity
+  /** The last intervals after a light frame (one that drew nothing, or nothing costly), ms: the clock's own pace. */
+  private readonly lights: number[] = []
+  /** The last drawn frames' intervals, ms. */
+  private readonly recent: number[] = []
+
+  /** How fast the display's clock runs, as its light frames show it: their median, once there are three. */
+  get fastest(): number {
+    return this.lights.length >= 3 ? median(this.lights) : Infinity
+  }
+
+  /** The drawn frames' interval when they are steady (four in five within 15% of their median), else null. */
+  private steady(): number | null {
+    if (this.recent.length < 10) return null
+    const m = median(this.recent)
+    return this.recent.filter((v) => Math.abs(v - m) <= 0.15 * m).length >= 0.8 * this.recent.length ? m : null
+  }
 
   constructor(
     public q: number,
@@ -39,16 +56,33 @@ export class Governor {
   ) {}
 
   /**
-   * Any animation frame's interval, in ms, a drawn one or not (an idle frame, a skipped one): the display's clock is at
-   * least this fast. Two callbacks in one frame (under 4ms apart) say nothing about it.
+   * The interval after a light frame, in ms (the kit passes only those: what follows a heavy frame says how long the
+   * work took, not how fast the clock runs). Two callbacks in one frame (under 4ms apart) say nothing.
    */
   observe(ms: number): void {
-    if (ms >= 4) this.fastest = Math.min(this.fastest, ms)
+    if (ms < 4) return
+    this.lights.push(ms)
+    if (this.lights.length > 15) this.lights.shift()
+  }
+
+  /**
+   * The clock as the figure's light frames showed it before its first drawn one (the renderer still loading): steady
+   * and at a display's own rate, slower than any seen, it is the refresh from the start. An iPhone in Low Power Mode
+   * then never steps its first story down to test the clock and back (on a visit with no story held, it did).
+   */
+  seed(intervals: readonly number[]): void {
+    if (intervals.length < 6) return
+    const mid = median(intervals)
+    // Steady as the drawn frames are judged: four in five within 15% of their median (Safari's stamps jitter).
+    if (intervals.filter((v) => Math.abs(v - mid) <= 0.15 * mid).length < 0.8 * intervals.length) return
+    if (!isDisplayRate(mid) || mid < this.refresh * 1.15) return
+    this.refresh = this.ema = mid
   }
 
   /** One drawn frame of `dt` seconds, ending at `now` (ms); `held` keeps it from climbing. Returns whether q changed. */
   frame(dt: number, now: number, held = false): boolean {
-    this.jitter = this.jitter * 0.9 + Math.abs(dt * 1000 - this.ema) * 0.1
+    this.recent.push(dt * 1000)
+    if (this.recent.length > 15) this.recent.shift()
     this.ema = this.ema * 0.9 + dt * 1000 * 0.1
     this.refresh = Math.min(this.refresh * 1.0005, this.ema)
     if (this.ema > Math.max(this.refresh * 1.35, 20)) this.slow += dt
@@ -62,15 +96,16 @@ export class Governor {
       this.slow = this.fast = 0
       return true
     }
-    // A step down tested: frames no quicker than before it (within 10%), steady (their spread within a fifth of their
-    // interval), at a display's own rate, means the clock set their pace, not the work. A 60 Hz display on a device
-    // missing frames does not pass: its frames alternate, 17 and 33ms, about 25ms, which is no display's rate. Nor does
+    // A step down tested: frames no quicker than before it (within 10%), steady (four in five within 15% of their median),
+    // at a display's own rate, means the clock set their pace, not the work. A 60 Hz display on a device missing frames
+    // does not pass: its frames alternate, 17 and 33ms, which is not steady. Nor does
     // a display seen giving frames a quarter quicker than these: its clock is faster, and the work held them.
     if (this.probe && now - this.probe.at > 1500) {
       const p = this.probe
       this.probe = null
-      if (this.ema > p.ema * 0.9 && this.jitter < this.ema * 0.2 && isDisplayRate(this.ema) && this.fastest > this.ema * 0.75) {
-        this.refresh = this.ema
+      const st = this.steady()
+      if (this.ema > p.ema * 0.9 && st !== null && isDisplayRate(st) && this.fastest > st * 0.75) {
+        this.refresh = st
         this.failures[p.from] = Math.max(0, (this.failures[p.from] ?? 1) - 1)
         this.blockedUntil[p.from] = 0
         this.slow = this.fast = 0
@@ -85,8 +120,9 @@ export class Governor {
     // Mid-story (held), frames steady at a display's own rate on a display never seen faster are a clock's: learned at
     // once, with no step down to test it, so the signature's effects never change mid-moment (Low Power Mode stepped
     // every figure down 0.3–1.3s into its story, and back up after it).
-    if (this.slow > 1 && held && !this.probe && this.jitter < this.ema * 0.2 && isDisplayRate(this.ema) && this.fastest > this.ema * 0.75) {
-      this.refresh = this.ema
+    const st = this.slow > 1 && held && !this.probe ? this.steady() : null
+    if (st !== null && isDisplayRate(st) && this.fastest > st * 0.75) {
+      this.refresh = st
       this.slow = this.fast = 0
       return false
     }
@@ -116,3 +152,8 @@ export class Governor {
  */
 const RATES = [30, 60, 90, 120, 144, 165, 240]
 export const isDisplayRate = (ms: number) => RATES.some((hz) => Math.abs(ms - 1000 / hz) <= 0.05 * (1000 / hz))
+
+const median = (v: readonly number[]) => {
+  const s = [...v].sort((a, b) => a - b)
+  return s[Math.floor(s.length / 2)]!
+}

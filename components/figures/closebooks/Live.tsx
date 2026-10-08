@@ -159,16 +159,19 @@ export function CategorisationLive({
     0.16,
   )
 
-  // The batch's clock: rows arrive 45ms apart by elapsed time, read each frame, so a busy main thread cannot stretch
-  // the stagger (a chain of timeouts drifted by each one's delay); then the last row settles.
+  // The batch's clock: rows arrive 45ms apart by elapsed time from the batch's start, read each frame, so a busy main
+  // thread cannot stretch the stagger (a chain of timeouts drifted by each one's delay; re-based on each arrival's
+  // frame, it ran ~50ms apart at 60 Hz and 67 at 30). The count runs three past the feed, so the last rows settle 45ms
+  // apart behind the feed as the others did (they waited, then settled in one frame); then the batch is settled.
+  const t0 = useRef(0)
   useEffect(() => {
     if (settled) return
-    const t0 = performance.now() - arrived * STAGGER
+    if (arrived === 0) t0.current = performance.now()
     let raf = 0
     const tick = (now: number) => {
-      const due = Math.min(feed.length, Math.floor((now - t0) / STAGGER))
+      const due = Math.min(feed.length + 3, Math.floor((now - t0.current) / STAGGER))
       if (due > arrived) return setArrived(due)
-      if (arrived >= feed.length && now - t0 >= feed.length * STAGGER + SETTLE + 80) return setSettled(true)
+      if (arrived >= feed.length + 3 && now - t0.current >= (feed.length + 3) * STAGGER + SETTLE + 80) return setSettled(true)
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)

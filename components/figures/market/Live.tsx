@@ -509,6 +509,13 @@ export function MarketLive({
           }
         }
         sg.onFrame()
+        // A click or key in the calm (on a phone, any tap on the page) skips the story: its words run to the shock in
+        // 240ms, so the shock lands now, with them, not where the calm would have ended (it came up to 2.5s later, after
+        // "Running", with no story around it). Without a time, the market drops the one it had scheduled.
+        if (!storyPressed.current && seq.current.started && !seq.current.done && seq.current.skipping()) {
+          storyPressed.current = true
+          marketRef.current?.act('shock')
+        }
         const ph = seq.current.phases()
         // The shock has landed (the market took it at its quantum): the story's is spent.
         if (ph.land > 0) storyPressed.current = true
@@ -1198,8 +1205,8 @@ export function MarketLive({
         </p>
 
         <div data-market-lower="" className="mt-3 grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-4">
-          {/* The book: the last twenty seconds, and the book at now. */}
-          <div className="-mx-6 sm:mx-0">
+          {/* The book: the last twenty seconds, and the book at now. A size container: its axis reads by its own width. */}
+          <div className="@container -mx-6 sm:mx-0">
             {/* On a phone the reading ("6.1 s ago · vol 51.2% · stress 0.32") takes three lines in this pane: both panes'
                 titles keep that room, so a tap moves nothing under them and the two panes stay level. */}
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0" data-market-book-title="">
@@ -1261,9 +1268,10 @@ export function MarketLive({
               <FocusRing />
             </div>
             <div className="text-meta relative mt-1 flex justify-between pr-14 pl-0 font-mono whitespace-nowrap text-graphite" aria-hidden="true">
-              {/* At 360px "ago" would run into "now": there the axis reads "−20 s", a time back from now, not a length. */}
+              {/* In a narrow pane "ago" would run into "now" (a 360px phone; a phone turned sideways, where the pane is
+                  116–140px): there the axis reads "−20 s", a time back from now, not a length. By the pane's width. */}
               <span>
-                <span className="min-[380px]:hidden">−</span>20 s<span className="max-[379px]:hidden"> ago</span>
+                <span className="@min-[11rem]:hidden">−</span>20 s<span className="@max-[11rem]:hidden"> ago</span>
               </span>
               <span>now</span>
             </div>

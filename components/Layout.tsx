@@ -126,9 +126,12 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
       {list.map((it, i) => {
         // Held to its item by a no-break space, inside an inline block, which no engine breaks (WebKit found a break
         // before the middle dot at the no-break space in a nowrap span): a line never starts with the dot. A long item
-        // may wrap, but its last word keeps the dot.
+        // may wrap, but its last two words keep the dot (one word alone on a line read as a stray: "wins ·").
+        // A short item is an inline block, not a nowrap one: it moves to the next line whole, and wraps inside only where
+        // it is wider than the whole column (a phone with a large font setting, 277–320px wide, scrolled sideways).
         const dot = i < list.length - 1 ? '\u00a0·' : ''
-        const cut = it.length > 34 ? it.lastIndexOf(' ') : -1
+        const last = it.lastIndexOf(' ')
+        const cut = it.length > 34 ? (it.lastIndexOf(' ', last - 1) > 0 ? it.lastIndexOf(' ', last - 1) : last) : -1
         return (
           <Fragment key={it}>
             {cut > 0 ? (
@@ -140,7 +143,7 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
                 </span>
               </span>
             ) : (
-              <span className={it.length <= 34 ? 'inline-block whitespace-nowrap' : ''}>
+              <span className={it.length <= 34 ? 'inline-block max-w-full' : ''}>
                 {it}
                 {dot}
               </span>

@@ -333,15 +333,18 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         // dead, and the hand's speed is kept so the release carries it.
         const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
         drag.t = e.timeStamp
+        // The hand's speed smoothed over time (30ms), not per event: a flick throws the same at 30, 60 or 120 pointer
+        // events a second (Low Power Mode, a phone, a ProMotion iPad).
+        const a = 1 - Math.exp(-dtS / 0.03)
         drag.rawYaw -= dx * 0.006
         const yaw = soft.yaw(drag.rawYaw)
-        if (!first) spring.vy = spring.vy * 0.6 + ((yaw - spring.yaw) / dtS) * 0.4
+        if (!first) spring.vy = spring.vy * (1 - a) + ((yaw - spring.yaw) / dtS) * a
         spring.yaw = yaw
         // Touch turns only: a vertical swipe belongs to the page.
         if (e.pointerType !== 'touch') {
           drag.rawPitch += dy * 0.004
           const pitch = soft.pitch(drag.rawPitch)
-          if (!first) spring.vp = spring.vp * 0.6 + ((pitch - spring.pitch) / dtS) * 0.4
+          if (!first) spring.vp = spring.vp * (1 - a) + ((pitch - spring.pitch) / dtS) * a
           spring.pitch = pitch
         }
       }
@@ -378,11 +381,15 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       }
     }
   }
+  // The page took the gesture (a second finger's pinch, an edge swipe): the surface goes home without the hand's last
+  // speed, which would fling it.
   const onCancel = () => {
     drag = null
     canvas.style.cursor = ''
     spring.ty = 0
     spring.tp = 0
+    spring.vy = 0
+    spring.vp = 0
   }
   const onLeave = (e: PointerEvent) => {
     if (e.pointerType === 'mouse' && !drag) {
@@ -638,7 +645,8 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         Math.abs((q === 0 ? 0 : 1) - finishK) > 0.01 ||
         Math.abs(spring.yaw - spring.ty) + Math.abs(spring.pitch - spring.tp) + Math.abs(spring.vy) + Math.abs(spring.vp) > 1e-4 ||
         (!paused && Math.abs(nod.yaw) + Math.abs(nod.pitch) + Math.abs(nod.vy) + Math.abs(nod.vp) > 1e-4) ||
-        Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-5 ||
+        // A phone's tilt is never still: under a thousandth of a radian a second (a fifth of a pixel) the lean is at rest.
+        Math.abs(lean.vy) + Math.abs(lean.vp) > 1e-3 ||
         Math.abs(shock.v) > 1e-5 ||
         Math.abs(hooks.level() - shock.x) > 1e-4 ||
         Math.abs((sim.hover || hooks.pinned() ? 1 : 0) - tagK) > 0.01 ||
@@ -657,11 +665,12 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         !drag &&
         sinking === null &&
         Math.abs(spring.yaw - spring.ty) + Math.abs(spring.pitch - spring.tp) + Math.abs(spring.vy) + Math.abs(spring.vp) < 1e-4 &&
-        Math.abs(lean.vy) + Math.abs(lean.vp) < 1e-5 &&
+        Math.abs(lean.vy) + Math.abs(lean.vp) < 1e-3 &&
         Math.abs(shock.v) < 1e-5 &&
         Math.abs(hooks.level() - shock.x) < 1e-4 &&
         !sim.hover &&
-        !hooks.pinned() &&
+        // A reading pinned by a tap is at rest once its tag has settled: it no longer keeps every frame for the visit.
+        Math.abs((hooks.pinned() ? 1 : 0) - tagK) < 0.01 &&
         flash <= 0
       // Paused, or with the sway stilled by a reading (a resting pointer on a point): only a change is drawn. The reading
       // drew the same picture 120 times a second; a pointer that moves marks the sheet dirty.

@@ -38,6 +38,16 @@ describe('the tilt lean', () => {
     expect(Math.abs(q.y)).toBeLessThan(0.05)
   })
 
+  it('holds still in landscape while the phone is rolled toward upright about its long side (gimbal lock)', () => {
+    const l = new Lean()
+    l.read(10, 40, 90)
+    const before = l.read(22, 45, 90)
+    expect(Math.abs(before.x)).toBeGreaterThan(0.3)
+    // Rolled to gamma 75, beta swings for a small turn: the lean holds the last reading rather than lurch.
+    expect(l.read(-60, 75, 90)).toEqual(before)
+    expect(l.read(70, -78, 270)).toEqual(before)
+  })
+
   it('settles into a new grip held for a while', () => {
     const l = new Lean()
     l.read(40, 5, 0)

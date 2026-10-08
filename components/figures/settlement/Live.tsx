@@ -544,12 +544,13 @@ export function SettlementLive({
               // The count beside its squares, not at the far end of the row. On a phone the label and count columns are
               // as wide as "24 hours" and "16/16", so the thirty-day row fits a 312px column.
               return (
-                <div key={w.key} className="grid grid-cols-[4.25rem_auto_2.5rem] items-center sm:grid-cols-[5.5rem_auto_3rem] justify-start gap-3">
+                <div key={w.key} className="grid grid-cols-[4.25rem_minmax(0,1fr)_2.5rem] items-center sm:grid-cols-[5.5rem_auto_3rem] justify-start gap-3">
                   <span className="text-meta font-mono text-graphite">{w.label}</span>
-                  {/* One row at any width: on a phone the thirty-day meter's sixteen boxes are a little smaller. */}
+                  {/* One row at any width: on a phone the thirty-day meter's sixteen boxes are a little smaller, and under
+                      22rem (a phone with a large font setting) smaller still, so the row fits its column. */}
                   <span className="flex gap-0.5 sm:flex-wrap sm:gap-1" aria-hidden>
                     {Array.from({ length: w.cap }, (_, k) => (
-                      <span key={k} className={`size-[9px] shrink-0 border sm:size-3 ${k < n ? 'border-indigo bg-indigo' : 'border-rule'} transition-colors duration-150 ease-out`} />
+                      <span key={k} className={`size-[9px] shrink-0 border max-[22rem]:size-[6px] sm:size-3 ${k < n ? 'border-indigo bg-indigo' : 'border-rule'} transition-colors duration-150 ease-out`} />
                     ))}
                   </span>
                   <span className="text-meta tabular text-right text-ink">

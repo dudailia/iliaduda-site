@@ -73,8 +73,9 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
       hint="Pick a profile, the Bessel function to expand it in, and how many terms to keep."
       caption={caption}
     >
-      {/* Axis labels in HTML, at the site's label size whatever the figure's width. */}
-      <div className="relative">
+      {/* Axis labels in HTML, at the site's label size whatever the figure's width. Sideways on a phone the plot is half
+          the screen tall (full width it was 83% of it, and its profile and terms never shared the screen with it). */}
+      <div className="relative short:mx-auto short:max-w-[calc(50svh*1000/420)]">
         <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-labelledby="fig-convergence-svg-title" aria-describedby="fig-convergence-svg-desc">
           <title id="fig-convergence-svg-title">{`${p.formula}, and its series in J${order} to ${terms} terms`}</title>
           <desc id="fig-convergence-svg-desc">{`The profile ${p.formula} on 0 to 1, with its Fourier–Bessel series in J${order} kept to ${terms} terms; the error in the mean is ${pct(model.err)} of the profile. Every term is zero at r = 1.`}</desc>

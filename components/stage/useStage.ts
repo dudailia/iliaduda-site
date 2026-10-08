@@ -208,6 +208,13 @@ export function useStage(
 
     let skip = false
     let calmFor = 0
+    /** The light frames' intervals before the first drawn one, ms: the display's clock, for the governor. */
+    const light: number[] = []
+    /** The last frame drew nothing (or nothing costly): the next interval is the clock's. */
+    let prevLight = true
+    /** The drawn frames' smoothed interval, ms, and how long it has crawled at the lightest quality, ms. */
+    let crawlEma = 1000 / 60
+    let crawlFor = 0
     let heldUntil = 0
     // Leaving the page, the loop stops: the way back to the Contents takes the old page's picture after pageswap, and
     // a live canvas drawing on into it was caught blank about half the time (a paused one, drawing nothing, never was).
@@ -222,19 +229,45 @@ export function useStage(
       const halve = gov.refresh < 12 && calmFor > 12
       skip = halve && !skip
       if (skip) {
+        // The interval across a skipped frame spans two of the display's: it says nothing about the clock.
+        prevLight = false
         raf = requestAnimationFrame(tick)
         return
       }
       if (!t0) t0 = now
-      if (last) gov.observe(now - last)
+      // The interval after a light frame (nothing drawn, or skipped) is the clock's; after a heavy one, the work's.
+      if (last && prevLight) gov.observe(now - last)
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60
+      const raw = last ? now - last : 0
       last = now
       const drawn = renderer.frame((now - t0) / 1000, dt)
       // A renderer that has broken will not draw again: the loop stops, and the figure's still frame stands.
       if (drawn === null) return
+      // The frames before the first drawn one cost nothing (the renderer is loading): their intervals are the clock's.
+      if (drawn === false && dt > 0 && last && light.length < 12) light.push(dt * 1000)
       if (drawn !== false && !first) {
         first = true
+        gov.seed(light.slice(1))
         setLive(true)
+      }
+      prevLight = drawn === false || drawn === 'idle'
+      // At its lightest and still under 13 frames a second for six seconds of the reader's time (a phone whose GPU cannot
+      // draw it: measured at 2–12), the figure gives way to its still frame, as it does where WebGL runs in software:
+      // a picture that crawls reads worse than the finished one, blocks the page's taps and costs the battery. Judged on
+      // the drawn frames' real intervals, smoothed over half a second (one quick frame between slow ones, as a GPU's
+      // pipeline gives, does not start the count again); a gap over half a second is the loop starting again.
+      if (drawn === true && raw > 0 && raw <= 500) {
+        crawlEma += (raw - crawlEma) * (1 - Math.exp(-raw / 500))
+        if (gov.q <= gov.minQ && crawlEma > 1000 / 13) crawlFor += raw
+        else if (crawlEma < 1000 / 15 || gov.q > gov.minQ) crawlFor = 0
+        if (crawlFor > 6000) {
+          renderer.dispose()
+          renderer = null
+          rendererRef.current = null
+          setLive(false)
+          setEligible(false)
+          return
+        }
       }
       // A frame that drew nothing says nothing about what this device can hold: paused, every frame would read as
       // spare time, and the quality would climb to a level Resume then could not hold.
@@ -433,7 +466,9 @@ export function useStage(
       // The figure is no longer live: its poster (or still frame) shows until a renderer draws again.
       setLive(false)
       const lose = gl?.getExtension('WEBGL_lose_context')
-      if (lose) {
+      // A context the browser has already taken (iOS on an app switch, memory pressure) is not given up again: WebKit
+      // logs "loseContext: context already lost" as an error.
+      if (lose && !gl?.isContextLost()) {
         given.set(cv, lose)
         // A context may only be given back if its loss was prevented; the kit's own listener is gone by now.
         cv.addEventListener('webglcontextlost', (e) => e.preventDefault(), { once: true })

@@ -1332,9 +1332,11 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       const why: string[] = []
       if (dirty) why.push('changed')
       if (!(dt > 0)) why.push('redraw')
-      if (timeK > 0) why.push('moving')
+      // Waiting for its story (the stage part-way on screen, before its start), nothing moves: its clocks are held, so
+      // neither the stream nor the sequence is a reason to draw the frame again.
+      if (timeK > 0 && !inSeq()) why.push('moving')
       if (cam === 'flight' || cam === 'return') why.push('flight')
-      if (inSeq()) why.push('sequence')
+      if (seq === 'playing') why.push('sequence')
       if (fadeTo || director.rewinding || fadeMul < 1) why.push('replay')
       if (barsMoving) why.push('bars')
       if (!arrived(focus, 1, 1e-4) || !arrived(edgeK, 0, 1e-4)) why.push('focus')
@@ -1342,9 +1344,10 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       if (!arrived(morph, morphTarget, 1e-5)) why.push('morph')
       drawnFor = why
       const still = why.length === 0
-      // At rest, only the stream and the drift moving, the lean settled: the kit may draw every other frame at 120 Hz.
+      // At rest, only the stream and the drift moving, the lean settled (under a thousandth of a radian a second: a phone's
+      // tilt is never still): the kit may draw every other frame at 120 Hz.
       // Not through Pause's coast or Resume's ramp (timeK on its way): a control's answer is drawn at every frame.
-      calmNow = cam === 'rest' && (timeK === 0 || timeK === 1) && why.every((w) => w === 'moving') && Math.abs(par.x.v) + Math.abs(par.y.v) < 1e-4
+      calmNow = cam === 'rest' && (timeK === 0 || timeK === 1) && why.every((w) => w === 'moving') && Math.abs(par.x.v) + Math.abs(par.y.v) < 1e-3
       if (!still) {
         vp = viewProjection(pose, aspect)
         const ink = writeSlots()
@@ -1393,8 +1396,10 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
       }
       gl.flush()
       report(markedNow)
-      // Paused, with nothing to draw, the frame says so: the governor must not read a still figure as spare time and climb.
-      return still && paused ? 'idle' : true
+      // With nothing to draw (paused, or waiting for its story), the frame says so: the governor must not read a still
+      // figure as spare time and climb.
+      // (Never before its first drawn frame: the kit shows the canvas on the first frame that is not `false`.)
+      return still && draws > 0 ? 'idle' : true
     },
     resize(w, h, cw2, ch2) {
       cw = w
