@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExt
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { CONTROL, option } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
-import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
+import { DECLINED_TEXT, SLOW_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { useRadios, type ChoiceBy } from '@/components/stage/radios'
 import { useLean } from '@/components/stage/useLean'
@@ -131,8 +131,10 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
   }, [])
   // The quality waits until the drum is let go, as the order book's does: a 30 Hz clock stepped it 2 to 0 mid-story.
   const [stageOpts] = useState(() => ({ hold: () => seq.current.started && !seq.current.done }))
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
-  const sig = useSignature('membrane', box, seq, { start: 0.5, hold: 0.3 })
+  const { box, canvas, live, eligible, slow, reduced, fps, quality, tier } = useStage(create, stageOpts)
+  // As the IV surface's and the order book's: at 0.3 held, a tall phone's first screen (35–43% of the stage at its foot)
+  // played the drum's rise under the fold while the reader was still on the title.
+  const sig = useSignature('membrane', box, seq, { start: 0.6, hold: 0.45 })
   useEffect(() => {
     sigRef.current = sig
     stageEl.current = box.current
@@ -189,7 +191,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         ? saveData()
           ? 'Still frame: your browser asks to save data.'
           : supportsWebGL2()
-            ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
+            ? slow
+                  ? SLOW_TEXT
+                  : 'Still frame: the live figure could not start here. Reloading the page may bring it.'
             : 'Still frame: this browser has no WebGL2.'
         : null
 
@@ -357,7 +361,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         <div data-live-buttons="" className="flex min-h-8 gap-2 short:order-[-2]">
           {live ? (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">
+              <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem]`} data-hold="">
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>

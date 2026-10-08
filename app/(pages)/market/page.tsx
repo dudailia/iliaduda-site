@@ -62,7 +62,12 @@ export default function Market() {
             none). They combine as an &ldquo;or&rdquo;,
             {/* Scrolls on its own line where a large font size makes it wider than the column, never the page; padded and
                 clipped top and bottom, so its superscripts never make it a scroller up and down. */}
-            <span className="my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1 text-center whitespace-nowrap">s = 1 − (1 − p)(1 − a)(1 − b)(1 − c),</span>
+            <span className="my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1 text-center">
+              {/* Under 20rem (a large font size) it breaks between its factors, the only place it may. */}
+              <span className="whitespace-nowrap">s = 1 − (1 − p)(1 − a)</span>
+              <wbr />
+              <span className="whitespace-nowrap">(1 − b)(1 − c),</span>
+            </span>
             so any one alone can carry the market to full stress, and the result follows on a {STRESS.halfLife}-second
             half-life. Over ten calm seeds of ten simulated minutes, it averages under 0.05.
           </p>

@@ -89,8 +89,8 @@ export function Poster({
           Payoff × how often it happens
         </Label>
         <Label x={w(LABELS.hist.at)[0]} y={w(LABELS.hist.at)[1]} cls={`${LABELS.value.cls} text-indigo`} fill>
-          <span className="sm:hidden">Call price: ${price.toFixed(2)}</span>
-          <span className="hidden sm:inline">Call price, the average discounted payoff: ${price.toFixed(2)}</span>
+          <span className="sm:hidden short:inline">Call price: ${price.toFixed(2)}</span>
+          <span className="hidden sm:inline short:hidden">Call price, the average discounted payoff: ${price.toFixed(2)}</span>
         </Label>
       </div>
     </>

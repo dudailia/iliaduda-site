@@ -8,6 +8,9 @@ export type Declined = 'lost' | 'load' | 'error'
 /** How long a renderer may take to draw its first frame before the reader is shown the finished still frame. */
 export const FIRST_FRAME_MS = 6000
 
+/** A figure that started, but crawled at its lightest and gave way (components/stage/useStage.ts): the home figure's words. */
+export const SLOW_TEXT = 'Still frame: this device could not draw the live figure smoothly.'
+
 export const DECLINED_TEXT: Record<Declined, string> = {
   lost: 'Still frame: the graphics context was lost.',
   load: 'Still frame: the live figure could not start here. Reloading the page may bring it.',

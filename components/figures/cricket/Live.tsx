@@ -326,7 +326,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
       if (dy > 10 && dy > dx) return void (drag.current = null)
       // More sideways than up or down (the chart is pan-y: a steeper swipe is the page's): at 1.5 to 1, a diagonal
       // between 34° and 45° moved neither.
-      if (dx < 8 || dx < dy) return
+      if (dx < 10 || dx < dy) return
       d.on = true
       e.currentTarget.setPointerCapture(e.pointerId)
     }
@@ -337,7 +337,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     if (d && d.id !== e.pointerId) return
     drag.current = null
     // A tap: the ball under the finger.
-    if (d && d.touch && !d.on && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 8) scrubTo(ballAt(e))
+    if (d && d.touch && !d.on && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 10) scrubTo(ballAt(e))
   }
 
   const valueText = `${batting} ${runs} for ${wkts}, over ${over}.${ball}; probability ${first} wins ${pct(p)}`
@@ -354,6 +354,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
           <Readouts rows={rows} />
         </div>
       }
+      railShort={false}
       caption={caption}
       table={table}
       // Under a finger the hint says what a finger does (the keys it taught are not there).
@@ -368,6 +369,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
         </>
       }
     >
+      {/* Sideways on a phone the readouts stand beside the chart, as the other figures' controls do: under it (the
+          figure's rail, below lg), a reader scrubbing the match never saw the score or what it needed change. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_13.5rem] short:items-start short:gap-x-6">
       <div ref={box} className="relative">
         <div className="flex">
           <div aria-hidden className="text-meta relative w-12 shrink-0 font-mono text-graphite">
@@ -467,7 +471,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             style={rangeFill(at, 0, n - 1)}
           />
         </div>
-        <div className="mt-2 ml-12 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pointer-coarse:gap-y-3.5">
+        {/* Under a finger 9px further from the scrubber: Pause's 44px reached into the slider's own, and took its right
+            quarter's band down to 36px. */}
+        <div className="mt-2 ml-12 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pointer-coarse:mt-[17px] pointer-coarse:gap-y-3.5">
           <p aria-hidden className="text-meta font-mono text-graphite">
             <span className="mr-1 inline-block h-2.5 w-px translate-y-0.5 bg-ink" /> a wicket falls
           </p>
@@ -489,6 +495,16 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
         <p className="sr-only" aria-live="polite">
           {said}
         </p>
+      </div>
+      {/* Each label over its value: beside it, in the narrow column, "New Zealand chasing" took three lines. */}
+      <dl className="text-meta hidden font-mono short:block">
+        {rows.map((r) => (
+          <div key={r.label}>
+            <dt className="text-graphite">{r.label}</dt>
+            <dd className="mb-1.5 text-ink tabular">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
       </div>
     </FigureFrame>
   )

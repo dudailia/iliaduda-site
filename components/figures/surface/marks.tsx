@@ -38,7 +38,7 @@ const ALIGN: Record<string, string> = {
  */
 export function AxisLabel({ text, align, kind, className = '', style, ref, moving = false }: { text: string; align: string; kind: string; className?: string; style?: CSSProperties; ref?: Ref<HTMLSpanElement>; moving?: boolean }) {
   return (
-    <span ref={ref} className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
+    <span ref={ref} data-axis="" className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
       <span
         className={`block font-mono text-meta leading-none whitespace-nowrap ${kind === 'title' ? 'rounded-sm bg-paper/90 px-1 py-0.5 text-ink' : 'text-graphite [text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper)]'}`}
         style={{ transform: ALIGN[align] }}

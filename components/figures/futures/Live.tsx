@@ -955,6 +955,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             they ran 581–604px on a 326–352px screen, and a slider moved the stage out of sight. */}
         <div className="short:grid short:grid-cols-[minmax(0,1fr)_13.5rem] short:items-start short:gap-x-6">
         <div>
+        {/* On a tablet turned sideways (flat) the stage is 404px, not 480: under the masthead only a quarter of it was on
+            the first screen, and the burst played with "Today" under the fold. */}
         <div
           ref={box}
           data-sigma-server={MODEL.sigma}
@@ -962,7 +964,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           data-fps={fps}
           data-quality={quality}
           data-tier={tier ?? ''}
-          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden low:h-[clamp(21rem,62svh,26rem)] sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
+          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden low:h-[clamp(21rem,62svh,26rem)] sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] flat:h-[clamp(24rem,60svh,30rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -1053,10 +1055,10 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2 pointer-coarse:gap-y-3.5">
           {live && (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem] max-sm:min-w-[4.125rem]`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem] max-sm:[--min:4.125rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
-              <button type="button" onClick={toggleFlight} className={`${CONTROL} min-w-[6.75rem] max-sm:min-w-[6.5rem]`}>
+              <button type="button" onClick={toggleFlight} className={`${CONTROL} [--min:6.75rem] max-sm:[--min:6.5rem]`}>
                 {flying ? 'Stop' : 'Fly through'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>

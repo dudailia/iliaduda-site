@@ -68,7 +68,7 @@ export function SettlementLive({
       <>
         {/* In the plot it ran off its left edge and over the lowest payment's label. */}
         {h && before ? (
-          <p aria-hidden {...(shown ? { 'data-hidden-term-line': '' } : {})} className="text-meta mt-1 font-mono text-ink sm:hidden">
+          <p aria-hidden {...(shown ? { 'data-hidden-term-line': '' } : {})} className="text-meta mt-1 font-mono text-ink sm:hidden short:block">
             {`Hollow: ${h.months} months at ${rub(h.s.monthly)}, more a month than ${before.months} months at ${rub(before.s.monthly)}.`}
           </p>
         ) : null}
@@ -82,7 +82,7 @@ export function SettlementLive({
                 {hidden ? (
                   <>
                     {`; ${hidden} hidden (hollow`}
-                    <span className="hidden sm:inline">{hidden > 1 ? ', the first magnified in the corner' : ', magnified in the corner'}</span>
+                    <span className="hidden sm:inline short:hidden">{hidden > 1 ? ', the first magnified in the corner' : ', magnified in the corner'}</span>
                     {'): at a step in the discount ladder a longer term would cost more a month'}
                   </>
                 ) : null}
@@ -336,7 +336,7 @@ export function SettlementLive({
                 placeholder="e.g. 4000"
                 aria-invalid={typedNote.invalid || undefined}
                 aria-describedby="settlement-typed"
-                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite aria-invalid:border-ink aria-invalid:shadow-[inset_0_0_0_1px_var(--color-ink)] pointer-coarse:text-small"
+                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite aria-invalid:border-ink aria-invalid:shadow-[inset_0_0_0_1px_var(--color-ink)] pointer-coarse:min-h-11 pointer-coarse:text-small"
               />
             </label>
             {/* What the amount chose, for the eye at once, under the field it answers (beside the slider it sat under the
@@ -374,7 +374,8 @@ export function SettlementLive({
           </dl>
 
           <div className="min-w-0">
-          {/* Sideways on a phone 144px tall, room still for the hidden term's 7rem inset. */}
+          {/* Sideways on a phone 144px tall; there, as on a phone held upright, the hidden term is said in a line under
+              the plot: its 17×7rem inset covered most of the chart and the labels at its corners. */}
           <div className="relative mt-5 h-36 sm:h-44 short:mt-0 short:h-36 print:break-inside-avoid" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
               <rect x={0} y={0} width={100} height={100} fill="none" stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
@@ -423,7 +424,7 @@ export function SettlementLive({
               const line = win.filter((t) => t.offered).map((t, k) => `${k ? 'L' : 'M'}${wx(t.months).toFixed(2)} ${wy(t.s.monthly).toFixed(2)}`).join('')
               return (
                 <>
-                  <div aria-hidden data-hidden-term="" className="text-meta absolute top-1.5 right-1.5 hidden h-[7rem] w-[17rem] flex-col border border-rule bg-paper px-2 py-1 font-mono sm:flex">
+                  <div aria-hidden data-hidden-term="" className="text-meta absolute top-1.5 right-1.5 hidden h-[7rem] w-[17rem] flex-col border border-rule bg-paper px-2 py-1 font-mono sm:flex short:hidden">
                     <span className="whitespace-nowrap text-ink">{`hidden: ${h.months} months, ${rub(h.s.monthly)}`}</span>
                     <div className="relative min-h-0 flex-1">
                       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">

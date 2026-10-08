@@ -22,7 +22,7 @@ export const rangeFill = (value: number, min: number, max: number): CSSPropertie
  */
 const TAP_PX = 10
 const TAP_MS = 600
-type Down = { id: number; x: number; y: number; t: number; el: HTMLInputElement; value: string; off: boolean; drag: boolean }
+type Down = { id: number; x: number; y: number; t: number; el: HTMLInputElement; value: string; off: boolean; drag: boolean; held: boolean }
 let down: Down | null = null
 
 const bounds = (el: HTMLInputElement) => {
@@ -46,6 +46,12 @@ function put(el: HTMLInputElement, next: string) {
   el.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
+/** Tells the figure the value the browser set while the touch was held, as the browser's own input would have. */
+function flush(el: HTMLInputElement) {
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+  el.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
 /** The value under a finger at `x`, on the input's own steps. */
 function valueAt(el: HTMLInputElement, x: number): string {
   const r = el.getBoundingClientRect()
@@ -65,13 +71,19 @@ function onDown(e: PointerEvent) {
   }
   // A second finger (a pinch) is not the slider's.
   if (down && down.id !== e.pointerId) return
-  down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > TAP_PX, drag: false }
+  // Held: until the touch shows what it is, the browser's own seek is kept from the figure (see onInput).
+  down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > TAP_PX, drag: false, held: true }
 }
 
 function onMove(e: PointerEvent) {
   const d = down
   if (!d || d.id !== e.pointerId) return
   const dx = e.clientX - d.x, dy = e.clientY - d.y
+  // Sideways, it is the slider's: what the browser set while it was held reaches the figure, and so does all that follows.
+  if (d.held && Math.abs(dx) > TAP_PX && Math.abs(dx) > Math.abs(dy)) {
+    d.held = false
+    if (d.el.value !== d.value) flush(d.el)
+  }
   // Plainly sideways from the track, and the browser has not taken it (it moved nothing): the value follows the finger.
   if (!d.drag && d.off && d.el.value === d.value && Math.abs(dx) > TAP_PX && Math.abs(dx) > 1.5 * Math.abs(dy)) d.drag = true
   if (d.drag) put(d.el, valueAt(d.el, e.clientX))
@@ -81,7 +93,13 @@ function onCancel(e: PointerEvent) {
   const d = down
   if (!d || d.id !== e.pointerId) return
   down = null
-  // The page took the touch (a scroll, a pinch): what the browser's seek moved goes back; a drag of our own stays.
+  // The page took the touch (a scroll, a pinch): what the browser's seek moved goes back; a drag of our own stays. Held,
+  // the figure never saw the seek, so nothing redraws at it (on Android a scroll begun on a slider showed the touched
+  // value for up to 290ms, the fan widening and narrowing again).
+  if (d.held && !d.drag) {
+    if (d.el.value !== d.value) Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(d.el, d.value)
+    return
+  }
   if (!d.drag && d.el.value !== d.value) put(d.el, d.value)
 }
 
@@ -89,12 +107,22 @@ function onUp(e: PointerEvent) {
   const d = down
   if (!d || d.id !== e.pointerId) return
   down = null
+  // A tap the browser answered itself (Android seeks on a tap): its value, held till now, reaches the figure.
+  if (d.held && !d.drag && d.el.value !== d.value) return flush(d.el)
   if (d.drag || d.el.value !== d.value || !d.off) return
   if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX || e.timeStamp - d.t > TAP_MS) return
   put(d.el, valueAt(d.el, e.clientX))
 }
 
+/** The browser's own input on a held slider stops here, before the figure (React listens further down the page). */
+function onInput(e: Event) {
+  const d = down
+  if (d && d.held && e.isTrusted && e.target === d.el) e.stopImmediatePropagation()
+}
+
 if (typeof document !== 'undefined') {
+  document.addEventListener('input', onInput, { capture: true })
+  document.addEventListener('change', onInput, { capture: true })
   document.addEventListener('pointerdown', onDown, { passive: true, capture: true })
   document.addEventListener('pointermove', onMove, { passive: true, capture: true })
   document.addEventListener('pointerup', onUp, { passive: true, capture: true })

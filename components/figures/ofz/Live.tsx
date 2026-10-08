@@ -119,7 +119,8 @@ export function OfzLive({
   const move = at > 0 ? (short - shownY(zcy(prev.params, T_MIN))) * 100 : 0
 
   const rows = [
-    { label: 'Trading day', value: day(d.date) },
+    // A date is one item: at a large font size it split as "Tue, 15 / Aug 2023".
+    { label: 'Trading day', value: <span className="whitespace-nowrap">{day(d.date)}</span> },
     // A phone sets 21 July's "7.50%, 8.50% from 24 Jul" on two lines: they are held on every day, so stepping onto it
     // and off it moves nothing under the readouts.
     { label: 'Key rate', value: <span className="block max-sm:min-h-[2lh]">{`${rate.toFixed(2)}%${pending}`}</span> },
@@ -217,8 +218,9 @@ export function OfzLive({
               ))}
             <span
               aria-hidden
-              // On paper, as a label over a plot is: at a phone's width the line's label falls among the bonds.
-              className={`text-meta pointer-events-none absolute right-1.5 rounded-sm bg-paper/85 px-1 font-mono text-ink max-sm:hidden ${
+              // On paper, as a label over a plot is: at a phone's width the line's label falls among the bonds, and in a
+              // sideways phone's flat plot (7:2) under the line it covered the curve from 10 to 20 years.
+              className={`text-meta pointer-events-none absolute right-1.5 rounded-sm bg-paper/85 px-1 font-mono text-ink max-sm:hidden short:hidden ${
                 sy(rate) / H < 0.12 ? 'pt-0.5' : '-translate-y-full pb-0.5'
               }`}
               style={{ top: `${(sy(rate) / H) * 100}%` }}
@@ -229,7 +231,7 @@ export function OfzLive({
                 the curve (four dots under it on 15 August): there it takes the first end and side clear of both. */}
             <span
               aria-hidden
-              className={`text-meta pointer-events-none absolute rounded-sm bg-paper/85 px-1 font-mono text-ink sm:hidden ${
+              className={`text-meta pointer-events-none absolute rounded-sm bg-paper/85 px-1 font-mono text-ink sm:hidden short:block ${
                 phoneKey.left ? 'left-1.5' : 'right-1.5'
               } ${phoneKey.below ? 'pt-0.5' : '-translate-y-full pb-0.5'}`}
               style={{ top: `${(sy(rate) / H) * 100}%` }}

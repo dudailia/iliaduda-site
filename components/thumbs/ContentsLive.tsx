@@ -75,7 +75,7 @@ export function ContentsLive() {
       <button
         type="button"
         onClick={toggle}
-        className={`${CONTROL} min-w-[10.5rem] ${running ? '' : 'invisible'}`}
+        className={`${CONTROL} [--min:10.5rem] ${running ? '' : 'invisible'}`}
         data-contents-pause=""
       >
         {/* Says what it holds: a lone "Pause" under the Contents named nothing a reader could see. */}

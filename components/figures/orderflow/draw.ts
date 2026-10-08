@@ -36,8 +36,9 @@ export function plot(w: number) {
 /** Opacity of the texture (limit orders and cancels) for one, two, and three or more orders in a column. */
 const TEXTURE = [0.18, 0.3, 0.45] as const
 
-export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dpr: number, fr: FlowFrame, cols: number, look: Look, sel: Selected | null) {
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dpr: number, fr: FlowFrame, cols: number, look: Look, sel: Selected | null, k = 1) {
+  // `k`: the strips' height scale (a phone turned sideways draws them at 0.72), across only; the ring is kept round.
+  ctx.setTransform(dpr, 0, 0, dpr * k, 0, 0)
   ctx.clearRect(0, 0, w, h)
   const { x0, pw } = plot(w)
   const cw = pw / cols
@@ -168,9 +169,12 @@ export function drawFlow(ctx: CanvasRenderingContext2D, w: number, h: number, dp
   ctx.lineTo(x, Y.axis + AXIS_H * 0.25)
   ctx.stroke()
   ctx.globalAlpha = 1
+  ctx.save()
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.beginPath()
-  ctx.arc(x, y, 5, 0, Math.PI * 2)
+  ctx.arc(x, y * k, 5, 0, Math.PI * 2)
   ctx.lineWidth = 1.5
   ctx.stroke()
+  ctx.restore()
   ctx.globalAlpha = 1
 }

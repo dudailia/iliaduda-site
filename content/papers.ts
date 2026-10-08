@@ -111,7 +111,7 @@ export const papers: readonly Paper[] = [
     href: '/order-book',
     // "a Hawkes-driven" held together: balanced, the heading ended a line on "a" on every phone and the iPad; and "that
     // remembers:", so that held, "remembers:" never stands alone on a phone's line.
-    title: 'Order flow that\u00a0remembers: a\u00a0Hawkes-driven limit order book',
+    title: 'Order flow that\u00a0remembers: a\u00a0Hawkes-driven limit\u00a0order\u00a0book',
     standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig.\u00a02 shows what set off any one.`,
     abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
     dek: 'A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser and drawn as terrain: read the odds of what set off any market order.',
@@ -158,6 +158,20 @@ export const papers: readonly Paper[] = [
     status: 'published',
   },
 ]
+
+/**
+ * Where a page title breaks first: between these phrases, each of which wraps inside only where it is wider than the
+ * column (a large font size), so no line strands a word or splits a phrase ("portal built / to", "on / a circular
+ * membrane", "beyond / the scoreboard"). Joined by spaces, they are the title exactly (tests/title-phrases.test.ts).
+ */
+export const TITLE_PHRASES: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
+  [
+    ['The vibrating drum:', 'Fourier–Bessel\u00a0series', 'on a circular\u00a0membrane'],
+    ['What ball-by-ball cricket predicts', 'beyond the\u00a0scoreboard'],
+    ['A debt-settlement portal', 'built to\u00a0Russian federal law'],
+    ['A carbon model', 'for campus\u00a0AI\u00a0use,', 'built to be argued with'],
+  ].map((p) => [p.join(' '), p]),
+)
 
 export interface OtherWork {
   readonly slug: string

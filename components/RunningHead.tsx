@@ -33,7 +33,9 @@ export function RunningHead() {
             </span>
           </p>
           <nav aria-label="Site">
-            <ul className="flex flex-wrap justify-end gap-x-4">
+            {/* Under 18.5rem (a 360px phone at a 130% font size) closer and from the left: its four links then share a
+                line, where "Email" stood alone on a third. */}
+            <ul className="flex flex-wrap justify-end gap-x-4 max-[18.5rem]:justify-start max-[18.5rem]:gap-x-3">
               <li>
                 <a href="/#contents" className={`inline-block py-2.5 ${TAP} -mx-1 px-1 focus-visible:outline-offset-[-2px]`}>
                   Contents

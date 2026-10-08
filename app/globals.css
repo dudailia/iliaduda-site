@@ -891,11 +891,11 @@
       font-size: 15px;
     }
   }
-  /* An iPad held upright (40–48rem) reads the phone's layout at 15px across up to 704px, 84–89 characters a line: the
-     sheet keeps to the measure, as the paper's text does. */
+  /* An iPad held upright (40–48rem) reads the phone's layout at 15px: across up to 704px, 84–89 characters a line, and
+     at 40rem still 85. At 35rem, about 72: the sheet keeps to the measure, as the paper's text does. */
   @media screen and (min-width: 40rem) and (max-width: 47.99rem) {
     .cv {
-      max-width: 40rem;
+      max-width: 35rem;
     }
   }
 
@@ -1021,6 +1021,13 @@
   }
   .cv-title {
     white-space: nowrap;
+  }
+  /* On a page under 20rem (a 360px phone at a 130% Android font size, 277px) a role ran past its line and was cut
+     ("Quantitative analyst and enginee"): there it wraps, its dot still hung before it. */
+  @media screen and (max-width: 20rem) {
+    .cv-title {
+      white-space: normal;
+    }
   }
   /* In the flow (the PDF's text keeps its order): drawn back over the gap the note leaves, by its own width. */
   .cv-title::before {

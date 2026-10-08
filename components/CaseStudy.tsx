@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
+import { TITLE_PHRASES } from '@/content/papers'
 import { Items, Row, Whole, keepDashes } from './Layout'
 
 /**
@@ -39,11 +40,24 @@ export function CaseStudyTitle({
   // alone on a line, and a Pro Max "remembers:" and "CloseBooks:" ("Order flow that remembers:" is 407px at 31, 368 at
   // 28, in a 382–392px column). Under 23rem (a 360px Android) 26px, where "on a circular membrane" fits its 312px. A
   // larger Android font size narrows the page in CSS px: at 130% (277px) "Fourier–Bessel series", held whole, was 258px
-  // in a 229px column and the page scrolled sideways, so 22px there, and 19px at 150% (240px, a 192px column).
+  // in a 229px column and the page scrolled sideways. So 23px under 20.5rem (115%, 313px: "A debt-settlement portal"
+  // and "beyond the scoreboard" each on a line), 20px under 18.5rem (130%) and 19px at 150% (240px, a 192px column).
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[23rem]:text-[1.625rem] max-[18.5rem]:text-[1.375rem] max-[16rem]:text-[1.1875rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
-        <Whole text={title} />
+      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[23rem]:text-[1.625rem] max-[20.5rem]:text-[1.4375rem] max-[18.5rem]:text-[1.25rem] max-[16rem]:text-[1.1875rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
+        {TITLE_PHRASES[title] ? (
+          // Each phrase an inline block: the lines break between them, and inside one only where it is wider than the line.
+          TITLE_PHRASES[title].map((p, i) => (
+            <Fragment key={p}>
+              {i ? ' ' : null}
+              <span className="inline-block max-w-full">
+                <Whole text={p} />
+              </span>
+            </Fragment>
+          ))
+        ) : (
+          <Whole text={title} />
+        )}
       </Heading>
       {byline ? (
         <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>
