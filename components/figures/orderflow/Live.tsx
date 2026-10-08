@@ -535,7 +535,8 @@ function Labels() {
       {/* One line where there is room; on a phone two, so none runs off the frame. */}
       <span className={`${text} hidden text-ink @min-[520px]:block @min-[520px]:left-(--g)`} style={top(Y.intensity - 17)}>
         Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off
-        <span className="hidden @min-[600px]:inline"> by earlier orders</span>
+        {/* The long form where it fits: its ~520px past the 124px gutter (an iPhone SE turned sideways, 603px, cut it). */}
+        <span className="hidden @min-[660px]:inline"> by earlier orders</span>
       </span>
       <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-6 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 34)}>
         Market orders a second:

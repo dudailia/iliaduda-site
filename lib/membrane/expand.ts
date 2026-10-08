@@ -123,8 +123,19 @@ export const modeNorm = (n: number, lambda: number) => 0.5 * besselJ(n + 1, lamb
 
 /** The first `count` Fourier–Bessel coefficients of a radial profile in Jₙ(λₙₘ r): ∫ u Jₙ r dr / (½ J²ₙ₊₁). */
 export function profileCoefficients(p: Pick<Profile, 'radial' | 'breaks'> & Partial<Profile>, n: number, count: number): number[] {
-  return besselZeros(n, count).map((lambda) => quad((r) => p.radial(r) * besselJ(n, lambda * r) * r, 0, 1, 16, p.breaks ?? []) / modeNorm(n, lambda))
+  // The mth coefficient does not depend on how many are kept: each profile's are worked out once, as far as asked for,
+  // and a slider's step reads them (it ran ~10,000 Bessel evaluations a step, twice, and dropped the drum's frames).
+  let byOrder = known.get(p)
+  if (!byOrder) known.set(p, (byOrder = new Map()))
+  const c = byOrder.get(n) ?? []
+  if (c.length < count) {
+    const zeros = besselZeros(n, count)
+    for (let m = c.length; m < count; m++) c.push(quad((r) => p.radial(r) * besselJ(n, zeros[m]! * r) * r, 0, 1, 16, p.breaks ?? []) / modeNorm(n, zeros[m]!))
+    byOrder.set(n, c)
+  }
+  return c.slice(0, count)
 }
+const known = new WeakMap<object, Map<number, number[]>>()
 
 /** A drum's solution in its first `count` modes: u = Σ Jₙ(λₘ r) trig(nθ) (Aₘ cos λₘt + Bₘ sin λₘt). */
 export interface Expansion {

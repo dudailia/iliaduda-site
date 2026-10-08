@@ -209,6 +209,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     }
   }, [])
 
+  // The story's end, let go after the frame it ended in (below).
+  const doneQueued = useRef(false)
   // The clocks move only on drawn frames: off screen, nothing is drawn, and
   // the sequence and the flight wait where they were.
   const onTick = useCallback(
@@ -220,10 +222,20 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       f.advance(dtMs)
       if (was && !f.flying) setFlying(false)
       if (armed.current && t.started) {
-        setSeqState(t.done ? 'done' : 'playing')
-        // The story is over: the mark that hid the poster for it goes, as the other figures' do, so a still frame
-        // later (a lost context) shows.
-        if (t.done) delete document.documentElement.dataset.futuresSeq
+        if (!t.done) setSeqState('playing')
+        else if (!doneQueued.current) {
+          // The story is over: the state, and the mark that hid the poster for it (so a still frame later, a lost
+          // context, shows), are let go after this frame, not inside it: in it, the figure's re-render and the root's
+          // style recalculation made one long frame (33–85ms on a mid-range phone) where the swing into depth begins.
+          doneQueued.current = true
+          setTimeout(() => {
+            setSeqState('done')
+            requestAnimationFrame(() => {
+              delete document.documentElement.dataset.futuresSeq
+              doneQueued.current = false
+            })
+          }, 0)
+        }
       }
     },
     [setSeqState],
@@ -300,13 +312,22 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         .catch(() => fail('load'))
       // At its lightest and still under 13 frames a second for six seconds (a phone whose GPU cannot draw it, measured at
       // 3–5), the figure gives way to its still frame, as it does where WebGL runs in software: a picture that crawls
-      // reads worse than the finished one, and costs the phone its battery.
-      let crawl = 0
+      // reads worse than the finished one, and costs the phone its battery. Judged on the frames' real intervals (the
+      // kit's dt stops at a tenth of a second), smoothed over half a second, so a jittery 11–13 fps counts too and one
+      // quick frame does not start the count again; back over 15 fps, it does.
+      let crawl = 0, lastT = -1, ema = 1 / 60
       const wrap: Renderer = {
         frame: (t, dt) => {
           if (broken) return null
           if (!real) return false
-          crawl = quality === 0 && dt >= 0.075 ? crawl + dt : 0
+          const raw = lastT >= 0 && t > lastT ? t - lastT : 1 / 60
+          lastT = t
+          // A gap over half a second is the loop starting again (off screen, a hidden tab, Pause), not a slow frame.
+          if (raw <= 0.5) {
+            ema += (raw - ema) * (1 - Math.exp(-raw / 0.5))
+            if (quality === 0 && ema > 1 / 13) crawl += raw
+            else if (ema < 1 / 15 || quality > 0) crawl = 0
+          }
           if (crawl > 6) {
             fail('slow')
             return null
@@ -664,7 +685,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const d = drag.current
     if (d?.id !== e.pointerId) return
     drag.current = null
-    if (d.moved && d.s !== sigma) commit(d.s, strike)
+    // Not compared with `sigma`: the last move's commit may not have rendered yet when the page takes the gesture (a
+    // pinch's second finger), and the stale value said nothing had changed.
+    if (d.moved) commit(d.s, strike)
   }
   const onLeave = () => {
     renderer.current?.preview(null)
@@ -938,7 +961,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           data-fps={fps}
           data-quality={quality}
           data-tier={tier ?? ''}
-          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
+          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden low:h-[clamp(21rem,62svh,26rem)] sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -979,7 +1002,9 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
 
         </div>
         <div>
-        <div className="mt-4 grid grid-cols-2 gap-x-6 short:mt-0 short:grid-cols-1 short:gap-y-2">
+        {/* One above the other on a phone, each the column's width: side by side each had ~145px of travel for 75 and 100
+            steps, and a lifting thumb moved them a step or three. */}
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 sm:gap-y-0 short:mt-0 short:grid-cols-1 short:gap-y-2">
           <label className="block">
             <span className="text-meta font-mono text-graphite">
               Volatility{' '}
@@ -1073,7 +1098,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
             <dd className="tabular text-ink">{paths}</dd>
           </div>
-          <div className="col-span-2 min-w-0">
+          <div className="col-span-2 min-w-0 short:col-span-1">
             <dt className="text-graphite">{speedLabel}</dt>
             <dd className="tabular text-ink">{speed}</dd>
           </div>

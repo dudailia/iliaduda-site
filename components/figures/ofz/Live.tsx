@@ -155,7 +155,7 @@ export function OfzLive({
               </span>
             ))}
           </div>
-          <div className="relative aspect-[4/3] min-w-0 flex-1 sm:aspect-[16/10] short:aspect-[16/7]">
+          <div className="relative aspect-[4/3] min-w-0 flex-1 sm:aspect-[16/10] short:aspect-[3/1]">
             <svg
               role="img"
               aria-labelledby={`${frame.id}-svg-title`}
@@ -291,7 +291,7 @@ export function OfzLive({
                   // A hairline box: without it the decision days read as axis labels, not as something to press.
                   className={`absolute ${align} rounded-sm border px-1.5 py-1.5 pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-inset-y-[7px] pointer-coarse:before:content-[''] touch-manipulation text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
                     // Chosen as every other option on the site is: ink fill, paper text.
-                    at === m.index ? 'border-ink bg-ink text-paper forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink'
+                    at === m.index ? 'border-ink bg-ink text-paper forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink active:border-ink active:text-ink active:transition-none'
                   }`}
                   style={{ left: end ? `${f * 100}%` : `calc(8px + (100% - 16px) * ${f})` }}
                 >

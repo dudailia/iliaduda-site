@@ -52,6 +52,8 @@ export interface Shared {
   sequence(): { rise: number; river: number; settle: number; labels: number } | null
   /** The reader's lean, −1…1 each way, from the pointer or the tilt (components/stage/useLean.ts). */
   lean(): { x: number; y: number }
+  /** The reader took hold of the figure (a drag began): using it ends its story at once, under a finger as a mouse. */
+  using?(): void
   /** A drawn frame took this long: the signature's clock moves on it. */
   tick(dtMs: number): void
   onFrame(stats: Stats, probe: Reading | null, hovering: boolean): void
@@ -622,6 +624,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         // The first real move takes the terrain where it is (its spring home ran on under a mere press), still.
         if (!drag.live) {
           drag.live = true
+          sh.using?.()
           drag.rawYaw = unsoft(turn.yaw.x, 0.6)
           drag.rawPitch = unsoft(turn.pitch.x, PITCH_MAX)
           turn.yaw.v = turn.pitch.v = 0
@@ -630,15 +633,17 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
         canvas.style.cursor = 'grabbing'
         const dtS = Math.max(1e-3, (e.timeStamp - drag.t) / 1000)
         drag.t = e.timeStamp
+        // The hand's speed smoothed over time (30ms), not per event: the same flick at any pointer rate.
+        const a = 1 - Math.exp(-dtS / 0.03)
         drag.rawYaw -= dx * 0.006
         const yaw = soft.yaw(drag.rawYaw)
-        turn.yaw.v = turn.yaw.v * 0.6 + ((yaw - turn.yaw.x) / dtS) * 0.4
+        turn.yaw.v = turn.yaw.v * (1 - a) + ((yaw - turn.yaw.x) / dtS) * a
         turn.yaw.x = yaw
         // A finger turns it only sideways: a vertical swipe belongs to the page.
         if (!drag.touch) {
           drag.rawPitch += dy * 0.004
           const pitch = soft.pitch(drag.rawPitch)
-          turn.pitch.v = turn.pitch.v * 0.6 + ((pitch - turn.pitch.x) / dtS) * 0.4
+          turn.pitch.v = turn.pitch.v * (1 - a) + ((pitch - turn.pitch.x) / dtS) * a
           turn.pitch.x = pitch
         }
         hover = null
@@ -679,9 +684,11 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     }
     dirty = true
   }
+  // The page took the gesture: the terrain goes home without the hand's last speed.
   const onCancel = () => {
     drag = null
     canvas.style.cursor = ''
+    turn.yaw.v = turn.pitch.v = 0
     dirty = true
   }
   canvas.addEventListener('pointerdown', onDown)
@@ -1028,13 +1035,15 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     const fading = fadeLabels(dt, labelsK)
     settling =
       fading ||
-      Math.abs(lean.yaw.v) + Math.abs(lean.pitch.v) > 1e-5 ||
+      // Under a thousandth of a radian a second (a phone's tilt is never still), the lean is at rest.
+      Math.abs(lean.yaw.v) + Math.abs(lean.pitch.v) > 1e-3 ||
       drag !== null ||
       Math.abs(turn.yaw.x) + Math.abs(turn.pitch.x) + Math.abs(turn.yaw.v) + Math.abs(turn.pitch.v) > 1e-4 ||
       (sh.paused && driftK > 0) ||
       (driftK > 0 && (Math.abs(follow.v) > 1e-4 || Math.abs(target - centre) > 1e-3)) ||
       Math.abs(rowsTarget - rowsF) > 0.01 ||
-      ph !== null ||
+      // A story paused (Pause holds the rise) is not settling: the frame on screen is already right.
+      (ph !== null && !sh.paused) ||
       sinking !== null
     // For the specs and ?debug=1: frames drawn, and the market's simulated clock.
     sh.labels.dataset.draws = String(++draws)
@@ -1068,7 +1077,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
     // Paused, with nothing settling, no new rows, no story and the reader's probe where it was, the frame on screen
     // is already right: draw nothing (the page's still-frame budget; WCAG 2.2.2 holds either way).
     const key = sh.key, chosen = sh.highlight()
-    if (first && sh.paused && !dirty && !settling && key === lastKey && chosen === lastChosen && !sh.sequence() && sim.written === uploaded) {
+    if (first && sh.paused && !dirty && !settling && key === lastKey && chosen === lastChosen && !(sh.sequence() && !sh.paused) && sim.written === uploaded) {
       pending = 0
       return 'idle'
     }

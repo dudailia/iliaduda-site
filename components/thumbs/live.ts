@@ -43,13 +43,18 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
    */
   const drawAt = (l: Live, box: ReturnType<typeof boxOf>, t: number, dt: number) => {
     const dpr = Math.min(3, devicePixelRatio || 1)
-    const ox = ((box.left * dpr) % 1) / dpr, oy = ((box.top * dpr) % 1) / dpr
+    // The fraction to a thousandth of a pixel: compared exactly, a scroll's floating-point noise reset the bitmap (and
+    // its context) on most drawn frames, and wrote the canvas's style each time.
+    const frac = (v: number) => Math.round((((v * dpr) % 1) / dpr) * 1000) / 1000
+    const ox = frac(box.left), oy = frac(box.top)
     const W = Math.ceil((box.width + ox) * dpr), H = Math.ceil((box.height + oy) * dpr)
-    if (l.cv.width !== W || l.cv.height !== H || l.ox !== ox || l.oy !== oy) {
+    if (l.cv.width !== W || l.cv.height !== H) {
       l.cv.width = W
       l.cv.height = H
       l.cv.style.width = `${W / dpr}px`
       l.cv.style.height = `${H / dpr}px`
+    }
+    if (l.ox !== ox || l.oy !== oy) {
       l.cv.style.transform = `translate(${-ox}px, ${-oy}px)`
       l.ox = ox
       l.oy = oy
@@ -177,17 +182,28 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
   }
   const slugOf = (el: Element | null) =>
     el?.closest('[data-vt-contents] li')?.querySelector<HTMLElement>('[data-vt-thumb]')?.dataset.vtThumb?.replace(/^fig-/, '') ?? null
+  /** When a finger last landed on the list: the focus that follows a tap (Android focuses the link) is not a reader's. */
+  let touchedAt = -Infinity
+  const byTouch = () => performance.now() - touchedAt < 1000
+  /** A focus in the list that a tap did not give, and a pointer that really hovers (a touch screen's :hover sticks). */
+  const keyFocus = () => (!byTouch() && list?.contains(document.activeElement) ? document.activeElement : null)
+  const hovered = () => (matchMedia('(hover: hover)').matches ? (list?.querySelector('li:hover') ?? null) : null)
   const onPoint = (e: Event) => {
+    // A finger is not a pointer resting on an entry: its pointerover and pointerleave, which come with every scroll that
+    // starts on the list, handed the turn to the entry under it and back, a hitch in the one moving and a second moving.
+    if (e instanceof PointerEvent && e.pointerType === 'touch') return
+    // Nor is a tap's focus (Android focuses the link a finger lands on).
+    if (e.type === 'focusin' && byTouch()) return
     // Pointed at or focused; the pointer leaving the list, or the focus leaving it, hands back to whatever is still
     // there: the keyboard's focus keeps priority over a pointer gone, and a pointer over the list over focus gone.
-    if (e.type === 'pointerleave') pointed = slugOf(list?.contains(document.activeElement) ? document.activeElement : null)
-    else if (e.type === 'focusout') pointed = slugOf((e as FocusEvent).relatedTarget as Element | null) ?? slugOf(list?.querySelector('li:hover') ?? null)
+    if (e.type === 'pointerleave') pointed = slugOf(keyFocus())
+    else if (e.type === 'focusout') pointed = slugOf((e as FocusEvent).relatedTarget as Element | null) ?? slugOf(hovered())
     else pointed = slugOf(e.target as Element | null)
     choose()
   }
   const list = document.querySelector('[data-vt-contents]')
   // An entry the reader was already at when the miniatures started (focus, or a pointer resting on it).
-  pointed = slugOf(document.activeElement) ?? slugOf(list?.querySelector('li:hover') ?? null)
+  pointed = slugOf(keyFocus()) ?? slugOf(hovered())
 
   const io = new IntersectionObserver(
     (entries) => {
@@ -209,6 +225,10 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
   )
   document.querySelectorAll<HTMLElement>('[data-vt-contents] [data-vt-thumb]').forEach((a) => io.observe(a))
   addEventListener('scroll', onScroll, { passive: true })
+  const onTouch = (e: PointerEvent) => {
+    if (e.pointerType === 'touch') touchedAt = performance.now()
+  }
+  list?.addEventListener('pointerdown', onTouch as EventListener, { passive: true })
   list?.addEventListener('pointerover', onPoint)
   list?.addEventListener('focusin', onPoint)
   list?.addEventListener('pointerleave', onPoint)
@@ -260,8 +280,6 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
   }
   still.addEventListener('change', onStill)
   const scheme = matchMedia('(prefers-color-scheme: dark)')
-  // A new color scheme: every canvas steps back to the thumbnail under it (which follows the page's colors at once)
-  // and crossfades in again on its next frame, drawn in the new palette.
   // A new color scheme: every shown canvas is drawn again at once, where it was (its own time, no time passing), in
   // the new palette, so one held or paused keeps its frame and none shows the old scheme's paper.
   const onScheme = () => {
@@ -270,6 +288,22 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
     run()
   }
   scheme.addEventListener('change', onScheme)
+  // A new size (a phone turned, a window resized): every shown canvas is laid on its thumbnail's new box at once, at its
+  // own time. Held at the old size, a phone's 358px canvases stood over a turned phone's 144px thumbnails, over the text
+  // and past the screen's edge.
+  let resizeQueued = false
+  const onResize = () => {
+    if (resizeQueued) return
+    resizeQueued = true
+    requestAnimationFrame(() => {
+      resizeQueued = false
+      if (gone) return
+      const all = [...live].filter(([, l]) => l.shown).map(([id, l]) => ({ id, l, box: boxOf(l) }))
+      for (const { id, l, box } of all) drawAt(l, box, clock.timeOf(id), 0)
+      choose()
+    })
+  }
+  addEventListener('resize', onResize)
   const stop = () => {
     if (gone) return
     gone = true
@@ -282,6 +316,8 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
     removeEventListener('pageswap', onSwap)
     removeEventListener('pageshow', onShow)
     removeEventListener('scroll', onScroll)
+    removeEventListener('resize', onResize)
+    list?.removeEventListener('pointerdown', onTouch as EventListener)
     list?.removeEventListener('pointerover', onPoint)
     list?.removeEventListener('focusin', onPoint)
     list?.removeEventListener('pointerleave', onPoint)

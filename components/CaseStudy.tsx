@@ -34,12 +34,13 @@ export function CaseStudyTitle({
   const Heading = level
   // At lg the first figure sits 2.5rem under the abstract's rule rather than the 4rem between figures (its own margin,
   // less this block's 1.5rem), so a laptop's first screen shows more of Fig. 1's stage.
-  // A phone turned sideways keeps the phone's title size: at 44px the title took up to 148px of a 326–390px screen. Under
-  // 25rem the size follows the width down to 28px, 8% of it: at 31px a 360px phone left "beyond" and "membrane" alone
-  // on a line and set CloseBooks in five.
+  // A phone turned sideways keeps the phone's title size: at 44px the title took up to 148px of a 326–390px screen. On
+  // every phone held upright (to 28rem, a Pro Max's 440) it is 28px: at 31px a 360px phone left "beyond" and "membrane"
+  // alone on a line, and a Pro Max "remembers:" and "CloseBooks:" ("Order flow that remembers:" is 407px at 31, 368 at
+  // 28, in a 382–392px column). Under 23rem (a 360px Android) 26px, where "on a circular membrane" fits its 312px.
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={`${level === 'h1' ? 'text-h2 max-[25rem]:text-[clamp(1.75rem,8vw,1.9375rem)] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
+      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[23rem]:text-[1.625rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
         <Whole text={title} />
       </Heading>
       {byline ? (

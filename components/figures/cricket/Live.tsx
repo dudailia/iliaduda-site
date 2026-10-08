@@ -297,7 +297,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
 
   // Reading the match by pointer: a mouse drags or clicks along the chart; a finger scrubs once its drag is plainly
   // sideways (a vertical one scrolls the page), and a tap reads the ball under it. The slider stays the keyboard's.
-  const drag = useRef<{ id: number; x: number; y: number; on: boolean; touch: boolean } | null>(null)
+  const drag = useRef<{ id: number; x: number; y: number; on: boolean; touch: boolean; from: number } | null>(null)
   const ballAt = (e: PointerEvent<HTMLDivElement>) => {
     const b = e.currentTarget.getBoundingClientRect()
     return Math.round(Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)) * (n - 1))
@@ -309,8 +309,10 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     setFrac(0)
   }
   const onPlotDown = (e: PointerEvent<HTMLDivElement>) => {
+    // A second finger (a pinch) does not take the scrub from the first.
+    if (drag.current) return
     const touch = e.pointerType === 'touch'
-    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, on: !touch, touch }
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, on: !touch, touch, from: at }
     if (!touch) {
       e.currentTarget.setPointerCapture(e.pointerId)
       scrubTo(ballAt(e))
@@ -330,6 +332,7 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
   }
   const onPlotUp = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current
+    if (d && d.id !== e.pointerId) return
     drag.current = null
     // A tap: the ball under the finger.
     if (d && d.touch && !d.on && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 8) scrubTo(ballAt(e))
@@ -379,7 +382,13 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
             onPointerDown={onPlotDown}
             onPointerMove={onPlotMove}
             onPointerUp={onPlotUp}
-            onPointerCancel={() => (drag.current = null)}
+            // The page took the gesture (a scroll, a pinch): a finger's scrub goes back to the ball it found.
+            onPointerCancel={(e) => {
+              const d = drag.current
+              if (!d || d.id !== e.pointerId) return
+              drag.current = null
+              if (d.touch && d.on) scrubTo(d.from)
+            }}
           >
             <svg
               role="img"

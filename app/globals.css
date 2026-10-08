@@ -177,7 +177,8 @@
     touch-action: manipulation;
   }
   button,
-  [role='radio'] {
+  [role='radio'],
+  label:has(> input[type='range'], input[type='checkbox']) {
     -webkit-user-select: none;
     user-select: none;
   }
@@ -210,7 +211,7 @@
   a:not([data-vt-thumb]):active {
     text-decoration-color: var(--color-ink);
     background-color: color-mix(in oklab, var(--color-rule) 55%, transparent);
-    border-radius: 2px;
+    border-radius: 1px;
     transition: none;
   }
 
@@ -305,6 +306,13 @@
   /* Under a finger the box is 44px, pulled up over the slider's label, and a ring around it ran through the label and
      over the buttons below: there the focus is drawn on the thumb, an ink ring outside its paper one. */
   @media (pointer: coarse) {
+    /* Held under a finger, the thumb answers as the hover's ring does under a mouse. */
+    input[type='range']:active::-webkit-slider-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 6px var(--color-indigo-wash);
+    }
+    input[type='range']:active::-moz-range-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 6px var(--color-indigo-wash);
+    }
     input[type='range']:focus-visible {
       outline: none;
     }
@@ -353,6 +361,9 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* And no waits before them (a control's arrival stagger, a visibility held through a fade): nothing to wait for. */
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }
@@ -853,11 +864,18 @@
       border: 1px solid var(--color-rule);
     }
   }
-  /* A phone turned sideways (a touch screen 48–64rem wide) reads the sheet at 15px, a phone's reading size, not the
-     printed page's 13.5px; its lines then break where they fall, not where the PDF's do. Print is untouched. */
-  @media screen and (min-width: 48rem) and (max-width: 63.99rem) and (pointer: coarse) {
+  /* A touch screen from 48rem (a phone turned sideways, an iPad) reads the sheet at 15px, a phone's reading size, not
+     the printed page's 13.5px; its lines then break where they fall, not where the PDF's do. Print is untouched. */
+  @media screen and (min-width: 48rem) and (pointer: coarse) {
     .cv {
       font-size: 15px;
+    }
+  }
+  /* An iPad held upright (40–48rem) reads the phone's layout at 15px across up to 704px, 84–89 characters a line: the
+     sheet keeps to the measure, as the paper's text does. */
+  @media screen and (min-width: 40rem) and (max-width: 47.99rem) {
+    .cv {
+      max-width: 40rem;
     }
   }
 
@@ -961,9 +979,13 @@
       .cv-contact a {
         padding-block: calc((44px - 1lh) / 2);
       }
-      /* A paper's name, inline at the head of its entry: its padding reaches 44px without moving a line. */
+      /* A paper's name, inline at the head of its entry: its padding reaches 44px without moving a line, over the line
+         after it (which would otherwise cover its lower half). */
+      /* An inline box is its font's content area tall (~1.37em), not its line: (44px − 1.37em) / 2 above and below. */
       .cv-stack strong a {
-        padding-block: calc((44px - 1lh) / 2);
+        padding-block: calc(22px - 0.685em);
+        position: relative;
+        z-index: 1;
       }
     }
   }

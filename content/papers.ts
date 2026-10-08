@@ -109,8 +109,9 @@ export const papers: readonly Paper[] = [
   {
     slug: 'order-book',
     href: '/order-book',
-    // "a Hawkes-driven" held together: balanced, the heading ended a line on "a" on every phone and the iPad.
-    title: 'Order flow that remembers: a\u00a0Hawkes-driven limit order book',
+    // "a Hawkes-driven" held together: balanced, the heading ended a line on "a" on every phone and the iPad; and "that
+    // remembers:", so that held, "remembers:" never stands alone on a phone's line.
+    title: 'Order flow that\u00a0remembers: a\u00a0Hawkes-driven limit order book',
     standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig.\u00a02 shows what set off any one.`,
     abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
     dek: 'A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser and drawn as terrain: read the odds of what set off any market order.',
@@ -121,7 +122,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'iv-surface',
     href: '/iv-surface',
-    title: 'An implied-volatility surface free of static arbitrage',
+    // "of static arbitrage" and "to Russian federal law" (below) held: phones ended a heading's line on "of", "to".
+    title: 'An implied-volatility surface free of\u00a0static arbitrage',
     standfirst: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and the Greeks at any point. It takes a simulated volatility shock and stays free of static arbitrage through every frame; Fig.\u00a02 lets you break the condition.`,
     abstract: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and Black–Scholes Greeks at any point. It takes a simulated volatility shock, the short end lifting and the skew steepening, and stays free of static arbitrage through every frame of it; the tests check Gatheral and Jacquier’s conditions on a dense grid, and Fig.\u00a02 lets you break them.`,
     dek: 'A synthetic SSVI volatility surface in live 3D, with local vol and Black–Scholes Greeks at any point, that takes a shock and stays free of static arbitrage in every frame.',
@@ -147,7 +149,7 @@ export const papers: readonly Paper[] = [
   {
     slug: 'debt-portal',
     href: '/debt-portal',
-    title: 'A debt-settlement portal built to Russian federal law',
+    title: 'A debt-settlement portal built to\u00a0Russian federal law',
     abstract: `A self-service portal where people settle a debt without a phone call, built end to end as sole developer for a licensed Russian collection organization. Federal law set the architecture: personal data stays in the country, and every login code is counted against a legal contact allowance, the conservative reading of an unsettled question; both are enforced in code and at build time.`,
     dek: 'A self-service portal for settling a debt without a phone call, built end to end as sole developer for a licensed Russian collection organization, with federal law enforced in code.',
     description: 'A self-service debt-settlement portal built to Russian federal law: personal data kept in the country, every login code counted against a legal allowance.',

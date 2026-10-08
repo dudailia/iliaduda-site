@@ -64,10 +64,10 @@ describe('the quality governor', () => {
     const seen: number[] = []
     while (now < 20000) {
       const dt = [13, 1000 / 30, 1000 / 30, 1000 / 30][g.q]!
-      // The display's own frames: a 13ms frame shows on the next 60 Hz refresh.
+      // The display's own frames: a 13ms frame shows on the next 60 Hz refresh. (Heavy frames are not observed: the kit
+      // passes the governor only the intervals after light ones.)
       const shown = Math.ceil(dt / (1000 / 60)) * (1000 / 60)
       now += shown
-      g.observe(shown)
       g.frame(shown / 1000, now)
       seen.push(g.q)
     }
@@ -110,11 +110,48 @@ describe('the quality governor', () => {
     const seen: number[] = []
     while (now < 4000) {
       now += 1000 / 30
-      g.observe(1000 / 30)
       g.frame(1 / 30, now, true)
       seen.push(g.q)
     }
     expect(Math.min(...seen)).toBeLessThan(2)
+  })
+
+  it('takes a steady 30 Hz clock seen in the light frames before the first drawn one: no step down to test it', () => {
+    const g = new Governor(2, 3)
+    g.seed(Array(10).fill(1000 / 30))
+    expect(g.refresh).toBeCloseTo(1000 / 30, 1)
+    const { seen } = run(g, 6, () => 1000 / 30)
+    expect(Math.min(...seen)).toBe(2)
+  })
+
+  it('takes no clock from light frames that are uneven, at no display rate, or a 60 Hz one', () => {
+    for (const frames of [[16.7, 33.3, 16.7, 33.3, 16.7, 33.3, 16.7], Array(8).fill(27), Array(8).fill(1000 / 60), Array(3).fill(1000 / 30)]) {
+      const g = new Governor(2, 3)
+      g.seed(frames)
+      expect(g.refresh).toBeCloseTo(16.7, 1)
+    }
+  })
+
+  it("learns Safari's 30 Hz clock through its stamps' jitter: a late frame and the on-time one after it (21ms apart) are not a faster display", () => {
+    // Stamped when each update starts: 33.3ms give or take 3, and every 25th frame late by 12 (45ms, then 21.6).
+    const rnd = (() => {
+      let x = 7
+      return () => ((x = (x * 16807) % 2147483647) / 2147483647 - 0.5) * 6
+    })()
+    const step = (i: number) => (i % 25 === 0 ? 45 : i % 25 === 1 ? 21.6 : 1000 / 30 + rnd())
+    const g = new Governor(2, 3)
+    // Light frames before the story, one of them a 12ms spike.
+    for (let i = 0; i < 8; i++) g.observe(i === 3 ? 12 : step(i))
+    let now = 0
+    const seen: number[] = []
+    for (let i = 0; now < 6000; i++) {
+      const dt = step(i)
+      now += dt
+      g.frame(dt / 1000, now, now < 4500)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBe(2)
+    expect(g.refresh).toBeGreaterThan(30)
   })
 
   it('follows the clock back when it speeds up again (Low Power Mode turned off)', () => {

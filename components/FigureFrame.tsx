@@ -157,7 +157,7 @@ export function Readouts({
       <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4">
         {rows.map((r) => (
           <div key={r.label} className="min-w-0 break-inside-avoid">
-            <dt className="text-graphite">
+            <dt className="text-graphite text-balance">
               <Whole text={r.label} />
             </dt>
             <dd className="tabular text-ink">{r.value}</dd>
@@ -172,7 +172,7 @@ export function Readouts({
     <dl className="text-meta grid grid-cols-1 font-mono max-sm:[&_dd]:mb-1.5 sm:grid-cols-[auto_1fr] sm:gap-x-4 sm:gap-y-1 lg:grid-cols-1 lg:gap-y-px print:break-inside-avoid lg:[&_dd]:mb-2">
       {rows.map((r) => (
         <div key={r.label} className="contents">
-          <dt className="text-graphite">{r.label}</dt>
+          <dt className="text-graphite text-balance">{r.label}</dt>
           <dd className="tabular text-ink">{r.ch && typeof r.value === 'string' ? <Steady text={r.value} ch={r.ch} /> : r.value}</dd>
         </div>
       ))}

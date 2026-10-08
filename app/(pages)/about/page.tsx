@@ -98,12 +98,14 @@ export default function About() {
           className="pt-6 sm:pt-10 lg:pt-16"
           // From sm the portrait stands in the margin; on a phone beside the name instead (portrait component below), so
           // the first screen still ends on the contact links at 360×800 (stacked above the name it cost ~150px).
-          rail={<Portrait className="hidden sm:block" size="h-auto w-[5.5rem] lg:ml-auto lg:w-32" />}
+          // Sideways on a phone the portrait stays beside the name, as on a phone held upright: above it, in the rail's
+          // place, it cost ~120px of a 380px screen and the contact links left the first one.
+          rail={<Portrait className="hidden sm:block short:hidden" size="h-auto w-[5.5rem] lg:ml-auto lg:w-32" />}
         >
           {/* The person, not the word: /about is a landing page from LinkedIn and email (its tab still says About). */}
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-h2 sm:[@media(min-height:30.0625rem)]:text-h1">{PERSON.name}</h1>
-            <Portrait className="shrink-0 sm:hidden" size="h-auto w-14" />
+            <Portrait className="shrink-0 sm:hidden short:block" size="h-auto w-14" />
           </div>
           <div className="mt-5 max-w-[37.9rem]">
             <p>{POSITIONING}</p>
@@ -169,7 +171,7 @@ export default function About() {
               <li key={p.slug}>
                 {/* On paper an entry's title and byline go with its description (A4 left one closing a sheet alone). */}
                 <h3 className="text-body font-semibold tracking-normal print:break-after-avoid">
-                  <a href={p.href} className={TAP}>{p.title}</a>
+                  <a href={p.href} className={`${TAP} relative z-1 pointer-coarse:inline-block`}>{p.title}</a>
                 </h3>
                 <p className="text-meta mt-0.5 font-mono text-graphite print:break-after-avoid">
                   <Items items={p.byline} />
@@ -189,7 +191,7 @@ export default function About() {
               {other.map((o) => (
                 <li key={o.slug}>
                   <h3 className="text-body font-semibold tracking-normal print:break-after-avoid">
-                    <a href={o.href} className={TAP}>{o.name}</a>
+                    <a href={o.href} className={`${TAP} relative z-1 pointer-coarse:inline-block`}>{o.name}</a>
                   </h3>
                   <p className="text-meta mt-0.5 font-mono text-graphite print:break-after-avoid">
                     <Items items={o.status} />

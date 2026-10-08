@@ -647,6 +647,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       caption={caption}
       table={table}
     >
+      {/* Sideways on a phone the words and the controls stand beside the surface, as the home figure's do: under it, the
+          slider and Pause sat below a 360px screen, and the stage's right half stood empty. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
       <div className="relative -mx-6 sm:mx-0">
         <div
           ref={box}
@@ -665,7 +668,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           }}
           // The narration and the Skew note want the same corner: while it speaks, the notes wait (globals.css).
           data-narrating={onStage ? '' : undefined}
-          className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] short:max-w-[calc((100svh-6rem)*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
+          className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
         >
           <div data-surface-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
@@ -771,9 +774,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         <FocusRing />
       </div>
 
+      <div>
       {/* What the shock is doing, in words; the room is kept, so a change never moves the page. Not on paper, where the
           calm poster stands in for the live surface and the story's moment would contradict it. */}
-      <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em] print:hidden" aria-live="off">
+      <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em] short:mt-0 short:min-h-[6em] print:hidden" aria-live="off">
         <span
           key={said}
           className={`block ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
@@ -785,7 +789,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       {/* The slider first: it is there in every mode, so the buttons a live figure adds arrive after it, moving nothing. */}
       <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3 pointer-coarse:gap-y-3.5">
         {/* On a phone the slider takes the row (the buttons wrap under it anyway): at 128px, 30 steps were 3.7px apart. */}
-        <label className="text-meta flex items-center gap-3 font-mono text-graphite max-sm:w-full">
+        <label className="text-meta flex items-center gap-3 font-mono text-graphite max-sm:w-full short:w-full">
           {/* The reader's own shock: while the story plays its shock, this one still reads 0.00×, and says whose it is. */}
           <span>Your shock</span>
           <input
@@ -797,7 +801,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             value={shock}
             onChange={(e) => onShock(Number(e.target.value))}
             aria-valuetext={shock < 0.025 ? 'calm' : `${shock.toFixed(2)} times a full shock; 1-month at-the-money volatility ${peakAtm}%`}
-            className="h-6 w-32 max-sm:min-w-0 max-sm:flex-1 sm:w-40 pointer-coarse:-my-2.5 pointer-coarse:h-11"
+            className="h-6 w-32 max-sm:min-w-0 max-sm:flex-1 sm:w-40 short:w-auto short:min-w-0 short:flex-1 pointer-coarse:-my-2.5 pointer-coarse:h-11"
             style={rangeFill(shock, 0, SIZE_MAX)}
           />
           {/* The mark at 1: the size of the story's own shock. */}
@@ -825,6 +829,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             </>
           ) : null}
         </div>
+      </div>
+      </div>
       </div>
       <p className="sr-only" aria-live="polite">
         {spoken}

@@ -236,6 +236,12 @@ export function createMembrane(env: StageEnv, hooks: Hooks): MembraneRenderer | 
       poked = true
     },
     sink(done) {
+      // A second Replay while the drum is already going down only takes the newer `done`: starting the lowering over
+      // popped the drum back to full height for a frame.
+      if (sinking) {
+        sinking.done = done
+        return
+      }
       sinking = { t: 0, done }
       blend = null
       poked = true
@@ -297,7 +303,8 @@ export function createMembrane(env: StageEnv, hooks: Hooks): MembraneRenderer | 
 
       surface(tb, tModel, rise * lower, pos)
       if (blend) {
-        blend.t += dt
+        // Its first step at most a 60th of a second: the frame that set a new shape carried that work in its dt.
+        blend.t += blend.t === 0 ? Math.min(dt, 1 / 60) : dt
         const k = EASE_OUT(Math.min(1, blend.t / BLEND_S))
         const from = blend.from
         for (let i = 1; i < pos.length; i += 3) pos[i] = from[i]! + (pos[i]! - from[i]!) * k
