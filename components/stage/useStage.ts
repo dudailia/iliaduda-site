@@ -5,6 +5,7 @@ import type { GL } from '@/lib/gl'
 import { Governor } from '@/lib/stage/governor'
 import { deviceTier, type Tier } from '@/lib/tier'
 import { cssColor, onDprChange, saveData, supportsWebGL2, useColorScheme, useReducedMotion, whenIdle } from './env'
+import { DPR_MAX } from '@/lib/stage/dpr'
 
 /**
  * The life cycle every lab hero shares.
@@ -74,12 +75,11 @@ const given = new WeakMap<HTMLCanvasElement, WEBGL_lose_context>()
 
 const MAX_Q: Record<Tier, number> = { software: 0, low: 1, mid: 2, high: 3 }
 /**
- * Resolution is not a quality level. Every stage draws at the screen's own device pixels, a 3× phone's at most (and
+ * Resolution is not a quality level. Every stage draws at the screen's own device pixels (to lib/stage/dpr.ts's cap, and
  * within what its GPU can hold), from its first frame: quality steps trade paths, glow and effects, never sharpness.
  * Tied to the level (1, 1.25, 1.5, 2 device pixels a CSS pixel), every figure opened at 1.5 and drew its whole
  * signature soft, a 3× iPhone never got past 2, and the IV surface stayed at 1.5 on a phone for good.
  */
-const DPR_MAX = 3
 /**
  * The one exception, a last resort: a low-tier device (a coarse pointer with few cores, never an iPhone or a laptop)
  * that cannot hold its frames at the lightest effects gets a level below them, drawn at three-quarters of its pixels.
@@ -106,6 +106,8 @@ export interface Stage {
   live: boolean
   /** Whether this stage will ever go live (false under reduced motion, no WebGL2, save-data). */
   eligible: boolean
+  /** It went live, but crawled at its lightest and gave way to its still frame. */
+  slow: boolean
   reduced: boolean
   /** Current quality level and measured frames per second, for readouts that report what this device does. */
   quality: number
@@ -123,6 +125,7 @@ export function useStage(
   const scheme = useColorScheme()
   const [live, setLive] = useState(false)
   const [eligible, setEligible] = useState(true)
+  const [slow, setSlow] = useState(false)
   const [quality, setQuality] = useState(0)
   const [fps, setFps] = useState(0)
   const [tier, setTier] = useState<Tier | null>(null)
@@ -212,9 +215,11 @@ export function useStage(
     const light: number[] = []
     /** The last frame drew nothing (or nothing costly): the next interval is the clock's. */
     let prevLight = true
-    /** The drawn frames' smoothed interval, ms, and how long it has crawled at the lightest quality, ms. */
-    let crawlEma = 1000 / 60
+    /** When the last drawn frames came (ms, the last second and a half of them), and how long it has crawled, ms. */
+    const drawnAt: number[] = []
     let crawlFor = 0
+    /** The figure's own time, ms from its first frame (snapped to the clock where one is learned). */
+    let clock = 0
     let heldUntil = 0
     // Leaving the page, the loop stops: the way back to the Contents takes the old page's picture after pageswap, and
     // a live canvas drawing on into it was caught blank about half the time (a paused one, drawing nothing, never was).
@@ -237,10 +242,20 @@ export function useStage(
       if (!t0) t0 = now
       // The interval after a light frame (nothing drawn, or skipped) is the clock's; after a heavy one, the work's.
       if (last && prevLight) gov.observe(now - last)
-      const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60
       const raw = last ? now - last : 0
       last = now
-      const drawn = renderer.frame((now - t0) / 1000, dt)
+      // On a slow clock learned steady (Low Power Mode's 30 Hz), the figure's time moves by whole refreshes: Safari
+      // stamps each frame late by its own 0–22ms, and moved by the stamps the motion advanced 0.56 to 1.4 frames' worth
+      // a frame, a judder, while the frames still showed every 33ms. A missed frame still counts as two; the time never
+      // strays two refreshes from the wall clock's. Elsewhere, and across a restart, the stamps as they are.
+      const r = gov.refresh
+      if (!raw || r < 25) clock = now - t0
+      else {
+        clock += r * Math.max(1, Math.round(raw / r))
+        if (Math.abs(clock - (now - t0)) > 2 * r) clock = now - t0
+      }
+      const dt = raw ? Math.min(0.1, (r < 25 ? raw : r * Math.max(1, Math.round(raw / r))) / 1000) : 1 / 60
+      const drawn = renderer.frame(clock / 1000, dt)
       // A renderer that has broken will not draw again: the loop stops, and the figure's still frame stands.
       if (drawn === null) return
       // The frames before the first drawn one cost nothing (the renderer is loading): their intervals are the clock's.
@@ -254,21 +269,33 @@ export function useStage(
       // At its lightest and still under 13 frames a second for six seconds of the reader's time (a phone whose GPU cannot
       // draw it: measured at 2–12), the figure gives way to its still frame, as it does where WebGL runs in software:
       // a picture that crawls reads worse than the finished one, blocks the page's taps and costs the battery. Judged on
-      // the drawn frames' real intervals, smoothed over half a second (one quick frame between slow ones, as a GPU's
-      // pipeline gives, does not start the count again); a gap over half a second is the loop starting again.
+      // the frames drawn in the last second and a half of wall time: a starved GPU gives them in bursts (9ms apart, then
+      // a freeze of 850ms), and smoothed per frame the quick ones read as health while the page stood still; nor is a
+      // slow frame left out (a restart reads as no interval at all). Half a second drawing nothing (paused, at rest)
+      // clears the count: a figure redrawn only as a pointer moves is not crawling (a frame or two drawing nothing between
+      // drawn ones, a renderer waiting on the market's worker, is not rest).
       // The count starts a level above the lightest where the frames take over three of the display's (a GPU starved at
       // every level: falling the levels one by one, the home figure crawled 18 seconds before its still frame stood).
-      if (drawn === true && raw > 0 && raw <= 500) {
-        crawlEma += (raw - crawlEma) * (1 - Math.exp(-raw / 500))
-        const near = gov.q <= gov.minQ || (gov.q <= gov.minQ + 1 && crawlEma > 3 * gov.refresh)
-        if (near && crawlEma > 1000 / 13) crawlFor += raw
-        else if (crawlEma < 1000 / 15 || !near) crawlFor = 0
+      if (drawn !== true) {
+        if (now - (drawnAt.at(-1) ?? -Infinity) > 500) {
+          drawnAt.length = 0
+          crawlFor = 0
+        }
+      } else if (raw > 0) {
+        drawnAt.push(now)
+        while (drawnAt.length && drawnAt[0]! < now - 1500) drawnAt.shift()
+        const span = now - (drawnAt[0] ?? now)
+        const fps = span >= 1000 ? ((drawnAt.length - 1) * 1000) / span : drawnAt.length >= 2 ? Infinity : 0
+        const near = gov.q <= gov.minQ || (gov.q <= gov.minQ + 1 && fps * 3 * gov.refresh < 1000)
+        if (near && fps < 13) crawlFor += Math.min(raw, 2000)
+        else if (fps >= 15 || !near) crawlFor = 0
         if (crawlFor > 6000) {
           renderer.dispose()
           renderer = null
           rendererRef.current = null
           setLive(false)
           setEligible(false)
+          setSlow(true)
           return
         }
       }
@@ -285,7 +312,10 @@ export function useStage(
       // The hold outlasts the story by a second and a half: released on its last frame, the step up it had held back
       // landed there, one long frame where the story ends.
       if (hold.current?.()) heldUntil = now + 1500
-      if (gov.frame(halve ? dt / 2 : dt, now, now < heldUntil)) {
+      // The frame's real length (to a second), not the renderer's dt, which stops at a tenth: at 2 frames a second each
+      // step down took five seconds of the reader's time instead of one.
+      const gdt = raw > 0 ? Math.min(1, raw / 1000) : dt
+      if (gov.frame(halve ? gdt / 2 : gdt, now, now < heldUntil)) {
         const was = q
         q = gov.q
         // A step trades effects only: the canvas keeps its size (no buffers reallocated, no long frame), except into or
@@ -485,7 +515,7 @@ export function useStage(
     rendererRef.current?.setPalette?.(palette(scheme === 'dark'))
   }, [scheme])
 
-  return { box, canvas, live: live && !reduced, eligible: eligible && !reduced, reduced, quality, fps, tier }
+  return { box, canvas, live: live && !reduced, eligible: eligible && !reduced, slow, reduced, quality, fps, tier }
 }
 
 /**

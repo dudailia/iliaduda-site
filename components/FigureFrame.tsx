@@ -27,6 +27,7 @@ export function FigureFrame({
   table,
   vt,
   railBelow = true,
+  railShort = true,
   inline = false,
   span = false,
   breakable = false,
@@ -50,6 +51,8 @@ export function FigureFrame({
   /** Repeat the rail under the figure on narrow screens. Off when the figure
    *  already shows its state inline where a phone reader needs it. */
   railBelow?: boolean
+  /** The rail under the figure on a phone turned sideways too; off where the figure sets it beside its stage there. */
+  railShort?: boolean
   /** Already inside the text column (an entry on /about, not a paper), so the
    *  narrow-screen arrangement holds at every width: number above, readouts
    *  below, nothing in a margin that belongs to someone else. */
@@ -108,7 +111,8 @@ export function FigureFrame({
             {children}
           </div>
           {/* On paper the readouts keep to the figure they read (a few lines; printed a sheet after it, they read nothing). */}
-          {rail && (railBelow || inline) ? <div className={`mt-5 print:break-before-avoid ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
+          {/* Not on a phone turned sideways where the figure sets its readouts beside its stage itself (railShort false). */}
+          {rail && (railBelow || inline) ? <div className={`mt-5 print:break-before-avoid ${wide ? 'lg:hidden' : ''} ${railShort ? '' : 'short:hidden'}`}>{rail}</div> : null}
           {/* A hint written as items (" · ") wraps between them, never inside one or before its dot. */}
           {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite print:hidden">{typeof hint === 'string' ? <Items items={hint} /> : hint}</p> : null}
           <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{keepDashes(caption)}</figcaption>

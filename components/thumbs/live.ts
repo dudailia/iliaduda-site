@@ -3,6 +3,7 @@ import { MiniClock } from '@/lib/minis/clock'
 import { handOff } from '@/lib/minis/handoff'
 import { palette, type Mini, type MiniPalette } from './paint'
 import { MINIS } from './registry'
+import { deviceRatio } from '@/lib/stage/dpr'
 
 /**
  * The Contents' thumbnails come alive: each, once half of it is on screen and the page is idle, loads its paper's
@@ -42,7 +43,7 @@ export function start(paused: boolean, onStop: () => void = () => {}): Minis | n
    * as the SVG under it; the picture is drawn where the SVG's is, inset by the thumbnail's padding and that fraction.
    */
   const drawAt = (l: Live, box: ReturnType<typeof boxOf>, t: number, dt: number) => {
-    const dpr = Math.min(3, devicePixelRatio || 1)
+    const dpr = deviceRatio()
     // The fraction to a thousandth of a pixel: compared exactly, a scroll's floating-point noise reset the bitmap (and
     // its context) on most drawn frames, and wrote the canvas's style each time.
     const frac = (v: number) => Math.round((((v * dpr) % 1) / dpr) * 1000) / 1000

@@ -31,6 +31,8 @@ export class Governor {
   private readonly blockedUntil: number[] = []
   /** A step down being tested: the level it left, the frame interval then, and when. */
   private probe: { from: number; ema: number; at: number } | null = null
+  /** The level a run of steps down began at: where a clock found at the lightest level sends it back. */
+  private chainFrom: number | null = null
   /** A level to go back to, once the figure stops holding the quality (a clock learned mid-story). */
   private restoreTo: number | null = null
   /** The last intervals after a light frame (one that drew nothing, or nothing costly), ms: the clock's own pace. */
@@ -111,11 +113,34 @@ export class Governor {
         this.failures[p.from] = Math.max(0, (this.failures[p.from] ?? 1) - 1)
         this.blockedUntil[p.from] = 0
         this.slow = this.fast = 0
+        this.chainFrom = null
         if (held) {
           this.restoreTo = p.from
           return false
         }
         this.q = p.from
+        return true
+      }
+      // Stepped all the way to its lightest and its frames still no quicker, steady, at a display's rate: no level drew
+      // faster, so the clock set their pace after all, though the display was once seen faster (Low Power Mode turned on
+      // mid-visit, under a figure that draws every frame and so never shows the clock a light one: /market and the order
+      // book sat at their lightest for 45 seconds). A GPU that holds its heavy levels at 33ms draws its lightest quicker,
+      // and stays there.
+      if (this.q <= this.minQ && this.ema > p.ema * 0.9 && st !== null && isDisplayRate(st) && this.chainFrom !== null) {
+        const to = this.chainFrom
+        this.chainFrom = null
+        this.refresh = st
+        this.lights.length = 0
+        for (let l = this.minQ; l <= to; l++) {
+          this.failures[l] = 0
+          this.blockedUntil[l] = 0
+        }
+        this.slow = this.fast = 0
+        if (held) {
+          this.restoreTo = to
+          return false
+        }
+        this.q = to
         return true
       }
     }
@@ -135,11 +160,13 @@ export class Governor {
       this.failures[q] = (this.failures[q] ?? 0) + 1
       this.blockedUntil[q] = now + 30000 * 2 ** (this.failures[q]! - 1)
       this.probe = { from: q, ema: this.ema, at: now }
+      this.chainFrom ??= q
       this.q--
       this.slow = 0
       return true
     }
     if (this.fast > 3 && this.q < this.maxQ && now >= (this.blockedUntil[this.q + 1] ?? 0) && !held) {
+      this.chainFrom = null
       this.q++
       this.fast = 0
       return true

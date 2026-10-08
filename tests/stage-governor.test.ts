@@ -188,6 +188,23 @@ describe('the quality governor', () => {
     expect(seen.at(-1)).toBeLessThan(2)
   })
 
+  it('climbs back within seconds when the clock drops to 30 Hz mid-visit on a figure that draws every frame', () => {
+    // A 60 Hz phone seen running at 60 (its light frames before the first drawn one), then Low Power Mode at 10s: every
+    // level now draws at 33ms, and no level draws quicker. Stepped to its lightest and still no quicker, it was the clock.
+    const g = new Governor(3, 3)
+    for (let i = 0; i < 12; i++) g.observe(1000 / 60)
+    let now = 0
+    const seen: [number, number][] = []
+    while (now < 30000) {
+      const dt = now < 10000 ? 1000 / 60 : 1000 / 30
+      now += dt
+      g.frame(dt / 1000, now)
+      seen.push([now, g.q])
+    }
+    const after = seen.filter(([t]) => t > 20000).map(([, q]) => q)
+    expect(Math.min(...after)).toBe(3)
+  })
+
   it('follows the clock back when it speeds up again (Low Power Mode turned off)', () => {
     const g = new Governor(3, 3)
     const a = run(g, 10, () => 1000 / 30)

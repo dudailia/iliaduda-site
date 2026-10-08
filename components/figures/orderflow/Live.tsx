@@ -12,6 +12,7 @@ import { LANES, LANE_NAMES, LANE_OF, NAMES, SECONDS, causes, flowFrame, pickEven
 import { fmt } from '@/lib/orderbook/read'
 import { market } from '../orderbook/market'
 import { drawFlow, plot, type Look, type Selected } from './draw'
+import { deviceRatio } from '@/lib/stage/dpr'
 
 /**
  * Fig. 2 of /order-book, live: the order flow behind Fig. 1's terrain, on the
@@ -154,12 +155,14 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     const ctx = cv.getContext('2d')
     if (!ctx) return
     const look: Look = { ink: rgb('--color-ink'), paper: rgb('--color-paper'), graphite: rgb('--color-graphite'), rule: rgb('--color-rule'), indigo: rgb('--color-indigo'), wash: rgb('--color-indigo-wash') }
-    let w = 0, dpr = 1, raf = 0, statsAt = -1e9, draws = 0, first = false
+    let w = 0, dpr = 1, k = 1, raf = 0, statsAt = -1e9, draws = 0, first = false
     const size = () => {
       w = st.clientWidth
-      dpr = Math.min(3, window.devicePixelRatio || 1)
+      dpr = deviceRatio()
+      // The stage's scale (short: 0.72), as its CSS height gives it: the strips' geometry is drawn squeezed by it.
+      k = st.clientHeight / HEIGHT || 1
       cv.width = Math.round(w * dpr)
-      cv.height = Math.round(HEIGHT * dpr)
+      cv.height = Math.round(HEIGHT * k * dpr)
     }
     // The last frame's strips: refilled in place each frame, and used as they are until the window moves on a column
     // (a pointer moving over a paused figure redraws the selection, not the window).
@@ -185,7 +188,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         const x = read(f, r)
         sel = { ago: Math.max(0, t1 - x.t), lane: LANE_OF[x.type]!, wake: x.byKind.map((k) => ({ lane: LANE_OF[k.type]!, p: k.p, beta: HAWKES.decay[k.type]! })) }
       }
-      drawFlow(ctx, w, HEIGHT, dpr, fr, cols, look, sel)
+      drawFlow(ctx, w, HEIGHT, dpr, fr, cols, look, sel, k)
       // For the specs and ?debug=1: frames drawn, and the market's simulated clock.
       cv.dataset.draws = String(++draws)
       cv.dataset.simT = f.t.toFixed(3)
@@ -244,7 +247,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     const f = market.flow
     const box = stage.current!.getBoundingClientRect()
     const x = e.clientX - box.left
-    const lane = laneAt(e.clientY - box.top)
+    const lane = laneAt((e.clientY - box.top) * (HEIGHT / box.height))
     const { x0, pw } = plot(box.width)
     if (lane < 0 || x < x0 - 4 || x > x0 + pw + 4) return null
     // Six pixels either side for a mouse; a fingertip is wider, and the strips move under it, so fourteen.
@@ -422,8 +425,10 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
             if (e.pointerType !== 'mouse' && at && Math.hypot(e.clientX - at[0], e.clientY - at[1]) > 10) return
             pin(e.pointerType === 'mouse' && hovered.current && alive(market.flow, hovered.current) ? hovered.current : under(e))
           }}
-          className="peer relative cursor-crosshair touch-pan-y touch-pinch-zoom select-none [--g:0px] focus-visible:outline-none @min-[520px]:[--g:124px]"
-          style={{ height: HEIGHT }}
+          // Sideways on a phone the strips are drawn at 0.72 of their height (309px): at 429 a 326–390px screen never
+          // held them whole, the queues and the time axis under it while the orders were on it. Lanes stay 13px tall.
+          className="peer relative cursor-crosshair touch-pan-y touch-pinch-zoom select-none [--g:0px] [--k:1] focus-visible:outline-none short:[--k:0.72] @min-[520px]:[--g:124px]"
+          style={{ height: `calc(${HEIGHT}px * var(--k))` }}
         >
           <div className="absolute inset-y-0 right-2 left-(--g)" style={underlay(live)} data-orderflow-still="">
             {poster}
@@ -466,7 +471,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
         <div data-orderflow-controls="" className="flex min-h-8 shrink-0 gap-2">
           {/* Figs. 1 and 2 are one market: either Pause stops both, and its name says so (two buttons were both "Pause"). */}
           {live && !reduced && !still ? (
-            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} min-w-[4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
+            <button type="button" onClick={() => market.setPaused(!market.paused)} className={`${CONTROL} [--min:4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
               {paused ? 'Resume' : 'Pause'}
             </button>
           ) : null}
@@ -517,64 +522,65 @@ function Labels() {
   const gutter = `${text} hidden @min-[520px]:block right-[calc(100%-var(--g)+0.5rem)] text-right text-graphite`
   // On a phone the strips run to the screen's edges; their labels keep to the page's gutter.
   const inside = `${text} left-6 rounded-sm bg-paper px-1 py-px text-graphite @min-[520px]:hidden`
-  const top = (y: number) => ({ top: Math.round(y) })
+  // A point of the strips' geometry, drawn at the stage's scale (--k), and the label's own offset from it in pixels.
+  const top = (y: number, dy = 0) => ({ top: `calc(${y}px * var(--k, 1) + ${dy}px)` })
   return (
     // Clipped to the stage: enlarged text (the strips' geometry is the canvas's, in pixels) never widens the page.
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-x-clip">
       {LANE_NAMES.map((name, i) => (
-        <span key={name} className={gutter} style={top(laneTop(i) + LANE_H / 2 - 6.5)}>
+        <span key={name} className={gutter} style={top(laneTop(i) + LANE_H / 2, -6.5)}>
           {name}
         </span>
       ))}
       {LANE_NAMES.map((name, i) => (
-        <span key={`${name}-in`} className={inside} style={top(laneTop(i) + LANE_H / 2 - 7)}>
+        <span key={`${name}-in`} className={inside} style={top(laneTop(i) + LANE_H / 2, -7)}>
           {name}
         </span>
       ))}
 
       {/* One line where there is room; on a phone two, so none runs off the frame. */}
-      <span className={`${text} hidden text-ink @min-[520px]:block @min-[520px]:left-(--g)`} style={top(Y.intensity - 17)}>
+      <span className={`${text} hidden text-ink @min-[520px]:block @min-[520px]:left-(--g)`} style={top(Y.intensity, -17)}>
         Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off
         {/* The long form where it fits: its ~520px past the 124px gutter (an iPhone SE turned sideways, 603px, cut it). */}
         <span className="hidden @min-[660px]:inline"> by earlier orders</span>
       </span>
-      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-6 text-ink @min-[520px]:hidden`} style={top(Y.intensity - 34)}>
+      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-6 text-ink @min-[520px]:hidden`} style={top(Y.intensity, -34)}>
         Market orders a second:
         <br />
         <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off by others
       </span>
-      <span className={gutter} style={top(lamY(0, LAM_MAX / 2) - 6.5)}>
+      <span className={gutter} style={top(lamY(0, LAM_MAX / 2), -6.5)}>
         Buys
       </span>
-      <span className={gutter} style={top(lamY(1, LAM_MAX / 2) - 6.5)}>
+      <span className={gutter} style={top(lamY(1, LAM_MAX / 2), -6.5)}>
         Sells
       </span>
-      <span className={inside} style={top(lamY(0, LAM_MAX * 0.85) - 7)}>
+      <span className={inside} style={top(lamY(0, LAM_MAX * 0.85), -7)}>
         Buys
       </span>
-      <span className={inside} style={top(lamY(1, LAM_MAX * 0.85) - 7)}>
+      <span className={inside} style={top(lamY(1, LAM_MAX * 0.85), -7)}>
         Sells
       </span>
       <div className="absolute right-2 left-(--g) border-t border-graphite/60" style={top(LAM_MID)} />
 
-      <span className={`${text} left-6 text-ink @min-[520px]:left-(--g)`} style={top(Y.queue - 17)}>
+      <span className={`${text} left-6 text-ink @min-[520px]:left-(--g)`} style={top(Y.queue, -17)}>
         Shares at the touch: <Swatch className="bg-ink" /> ran out<span className="hidden @min-[520px]:inline">, the price stepped</span>
       </span>
-      <span className={gutter} style={top(QUEUE_MID - 26)}>
+      <span className={gutter} style={top(QUEUE_MID, -26)}>
         Best bid
       </span>
-      <span className={gutter} style={top(QUEUE_MID + 14)}>
+      <span className={gutter} style={top(QUEUE_MID, 14)}>
         Best ask
       </span>
-      <span className={inside} style={top(QUEUE_MID - 44)}>
+      <span className={inside} style={top(QUEUE_MID, -44)}>
         Best bid
       </span>
-      <span className={inside} style={top(QUEUE_MID + 31)}>
+      <span className={inside} style={top(QUEUE_MID, 31)}>
         Best ask
       </span>
       <div className="absolute right-2 left-(--g) border-t border-graphite/60" style={top(QUEUE_MID)} />
 
-      <div className="absolute right-6 left-(--g) flex justify-between pl-6 font-mono text-meta leading-none text-graphite @min-[520px]:right-2 @min-[520px]:pl-0" style={top(Y.axis + 7)}>
+      <div className="absolute right-6 left-(--g) flex justify-between pl-6 font-mono text-meta leading-none text-graphite @min-[520px]:right-2 @min-[520px]:pl-0" style={top(Y.axis, 7)}>
         <span>{`${SECONDS} s ago`}</span>
         <span>{`${SECONDS / 2} s ago`}</span>
         <span>now</span>

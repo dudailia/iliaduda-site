@@ -4,6 +4,7 @@ import { FRAME_H, poster, RAMP_CSS, type PosterData } from '@/lib/surface/poster
 import { MESH_CSS, meshMarkup } from '@/lib/surface/posterMarkup'
 import { iv, type Params } from '@/lib/surface/ssvi'
 import { apply, camera, EXPIRY_TICKS, kOfU, mvp, tOfV, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
+import { deviceRatio } from '@/lib/stage/dpr'
 
 /**
  * The still frame's sheet, drawn smooth on a 2D canvas: the figure a reader
@@ -29,7 +30,7 @@ const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[
 export function drawSheet(canvas: HTMLCanvasElement, p: Params, kind: FrameKind, pal: Pal): void {
   const box = canvas.getBoundingClientRect()
   const w = Math.max(1, box.width), h = Math.max(1, box.height)
-  const dpr = Math.min(3, window.devicePixelRatio || 1)
+  const dpr = deviceRatio()
   canvas.width = Math.round(w * dpr)
   canvas.height = Math.round(h * dpr)
   const g = canvas.getContext('2d')

@@ -562,8 +562,9 @@ export function MarketLive({
 
       // The book's words: prices up its side, where the window has them now.
       const lay = v.book.layout()
-      // A pane under 90px (the book at 1280×800) marks two or three prices, so their labels never crowd.
-      const ticks = priceTicks(lay.centre - WINDOW.half, lay.centre + WINDOW.half, lay.h < 90 ? 3 : 5)
+      // A pane under 90px (the book at 1280×800) marks two or three prices, so their labels never crowd; so does a heat
+      // map under 120px wide (a 360px phone's, 94px), where three 57px plates covered most of the book.
+      const ticks = priceTicks(lay.centre - WINDOW.half, lay.centre + WINDOW.half, lay.h < 90 || lay.width < 120 ? 3 : 5)
       priceEls.current.forEach((el, i) => {
         if (!el) return
         const p0 = ticks[i]
@@ -1267,9 +1268,10 @@ export function MarketLive({
               </div>
               <FocusRing />
             </div>
-            <div className="text-meta relative mt-1 flex justify-between pr-14 pl-0 font-mono whitespace-nowrap text-graphite" aria-hidden="true">
+            <div className="text-meta relative mt-1 flex justify-between pr-14 pl-0 font-mono whitespace-nowrap text-graphite @max-[8rem]:pr-10" aria-hidden="true">
               {/* In a narrow pane "ago" would run into "now" (a 360px phone; a phone turned sideways, where the pane is
-                  116–140px): there the axis reads "−20 s", a time back from now, not a length. By the pane's width. */}
+                  116–140px): there the axis reads "−20 s", a time back from now, not a length. By the pane's width. Under
+                  8rem (an iPhone SE sideways, 116px) "now" stands over the depth column's edge: it touched "−20 s". */}
               <span>
                 <span className="@min-[11rem]:hidden">−</span>20 s<span className="@max-[11rem]:hidden"> ago</span>
               </span>
@@ -1299,7 +1301,7 @@ export function MarketLive({
 
         <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2 pointer-coarse:gap-y-3.5 print:hidden" data-market-controls="">
           {mounted && why && !live ? (
-            <button type="button" className={`${CONTROL} min-w-[8.75rem]`} onClick={toggleStill} onPointerEnter={() => void fetchShock()} onFocus={() => void fetchShock()} data-market-still-shock="">
+            <button type="button" className={`${CONTROL} [--min:8.75rem]`} onClick={toggleStill} onPointerEnter={() => void fetchShock()} onFocus={() => void fetchShock()} data-market-still-shock="">
               {still === 'calm' ? 'Liquidity shock' : 'Back to calm'}
             </button>
           ) : null}
@@ -1308,7 +1310,7 @@ export function MarketLive({
               <button type="button" className={CONTROL} onClick={shockNow} data-market-shock="">
                 Liquidity shock
               </button>
-              <button type="button" className={`${CONTROL} min-w-[4.5rem]`} onClick={togglePause} data-hold="">
+              <button type="button" className={`${CONTROL} [--min:4.5rem]`} onClick={togglePause} data-hold="">
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" className={CONTROL} onClick={replayNow} data-replay="">

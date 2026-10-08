@@ -599,7 +599,8 @@ export function createRenderer(env: StageEnv, o: Options): FuturesRenderer {
   let valueText = ''
   /** When the price's words last changed (clock seconds). */
   let valueAt = -1
-  const priceWords = (mean: number) => (cssW < 520 ? `Call price: $${mean.toFixed(2)}` : `Call price, the average discounted payoff: $${mean.toFixed(2)}`)
+  // The short form on a narrow stage, and on a low one (a phone turned sideways): there the long form touched the $200 tick.
+  const priceWords = (mean: number) => (cssW < 520 || cssH < 360 ? `Call price: $${mean.toFixed(2)}` : `Call price, the average discounted payoff: $${mean.toFixed(2)}`)
   /**
    * The last price shown, held through the moment after the reader moves an input and before the new run's first
    * estimate is back, so the claim does not blink out on every step of a drag. The sequence starts from nothing, as

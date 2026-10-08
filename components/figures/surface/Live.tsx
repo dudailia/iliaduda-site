@@ -7,7 +7,7 @@ import { CONTROL } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { Items } from '@/components/Layout'
-import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
+import { DECLINED_TEXT, SLOW_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2, useColorScheme, whenIdle } from '@/components/stage/env'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
@@ -78,6 +78,20 @@ const HEADLINE = [
   ['premium', 'Crash premium, 80%\u00a0strike'],
   ['put', '1-month put, 10%\u00a0down'],
 ] as const
+
+/**
+ * An axis label of the poster that a note's words would touch gives way, as the live figure's do (renderer.ts,
+ * thinLabels): sideways on a phone the Skew note's words lay over "implied volatility" on the still frame.
+ */
+function posterGiveWay(el: HTMLElement) {
+  const notes = [...el.querySelectorAll<HTMLElement>('[data-iv-poster] [data-note-words]')].map((w) => w.getBoundingClientRect()).filter((r) => r.width)
+  for (const a of el.querySelectorAll<HTMLElement>('[data-iv-poster] [data-axis]')) {
+    const r = a.firstElementChild!.getBoundingClientRect()
+    const near = r.width > 0 && notes.some((b) => r.left < b.right + 4 && r.right > b.left - 4 && r.top < b.bottom + 4 && r.bottom > b.top - 4)
+    // Written only when it changes: the figure watches the poster's styles, and its own write then ends the round.
+    if (a.style.visibility !== (near ? 'hidden' : '')) a.style.visibility = near ? 'hidden' : ''
+  }
+}
 
 export function SurfaceLive({ poster, title, subtitle, caption, table }: { poster: ReactNode; title: string; subtitle: string; caption: ReactNode; table: ReactNode }) {
   const sim = useRef<Sim>({ probe: PROBE_START, hover: null, dirty: true })
@@ -336,7 +350,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   // The quality waits to climb until the story is told: the forming and the shock never sharpen mid-moment.
   const [stageOpts] = useState(() => ({ hold: () => seq.current.started && !seq.current.done }))
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
+  const { box, canvas, live, eligible, slow, reduced, fps, quality, tier } = useStage(create, stageOpts)
   // The surface forms and takes its shock across the whole stage: the story waits for most of it on screen (60%, or
   // 45% held for a moment), as the order book's does, so on a tall phone it never plays below the fold unseen.
   const sig = useSignature('surface', box, seq, { start: 0.6, hold: 0.45 })
@@ -411,6 +425,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
               setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight), n.align, { x: n.x * frame.offsetWidth, w: words.offsetWidth, stageW: frame.offsetWidth })
           }
         }
+        posterGiveWay(el)
         sync(params(x), x)
       }
       // One redraw a frame, for the latest shock, however fast the slider moves: the mesh is re-serialised whole.
@@ -552,7 +567,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           ? saveData()
             ? 'Still frame: your browser asks to save data.'
             : supportsWebGL2()
-              ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
+              ? slow
+                  ? SLOW_TEXT
+                  : 'Still frame: the live figure could not start here. Reloading the page may bring it.'
               : 'Still frame: this browser has no WebGL2.'
           : null
 
@@ -577,6 +594,36 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   useEffect(() => {
     if (stillFor && stillReady) redrawStill(level.current)
   }, [stillFor, stillReady, kind, scheme, probe, redrawStill])
+
+  // The poster as it first stands (a reduced-motion visit, or before the live figure): its labels give way to its notes
+  // too, and again whenever the stage changes size (a phone turned).
+  useEffect(() => {
+    const el = box.current
+    if (!el || live) return
+    // Once the page's type has loaded too: measured in the fallback face, the note's words were narrower, and missed.
+    let raf = requestAnimationFrame(() => posterGiveWay(el))
+    void document.fonts?.ready.then(() => again())
+    const again = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => posterGiveWay(el))
+    }
+    // The stage, and the notes' words themselves: set in the page's type once it loads, they widen without a style
+    // changing anywhere.
+    const ro = new ResizeObserver(again)
+    ro.observe(el)
+    for (const w of el.querySelectorAll('[data-iv-poster] [data-note-words], [data-iv-poster] [data-axis] > span')) ro.observe(w)
+    // And whenever a note or a label is placed again after the first measure, once it has got there (a note eases to
+    // its place: measured where it set out, it missed the label it then covered).
+    el.addEventListener('transitionend', again)
+    const mo = new MutationObserver(again)
+    mo.observe(el, { attributes: true, attributeFilter: ['style', 'class', 'data-below'], subtree: true, childList: true })
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+      mo.disconnect()
+      el.removeEventListener('transitionend', again)
+    }
+  }, [box, live, kind])
 
   const debugInfo = useRef<() => LiveInfo>(null)
   useEffect(() => {
@@ -727,7 +774,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             </span>
           </p>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
-            <div ref={labelLayer}>
+            {/* As large as the stage, as its parent is (the labels are placed in the same box): a layer with no size of
+                its own, faded in, was given a backing store by WebKit too small for its top label, and "implied vol"
+                showed its lower half only while it faded. */}
+            <div ref={labelLayer} className="absolute inset-0">
               {LABELS.map((l, i) => (
                 <AxisLabel
                   key={l.id}
@@ -822,7 +872,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         <div data-live-buttons="" className="flex min-h-8 min-w-[9.5rem] gap-2 motion-reduce:hidden" style={why !== null ? { visibility: 'hidden' } : undefined}>
           {live ? (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>

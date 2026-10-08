@@ -7,7 +7,7 @@ import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, whenIdle } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
-import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
+import { DECLINED_TEXT, SLOW_TEXT, useFallback } from '@/components/stage/useFallback'
 import { useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create, type Palette } from '@/components/stage/useStage'
@@ -292,7 +292,7 @@ export function OrderBookLive({
 
   // The quality waits to climb until the rise is over, as the IV figure's does: the terrain's detail never changes mid-rise.
   const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seq.current.started && !seq.current.done }))
-  const { box, canvas, live, eligible, reduced, quality, fps, tier } = useStage(create, stageOpts)
+  const { box, canvas, live, eligible, slow, reduced, quality, fps, tier } = useStage(create, stageOpts)
   // The terrain rises in the middle and bottom of its stage: the story waits for most of it to be in view (on a
   // laptop's first screen only the empty top of the stage shows), or nearly half held for a moment.
   const sig = useSignature('orderbook', box, seq, { start: 0.6, hold: 0.45 })
@@ -326,7 +326,9 @@ export function OrderBookLive({
             ? saveData()
               ? 'Still frame: your browser asks to save data.'
               : supportsWebGL2()
-                ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
+                ? slow
+                  ? SLOW_TEXT
+                  : 'Still frame: the live figure could not start here. Reloading the page may bring it.'
                 : 'Still frame: this browser has no WebGL2.'
             : null
 
@@ -648,7 +650,7 @@ export function OrderBookLive({
           {live ? (
             <>
               {/* Figs. 1 and 2 are one market: either Pause stops both, and its name says so (two buttons were both "Pause"). */}
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button
