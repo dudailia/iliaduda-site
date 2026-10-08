@@ -324,7 +324,9 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     if (!d.on) {
       const dx = Math.abs(e.clientX - d.x), dy = Math.abs(e.clientY - d.y)
       if (dy > 10 && dy > dx) return void (drag.current = null)
-      if (dx < 8 || dx < dy * 1.5) return
+      // More sideways than up or down (the chart is pan-y: a steeper swipe is the page's): at 1.5 to 1, a diagonal
+      // between 34° and 45° moved neither.
+      if (dx < 8 || dx < dy) return
       d.on = true
       e.currentTarget.setPointerCapture(e.pointerId)
     }

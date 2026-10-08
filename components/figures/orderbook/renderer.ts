@@ -546,7 +546,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const turn = { yaw: { x: 0, v: 0 }, pitch: { x: 0, v: 0 } }
   /** How far the camera stands back at each soft limit: a share of its distance. */
   const PULL = { yaw: 0.22, pitch: 0.22 }
-  let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; touch: boolean; live: boolean } | null = null
+  let drag: { id: number; x: number; y: number; x0: number; y0: number; moved: number; t: number; rawYaw: number; rawPitch: number; touch: boolean; live: boolean } | null = null
   const follow = { x: centre, v: 0 }
   /** The drift's speed: 1 running, coasting to 0 over 240ms on Pause and back over 400ms on Resume, as the home figure's. */
   let driftK = 1
@@ -611,16 +611,20 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   const unsoft = (y: number, a: number) => a * Math.atanh(Math.max(-0.999, Math.min(0.999, y / a)))
   const onDown = (e: PointerEvent) => {
     if (drag) return
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, PITCH_MAX), touch: e.pointerType === 'touch', live: false }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: 0, t: e.timeStamp, rawYaw: unsoft(turn.yaw.x, 0.6), rawPitch: unsoft(turn.pitch.x, PITCH_MAX), touch: e.pointerType === 'touch', live: false }
     canvas.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent) => {
     if (drag && e.pointerId === drag.id) {
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y
-      drag.moved += Math.abs(dx) + Math.abs(dy)
+      // How far the hand has gone from where it pressed, at most: summed along its path, a finger's tremble at 120
+      // events a second made a tap a turn, and it read nothing.
+      drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0))
       drag.x = e.clientX
       drag.y = e.clientY
-      if (drag.moved > (drag.touch ? 8 : 4)) {
+      // A finger turns it only once it goes more sideways than up or down: a vertical swipe, until the page takes it,
+      // ended the story (sh.using) and stopped the terrain's spring.
+      if (drag.live || (drag.moved > (drag.touch ? 10 : 4) && (!drag.touch || Math.abs(e.clientX - drag.x0) >= Math.abs(e.clientY - drag.y0)))) {
         // The first real move takes the terrain where it is (its spring home ran on under a mere press), still.
         if (!drag.live) {
           drag.live = true
@@ -662,7 +666,7 @@ export function createBookRenderer(env: StageEnv, sh: Shared): BookRenderer {
   }
   const onUp = (e: PointerEvent) => {
     if (drag && e.pointerId !== drag.id) return
-    const click = !drag || drag.moved <= (drag.touch ? 8 : 4)
+    const click = !drag || drag.moved <= (drag.touch ? 10 : 4)
     // A hand that had stopped before it let go throws nothing: the speed kept from its last move is spent.
     if (drag) {
       const still = (e.timeStamp - drag.t) / 1000

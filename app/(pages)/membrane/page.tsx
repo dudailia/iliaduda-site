@@ -99,11 +99,18 @@ export default function Membrane() {
             [
               'tests',
               <span key="t">
-                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/membrane-bessel.test.ts`}>tests/membrane-bessel.test.ts</a> ·{' '}
+                <span className="inline-block max-w-full"><a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/membrane-bessel.test.ts`}>tests/membrane-bessel.test.ts</a>{'\u00a0·'}</span>{' '}
                 <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/membrane-expand.test.ts`}>tests/membrane-expand.test.ts</a>
               </span>,
             ],
-            ['renderer', <a key="r" href={`${SRC}/components/figures/membrane/renderer.ts`}>components/figures/membrane/renderer.ts</a>],
+            [
+              'renderer',
+              <a key="r" href={`${SRC}/components/figures/membrane/renderer.ts`}>
+                {/* The line may break after the last slash, never inside the file's name. */}
+                components/figures/membrane/<wbr />
+                <span className="whitespace-nowrap">renderer.ts</span>
+              </a>,
+            ],
             ['course', 'MATH 4992, directed study, Northeastern University, Spring 2026'],
           ]}
         />

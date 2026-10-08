@@ -51,9 +51,12 @@ const STAGE_OPTS = { maxQ: { mid: 3 } } as const
 
 type Mod = typeof import('./renderer')
 const noop = () => () => {}
-/** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright, the short one turned sideways. */
-const posterVariant = (): 'wide' | 'narrow' | 'short' =>
-  matchMedia('(width < 40rem) and (orientation: portrait) and (min-height: 37.5001rem)').matches
+/** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright, the low one on a short phone
+ *  held upright, the short one turned sideways. */
+const posterVariant = (): 'wide' | 'narrow' | 'short' | 'low' =>
+  matchMedia('(max-height: 37.5rem) and (orientation: portrait)').matches
+    ? 'low'
+    : matchMedia('(width < 40rem) and (orientation: portrait) and (min-height: 37.5001rem)').matches
     ? 'narrow'
     : matchMedia('(min-width: 40rem) and (max-height: 30rem)').matches
       ? 'short'
@@ -556,6 +559,9 @@ export function OrderBookLive({
       caption={caption}
       table={table}
     >
+      {/* Sideways on a phone the reading and the controls stand beside the terrain, as the IV surface's do: under it, the
+          stage ran 2.4 times as wide as tall, the terrain took half its width and Pause sat below a 380px screen. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
       <div className="relative -mx-6 sm:mx-0">
         <div
           ref={box}
@@ -611,7 +617,7 @@ export function OrderBookLive({
       </div>
 
       {/* The reading takes the row's width and the controls keep their own place, so a reading never moves them. */}
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6 short:mt-0 short:flex-col short:gap-3">
         {/* The reading wraps rather than lose its end (enlarged text included), in room kept for its longest: four lines,
             in the reading's own line height, so the room grows with the text. */}
         <dl id="fig-order-book-probe" className="text-meta grid min-h-[4lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono print:hidden" aria-label="Probe reading">
@@ -662,6 +668,7 @@ export function OrderBookLive({
           ) : null}
         </div>
       </div>
+      </div>
       <p className="sr-only" aria-live="polite">
         {probing ? spoken : ''}
       </p>
@@ -686,7 +693,7 @@ function Readouts({ initial, set, suffix = '', across = false }: { initial: Init
     <dl
       className={
         across
-          ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4'
+          ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono max-[18.5rem]:gap-x-4 sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4'
           : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
       }
     >

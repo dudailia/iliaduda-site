@@ -350,8 +350,11 @@ export function SettlementLive({
             </p>
           </div>
 
+          {/* Sideways on a phone the readings stand beside the chart, one under another: under it with the chart, they
+              took the chart below a 380px screen while the reader set the term. */}
+          <div className="short:mt-5 short:grid short:grid-cols-[minmax(0,1fr)_12rem] short:items-start short:gap-x-6">
           {/* Not a live region: these follow the reader's own inputs, which speak for themselves. */}
-          <dl className="text-meta mt-4 grid grid-cols-2 gap-x-6 gap-y-2 font-mono sm:grid-cols-4 lg:hidden">
+          <dl className="text-meta mt-4 grid grid-cols-2 gap-x-6 gap-y-2 font-mono sm:grid-cols-4 short:order-last short:mt-0 short:grid-cols-1 lg:hidden">
             <div>
               <dt className="text-graphite">Discount</dt>
               <dd className="tabular text-ink">{(s.bp / 100).toFixed(0)}%</dd>
@@ -370,7 +373,9 @@ export function SettlementLive({
             </div>
           </dl>
 
-          <div className="relative mt-5 h-36 sm:h-44 print:break-inside-avoid" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
+          <div className="min-w-0">
+          {/* Sideways on a phone 144px tall, room still for the hidden term's 7rem inset. */}
+          <div className="relative mt-5 h-36 sm:h-44 short:mt-0 short:h-36 print:break-inside-avoid" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
               <rect x={0} y={0} width={100} height={100} fill="none" stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
               {LADDER.slice(0, -1)
@@ -462,6 +467,8 @@ export function SettlementLive({
                 {ladderNote(d, d === debt)}
               </div>
             ))}
+          </div>
+          </div>
           </div>
         </section>
     </FigureFrame>

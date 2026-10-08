@@ -56,18 +56,19 @@ export function Masthead() {
   ] as const
 
   return (
-    <header className="pt-8 sm:pt-14 lg:pt-12 [@media(max-height:30rem)]:pt-4 low:pt-4">
+    <header className="pt-8 sm:pt-14 lg:pt-12 [@media(max-height:30rem)]:pt-4 low:pt-4 flat:pt-6">
       <Row>
         <h1 className="text-h1 lg:text-display">{PERSON.name}</h1>
         {/* The full measure at lg: three lines instead of four, so the front matter and Fig. 1 share a laptop's first screen;
             on a short screen (a phone turned sideways) too, so the contact links are on its first. */}
         {/* Wrapped, not balanced: pretty shortened its last lines into a notch on the first screen. */}
         {/* On a screen under 600px tall (an iPhone SE) the line is set at the note size and the head closes up, so every
-            contact link is on the first screen (at 17px only "CV (PDF)" was, across the fold). */}
-        <p className="mt-4 max-w-[36rem] [text-wrap:wrap] lg:max-w-none [@media(max-height:30rem)]:max-w-none low:text-note low:mt-3 short:mt-3">{POSITIONING}</p>
+            contact link is on the first screen (at 17px only "CV (PDF)" was, across the fold). The SE turned sideways
+            too (326px tall): at 19px the line took six lines and Contact began under the screen. */}
+        <p className="mt-4 max-w-[36rem] [text-wrap:wrap] lg:max-w-none [@media(max-height:30rem)]:max-w-none low:text-note low:mt-3 short:mt-3 [@media(max-height:21rem)]:text-note">{POSITIONING}</p>
       </Row>
 
-      <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 low:mt-4 low:pt-3 short:mt-4 short:pt-3 lg:mt-6 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
+      <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 low:mt-4 low:pt-3 short:mt-4 short:pt-3 lg:mt-6 flat:mt-4 flat:pt-3 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
         {/* Contact second, under Seeking: what a recruiter acts on, on a phone's first screen under the positioning line. */}
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
@@ -76,10 +77,10 @@ export function Masthead() {
             {k === 'Seeking' ? (
               <>
                 <dt className="text-meta pt-0.5 font-mono text-graphite lg:text-right">Contact</dt>
-                {/* -my-2 takes back the links' own py-2 above and below (-my-3 their py-3 under a finger): the row sits
-                    on its label's line, and keeps its tap height, over the row under it (z-1: that row starts 8px down,
-                    inside the links' last 12px). */}
-                <dd className="text-note min-w-0 -my-2 pointer-coarse:-my-3 pointer-coarse:z-1">
+                {/* -my-2 takes back the links' own py-2 above and below: the row sits on its label's line. Under a
+                    finger only above (-mt-3 their py-3): stacked 44px apart, three lines of links read as three loose
+                    rows when Roles came as close under them as they stand to each other, so their last 12px is kept. */}
+                <dd className="text-note min-w-0 -my-2 pointer-coarse:-mt-3 pointer-coarse:mb-0">
                   <ContactLinks />
                 </dd>
               </>

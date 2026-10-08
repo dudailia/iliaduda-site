@@ -155,7 +155,8 @@ export function OfzLive({
               </span>
             ))}
           </div>
-          <div className="relative aspect-[4/3] min-w-0 flex-1 sm:aspect-[16/10] short:aspect-[3/1]">
+          {/* Sideways on a phone 7:2: at 3:1 the curve, its slider and its days ran past an iPhone SE's 326px. */}
+          <div className="relative aspect-[4/3] min-w-0 flex-1 sm:aspect-[16/10] short:aspect-[7/2]">
             <svg
               role="img"
               aria-labelledby={`${frame.id}-svg-title`}
@@ -288,8 +289,10 @@ export function OfzLive({
                     setAnnounce(`${day(x.date)}: 3-month ${pc(zcy(x.params, T_MIN))}, 10-year ${pc(zcy(x.params, 10))}`)
                   }}
                   aria-pressed={at === m.index}
-                  // A hairline box: without it the decision days read as axis labels, not as something to press.
-                  className={`absolute ${align} rounded-sm border px-1.5 py-1.5 pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-inset-y-[7px] pointer-coarse:before:content-[''] touch-manipulation text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
+                  // A hairline box: without it the decision days read as axis labels, not as something to press. Under a
+                  // finger its ::before reaches 44px, 2px more below than above: the slider's own 44px box covers the
+                  // top 1.5px of it, and a one-line day (sideways) measured 42.5.
+                  className={`absolute ${align} rounded-sm border px-1.5 py-1.5 pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-top-[7px] pointer-coarse:before:-bottom-[9px] pointer-coarse:before:content-[''] touch-manipulation text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
                     // Chosen as every other option on the site is: ink fill, paper text.
                     at === m.index ? 'border-ink bg-ink text-paper forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink active:border-ink active:text-ink active:transition-none'
                   }`}

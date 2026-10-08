@@ -154,6 +154,40 @@ describe('the quality governor', () => {
     expect(g.refresh).toBeGreaterThan(30)
   })
 
+  it("learns Safari's 30 Hz clock sideways in Low Power Mode, where every stamp is late by up to 22ms (intervals 11–55ms)", () => {
+    // Each frame stamped late by its own 0–22ms on a 33.3ms clock: an interval is the clock plus this frame's lateness
+    // less the last one's, so under half of them lie within 15% of their median, while four in a row keep the clock.
+    const rnd = (() => {
+      let x = 11
+      return () => (x = (x * 16807) % 2147483647) / 2147483647
+    })()
+    let late = 0
+    const step = () => {
+      const was = late
+      late = rnd() * 22
+      return 1000 / 30 + late - was
+    }
+    const g = new Governor(2, 3)
+    for (let i = 0; i < 8; i++) g.observe(step())
+    let now = 0
+    const seen: number[] = []
+    while (now < 20000) {
+      const dt = step()
+      now += dt
+      g.frame(dt / 1000, now, now < 4000)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBe(2)
+    expect(g.refresh).toBeGreaterThan(30)
+  })
+
+  it('still steps down a 60 Hz display missing every other frame, however its stamps are averaged', () => {
+    const g = new Governor(2, 3)
+    let i = 0
+    const { seen } = run(g, 8, (q) => (q === 2 ? (i++ % 2 ? 1000 / 30 : 1000 / 60) : 1000 / 60))
+    expect(seen.at(-1)).toBeLessThan(2)
+  })
+
   it('follows the clock back when it speeds up again (Low Power Mode turned off)', () => {
     const g = new Governor(3, 3)
     const a = run(g, 10, () => 1000 / 30)

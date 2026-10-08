@@ -60,7 +60,9 @@ export default function Market() {
             {STRESS.volFrom} times, 1 at {STRESS.volTo}); the spread, b (0 at {STRESS.spreadFrom}{'\u00a0'}ticks, 1 at {STRESS.spreadTo});
             and the shares within three ticks of the touch on the book&rsquo;s thinner side, c (0 at {STRESS.touchFloor}, 1 at
             none). They combine as an &ldquo;or&rdquo;,
-            <span className="my-3 block text-center whitespace-nowrap">s = 1 − (1 − p)(1 − a)(1 − b)(1 − c),</span>
+            {/* Scrolls on its own line where a large font size makes it wider than the column, never the page; padded and
+                clipped top and bottom, so its superscripts never make it a scroller up and down. */}
+            <span className="my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1 text-center whitespace-nowrap">s = 1 − (1 − p)(1 − a)(1 − b)(1 − c),</span>
             so any one alone can carry the market to full stress, and the result follows on a {STRESS.halfLife}-second
             half-life. Over ten calm seeds of ten simulated minutes, it averages under 0.05.
           </p>
@@ -129,12 +131,16 @@ export default function Market() {
             ['shock', link('lib/market/shock.ts')],
             ['stress', link('lib/market/stress.ts')],
             ['futures', link('lib/futures/fan.ts')],
-            ['worker', <span key="w">{link('lib/market/host.ts')} · {link('lib/market/protocol.ts')}</span>],
+            ['worker', <span key="w"><span className="inline-block max-w-full">{link('lib/market/host.ts')}{'\u00a0·'}</span>{' '}{link('lib/market/protocol.ts')}</span>],
             ['views', link('components/figures/market/draw.ts')],
             [
               'tests',
               <span key="t">
-                {link('tests/market-shock.test.ts')} · {link('tests/market-stress.test.ts')} · {link('tests/market-host.test.ts')} · {link('tests/futures-fan.test.ts')}
+                {/* Each name holds its dot, in an inline block: a wrapped line never starts with "·". */}
+                <span className="inline-block max-w-full">{link('tests/market-shock.test.ts')}{'\u00a0·'}</span>{' '}
+                <span className="inline-block max-w-full">{link('tests/market-stress.test.ts')}{'\u00a0·'}</span>{' '}
+                <span className="inline-block max-w-full">{link('tests/market-host.test.ts')}{'\u00a0·'}</span>{' '}
+                {link('tests/futures-fan.test.ts')}
               </span>,
             ],
             ['data', 'synthetic; parameters set by hand'],

@@ -256,10 +256,13 @@ export function useStage(
       // a picture that crawls reads worse than the finished one, blocks the page's taps and costs the battery. Judged on
       // the drawn frames' real intervals, smoothed over half a second (one quick frame between slow ones, as a GPU's
       // pipeline gives, does not start the count again); a gap over half a second is the loop starting again.
+      // The count starts a level above the lightest where the frames take over three of the display's (a GPU starved at
+      // every level: falling the levels one by one, the home figure crawled 18 seconds before its still frame stood).
       if (drawn === true && raw > 0 && raw <= 500) {
         crawlEma += (raw - crawlEma) * (1 - Math.exp(-raw / 500))
-        if (gov.q <= gov.minQ && crawlEma > 1000 / 13) crawlFor += raw
-        else if (crawlEma < 1000 / 15 || gov.q > gov.minQ) crawlFor = 0
+        const near = gov.q <= gov.minQ || (gov.q <= gov.minQ + 1 && crawlEma > 3 * gov.refresh)
+        if (near && crawlEma > 1000 / 13) crawlFor += raw
+        else if (crawlEma < 1000 / 15 || !near) crawlFor = 0
         if (crawlFor > 6000) {
           renderer.dispose()
           renderer = null
