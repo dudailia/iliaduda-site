@@ -98,14 +98,16 @@ function path(ridge: [number, number][], ground: [number, number][], w: number):
   return { d: d + 'z', dash: `${top.toFixed(1)} ${(len - top + 2).toFixed(0)}` }
 }
 
-/** The poster's three arrangements: a laptop's column (646×504 at 1440×900), a phone's full-bleed frame (390×480, the
+/** The poster's four arrangements: a laptop's column (646×504 at 1440×900), a phone's full-bleed frame (390×480, the
  *  stage a phone held upright gives it once Safari's bars are taken out: at 390×591 it drew at 0.70–0.81 of its size,
- *  labels near 9px) and a phone turned sideways (700×300: in the laptop's frame, fitted into a 290px stage, its labels
- *  drew at 7.5px). */
+ *  labels near 9px), a phone turned sideways (400×280, the stage beside its reading, 355×271 on an iPhone SE to 535×301
+ *  on a Pixel: in the laptop's frame, fitted into a 290px stage, its labels drew at 7.5px) and a short phone held upright
+ *  (375×340, an iPhone SE's full-bleed stage: there the laptop's frame drew its labels at 7.5px too). */
 export const POSTERS = [
   { variant: 'wide', w: 646, h: 504, opts: { every: 6, step: 2 } },
   { variant: 'narrow', w: 390, h: 480, opts: { every: 7, step: 2 } },
-  { variant: 'short', w: 700, h: 300, opts: { every: 6, step: 2 } },
+  { variant: 'short', w: 400, h: 280, opts: { every: 6, step: 2 } },
+  { variant: 'low', w: 375, h: 340, opts: { every: 6, step: 2 } },
 ] as const
 export type Variant = (typeof POSTERS)[number]['variant']
 

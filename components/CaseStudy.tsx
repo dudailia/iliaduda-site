@@ -37,10 +37,12 @@ export function CaseStudyTitle({
   // A phone turned sideways keeps the phone's title size: at 44px the title took up to 148px of a 326–390px screen. On
   // every phone held upright (to 28rem, a Pro Max's 440) it is 28px: at 31px a 360px phone left "beyond" and "membrane"
   // alone on a line, and a Pro Max "remembers:" and "CloseBooks:" ("Order flow that remembers:" is 407px at 31, 368 at
-  // 28, in a 382–392px column). Under 23rem (a 360px Android) 26px, where "on a circular membrane" fits its 312px.
+  // 28, in a 382–392px column). Under 23rem (a 360px Android) 26px, where "on a circular membrane" fits its 312px. A
+  // larger Android font size narrows the page in CSS px: at 130% (277px) "Fourier–Bessel series", held whole, was 258px
+  // in a 229px column and the page scrolled sideways, so 22px there, and 19px at 150% (240px, a 192px column).
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[23rem]:text-[1.625rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
+      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[23rem]:text-[1.625rem] max-[18.5rem]:text-[1.375rem] max-[16rem]:text-[1.1875rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
         <Whole text={title} />
       </Heading>
       {byline ? (
@@ -116,11 +118,12 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
         <dl className="text-note grid grid-cols-1 gap-y-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2 print:block">
           {rows.map(([k, v]) => (
             <div key={k} className="sm:contents print:mb-2 print:grid! print:grid-cols-[7.5rem_minmax(0,1fr)] print:break-inside-avoid">
-              <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5">{k}</dt>
+              <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5 sm:pointer-coarse:[&:has(+dd_a)]:pt-[calc((44px-1.5*var(--text-note))/2+0.125rem)]">{k}</dt>
               {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
                   long address still wraps at 360px. Under a finger each is a 44px line of its own (inline-block, so a
                   wrapped list's lines stand 44px apart instead of covering each other; it still wraps, never wider
-                  than the column). */}
+                  than the column). Beside its label (from sm) that padding lowers the link's glyphs by half of 44px less
+                  its line, so the label of a row that holds a link comes down by as much. */}
               <dd className="min-w-0 break-words font-mono [&_a]:py-1 pointer-coarse:[&_a]:inline-block pointer-coarse:[&_a]:max-w-full pointer-coarse:[&_a]:py-[calc((44px-1lh)/2)]">{typeof v === 'string' ? <Items items={v} /> : v}</dd>
             </div>
           ))}

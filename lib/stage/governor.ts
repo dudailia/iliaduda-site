@@ -15,6 +15,11 @@
  * on-time one after it read 9–24ms apart on a 30 Hz clock, and one such reading (the shortest ever seen, as it was)
  * said the display ran faster for the rest of the visit: Low Power Mode then stepped every figure to its lightest
  * mid-story (42 of 45 stories on WebKit).
+ *
+ * And steadiness is judged four frames at a time: sideways in Low Power Mode Safari stamps every frame late by its own
+ * 0–22ms, so its intervals run 12–56ms about a 33ms median, under half of them within 15% of it, and the clock was never
+ * learned (the home figure fell to its lightest for the visit). Four in a row keep the clock (their lateness cancels but
+ * for the first and last). A frame that took over 1.8 times the median is a missed one, which no clock explains.
  */
 export class Governor {
   /** The smoothed frame interval, and the display's refresh interval as learned, in ms. */
@@ -38,11 +43,9 @@ export class Governor {
     return this.lights.length >= 3 ? median(this.lights) : Infinity
   }
 
-  /** The drawn frames' interval when they are steady (four in five within 15% of their median), else null. */
+  /** The drawn frames' interval when they are steady (see steadyAt), else null. */
   private steady(): number | null {
-    if (this.recent.length < 10) return null
-    const m = median(this.recent)
-    return this.recent.filter((v) => Math.abs(v - m) <= 0.15 * m).length >= 0.8 * this.recent.length ? m : null
+    return this.recent.length < 10 ? null : steadyAt(this.recent)
   }
 
   constructor(
@@ -72,10 +75,9 @@ export class Governor {
    */
   seed(intervals: readonly number[]): void {
     if (intervals.length < 6) return
-    const mid = median(intervals)
-    // Steady as the drawn frames are judged: four in five within 15% of their median (Safari's stamps jitter).
-    if (intervals.filter((v) => Math.abs(v - mid) <= 0.15 * mid).length < 0.8 * intervals.length) return
-    if (!isDisplayRate(mid) || mid < this.refresh * 1.15) return
+    // Steady as the drawn frames are judged (Safari's stamps jitter).
+    const mid = steadyAt(intervals)
+    if (mid === null || !isDisplayRate(mid) || mid < this.refresh * 1.15) return
     this.refresh = this.ema = mid
   }
 
@@ -152,6 +154,21 @@ export class Governor {
  */
 const RATES = [30, 60, 90, 120, 144, 165, 240]
 export const isDisplayRate = (ms: number) => RATES.some((hz) => Math.abs(ms - 1000 / hz) <= 0.05 * (1000 / hz))
+
+/**
+ * The interval steady frames come at, else null: the means of four in a row, four in five within 15% of their median
+ * (the raw intervals' own median wandered as far as 28ms on a 33ms clock), and no frame over 1.8 times it (a missed
+ * frame). A 60 Hz display missing every other frame (17, 33, 17, 33ms) is steady at 25ms, which is no display's rate,
+ * so it reads as work.
+ */
+function steadyAt(v: readonly number[]): number | null {
+  const means: number[] = []
+  for (let i = 0; i + 4 <= v.length; i++) means.push((v[i]! + v[i + 1]! + v[i + 2]! + v[i + 3]!) / 4)
+  if (!means.length) return null
+  const m = median(means)
+  if (v.some((x) => x > 1.8 * m)) return null
+  return means.filter((x) => Math.abs(x - m) <= 0.15 * m).length >= 0.8 * means.length ? m : null
+}
 
 const median = (v: readonly number[]) => {
   const s = [...v].sort((a, b) => a - b)

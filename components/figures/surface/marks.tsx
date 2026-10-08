@@ -168,9 +168,11 @@ export function NoteMark({
         <line x1={0} y1={0} x2={dx} y2={dy} stroke="var(--color-ink)" strokeWidth={1} />
         <circle cx={0} cy={0} r={3.5} fill="var(--color-paper)" stroke="var(--color-ink)" strokeWidth={1.25} />
       </svg>
+      {/* Sideways on a phone at a phone's width again: on one line (16rem) the words fitted neither beside the point nor
+          its peak, and hung below it, on the sheet. */}
       <span
         data-note-words=""
-        className="absolute block w-max max-w-[12rem] rounded-sm bg-paper/90 px-1.5 py-1 text-note leading-snug text-ink data-[below]:bg-transparent data-[below]:[text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper),0_0_6px_var(--color-paper)] sm:max-w-[16rem]"
+        className="absolute block w-max max-w-[12rem] rounded-sm bg-paper/90 px-1.5 py-1 text-note leading-snug text-ink data-[below]:bg-transparent data-[below]:[text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper),0_0_6px_var(--color-paper)] sm:max-w-[16rem] short:max-w-[11rem]"
         style={{ left: dx, top: dy, transform: NOTE_ALIGN[align] }}
       >
         <span className="font-semibold">{lead}:</span> {text}

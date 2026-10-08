@@ -58,7 +58,9 @@ export function Contents() {
               // figure sits beside the text, as a paper's does.
               className="grid grid-cols-1 gap-x-6 border-b border-rule py-6 print:break-inside-avoid [grid-template-areas:'title'_'byline'_'thumb'_'dek'] sm:grid-cols-[minmax(0,1fr)_9rem] sm:grid-rows-[auto_auto_1fr] sm:[grid-template-areas:'title_thumb'_'byline_thumb'_'dek_thumb']"
             >
-              <h3 className="text-h3 min-w-0 [grid-area:title]">
+              {/* Smaller only where a large Android font size leaves the page under 18.5rem: "Fourier–Bessel series",
+                  held whole, ran past the screen's edge at 150%. */}
+              <h3 className="text-h3 min-w-0 max-[18.5rem]:text-[1.25rem] max-[16rem]:text-[1.125rem] [grid-area:title]">
                 {/* Under a finger an inline title reaches 44px a line by its padding (inline: nothing moves). */}
                 <a href={p.href} className="underline decoration-transparent hover:decoration-ink pointer-coarse:py-[calc((44px-1lh)/2)]">
                   <Whole text={p.title} />

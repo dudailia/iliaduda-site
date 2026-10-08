@@ -4,6 +4,9 @@
 @custom-variant short (@media (min-width: 40rem) and (max-height: 30rem));
 /* A phone held upright whose screen is under 600px tall (an iPhone SE, 548px under Safari's bars). */
 @custom-variant low (@media (max-height: 37.5rem) and (orientation: portrait));
+/* A tablet turned sideways (an iPad mini, 1133×673 under Safari's bars): a laptop's layout on a laptop's width, but
+   under 720px tall, so the masthead closes up for Fig. 1 to reach the first screen. */
+@custom-variant flat (@media (min-width: 64rem) and (max-height: 45rem) and (pointer: coarse));
 
 /* ---------------------------------------------------------------------------
    Palette — six values, and one rule that gives them meaning.
@@ -173,14 +176,31 @@
   label,
   summary,
   [role='radio'],
-  input[type='range'] {
+  input[type='range'],
+  input[type='checkbox'] {
     touch-action: manipulation;
   }
   button,
+  summary,
   [role='radio'],
   label:has(> input[type='range'], input[type='checkbox']) {
     -webkit-user-select: none;
     user-select: none;
+  }
+  /* A figure's pictures are the figure, not images to save: a long press on a poster raised iOS's share sheet. */
+  figure img {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Nothing scrolls the page while a reader works a figure: WebKit's scroll anchoring took a node in or after the
+     figure as its anchor, and as a drag or a press moved it, scrolled the page under the finger (a full σ drag on
+     the home figure, 390–690px). The pages reserve their figures' room, so there is no shift for anchoring to hide. */
+  html,
+  body {
+    overflow-anchor: none;
   }
 
   /* Links — ink with a graphite-mixed underline going to ink on hover (focus

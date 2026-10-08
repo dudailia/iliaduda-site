@@ -129,7 +129,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
       dispose: () => made?.dispose(),
     }
   }, [])
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create)
+  // The quality waits until the drum is let go, as the order book's does: a 30 Hz clock stepped it 2 to 0 mid-story.
+  const [stageOpts] = useState(() => ({ hold: () => seq.current.started && !seq.current.done }))
+  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
   const sig = useSignature('membrane', box, seq, { start: 0.5, hold: 0.3 })
   useEffect(() => {
     sigRef.current = sig
@@ -191,16 +193,28 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
             : 'Still frame: this browser has no WebGL2.'
         : null
 
+  // Each clause whole ("f = 2 sin 2θ," then "g = 0"): at 360px the line broke inside the last, leaving "0" alone.
+  const clauses = (formula: string) =>
+    formula.split(', ').map((c, i, all) => (
+      <Fragment key={i}>
+        <span className="whitespace-nowrap">{i < all.length - 1 ? `${c},` : c}</span>
+        {i < all.length - 1 ? ' ' : null}
+      </Fragment>
+    ))
   const rows = [
-    // Each clause whole ("f = 2 sin 2θ," then "g = 0"): at 360px the line broke inside the last, leaving "0" alone.
+    // Every shape's formula laid in one cell, the others unseen, so the room is the longest one's: a press on
+    // "f = 3, then 1" wrapped it onto a third line and moved everything under the figure by 19px.
     {
       label: 'Initial shape',
-      value: shape.formula.split(', ').map((c, i, all) => (
-        <Fragment key={i}>
-          <span className="whitespace-nowrap">{i < all.length - 1 ? `${c},` : c}</span>
-          {i < all.length - 1 ? ' ' : null}
-        </Fragment>
-      )),
+      value: (
+        <span className="grid">
+          {SHAPES.map((x) => (
+            <span key={x.id} aria-hidden={x.id !== shape.id || undefined} className={`[grid-area:1/1] ${x.id === shape.id ? '' : 'invisible'}`}>
+              {clauses(x.formula)}
+            </span>
+          ))}
+        </span>
+      ),
     },
     { label: 'Modes kept', value: `${modes}, in Bessel J${e.order}` },
     { label: 'Energy, conserved', value: num(E, 3) },
@@ -317,7 +331,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
             </div>
           )
         })}
-        <label className="block max-w-[28rem]">
+        {/* Sideways on a phone the buttons and the modes come first in the column, the shapes under them: last, Pause and
+            the slider sat below a 326–352px screen while the drum rang on it. The keys keep the reading order. */}
+        <label className="block max-w-[28rem] short:order-[-1]">
           <span className="text-meta font-mono text-graphite">
             Modes <span className="tabular text-ink">{modes}</span>
             <span className="ml-2">(the exercises: {MODES_EXERCISE})</span>
@@ -338,7 +354,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
             style={rangeFill(modes, 1, MODES_MAX)}
           />
         </label>
-        <div data-live-buttons="" className="flex min-h-8 gap-2">
+        <div data-live-buttons="" className="flex min-h-8 gap-2 short:order-[-2]">
           {live ? (
             <>
               <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">

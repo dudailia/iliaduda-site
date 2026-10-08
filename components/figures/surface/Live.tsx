@@ -788,10 +788,12 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
       {/* The slider first: it is there in every mode, so the buttons a live figure adds arrive after it, moving nothing. */}
       <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3 pointer-coarse:gap-y-3.5">
-        {/* On a phone the slider takes the row (the buttons wrap under it anyway): at 128px, 30 steps were 3.7px apart. */}
-        <label className="text-meta flex items-center gap-3 font-mono text-graphite max-sm:w-full short:w-full">
+        {/* On a phone the slider takes the row (the buttons wrap under it anyway): at 128px, 30 steps were 3.7px apart.
+            Sideways, in the 15rem column beside the surface, its name stands on a line above it: beside the name it
+            was 94px, 2.6px a step. */}
+        <label className="text-meta flex items-center gap-3 font-mono text-graphite max-sm:w-full short:w-full short:flex-wrap short:gap-y-2">
           {/* The reader's own shock: while the story plays its shock, this one still reads 0.00×, and says whose it is. */}
-          <span>Your shock</span>
+          <span className="short:w-full">Your shock</span>
           <input
             type="range"
             min={0}

@@ -283,7 +283,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const lean = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
   // A shock's nod, on a spring of its own (the drag's ω 7), so Pause can hold it without holding the reader's drag.
   const nod = { yaw: 0, pitch: 0, vy: 0, vp: 0 }
-  let drag: { id: number; x: number; y: number; moved: number; t: number; rawYaw: number; rawPitch: number; live: boolean } | null = null
+  let drag: { id: number; x: number; y: number; x0: number; y0: number; moved: number; t: number; rawYaw: number; rawPitch: number; live: boolean } | null = null
   /** Until when a key's aim is followed on the quick spring (performance.now(), ms). */
   let keyedUntil = 0
 
@@ -306,16 +306,21 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   }
   const onDown = (e: PointerEvent) => {
     if (drag) return
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: e.timeStamp, rawYaw: 0, rawPitch: 0, live: false }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: 0, t: e.timeStamp, rawYaw: 0, rawPitch: 0, live: false }
     canvas.setPointerCapture(e.pointerId)
   }
   const onMove = (e: PointerEvent) => {
     if (drag && e.pointerId === drag.id) {
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y
-      drag.moved += Math.abs(dx) + Math.abs(dy)
+      // How far the hand has gone from where it pressed, at most: a finger held still trembles a pixel or two at 120
+      // events a second, and summed along its path a tap read as a turn and was lost.
+      drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0))
       drag.x = e.clientX
       drag.y = e.clientY
-      if (drag.moved > 4) {
+      // A finger turns it only once it goes more sideways than up or down: before the page takes a vertical swipe, its
+      // first moves set nothing going.
+      const touch = e.pointerType === 'touch'
+      if (drag.live || (drag.moved > (touch ? 10 : 4) && (!touch || Math.abs(e.clientX - drag.x0) >= Math.abs(e.clientY - drag.y0)))) {
         // The hand's grip shows while the surface turns under it.
         canvas.style.cursor = 'grabbing'
         // The hand takes the surface where it is now: while the press could still have been a tap, the spring carried
@@ -357,7 +362,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   }
   const onUp = (e: PointerEvent) => {
     if (!drag || e.pointerId !== drag.id) return
-    const click = drag.moved <= (e.pointerType === 'touch' ? 8 : 4)
+    const click = drag.moved <= (e.pointerType === 'touch' ? 10 : 4)
     // A hand that had stopped before it let go throws nothing: the speed kept from its last move is spent.
     const still = (e.timeStamp - drag.t) / 1000
     if (still > 0.05) {
@@ -873,7 +878,9 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
       drawnOnce = true
       // For the specs and ?debug=1: frames drawn, and how far the sheet stands out of the page.
       canvas.dataset.draws = String(++draws)
-      canvas.dataset.rise = rise.toFixed(3)
+      // Written when it changes (still at 1.000 for the rest of a visit, it was written 120 times a second).
+      const r = rise.toFixed(3)
+      if (canvas.dataset.rise !== r) canvas.dataset.rise = r
       // The clocks move after the frame, so the first frame is the poster's moment exactly. The story plays out
       // whether or not the figure is paused; the drift holds.
       hooks.tick(dt * 1000)

@@ -817,7 +817,7 @@ export function MarketLive({
       if (!t || t.id !== e.pointerId) return
       // Sideways, as the home figure's drag reads it: a diagonal swipe of the page is not a reading.
       const dx = Math.abs(e.clientX - t.x), dy = Math.abs(e.clientY - t.y)
-      if (dx > 10 && dx > 1.5 * dy) t.moved = true
+      if (dx > 10 && dx > dy) t.moved = true
       if (t.moved) readAt(agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
       return
     }

@@ -60,6 +60,9 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
       number="Fig. 2"
       title="A profile from the exercises, against its Fourier–Bessel series."
       subtitle={`${p.formula} · in J${order} · ${terms} term${terms === 1 ? '' : 's'}`}
+      // Room kept for its longest (the step's formula, two digits, the plural): "f = 3, then 1" wrapped it onto a second
+      // line and moved the plot and its buttons under the reader's finger by 19px.
+      subtitleRoom={`${PROFILES.reduce((a, x) => (x.formula.length > a.length ? x.formula : a), '')} · in J1 · ${MODES_MAX} terms`}
       rail={
         <Readouts
           rows={[
@@ -73,6 +76,10 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
       hint="Pick a profile, the Bessel function to expand it in, and how many terms to keep."
       caption={caption}
     >
+      {/* Sideways on a phone the profile, the function and the terms stand beside the plot, as the drum's controls do:
+          under it, they sat 500px down a 380px screen, and a profile was pressed with its curve out of view. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
+      <div className="min-w-0">
       {/* Axis labels in HTML, at the site's label size whatever the figure's width. Sideways on a phone the plot is half
           the screen tall (full width it was 83% of it, and its profile and terms never shared the screen with it). */}
       <div className="relative short:mx-auto short:max-w-[calc(50svh*1000/420)]">
@@ -130,8 +137,9 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
       <p aria-hidden className="text-meta mt-1 font-mono text-graphite">
         |coefficient| by term, log scale (the exercises&rsquo; two in indigo)
       </p>
+      </div>
 
-      <div className="mt-3 grid gap-y-3">
+      <div className="mt-3 grid gap-y-3 short:mt-0">
         <div role="radiogroup" aria-label="Profile" className="flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
           {PROFILES.map((x) => (
             <button key={x.id} {...profileRadio(x.id, pids)} className={option(x.id === pid)}>
@@ -162,6 +170,7 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
             style={rangeFill(terms, 1, MODES_MAX)}
           />
         </label>
+      </div>
       </div>
     </FigureFrame>
   )

@@ -660,9 +660,10 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const d = drag.current
     if (d && d.id === e.pointerId) {
       const dx = e.clientX - d.x
-      // A finger's drag is a drag only when it is plainly sideways: a thumb scrolling past the figure, a little off
-      // vertical, is a scroll, and moves nothing.
-      if (d.touch ? Math.abs(dx) > 10 && Math.abs(dx) > 1.5 * Math.abs(e.clientY - d.y) : Math.abs(dx) > 4) d.moved = true
+      // A finger's drag is a drag once it goes more sideways than up or down: the stage is pan-y, so the browser has
+      // already taken a swipe that started more vertical (a scroll), and one between 34° and 45° (more than 1.5 to 1
+      // was asked) moved neither the page nor the figure.
+      if (d.touch ? Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(e.clientY - d.y) : Math.abs(dx) > 4) d.moved = true
       if (!d.moved) return
       const w = e.currentTarget.getBoundingClientRect().width
       const s = Math.round(Math.min(MODEL.sigmaMax, Math.max(MODEL.sigmaMin, d.s + (dx / w) * 0.9)) * 100) / 100

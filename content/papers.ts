@@ -68,7 +68,7 @@ export const papers: readonly Paper[] = [
     slug: 'closebooks',
     href: '/closebooks',
     // "a" held to its noun: before the unbreakable "multi-tenant" a phone left it alone at a line's end.
-    title: 'CloseBooks: a\u00a0multi-tenant month-end close with an LLM in the loop',
+    title: 'CloseBooks: a\u00a0multi-tenant month-end\u00a0close with an LLM in the loop',
     abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} API routes over Postgres with row-level security, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn, or a reviewer’s approval, before it is exported.`,
     dek: 'A multi-tenant month-end close for CPA firms that I built alone: an LLM pipeline maps every bank line to the client’s accounts, and only confident or reviewer-approved lines export.',
     description: 'A multi-tenant month-end close for CPA firms, built alone: an LLM maps every bank line to the client’s accounts, and only confident lines export.',
@@ -137,7 +137,7 @@ export const papers: readonly Paper[] = [
   {
     slug: 'startup-investments',
     href: '/startup-investments',
-    title: 'Ranking startup segments, and how much the answer depends on the data',
+    title: 'Ranking startup segments, and how\u00a0much the answer depends on the data',
     abstract: `A composite model ranks ${n('siMassSegments')} startup segments on growth and size across ${n('siRowsFinal')} funding records. Re-executing my capstone exactly, then changing one data decision at a time, measures how much the recommendation depends on them — three treatments give three different top picks — and finds the segments that hold up under all three.`,
     dek: `A composite model ranks ${n('siMassSegments')} startup segments on growth and size; changing one data decision at a time gives three treatments three top picks, and shows which segments hold up.`,
     description: `A composite model ranks ${n('siMassSegments')} startup segments. Changing one data decision at a time gives three different top picks, and shows which segments hold up.`,

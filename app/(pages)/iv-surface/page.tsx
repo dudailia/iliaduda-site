@@ -168,8 +168,8 @@ export default function IvSurface() {
             [
               'tests',
               <span key="t">
-                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/svi.test.ts`}>tests/svi.test.ts</a> ·{' '}
-                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/surface-dynamics.test.ts`}>tests/surface-dynamics.test.ts</a> ·{' '}
+                <span className="inline-block max-w-full"><a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/svi.test.ts`}>tests/svi.test.ts</a>{'\u00a0·'}</span>{' '}
+                <span className="inline-block max-w-full"><a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/surface-dynamics.test.ts`}>tests/surface-dynamics.test.ts</a>{'\u00a0·'}</span>{' '}
                 <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/surface-greeks.test.ts`}>tests/surface-greeks.test.ts</a>
               </span>,
             ],

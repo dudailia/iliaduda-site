@@ -13,12 +13,14 @@ import { LABEL_FS, POSTERS, posterOf, type PosterGeometry, type PosterLabel } fr
  * terrain can rise out of the page.
  */
 export function Poster({ sim, label }: { sim: Flow; label: string }) {
-  const [wide, narrow, short] = POSTERS
+  const [wide, narrow, short, low] = POSTERS
   return (
     <>
       <picture>
         {/* Short where the stage is a phone turned sideways (globals.css, the short variant): its own wide, low frame. */}
         <source media="(min-width: 40rem) and (max-height: 30rem)" srcSet="/order-book/poster-short.svg" width={short.w} height={short.h} />
+        {/* Low where a phone held upright is under 600px tall (an iPhone SE): its stage is wider than tall, and its own. */}
+        <source media="(max-height: 37.5rem) and (orientation: portrait)" srcSet="/order-book/poster-low.svg" width={low.w} height={low.h} />
         {/* Narrow where the stage is taller than wide, as the live figure frames it: a phone held upright. A portrait
             tablet's stage sits in the text column and is wider than tall, so it gets the wide frame. */}
         {/* Not under 37.5rem tall (an iPhone SE): there the stage is wider than tall, and the live figure frames it wide. */}
@@ -33,9 +35,10 @@ export function Poster({ sim, label }: { sim: Flow; label: string }) {
           className="absolute inset-0 size-full object-contain"
         />
       </picture>
-      <Labels g={posterOf(sim, 'wide')} className="max-sm:portrait:hidden short:hidden low:block" />
+      <Labels g={posterOf(sim, 'wide')} className="max-sm:portrait:hidden short:hidden low:hidden" />
       <Labels g={posterOf(sim, 'narrow')} className="hidden max-sm:portrait:block low:hidden" />
       <Labels g={posterOf(sim, 'short')} className="hidden short:block" />
+      <Labels g={posterOf(sim, 'low')} className="hidden low:block" />
     </>
   )
 }
