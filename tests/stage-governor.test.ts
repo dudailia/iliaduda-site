@@ -209,7 +209,7 @@ describe('the quality governor', () => {
     // Light frames at 60 Hz before the first drawn one, then Low Power Mode's jittered 30 Hz through a held story. When it
     // asks (probing), the kit lets one frame go undrawn, and the interval after it is the clock's.
     const rnd = (() => {
-      let x = 5
+      let x = 12
       return () => (x = (x * 16807) % 2147483647) / 2147483647
     })()
     let late = 0
@@ -228,7 +228,8 @@ describe('the quality governor', () => {
     while (now < 6000) {
       const dt = step()
       now += dt
-      if (g.probing) g.observe(1000 / 30, now)
+      // The kit's light frame is stamped late too: anywhere from 11 to 55ms on the 33ms clock, one interval at a time.
+      if (g.probing) g.observe(1000 / 30 + (rnd() - 0.5) * 44, now)
       g.frame(dt / 1000, now, true)
       seen.push(g.q)
     }

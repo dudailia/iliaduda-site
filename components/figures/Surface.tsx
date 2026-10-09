@@ -24,7 +24,8 @@ export function SurfaceFigure() {
       <style>{STAGE_CSS}</style>
       <SurfaceLive
         poster={<Poster at={CALM} />}
-        title="Implied volatility for every strike and expiry: skewed toward crash insurance, and free of static arbitrage."
+        // "free of static arbitrage" whole: sideways a phone left "free of" at a line's end.
+        title={'Implied volatility for every strike and expiry: skewed toward crash insurance, and free\u00a0of\u00a0static\u00a0arbitrage.'}
         subtitle={`Synthetic SSVI · forward ${forward} · rates and dividends zero · one simulated shock · not market data`}
         caption={
           <>

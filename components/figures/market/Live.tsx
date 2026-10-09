@@ -1178,6 +1178,7 @@ export function MarketLive({
             // iv-fig: the IV figure's color ramp (STAGE_CSS, RAMP_CSS) is scoped to it, and the still surface draws with it.
             className="iv-fig peer relative aspect-[1.1] w-full cursor-grab overflow-hidden bg-paper select-none focus-visible:outline-none sm:aspect-[1.62] sm:max-w-[calc(88svh*1.62)]"
             data-market-surface=""
+            data-surface-stage=""
             data-hold=""
             onPointerMove={lean.onPointerMove}
             onPointerLeave={lean.onPointerLeave}
@@ -1189,7 +1190,8 @@ export function MarketLive({
             <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={{ ...fade(surfaceLive && live), touchAction: 'pan-y pinch-zoom' }} aria-hidden="true" />
             {/* The axes' words, placed by the renderer each frame with its own projection (the IV figure's). */}
             <div aria-hidden data-market-words="" className="pointer-events-none absolute inset-0" style={fade(surfaceLive && live)}>
-              <div ref={labelLayer}>
+              {/* As large as the stage (WebKit clipped a faded layer with no size of its own: the IV figure's). */}
+              <div ref={labelLayer} data-label-box="" className="absolute inset-0">
                 {LABELS.map((l, i) => (
                   <AxisLabel
                     key={l.id}
@@ -1200,6 +1202,7 @@ export function MarketLive({
                     text={l.text}
                     align={l.align}
                     kind={l.kind}
+                    frame={kind}
                     {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
                   />
                 ))}

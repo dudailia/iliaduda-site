@@ -23,6 +23,12 @@ export const rangeFill = (value: number, min: number, max: number): CSSPropertie
 const TAP_PX = 10
 type Down = { id: number; x: number; y: number; t: number; el: HTMLInputElement; value: string; off: boolean; drag: boolean; held: boolean; seek: string | null; dragAt: number }
 let down: Down | null = null
+/**
+ * A slider whose touch the page took (a scroll, a pinch), until every finger is off the screen: Chrome's own slider goes
+ * on following the finger after it has cancelled the touch, and its seeks reached the figure while the page scrolled
+ * (a swipe at 45°: σ 24 → 39). They are stopped, and the value held where it was.
+ */
+let dead: { el: HTMLInputElement; value: string } | null = null
 
 const bounds = (el: HTMLInputElement) => {
   const min = Number(el.min || 0), max = Number(el.max || 100)
@@ -61,12 +67,19 @@ function valueAt(el: HTMLInputElement, x: number): string {
 
 function onDown(e: PointerEvent) {
   const el = e.target
+  // A second finger while one is on a slider is a pinch: the slider goes back to where the touch found it and takes
+  // nothing more from it (the first finger dragged it, σ 43 → 77, and the page never zoomed).
+  if (down && down.id !== e.pointerId && e.pointerType === 'touch') {
+    put(down.el, down.value)
+    dead = { el: down.el, value: down.value }
+    down = null
+    return
+  }
   if (e.pointerType === 'mouse' || !(el instanceof HTMLInputElement) || el.type !== 'range' || el.disabled) {
     down = null
     return
   }
-  // A second finger (a pinch) is not the slider's.
-  if (down && down.id !== e.pointerId) return
+  dead = null
   // Held: until the touch shows what it is, the browser's own seek is kept from the figure (see onInput).
   down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > TAP_PX, drag: false, held: true, seek: null, dragAt: 0 }
 }
@@ -97,6 +110,7 @@ function onCancel(e: PointerEvent) {
   // A drag the page took from it at once was the start of a scroll that set out a little sideways (11–14px, then up):
   // the browser decides at its own slop, past ours, and the value it had moved to stayed as the page scrolled away.
   else if (e.timeStamp - d.dragAt < 250) put(d.el, d.value)
+  if (d.held || e.timeStamp - d.dragAt < 250) dead = { el: d.el, value: d.value }
 }
 
 function onUp(e: PointerEvent) {
@@ -118,6 +132,11 @@ function onUp(e: PointerEvent) {
  * the lift moved it again (three moves on one tap). Where it was sought is kept for the lift.
  */
 function onInput(e: Event) {
+  if (dead && e.isTrusted && e.target === dead.el) {
+    e.stopImmediatePropagation()
+    if (dead.el.value !== dead.value) quiet(dead.el, dead.value)
+    return
+  }
   const d = down
   if (!d || !d.held || !e.isTrusted || e.target !== d.el) return
   e.stopImmediatePropagation()
@@ -134,4 +153,7 @@ if (typeof document !== 'undefined') {
   document.addEventListener('pointermove', onMove, { passive: true, capture: true })
   document.addEventListener('pointerup', onUp, { passive: true, capture: true })
   document.addEventListener('pointercancel', onCancel, { passive: true, capture: true })
+  // The last finger off the screen: a slider the page took answers again.
+  document.addEventListener('touchend', (e) => void (e.touches.length || (dead = null)), { passive: true, capture: true })
+  document.addEventListener('touchcancel', (e) => void (e.touches.length || (dead = null)), { passive: true, capture: true })
 }

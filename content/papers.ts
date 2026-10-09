@@ -177,6 +177,7 @@ export const TITLE_PHRASES: Readonly<Record<string, readonly string[]>> = Object
     ['Ranking startup\u00a0segments,', 'and how\u00a0much the answer', 'depends on the data'],
     ['A carbon model', 'for campus\u00a0AI\u00a0use,', 'built to be argued with'],
     ['An implied-', 'volatility surface', 'free of\u00a0static arbitrage'],
+    ['CloseBooks: a\u00a0multi-tenant', 'month-end\u00a0close', 'with an LLM in the loop'],
   ].map((p) => [joinPhrases(p), p]),
 )
 

@@ -123,9 +123,10 @@ export default function Cv() {
                         hangs in the gap before it (globals.css, .cv-title), so a wrapped head never ends on a dot. */}
                     {/* On screen the note is one item too (globals.css, .cv-note): its last word no longer stays behind
                         beside the title it was held to ("accounting / firms · Founder"). */}
+                    {/* The gap before the title is the note's own (its two no-break spaces inside the note's block): after the
+                        block, the line broke before them and the title started its line 12px in, its dot showing. */}
                     <span className="cv-muted">
-                      , <span className="cv-note">{r.orgNote}</span>
-                      {'\u00a0\u00a0 '}
+                      , <span className="cv-note">{`${r.orgNote}\u00a0\u00a0`}</span>{' '}
                     </span>
                     <span className="cv-title">{r.title}</span>
                   </p>

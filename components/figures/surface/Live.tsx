@@ -715,6 +715,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           }}
           // The narration and the Skew note want the same corner: while it speaks, the notes wait (globals.css).
           data-narrating={onStage ? '' : undefined}
+          data-surface-stage=""
           className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
         >
           <div data-surface-poster="" className="absolute inset-0" style={underlay(live)}>
@@ -777,7 +778,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             {/* As large as the stage, as its parent is (the labels are placed in the same box): a layer with no size of
                 its own, faded in, was given a backing store by WebKit too small for its top label, and "implied vol"
                 showed its lower half only while it faded. */}
-            <div ref={labelLayer} className="absolute inset-0">
+            <div ref={labelLayer} data-label-box="" className="absolute inset-0">
               {LABELS.map((l, i) => (
                 <AxisLabel
                   key={l.id}
@@ -788,6 +789,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
                   text={l.text}
                   align={l.align}
                   kind={l.kind}
+                  frame={kind}
                   {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
                 />
               ))}
@@ -1022,21 +1024,6 @@ function glideDetails(e: MouseEvent<HTMLElement>) {
   anim.addEventListener('finish', () => {
     if (gliding.get(details)?.anim === anim) gliding.delete(details)
   })
-  // Under a finger the summary stays where it was pressed: in the margin (an iPad turned sideways) the rail sticks, and
-  // its rows growing past their column slid the whole rail up, the summary 194px out from under the finger, and the next
-  // tap there landed on a Greek.
-  if (matchMedia('(pointer: coarse)').matches) {
-    const summary = e.currentTarget
-    const top = summary.getBoundingClientRect().top
-    let last = 2
-    const hold = () => {
-      const drift = summary.getBoundingClientRect().top - top
-      if (Math.abs(drift) > 0.5) scrollBy(0, drift)
-      // Through the glide, and a frame or two after it, while the rail settles.
-      if (gliding.get(details)?.anim === anim || last-- > 0) requestAnimationFrame(hold)
-    }
-    requestAnimationFrame(hold)
-  }
 }
 
 /** The point's rows as the margin shows them: where it is, then (after its volatilities and price) its Greeks. */

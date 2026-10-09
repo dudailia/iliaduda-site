@@ -51,23 +51,32 @@ export class Governor {
     return fresh.length >= 3 ? median(fresh) : fresh.length && this.probe ? Math.min(...fresh) : Infinity
   }
 
-  /** A step down is being tested, or one is about to be: the kit gives the clock one light frame to read it by. */
+  /**
+   * A step down is being tested, or one is about to be, and the clock has not yet given three light frames since:
+   * the kit lets every other frame go undrawn until it has (one was not enough: Low Power Mode's stamps run 0–22ms late,
+   * one interval read 24.7 or 45.8 on a 33ms clock, and /iv-surface and /market stepped down mid-story).
+   */
   get probing(): boolean {
-    return this.probe !== null || this.wantLight
+    if (this.probe) return this.freshAt(this.probe.at).length < 3
+    return this.needSince !== null && this.freshAt(this.needSince).length < 3
   }
-  /** Asked for one light frame before a step down while held (the kit lets a frame go undrawn; observe clears it). */
-  private wantLight = false
+  /** Light frames wanted since (ms), before a step down while held; null when none are. */
+  private needSince: number | null = null
 
   /**
    * The clock as the last light frame read it, if that was within two seconds (or untimed): the freshest evidence.
    * The ten-second median held the load's 60 Hz readings on a figure that draws every frame, and Low Power Mode turned
    * on in its story stepped it to its lightest; the jitter at 30 Hz stepped the home figure mid-story on 2 visits in 8.
    */
-  private freshLight(since: number): number | null {
-    const l = this.lights.at(-1)
+  private freshAt(since: number): number[] {
     // Read since `since` (the frames turned slow, or the step down under test), and within two seconds: what came
-    // before says nothing of the clock now.
-    return l && (l.at === null || (this.lastNow - l.at < 2000 && l.at >= since)) ? l.ms : null
+    // before says nothing of the clock now. Untimed ones (no clock given) always count.
+    return this.lights.filter((l) => l.at === null || (this.lastNow - l.at < 2000 && l.at >= since)).map((l) => l.ms)
+  }
+  /** The clock as the light frames since `since` read it: their median, once there are three. */
+  private freshLight(since: number): number | null {
+    const f = this.freshAt(since)
+    return f.length >= 3 ? median(f) : null
   }
   /** When the frames last turned slow (ms). */
   private slowAt = 0
@@ -93,7 +102,6 @@ export class Governor {
    */
   observe(ms: number, now?: number): void {
     if (ms < 4) return
-    this.wantLight = false
     this.lights.push({ ms, at: now ?? null })
     if (this.lights.length > 15) this.lights.shift()
   }
@@ -187,9 +195,10 @@ export class Governor {
     if (this.slow > 1 && held && !this.probe) {
       const fresh = this.freshLight(this.slowAt) ?? (this.lights.length ? null : Infinity)
       if (fresh === null) {
-        this.wantLight = true
+        this.needSince = this.slowAt
         return false
       }
+      this.needSince = null
       const st = this.steady()
       const clock = st !== null && isDisplayRate(st) ? st : fresh
       if (isDisplayRate(clock) && fresh > clock * 0.75 && this.ema < clock * 1.35) {

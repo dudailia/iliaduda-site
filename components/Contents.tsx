@@ -61,7 +61,7 @@ export function Contents() {
             >
               {/* Smaller only where a large Android font size leaves the page under 18.5rem: "Fourier–Bessel series",
                   held whole, ran past the screen's edge at 150%. */}
-              <h3 className="text-h3 min-w-0 max-[18.5rem]:text-[1.25rem] max-[16rem]:text-[1.125rem] [grid-area:title]">
+              <h3 className="text-h3 min-w-0 max-[22.75rem]:text-[1.4375rem] max-[18.5rem]:text-[1.25rem] max-[16rem]:text-[1.125rem] [grid-area:title]">
                 {/* Under a finger an inline title reaches 44px a line by its padding (inline: nothing moves). */}
                 <a href={p.href} className="underline decoration-transparent hover:decoration-ink pointer-coarse:py-[calc((44px-1lh)/2)]">
                   <TitleText title={p.title} />

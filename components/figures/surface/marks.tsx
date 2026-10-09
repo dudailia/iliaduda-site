@@ -21,7 +21,7 @@ export const FRAME_ASPECT = 'aspect-[1.1] sm:aspect-[1.62]'
  * live renderer letterboxes its projection the same way.
  */
 export function Frame({ className = '', children }: { className?: string; children: ReactNode }) {
-  return <div className={`pointer-events-none absolute inset-0 m-auto max-h-full max-w-full ${FRAME_ASPECT} ${className}`}>{children}</div>
+  return <div data-label-box="" className={`pointer-events-none absolute inset-0 m-auto max-h-full max-w-full ${FRAME_ASPECT} ${className}`}>{children}</div>
 }
 
 const ALIGN: Record<string, string> = {
@@ -36,9 +36,11 @@ const ALIGN: Record<string, string> = {
  * for a live figure that moves it every frame; a poster's stand still. A title sits on a paper chip, as the notes do,
  * so an edge of the sheet or a line of the mesh behind it never takes its contrast.
  */
-export function AxisLabel({ text, align, kind, className = '', style, ref, moving = false }: { text: string; align: string; kind: string; className?: string; style?: CSSProperties; ref?: Ref<HTMLSpanElement>; moving?: boolean }) {
+export function AxisLabel({ text, align, kind, frame, className = '', style, ref, moving = false }: { text: string; align: string; kind: string; frame?: string; className?: string; style?: CSSProperties; ref?: Ref<HTMLSpanElement>; moving?: boolean }) {
+  // Its kind and its framing's set, for the stage to thin its ticks where it is narrower than that set was laid out for
+  // (globals.css, [data-surface-stage]).
   return (
-    <span ref={ref} data-axis="" className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
+    <span ref={ref} data-axis="" data-kind={kind} data-frame={frame} className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
       <span
         className={`block font-mono text-meta leading-none whitespace-nowrap ${kind === 'title' ? 'rounded-sm bg-paper/90 px-1 py-0.5 text-ink' : 'text-graphite [text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper)]'}`}
         style={{ transform: ALIGN[align] }}
