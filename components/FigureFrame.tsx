@@ -122,7 +122,10 @@ export function FigureFrame({
             order, so the keyboard and a screen reader meet the figure before what reads it. */}
         {rail && wide ? (
           <div className="text-meta hidden text-right font-mono text-graphite lg:col-start-1 lg:row-start-2 lg:block">
-            <div className="sticky top-6 mt-[4.75rem]">{rail}</div>
+            {/* Not sticky under a finger (an iPad turned sideways, whose stage fits its screen): opening the Greeks grew a
+                sticking rail past its column, which slid it up, and holding the summary under the finger meant
+                scrolling the whole page 194px. Here the rail grows down, and nothing moves. */}
+            <div className="sticky top-6 mt-[4.75rem] pointer-coarse:static">{rail}</div>
           </div>
         ) : null}
       </div>

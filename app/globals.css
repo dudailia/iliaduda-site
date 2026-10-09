@@ -189,6 +189,24 @@
     -webkit-user-select: none;
     user-select: none;
   }
+  /* A surface's tick labels give way where the box they are set in is narrower than their set was laid out for (the
+     phone's at 360px, the wide at about 370): a large font size or an iPhone SE turned sideways left /market's surface
+     310–350px wide with every tick, under the strike axis's title and on each other ("1M3M", "130%2Y"). The axes'
+     titles stay. The poster's frame and the live labels' layer are the boxes (neither sized by what is in it). */
+  [data-label-box] {
+    container-type: inline-size;
+  }
+  @container (max-width: 21.9rem) {
+    [data-axis][data-frame='tall'][data-kind='tick'] {
+      display: none !important;
+    }
+  }
+  @container (max-width: 22.9rem) {
+    [data-axis][data-frame='wide'][data-kind='tick'] {
+      display: none !important;
+    }
+  }
+
   /* A figure's pictures are the figure, not images to save: a long press on a poster raised iOS's share sheet. */
   figure img {
     -webkit-touch-callout: none;

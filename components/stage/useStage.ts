@@ -250,6 +250,7 @@ export function useStage(
       // A step down under test, on a figure that draws every frame: one frame is let go undrawn, once, so the interval
       // after it says how fast the clock runs now (Low Power Mode turned on mid-visit stepped /market and the order book
       // down three levels, their only light frames those before their first, at 60 Hz).
+      // Every other frame, until it has three: one late stamp alone said nothing true of a jittered 30 Hz clock.
       if (gov.probing && !probeLit) {
         probeLit = true
         last = now
@@ -257,7 +258,7 @@ export function useStage(
         raf = requestAnimationFrame(tick)
         return
       }
-      if (!gov.probing) probeLit = false
+      probeLit = false
       const raw = last ? now - last : 0
       last = now
       // On a slow clock learned steady (Low Power Mode's 30 Hz), the figure's time moves by whole refreshes: Safari
@@ -313,7 +314,9 @@ export function useStage(
         // played whole at 1–7 frames a second while the levels stepped down, 8–9 seconds before its still frame).
         if (fps < 6) deepFor += Math.min(raw, 2000)
         else deepFor = 0
-        if (crawlFor > 6000 || deepFor > 1500) {
+        // In the story (its hold) after 2.5 seconds, not 6: /market and the order book played their whole story at
+        // 3–15 frames a second before their still frames stood.
+        if (crawlFor > (hold.current?.() ? 2500 : 6000) || deepFor > 1500) {
           renderer.dispose()
           renderer = null
           rendererRef.current = null

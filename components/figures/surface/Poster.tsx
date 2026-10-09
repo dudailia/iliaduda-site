@@ -58,6 +58,7 @@ function Marks({ d, kind, notes }: { d: PosterData; kind: FrameKind; notes: bool
       {d.labels.map((l) => (
         <AxisLabel
           key={l.id}
+          frame={kind}
           text={l.text}
           align={l.align}
           kind={l.kind}

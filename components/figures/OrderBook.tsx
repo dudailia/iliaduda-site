@@ -31,7 +31,7 @@ export function OrderBookFigure() {
       <OrderBookLive
         poster={<Poster sim={sim} label={label} />}
         initial={initial}
-        title={`A simulated order book for a ${fmt.usd(Math.round(value('mkOpen') / value('mkTick')))} stock, twelve frames a second: each ridge is the book at one moment, its height the shares waiting.`}
+        title={`A simulated order book for a ${fmt.usd(Math.round(value('mkOpen') / value('mkTick')))} stock, twelve frames a second: each ridge is the\u00a0book at one moment, its height the shares waiting.`}
         subtitle={`Simulated · Hawkes order flow · six kinds of order · tick ${fmt.usd(1)} · not market data`}
         caption={
           <>
