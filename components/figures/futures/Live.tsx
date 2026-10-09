@@ -375,7 +375,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     ...STAGE_OPTS,
     hold: () => seqRef.current === 'pending' || seqRef.current === 'playing' || ['settle', 'flight', 'return'].includes(labels.current?.dataset.camera ?? ''),
   }))
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
+  const { box, canvas, live, eligible, slow, reduced, fps, quality, tier } = useStage(create, stageOpts)
 
   // One market, checked here: once the figure runs live, this browser builds the same seeded market in a worker
   // (lib/market/market.worker.ts, /market's own) to the moment the volatility is read at, and marks what it got
@@ -468,22 +468,29 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const go = () => {
       if (armed.current && !timeline.current.started) timeline.current.start()
     }
+    // Under a finger at once with "Today" on screen, where the paths set out, 54% down the stage: at a third the burst
+    // played with it just under the fold (a Pro Max sideways, scrolling); a third held 1.2s starts it too. A tablet
+    // turned sideways (globals.css, flat) waits for more, as the order book does: there the burst played at load with
+    // Today under the fold. A laptop keeps a third, or a fifth held: its first screen shows that much and plays it.
+    const flat = matchMedia('(min-width: 64rem) and (max-height: 45rem) and (pointer: coarse)').matches
+    const coarse = matchMedia('(pointer: coarse)').matches
+    const start = flat ? 0.6 : coarse ? 0.55 : 0.35, hold = flat ? 0.45 : coarse ? 0.35 : 0.2
     const io = new IntersectionObserver(
       (es) => {
         // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
         const e = es[es.length - 1]
         const seen = e?.isIntersecting ? e.intersectionRatio : 0
-        if (seen >= 0.35 || seen < 0.2) {
+        if (seen >= start || seen < hold) {
           clearTimeout(wait)
           wait = 0
-          if (seen >= 0.35) go()
+          if (seen >= start) go()
         } else if (!wait)
           wait = window.setTimeout(() => {
             wait = 0
             go()
           }, 1200)
       },
-      { threshold: [0, 0.2, 0.35] },
+      { threshold: [0, hold, start] },
     )
     io.observe(el)
     return () => {
@@ -802,7 +809,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           ? 'Still frame: this browser cannot render to a target the live figure needs.'
           : declined === 'lost'
             ? 'Still frame: the graphics context was lost.'
-            : declined === 'slow'
+            : declined === 'slow' || slow
               ? 'Still frame: this device could not draw the live figure smoothly.'
             : declined === 'load' || declined === 'error'
               ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
@@ -964,7 +971,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           data-fps={fps}
           data-quality={quality}
           data-tier={tier ?? ''}
-          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden low:h-[clamp(21rem,62svh,26rem)] sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] flat:h-[clamp(24rem,60svh,30rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
+          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden low:h-[clamp(21rem,62svh,26rem)] sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] short:mx-0 short:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] flat:h-[clamp(24rem,60svh,30rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}

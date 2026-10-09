@@ -58,7 +58,7 @@ const posterVariant = (): 'wide' | 'narrow' | 'short' | 'low' =>
     ? 'low'
     : matchMedia('(width < 40rem) and (orientation: portrait) and (min-height: 37.5001rem)').matches
     ? 'narrow'
-    : matchMedia('(min-width: 40rem) and (max-height: 30rem)').matches
+    : matchMedia('(min-width: 36rem) and (max-height: 30rem)').matches
       ? 'short'
       : 'wide'
 
@@ -564,7 +564,7 @@ export function OrderBookLive({
       {/* Sideways on a phone the reading and the controls stand beside the terrain, as the IV surface's do: under it, the
           stage ran 2.4 times as wide as tall, the terrain took half its width and Pause sat below a 380px screen. */}
       <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
-      <div className="relative -mx-6 sm:mx-0">
+      <div className="relative -mx-6 sm:mx-0 short:mx-0">
         <div
           ref={box}
           data-seq={sig.state}
@@ -588,7 +588,7 @@ export function OrderBookLive({
             lean.onTap()
             onStillPick(e)
           }}
-          className="peer relative h-[clamp(26rem,70svh,38rem)] low:h-[clamp(21rem,62svh,26rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] short:h-[calc(88svh-1rem)] lg:h-[clamp(26rem,56svh,36rem)] print:h-[26rem]"
+          className="peer relative h-[clamp(26rem,70svh,38rem)] low:h-[clamp(21rem,62svh,26rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] short:h-[calc(88svh-1rem)] lg:h-[clamp(26rem,56svh,36rem)] flat:h-[clamp(26rem,calc(100svh-9rem),36rem)] print:h-[26rem]"
         >
           <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}

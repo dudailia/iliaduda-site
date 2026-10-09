@@ -247,15 +247,24 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     const f = market.flow
     const box = stage.current!.getBoundingClientRect()
     const x = e.clientX - box.left
-    const lane = laneAt((e.clientY - box.top) * (HEIGHT / box.height))
+    const k = HEIGHT / box.height
+    const y = (e.clientY - box.top) * k
     const { x0, pw } = plot(box.width)
-    if (lane < 0 || x < x0 - 4 || x > x0 + pw + 4) return null
-    // Six pixels either side for a mouse; a fingertip is wider, and the strips move under it, so fourteen.
-    const reach = e.pointerType === 'touch' ? 14 : 6
-    const age = pickEvent(f, { t0: f.t - SECONDS, t1: f.t, cols: 1 }, (x - x0) / pw, lane, (reach / pw) * SECONDS)
-    if (age === null) return null
-    const i = f.event(age)
-    return { e: i, t: f.ev.t[i]! }
+    if (x < x0 - 4 || x > x0 + pw + 4) return null
+    // Six pixels either side for a mouse; a fingertip is wider, and the strips move under it, so fourteen. Up and down
+    // too, under a finger: the lane under it first, then the next nearer one (sideways the lanes are 13px tall, and a
+    // tap a few pixels off its lane pinned nothing).
+    const touch = e.pointerType === 'touch'
+    const reach = touch ? 14 : 6
+    const tries = touch ? [0, -7, 7, -14, 14] : [0]
+    const lanes = [...new Set(tries.map((dy) => laneAt(y + dy * k)))].filter((l) => l >= 0)
+    for (const lane of lanes) {
+      const age = pickEvent(f, { t0: f.t - SECONDS, t1: f.t, cols: 1 }, (x - x0) / pw, lane, (reach / pw) * SECONDS)
+      if (age === null) continue
+      const i = f.event(age)
+      return { e: i, t: f.ev.t[i]! }
+    }
+    return null
   }
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** Where the pointer went down, so a swipe can be told from a tap. */
@@ -384,7 +393,7 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
       table={table}
     >
       {/* The stage's width decides where the lane names go, so it sits in a container it can be measured by. */}
-      <div className="@container relative -mx-6 sm:mx-0">
+      <div className="@container relative -mx-6 sm:mx-0 short:mx-0">
         <div
           ref={stage}
           role="group"
@@ -544,7 +553,9 @@ function Labels() {
         {/* The long form where it fits: its ~520px past the 124px gutter (an iPhone SE turned sideways, 603px, cut it). */}
         <span className="hidden @min-[660px]:inline"> by earlier orders</span>
       </span>
-      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-6 text-ink @min-[520px]:hidden`} style={top(Y.intensity, -34)}>
+      {/* In a stage under 300px (a 360px phone at a 130% font size) at 12px, the figures' smallest: at 13 its second line
+          ran 17px past the screen's edge. */}
+      <span className={`${text.replace('leading-none', 'leading-[1.3]')} left-6 text-ink @min-[520px]:hidden @max-[300px]:text-[0.75rem]`} style={top(Y.intensity, -34)}>
         Market orders a second:
         <br />
         <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off by others

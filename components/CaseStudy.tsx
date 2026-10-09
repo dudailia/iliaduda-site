@@ -38,13 +38,14 @@ export function CaseStudyTitle({
   // A phone turned sideways keeps the phone's title size: at 44px the title took up to 148px of a 326–390px screen. On
   // every phone held upright (to 28rem, a Pro Max's 440) it is 28px: at 31px a 360px phone left "beyond" and "membrane"
   // alone on a line, and a Pro Max "remembers:" and "CloseBooks:" ("Order flow that remembers:" is 407px at 31, 368 at
-  // 28, in a 382–392px column). Under 23rem (a 360px Android) 26px, where "on a circular membrane" fits its 312px. A
+  // 28, in a 382–392px column). Under 25.5rem (an iPhone 15–17) 26px and under 23.5rem (an SE, a 360px Android) 25px,
+  // where "Ranking startup segments," (352px at 28) and "on a circular membrane" each keep a line of their own. A
   // larger Android font size narrows the page in CSS px: at 130% (277px) "Fourier–Bessel series", held whole, was 258px
   // in a 229px column and the page scrolled sideways. So 23px under 20.5rem (115%, 313px: "A debt-settlement portal"
   // and "beyond the scoreboard" each on a line), 20px under 18.5rem (130%) and 19px at 150% (240px, a 192px column).
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[23rem]:text-[1.625rem] max-[20.5rem]:text-[1.4375rem] max-[18.5rem]:text-[1.25rem] max-[16rem]:text-[1.1875rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
+      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[25.5rem]:text-[1.625rem] max-[23.5rem]:text-[1.5625rem] max-[20.5rem]:text-[1.4375rem] max-[18.5rem]:text-[1.25rem] max-[16rem]:text-[1.1875rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
         {TITLE_PHRASES[title] ? (
           // Each phrase an inline block: the lines break between them, and inside one only where it is wider than the line.
           TITLE_PHRASES[title].map((p, i) => (

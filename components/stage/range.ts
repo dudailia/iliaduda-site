@@ -13,7 +13,7 @@ export const rangeFill = (value: number, min: number, max: number): CSSPropertie
 /**
  * A slider under a finger, the same in every browser. A tap on its track sets it there: Chrome on Android seeks on a tap
  * already; iOS Safari moves a range only by its thumb, 16px wide inside the 44px the input gives a finger, so a tap beside
- * it did nothing. A tap (under 10px of movement, within 600ms) that left the value where it was is answered here, as an
+ * it did nothing. A tap (under 10px of movement, held however long) that left the value where it was is answered here, as an
  * input event the figure takes like any other; a tap on the thumb itself moves nothing. A finger that lands on the track
  * and goes plainly sideways drags the value with it, where the browser does not (iOS). And a touch the page takes for
  * a scroll or a pinch puts the value back: Chrome seeks on touchstart, before it knows the direction, so a scroll that
@@ -21,8 +21,7 @@ export const rangeFill = (value: number, min: number, max: number): CSSPropertie
  * ends (its 16px), as the site's slider draws it.
  */
 const TAP_PX = 10
-const TAP_MS = 600
-type Down = { id: number; x: number; y: number; t: number; el: HTMLInputElement; value: string; off: boolean; drag: boolean; held: boolean }
+type Down = { id: number; x: number; y: number; t: number; el: HTMLInputElement; value: string; off: boolean; drag: boolean; held: boolean; seek: string | null }
 let down: Down | null = null
 
 const bounds = (el: HTMLInputElement) => {
@@ -46,11 +45,8 @@ function put(el: HTMLInputElement, next: string) {
   el.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
-/** Tells the figure the value the browser set while the touch was held, as the browser's own input would have. */
-function flush(el: HTMLInputElement) {
-  el.dispatchEvent(new Event('input', { bubbles: true }))
-  el.dispatchEvent(new Event('change', { bubbles: true }))
-}
+/** Sets the value and tells no one: the thumb stays where the figure has it. */
+const quiet = (el: HTMLInputElement, v: string) => Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, v)
 
 /** The value under a finger at `x`, on the input's own steps. */
 function valueAt(el: HTMLInputElement, x: number): string {
@@ -72,20 +68,20 @@ function onDown(e: PointerEvent) {
   // A second finger (a pinch) is not the slider's.
   if (down && down.id !== e.pointerId) return
   // Held: until the touch shows what it is, the browser's own seek is kept from the figure (see onInput).
-  down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > TAP_PX, drag: false, held: true }
+  down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > TAP_PX, drag: false, held: true, seek: null }
 }
 
 function onMove(e: PointerEvent) {
   const d = down
   if (!d || d.id !== e.pointerId) return
   const dx = e.clientX - d.x, dy = e.clientY - d.y
-  // Sideways, it is the slider's: what the browser set while it was held reaches the figure, and so does all that follows.
+  // Sideways, it is the slider's: from the track the value follows the finger (iOS moves a range only by its thumb; on
+  // Android this is where the browser's own drag has it anyway), and what the browser does from here reaches the figure.
   if (d.held && Math.abs(dx) > TAP_PX && Math.abs(dx) > Math.abs(dy)) {
     d.held = false
-    if (d.el.value !== d.value) flush(d.el)
+    d.drag = d.off
+    put(d.el, d.off ? valueAt(d.el, e.clientX) : (d.seek ?? d.value))
   }
-  // Plainly sideways from the track, and the browser has not taken it (it moved nothing): the value follows the finger.
-  if (!d.drag && d.off && d.el.value === d.value && Math.abs(dx) > TAP_PX && Math.abs(dx) > 1.5 * Math.abs(dy)) d.drag = true
   if (d.drag) put(d.el, valueAt(d.el, e.clientX))
 }
 
@@ -93,31 +89,38 @@ function onCancel(e: PointerEvent) {
   const d = down
   if (!d || d.id !== e.pointerId) return
   down = null
-  // The page took the touch (a scroll, a pinch): what the browser's seek moved goes back; a drag of our own stays. Held,
-  // the figure never saw the seek, so nothing redraws at it (on Android a scroll begun on a slider showed the touched
-  // value for up to 290ms, the fan widening and narrowing again).
-  if (d.held && !d.drag) {
-    if (d.el.value !== d.value) Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(d.el, d.value)
-    return
-  }
-  if (!d.drag && d.el.value !== d.value) put(d.el, d.value)
+  // The page took the touch (a scroll, a pinch): held, the figure never saw the browser's seek and the thumb never left
+  // its value, so nothing moves (on Android a scroll begun on a slider showed the touched value for up to 290ms, the fan
+  // widening and narrowing again). A drag of our own stays.
+  if (d.held) quiet(d.el, d.value)
 }
 
 function onUp(e: PointerEvent) {
   const d = down
   if (!d || d.id !== e.pointerId) return
   down = null
-  // A tap the browser answered itself (Android seeks on a tap): its value, held till now, reaches the figure.
-  if (d.held && !d.drag && d.el.value !== d.value) return flush(d.el)
-  if (d.drag || d.el.value !== d.value || !d.off) return
-  if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX || e.timeStamp - d.t > TAP_MS) return
-  put(d.el, valueAt(d.el, e.clientX))
+  if (!d.held) return
+  // Still held at the lift, the touch was a press: a scroll ends in a cancel, never here. However long it was held, the
+  // value goes where the browser sought it (Android), or under the finger off the thumb (iOS seeks nothing); on the thumb
+  // itself, nowhere. Pressed and held 650ms on a live figure, the value was lost half the time.
+  if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX) return
+  if (d.seek !== null) put(d.el, d.seek)
+  else if (d.off) put(d.el, valueAt(d.el, e.clientX))
 }
 
-/** The browser's own input on a held slider stops here, before the figure (React listens further down the page). */
+/**
+ * The browser's own input on a held slider stops here, before the figure (React listens further down the page), and its
+ * thumb goes back to the figure's value at once: kept where the browser put it, the figure's next render put it back, and
+ * the lift moved it again (three moves on one tap). Where it was sought is kept for the lift.
+ */
 function onInput(e: Event) {
   const d = down
-  if (d && d.held && e.isTrusted && e.target === d.el) e.stopImmediatePropagation()
+  if (!d || !d.held || !e.isTrusted || e.target !== d.el) return
+  e.stopImmediatePropagation()
+  if (d.el.value !== d.value) {
+    d.seek = d.el.value
+    quiet(d.el, d.value)
+  }
 }
 
 if (typeof document !== 'undefined') {

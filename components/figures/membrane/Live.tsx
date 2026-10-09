@@ -297,7 +297,8 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
     >
       {/* Sideways on a phone the shapes, the modes and the buttons stand beside the drum, as the home figure's controls do:
           under it, a shape and the drum it sets never shared a 343px screen. */}
-      <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
+      {/* 17rem: in 15 the shapes wrapped to three rows and the column ran 391px down a 380px screen. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_17rem] short:items-start short:gap-x-6">
       {/* Edge to edge on a phone, as the other Fig. 1s: inside the column the drum stood a third of the screen tall. */}
       <div
         ref={box}
@@ -305,7 +306,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         data-seq={sig.state}
         role="group"
         aria-label={`A circular drum, initial shape ${shape.formula}, in ${modes} modes`}
-        className="relative -mx-6 aspect-[1000/620] w-[calc(100%+3rem)] touch-pan-y touch-pinch-zoom sm:mx-auto sm:w-full sm:max-w-[calc(88svh*1000/620)]"
+        className="relative -mx-6 aspect-[1000/620] w-[calc(100%+3rem)] touch-pan-y touch-pinch-zoom sm:mx-auto sm:w-full sm:max-w-[calc(88svh*1000/620)] short:mx-auto short:w-full short:max-w-[calc(88svh*1000/620)]"
         onPointerMove={lean.onPointerMove}
         onPointerLeave={lean.onPointerLeave}
         onClick={lean.onTap}
@@ -316,7 +317,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={fade(live)} />
       </div>
 
-      <div data-membrane-controls="" className="mt-3 grid gap-y-3 short:mt-0">
+      <div data-membrane-controls="" className="mt-3 grid gap-y-3 short:mt-0 short:gap-y-2">
         {/* One choice of shape, in two groups: a radio group each, the arrow keys moving within it. */}
         {GROUPS.map((g) => {
           const ids = SHAPES.filter((x) => x.from === g.from)
@@ -325,7 +326,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
               <p id={`membrane-shapes-${g.from}`} className="text-meta font-mono text-graphite">
                 {g.label}
               </p>
-              <div role="radiogroup" aria-labelledby={`membrane-shapes-${g.from}`} className="mt-1 flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
+              <div role="radiogroup" aria-labelledby={`membrane-shapes-${g.from}`} className="mt-1 flex flex-wrap gap-2 pointer-coarse:gap-y-3.5 short:pointer-coarse:gap-y-3">
                 {ids.map((x) => (
                   <button key={x.id} {...radio(x.id, ids.map((y) => y.id))} className={option(x.id === shapeId)}>
                     {x.label}

@@ -395,7 +395,7 @@ export function MarketLive({
 
   // The surface's quality waits to climb until the story is told: the lead-in and the shock never sharpen mid-moment.
   const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seq.current.started && !seq.current.done }))
-  const { box, canvas, live: surfaceLive, eligible, reduced, tier, quality, fps } = useStage(create, stageOpts)
+  const { box, canvas, live: surfaceLive, eligible, slow, reduced, tier, quality, fps } = useStage(create, stageOpts)
   // The story waits until all three views are wholly in view (on a laptop and a phone turned sideways they sit side by
   // side, one screen tall at most: app/globals.css), so the shock lands where all three can be seen; never on a partial
   // view held for a moment. On a phone in portrait the three stacked views are taller than the screen: then as much of
@@ -416,7 +416,9 @@ export function MarketLive({
   // Chrome no longer lends a software one) or a software rasteriser keeps the still frames, which Liquidity shock swaps.
   // Arrived by a paper's morph, it starts under the morph, before the stage has a context to judge the device by (a
   // morph is a reader's click, never an audit's load); a stage that then finds no WebGL2 or a software one stops it.
-  const allowed = mounted && !saveData() && (tier === null ? morphed && eligible && supportsWebGL2() : tier !== 'software')
+  // A surface that crawled and gave way (the stage kit's slow) takes the market with it: the book and futures traded on
+  // live beside the build's still surface, three views no longer of one moment, with no word why.
+  const allowed = mounted && !saveData() && !slow && (tier === null ? morphed && eligible && supportsWebGL2() : tier !== 'software')
 
   // ── the flat views, drawn in the market's own frame ────────────────────────────────────────────────────────────
   const lastDraw = useRef(0)
@@ -826,7 +828,8 @@ export function MarketLive({
     readAt(agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
   }
   const onBookDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== 'touch') return
+    // A second finger (a pinch) does not take the book from the first.
+    if (e.pointerType !== 'touch' || touching.current) return
     touching.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, before: readingAgo.current }
   }
   const onBookUp = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -984,6 +987,8 @@ export function MarketLive({
           ? 'Still frames: your browser asks to save data.'
           : market.declined
             ? 'Still frames: the market could not start in this browser.'
+          : slow
+            ? 'Still frames: this device could not draw the market smoothly.'
           : tier === 'software'
             ? 'Still frames: this device draws with its processor, not a graphics chip, so the market is not run here.'
             : !eligible && !supportsWebGL2()
@@ -1142,7 +1147,7 @@ export function MarketLive({
       <div ref={stage} className="relative" data-market-stage="" data-market-live={live ? '1' : '0'}>
         <div ref={viewsBox} data-market-views="">
         {/* The surface: the market's stress sets its shock. */}
-        <div className="relative -mx-6 sm:mx-0" data-market-surface-box="">
+        <div className="relative -mx-6 sm:mx-0 short:mx-0" data-market-surface-box="">
           {/* The surface leans with the reader, as every 3D figure does: toward a fine pointer, with a phone's tilt (iOS
               asks on the first tap); a drag, or the arrow keys, turn it. */}
           <div
@@ -1207,7 +1212,7 @@ export function MarketLive({
 
         <div data-market-lower="" className="mt-3 grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-4">
           {/* The book: the last twenty seconds, and the book at now. A size container: its axis reads by its own width. */}
-          <div className="@container -mx-6 sm:mx-0">
+          <div className="@container -mx-6 sm:mx-0 short:mx-0">
             {/* On a phone the reading ("6.1 s ago · vol 51.2% · stress 0.32") takes three lines in this pane: both panes'
                 titles keep that room, so a tap moves nothing under them and the two panes stay level. */}
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0" data-market-book-title="">
@@ -1279,7 +1284,7 @@ export function MarketLive({
             </div>
           </div>
           {/* The futures: a year from the price now. */}
-          <div className="-mx-6 sm:mx-0">
+          <div className="-mx-6 sm:mx-0 short:mx-0">
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0">Futures, the next year</p>
             <div className="relative h-28 overflow-hidden bg-paper sm:h-52" data-market-fan="" data-market-pane="">
               <div data-market-still="" style={underlay(live)}>{stillsOf('fan')}</div>

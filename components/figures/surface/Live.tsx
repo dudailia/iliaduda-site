@@ -697,7 +697,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       {/* Sideways on a phone the words and the controls stand beside the surface, as the home figure's do: under it, the
           slider and Pause sat below a 360px screen, and the stage's right half stood empty. */}
       <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
-      <div className="relative -mx-6 sm:mx-0">
+      <div className="relative -mx-6 sm:mx-0 short:mx-0">
         <div
           ref={box}
           role="group"
@@ -967,7 +967,7 @@ function Margin({
       {/* The Greeks, one step away: the margin leads with what the figure shows. */}
       {/* Closed, it would print a summary with nothing under it. */}
       <details className={`text-meta font-mono print:hidden ${across ? '' : 'mt-2 lg:text-right'}`}>
-        <summary onClick={glideDetails} className="cursor-pointer py-1 pointer-coarse:py-[calc((44px-1lh)/2)] text-graphite marker:text-graphite hover:text-ink">
+        <summary onClick={glideDetails} className="cursor-pointer py-1 pointer-coarse:py-[calc((44px-1lh)/2)] text-graphite marker:text-graphite hover:text-ink active:text-ink">
           Greeks at the point
         </summary>
         <dl className={`${dl} mt-2 ${across ? 'border-t-0 pt-0' : ''}`}>
@@ -1022,6 +1022,21 @@ function glideDetails(e: MouseEvent<HTMLElement>) {
   anim.addEventListener('finish', () => {
     if (gliding.get(details)?.anim === anim) gliding.delete(details)
   })
+  // Under a finger the summary stays where it was pressed: in the margin (an iPad turned sideways) the rail sticks, and
+  // its rows growing past their column slid the whole rail up, the summary 194px out from under the finger, and the next
+  // tap there landed on a Greek.
+  if (matchMedia('(pointer: coarse)').matches) {
+    const summary = e.currentTarget
+    const top = summary.getBoundingClientRect().top
+    let last = 2
+    const hold = () => {
+      const drift = summary.getBoundingClientRect().top - top
+      if (Math.abs(drift) > 0.5) scrollBy(0, drift)
+      // Through the glide, and a frame or two after it, while the rail settles.
+      if (gliding.get(details)?.anim === anim || last-- > 0) requestAnimationFrame(hold)
+    }
+    requestAnimationFrame(hold)
+  }
 }
 
 /** The point's rows as the margin shows them: where it is, then (after its volatilities and price) its Greeks. */
