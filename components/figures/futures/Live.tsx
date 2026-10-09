@@ -474,7 +474,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     // Today under the fold. A laptop keeps a third, or a fifth held: its first screen shows that much and plays it.
     const flat = matchMedia('(min-width: 64rem) and (max-height: 45rem) and (pointer: coarse)').matches
     const coarse = matchMedia('(pointer: coarse)').matches
-    const start = flat ? 0.6 : coarse ? 0.55 : 0.35, hold = flat ? 0.45 : coarse ? 0.35 : 0.2
+    // (0.68: at 0.55, exactly where Today stands, a reader scrolling at a reading pace saw it rise 1–9px over the edge.)
+    const start = flat ? 0.6 : coarse ? 0.68 : 0.35, hold = flat ? 0.45 : coarse ? 0.45 : 0.2
     const io = new IntersectionObserver(
       (es) => {
         // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
@@ -1014,7 +1015,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         <div>
         {/* One above the other on a phone, each the column's width: side by side each had ~145px of travel for 75 and 100
             steps, and a lifting thumb moved them a step or three. */}
-        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 sm:gap-y-0 short:mt-0 short:grid-cols-1 short:gap-y-2">
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 pointer-coarse:gap-y-3 sm:grid-cols-2 sm:gap-y-0 short:mt-0 short:grid-cols-1 short:gap-y-2 short:pointer-coarse:gap-y-3">
           <label className="block">
             <span className="text-meta font-mono text-graphite">
               Volatility{' '}

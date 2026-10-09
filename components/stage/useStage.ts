@@ -218,6 +218,7 @@ export function useStage(
     /** When the last drawn frames came (ms, the last second and a half of them), and how long it has crawled, ms. */
     const drawnAt: number[] = []
     let crawlFor = 0
+    let deepFor = 0
     /** Whether the step down under test has had its light frame. */
     let probeLit = false
     /** Since when the frames have drawn nothing (ms), or null while they draw. */
@@ -297,7 +298,7 @@ export function useStage(
         idleSince ??= now
         if (now - idleSince > 500) {
           drawnAt.length = 0
-          crawlFor = 0
+          crawlFor = deepFor = 0
         }
       } else if (raw > 0) {
         idleSince = null
@@ -308,7 +309,11 @@ export function useStage(
         const near = gov.q <= gov.minQ || (gov.q <= gov.minQ + 1 && fps * 3 * gov.refresh < 1000)
         if (near && fps < 13) crawlFor += Math.min(raw, 2000)
         else if (fps >= 15 || !near) crawlFor = 0
-        if (crawlFor > 6000) {
+        // Under 6 a second it is no figure at all, at any level: a second and a half of it gives way (the home burst
+        // played whole at 1–7 frames a second while the levels stepped down, 8–9 seconds before its still frame).
+        if (fps < 6) deepFor += Math.min(raw, 2000)
+        else deepFor = 0
+        if (crawlFor > 6000 || deepFor > 1500) {
           renderer.dispose()
           renderer = null
           rendererRef.current = null

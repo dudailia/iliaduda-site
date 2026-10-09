@@ -21,7 +21,7 @@ export const rangeFill = (value: number, min: number, max: number): CSSPropertie
  * ends (its 16px), as the site's slider draws it.
  */
 const TAP_PX = 10
-type Down = { id: number; x: number; y: number; t: number; el: HTMLInputElement; value: string; off: boolean; drag: boolean; held: boolean; seek: string | null }
+type Down = { id: number; x: number; y: number; t: number; el: HTMLInputElement; value: string; off: boolean; drag: boolean; held: boolean; seek: string | null; dragAt: number }
 let down: Down | null = null
 
 const bounds = (el: HTMLInputElement) => {
@@ -68,7 +68,7 @@ function onDown(e: PointerEvent) {
   // A second finger (a pinch) is not the slider's.
   if (down && down.id !== e.pointerId) return
   // Held: until the touch shows what it is, the browser's own seek is kept from the figure (see onInput).
-  down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > TAP_PX, drag: false, held: true, seek: null }
+  down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > TAP_PX, drag: false, held: true, seek: null, dragAt: 0 }
 }
 
 function onMove(e: PointerEvent) {
@@ -77,9 +77,10 @@ function onMove(e: PointerEvent) {
   const dx = e.clientX - d.x, dy = e.clientY - d.y
   // Sideways, it is the slider's: from the track the value follows the finger (iOS moves a range only by its thumb; on
   // Android this is where the browser's own drag has it anyway), and what the browser does from here reaches the figure.
-  if (d.held && Math.abs(dx) > TAP_PX && Math.abs(dx) > Math.abs(dy)) {
+  if (d.held && Math.abs(dx) > TAP_PX && Math.abs(dx) > Math.abs(dy) + 1) {
     d.held = false
     d.drag = d.off
+    d.dragAt = e.timeStamp
     put(d.el, d.off ? valueAt(d.el, e.clientX) : (d.seek ?? d.value))
   }
   if (d.drag) put(d.el, valueAt(d.el, e.clientX))
@@ -93,6 +94,9 @@ function onCancel(e: PointerEvent) {
   // its value, so nothing moves (on Android a scroll begun on a slider showed the touched value for up to 290ms, the fan
   // widening and narrowing again). A drag of our own stays.
   if (d.held) quiet(d.el, d.value)
+  // A drag the page took from it at once was the start of a scroll that set out a little sideways (11–14px, then up):
+  // the browser decides at its own slop, past ours, and the value it had moved to stayed as the page scrolled away.
+  else if (e.timeStamp - d.dragAt < 250) put(d.el, d.value)
 }
 
 function onUp(e: PointerEvent) {

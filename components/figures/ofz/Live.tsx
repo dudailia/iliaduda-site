@@ -245,7 +245,8 @@ export function OfzLive({
           {TICKS_T.map((t, i) => (
             <span
               key={t}
-              className={`absolute ${i === 0 ? '' : i === TICKS_T.length - 1 ? '-translate-x-full' : '-translate-x-1/2'}`}
+              // Under 20.5rem (a large font size) the 1-year label gives way: on the square-root axis it touched "3m".
+              className={`absolute ${i === 0 ? '' : i === TICKS_T.length - 1 ? '-translate-x-full' : '-translate-x-1/2'} ${t === 1 ? 'max-[20.5rem]:hidden' : ''}`}
               style={{ left: `${(sx(t) / W) * 100}%` }}
             >
               {tLabel(t)}

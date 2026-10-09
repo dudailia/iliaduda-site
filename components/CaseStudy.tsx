@@ -38,27 +38,17 @@ export function CaseStudyTitle({
   // A phone turned sideways keeps the phone's title size: at 44px the title took up to 148px of a 326–390px screen. On
   // every phone held upright (to 28rem, a Pro Max's 440) it is 28px: at 31px a 360px phone left "beyond" and "membrane"
   // alone on a line, and a Pro Max "remembers:" and "CloseBooks:" ("Order flow that remembers:" is 407px at 31, 368 at
-  // 28, in a 382–392px column). Under 25.5rem (an iPhone 15–17) 26px and under 23.5rem (an SE, a 360px Android) 25px,
-  // where "Ranking startup segments," (352px at 28) and "on a circular membrane" each keep a line of their own. A
+  // 28, in a 382–392px column). Under 26rem (a Pixel, 412px) 27px, where "Order flow that remembers:" (368px at 28)
+  // fits its 364px; under 25.5rem (an iPhone 15–17) 25.5px, under 23.5rem (an SE) 24px and under 22.75rem
+  // (a 360px Android) 23px, where "Ranking startup segments," (352px at 28, 1.9px too wide at 25 in a 312px column),
+  // "Order flow that remembers:" and "on a circular membrane" each keep a line of their own. A
   // larger Android font size narrows the page in CSS px: at 130% (277px) "Fourier–Bessel series", held whole, was 258px
-  // in a 229px column and the page scrolled sideways. So 23px under 20.5rem (115%, 313px: "A debt-settlement portal"
-  // and "beyond the scoreboard" each on a line), 20px under 18.5rem (130%) and 19px at 150% (240px, a 192px column).
+  // in a 229px column and the page scrolled sideways. So 21px under 20.5rem (115%, 313px: "Ranking startup segments,"
+  // and "A debt-settlement portal" each on a line in 265px), 18px under 18.5rem (130%, 229px) and 17px at 150%.
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[25.5rem]:text-[1.625rem] max-[23.5rem]:text-[1.5625rem] max-[20.5rem]:text-[1.4375rem] max-[18.5rem]:text-[1.25rem] max-[16rem]:text-[1.1875rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
-        {TITLE_PHRASES[title] ? (
-          // Each phrase an inline block: the lines break between them, and inside one only where it is wider than the line.
-          TITLE_PHRASES[title].map((p, i) => (
-            <Fragment key={p}>
-              {i ? ' ' : null}
-              <span className="inline-block max-w-full">
-                <Whole text={p} />
-              </span>
-            </Fragment>
-          ))
-        ) : (
-          <Whole text={title} />
-        )}
+      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[26rem]:text-[1.6875rem] max-[25.5rem]:text-[1.59375rem] max-[23.5rem]:text-[1.5rem] max-[22.75rem]:text-[1.4375rem] max-[20.5rem]:text-[1.3125rem] max-[18.5rem]:text-[1.125rem] max-[16rem]:text-[1.0625rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
+        <TitleText title={title} />
       </Heading>
       {byline ? (
         <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>
@@ -67,6 +57,24 @@ export function CaseStudyTitle({
       <hr className="mt-8 border-0 border-t border-rule" />
     </Row>
   )
+}
+
+/**
+ * A paper's title, in its phrases where it has them (content/papers.ts, TITLE_PHRASES): each an inline block, so the
+ * lines break between them, and inside one only where it is wider than the line. The page's h1 and the Contents' entry
+ * alike: the entry broke "cricket / predicts beyond / the scoreboard" where the page no longer did.
+ */
+export function TitleText({ title }: { title: string }) {
+  const phrases = TITLE_PHRASES[title]
+  if (!phrases) return <Whole text={title} />
+  return phrases.map((p, i) => (
+    <Fragment key={p}>
+      {i ? (phrases[i - 1]!.endsWith('-') ? <wbr /> : ' ') : null}
+      <span className="inline-block max-w-full">
+        <Whole text={p} />
+      </span>
+    </Fragment>
+  ))
 }
 
 /**

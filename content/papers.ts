@@ -162,8 +162,13 @@ export const papers: readonly Paper[] = [
 /**
  * Where a page title breaks first: between these phrases, each of which wraps inside only where it is wider than the
  * column (a large font size), so no line strands a word or splits a phrase ("portal built / to", "on / a circular
- * membrane", "beyond / the scoreboard"). Joined by spaces, they are the title exactly (tests/title-phrases.test.ts).
+ * membrane", "beyond / the scoreboard"). Joined by spaces, they are the title exactly (tests/title-phrases.test.ts); a
+ * phrase that ends on a hyphen joins the next with none, and the line may break there ("An implied- / volatility
+ * surface": held whole, "An implied-volatility surface" was wider than a phone's column, and "surface free" broke away).
  */
+/** Phrases joined back into their title: by a space, or by nothing after a hyphen. */
+export const joinPhrases = (p: readonly string[]) => p.reduce((a, x, i) => (i ? a + (a.endsWith('-') ? '' : ' ') + x : x), '')
+
 export const TITLE_PHRASES: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
   [
     ['The vibrating drum:', 'Fourier–Bessel\u00a0series', 'on a circular\u00a0membrane'],
@@ -171,7 +176,8 @@ export const TITLE_PHRASES: Readonly<Record<string, readonly string[]>> = Object
     ['A debt-settlement portal', 'built to\u00a0Russian federal law'],
     ['Ranking startup\u00a0segments,', 'and how\u00a0much the answer', 'depends on the data'],
     ['A carbon model', 'for campus\u00a0AI\u00a0use,', 'built to be argued with'],
-  ].map((p) => [p.join(' '), p]),
+    ['An implied-', 'volatility surface', 'free of\u00a0static arbitrage'],
+  ].map((p) => [joinPhrases(p), p]),
 )
 
 export interface OtherWork {
