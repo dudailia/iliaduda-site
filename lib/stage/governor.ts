@@ -35,14 +35,25 @@ export class Governor {
   private chainFrom: number | null = null
   /** A level to go back to, once the figure stops holding the quality (a clock learned mid-story). */
   private restoreTo: number | null = null
-  /** The last intervals after a light frame (one that drew nothing, or nothing costly), ms: the clock's own pace. */
-  private readonly lights: number[] = []
+  /**
+   * The last intervals after a light frame (one that drew nothing, or nothing costly), ms: the clock's own pace, and
+   * when each came (null: no time given). Ten seconds old, one says nothing of the clock now: a figure that draws every
+   * frame shows light ones only before its first, and Low Power Mode turned on later met a 60 Hz reading from the load.
+   */
+  private readonly lights: { ms: number; at: number | null }[] = []
+  private lastNow = 0
   /** The last drawn frames' intervals, ms. */
   private readonly recent: number[] = []
 
   /** How fast the display's clock runs, as its light frames show it: their median, once there are three. */
   get fastest(): number {
-    return this.lights.length >= 3 ? median(this.lights) : Infinity
+    const fresh = this.lights.filter((l) => l.at === null || this.lastNow - l.at < 10000).map((l) => l.ms)
+    return fresh.length >= 3 ? median(fresh) : fresh.length && this.probe ? Math.min(...fresh) : Infinity
+  }
+
+  /** A step down is being tested: the kit gives the clock one light frame to read it by (useStage.ts). */
+  get probing(): boolean {
+    return this.probe !== null
   }
 
   /** The drawn frames' interval when they are steady (see steadyAt), else null. */
@@ -64,9 +75,9 @@ export class Governor {
    * The interval after a light frame, in ms (the kit passes only those: what follows a heavy frame says how long the
    * work took, not how fast the clock runs). Two callbacks in one frame (under 4ms apart) say nothing.
    */
-  observe(ms: number): void {
+  observe(ms: number, now?: number): void {
     if (ms < 4) return
-    this.lights.push(ms)
+    this.lights.push({ ms, at: now ?? null })
     if (this.lights.length > 15) this.lights.shift()
   }
 
@@ -85,6 +96,7 @@ export class Governor {
 
   /** One drawn frame of `dt` seconds, ending at `now` (ms); `held` keeps it from climbing. Returns whether q changed. */
   frame(dt: number, now: number, held = false): boolean {
+    this.lastNow = now
     this.recent.push(dt * 1000)
     if (this.recent.length > 15) this.recent.shift()
     this.ema = this.ema * 0.9 + dt * 1000 * 0.1
@@ -106,9 +118,11 @@ export class Governor {
     // a display seen giving frames a quarter quicker than these: its clock is faster, and the work held them.
     if (this.probe && now - this.probe.at > 1500) {
       const p = this.probe
+      // Read while the probe stands: the one light frame the kit gave it counts then, even alone.
+      const fastest = this.fastest
       this.probe = null
       const st = this.steady()
-      if (this.ema > p.ema * 0.9 && st !== null && isDisplayRate(st) && this.fastest > st * 0.75) {
+      if (this.ema > p.ema * 0.9 && st !== null && isDisplayRate(st) && fastest > st * 0.75) {
         this.refresh = st
         this.failures[p.from] = Math.max(0, (this.failures[p.from] ?? 1) - 1)
         this.blockedUntil[p.from] = 0

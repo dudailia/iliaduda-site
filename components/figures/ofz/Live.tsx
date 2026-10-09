@@ -292,9 +292,9 @@ export function OfzLive({
                   }}
                   aria-pressed={at === m.index}
                   // A hairline box: without it the decision days read as axis labels, not as something to press. Under a
-                  // finger its ::before reaches 44px, 2px more below than above: the slider's own 44px box covers the
-                  // top 1.5px of it, and a one-line day (sideways) measured 42.5.
-                  className={`absolute ${align} rounded-sm border px-1.5 py-1.5 pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-top-[7px] pointer-coarse:before:-bottom-[9px] pointer-coarse:before:content-[''] touch-manipulation text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
+                  // finger its ::before reaches 44px, 10px more below than above: the slider's own 44px box is just above,
+                  // and reaching up the days took its band (a one-line day measured 42.5, the slider 40).
+                  className={`absolute ${align} rounded-sm border px-1.5 py-1.5 pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-top-[3px] pointer-coarse:before:-bottom-[13px] pointer-coarse:before:content-[''] touch-manipulation text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
                     // Chosen as every other option on the site is: ink fill, paper text.
                     at === m.index ? 'border-ink bg-ink text-paper forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink active:border-ink active:text-ink active:transition-none'
                   }`}

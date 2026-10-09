@@ -218,6 +218,10 @@ export function useStage(
     /** When the last drawn frames came (ms, the last second and a half of them), and how long it has crawled, ms. */
     const drawnAt: number[] = []
     let crawlFor = 0
+    /** Whether the step down under test has had its light frame. */
+    let probeLit = false
+    /** Since when the frames have drawn nothing (ms), or null while they draw. */
+    let idleSince: number | null = null
     /** The figure's own time, ms from its first frame (snapped to the clock where one is learned). */
     let clock = 0
     let heldUntil = 0
@@ -241,7 +245,18 @@ export function useStage(
       }
       if (!t0) t0 = now
       // The interval after a light frame (nothing drawn, or skipped) is the clock's; after a heavy one, the work's.
-      if (last && prevLight) gov.observe(now - last)
+      if (last && prevLight) gov.observe(now - last, now)
+      // A step down under test, on a figure that draws every frame: one frame is let go undrawn, once, so the interval
+      // after it says how fast the clock runs now (Low Power Mode turned on mid-visit stepped /market and the order book
+      // down three levels, their only light frames those before their first, at 60 Hz).
+      if (gov.probing && !probeLit) {
+        probeLit = true
+        last = now
+        prevLight = true
+        raf = requestAnimationFrame(tick)
+        return
+      }
+      if (!gov.probing) probeLit = false
       const raw = last ? now - last : 0
       last = now
       // On a slow clock learned steady (Low Power Mode's 30 Hz), the figure's time moves by whole refreshes: Safari
@@ -277,11 +292,15 @@ export function useStage(
       // The count starts a level above the lightest where the frames take over three of the display's (a GPU starved at
       // every level: falling the levels one by one, the home figure crawled 18 seconds before its still frame stood).
       if (drawn !== true) {
-        if (now - (drawnAt.at(-1) ?? -Infinity) > 500) {
+        // Half a second of frames drawing nothing, one after another: a frame drawing nothing between two slow drawn
+        // ones (the home figure skips a frame that would draw the same picture) cleared it at 2 frames a second.
+        idleSince ??= now
+        if (now - idleSince > 500) {
           drawnAt.length = 0
           crawlFor = 0
         }
       } else if (raw > 0) {
+        idleSince = null
         drawnAt.push(now)
         while (drawnAt.length && drawnAt[0]! < now - 1500) drawnAt.shift()
         const span = now - (drawnAt[0] ?? now)

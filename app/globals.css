@@ -1,7 +1,9 @@
 @import 'tailwindcss';
 
-/* A phone turned sideways: wide enough for two columns, too short for a figure and its controls one above the other. */
-@custom-variant short (@media (min-width: 40rem) and (max-height: 30rem));
+/* A phone turned sideways: wide enough for two columns, too short for a figure and its controls one above the other.
+   From 36rem, not the 40rem of sm: at a 123–130% Android font size a phone turned sideways is 600 CSS px wide, and every
+   stage stood stacked as upright, 1.3–2.2 times the screen's height. */
+@custom-variant short (@media (min-width: 36rem) and (max-height: 30rem));
 /* A phone held upright whose screen is under 600px tall (an iPhone SE, 548px under Safari's bars). */
 @custom-variant low (@media (max-height: 37.5rem) and (orientation: portrait));
 /* A tablet turned sideways (an iPad mini, 1133×673 under Safari's bars): a laptop's layout on a laptop's width, but
@@ -643,7 +645,7 @@
    stage one screen tall at most (--h), so on a laptop's first screen, and once in view on a phone, the shock lands in
    all three at once. Each pane's canvas is half the height left after the titles and axes (6.5rem in all). Outside
    any layer, so it wins over the panes' own sizes. */
-@media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem), print {
+@media (min-width: 64rem), (min-width: 36rem) and (max-height: 30rem), print {
   [data-market-views] {
     --h: clamp(15rem, calc(100svh - 34.75rem), 24rem);
     display: grid;
@@ -677,7 +679,7 @@
     height: calc((var(--h) - 6.5rem) / 2);
   }
 }
-@media (min-width: 40rem) and (max-width: 63.99rem) and (max-height: 30rem) {
+@media (min-width: 36rem) and (max-width: 63.99rem) and (max-height: 30rem) {
   [data-market-views] {
     --h: calc(100svh - 7rem);
   }
@@ -886,9 +888,16 @@
   }
   /* A touch screen from 48rem (a phone turned sideways, an iPad) reads the sheet at 15px, a phone's reading size, not
      the printed page's 13.5px; its lines then break where they fall, not where the PDF's do. Print is untouched. */
-  @media screen and (min-width: 48rem) and (pointer: coarse) {
+  /* To 64rem: an iPad turned sideways gets the laptop's sheet, and at 15px across it read 86 characters a line. */
+  @media screen and (min-width: 48rem) and (max-width: 63.99rem) and (pointer: coarse) {
     .cv {
       font-size: 15px;
+    }
+  }
+  @media screen {
+    .cv-note {
+      display: inline-block;
+      max-width: 100%;
     }
   }
   /* An iPad held upright (40–48rem) reads the phone's layout at 15px: across up to 704px, 84–89 characters a line, and

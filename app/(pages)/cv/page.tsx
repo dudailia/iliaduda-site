@@ -121,8 +121,10 @@ export default function Cv() {
                     <strong>{r.org}</strong>
                     {/* The title is one item: it moves to the next line whole rather than breaking inside itself. Its dot
                         hangs in the gap before it (globals.css, .cv-title), so a wrapped head never ends on a dot. */}
+                    {/* On screen the note is one item too (globals.css, .cv-note): its last word no longer stays behind
+                        beside the title it was held to ("accounting / firms · Founder"). */}
                     <span className="cv-muted">
-                      , {r.orgNote}
+                      , <span className="cv-note">{r.orgNote}</span>
                       {'\u00a0\u00a0 '}
                     </span>
                     <span className="cv-title">{r.title}</span>

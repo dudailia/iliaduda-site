@@ -115,7 +115,9 @@ export function OfzCurve({ inline = false }: { inline?: boolean }) {
         id: 'fig-ofz-curve',
         number: 'Fig. 1',
         title: 'The OFZ curve through two rate decisions, summer 2023',
-        subtitle: `zero-coupon yield · Moscow Exchange G-curve · every trading day, ${`${short(days[FIRST]!.date)} – ${short(days[LAST]!.date)} 2023`.replace(/ /g, '\u00a0')} · public data`,
+        // "every trading day," is held together: the item's last two words were the day and the whole date, and its
+        // break fell after "trading", alone on a line.
+        subtitle: `zero-coupon yield · Moscow Exchange G-curve · every\u00a0trading\u00a0day, ${`${short(days[FIRST]!.date)} – ${short(days[LAST]!.date)} 2023`.replace(/ /g, '\u00a0')} · public data`,
         caption,
         table,
         inline,

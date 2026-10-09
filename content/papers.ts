@@ -137,7 +137,7 @@ export const papers: readonly Paper[] = [
   {
     slug: 'startup-investments',
     href: '/startup-investments',
-    title: 'Ranking startup segments, and how\u00a0much the answer depends on the data',
+    title: 'Ranking startup\u00a0segments, and how\u00a0much the answer depends on the data',
     abstract: `A composite model ranks ${n('siMassSegments')} startup segments on growth and size across ${n('siRowsFinal')} funding records. Re-executing my capstone exactly, then changing one data decision at a time, measures how much the recommendation depends on them — three treatments give three different top picks — and finds the segments that hold up under all three.`,
     dek: `A composite model ranks ${n('siMassSegments')} startup segments on growth and size; changing one data decision at a time gives three treatments three top picks, and shows which segments hold up.`,
     description: `A composite model ranks ${n('siMassSegments')} startup segments. Changing one data decision at a time gives three different top picks, and shows which segments hold up.`,
@@ -169,6 +169,7 @@ export const TITLE_PHRASES: Readonly<Record<string, readonly string[]>> = Object
     ['The vibrating drum:', 'Fourier–Bessel\u00a0series', 'on a circular\u00a0membrane'],
     ['What ball-by-ball cricket predicts', 'beyond the\u00a0scoreboard'],
     ['A debt-settlement portal', 'built to\u00a0Russian federal law'],
+    ['Ranking startup\u00a0segments,', 'and how\u00a0much the answer', 'depends on the data'],
     ['A carbon model', 'for campus\u00a0AI\u00a0use,', 'built to be argued with'],
   ].map((p) => [p.join(' '), p]),
 )

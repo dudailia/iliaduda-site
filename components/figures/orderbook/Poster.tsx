@@ -18,7 +18,7 @@ export function Poster({ sim, label }: { sim: Flow; label: string }) {
     <>
       <picture>
         {/* Short where the stage is a phone turned sideways (globals.css, the short variant): its own wide, low frame. */}
-        <source media="(min-width: 40rem) and (max-height: 30rem)" srcSet="/order-book/poster-short.svg" width={short.w} height={short.h} />
+        <source media="(min-width: 36rem) and (max-height: 30rem)" srcSet="/order-book/poster-short.svg" width={short.w} height={short.h} />
         {/* Low where a phone held upright is under 600px tall (an iPhone SE): its stage is wider than tall, and its own. */}
         <source media="(max-height: 37.5rem) and (orientation: portrait)" srcSet="/order-book/poster-low.svg" width={low.w} height={low.h} />
         {/* Narrow where the stage is taller than wide, as the live figure frames it: a phone held upright. A portrait
