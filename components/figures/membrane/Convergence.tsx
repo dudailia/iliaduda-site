@@ -123,7 +123,8 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
           })}
         </div>
         <span className="text-meta absolute top-0 left-0 -translate-x-full -translate-y-1/2 pr-2 font-mono text-graphite tabular">10</span>
-        <span className="text-meta absolute bottom-0 left-0 -translate-x-full translate-y-1/2 pr-2 font-mono text-graphite tabular">
+        {/* At the bars' floor (their box is 4rem tall): set by the wrapper's foot, it sat 19px lower, on the term numbers. */}
+        <span className="text-meta absolute top-16 left-0 -translate-x-full -translate-y-1/2 pr-2 font-mono text-graphite tabular">
           10<sup>−4</sup>
         </span>
         <div className="text-meta flex font-mono text-graphite tabular">

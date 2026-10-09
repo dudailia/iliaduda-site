@@ -31,7 +31,7 @@ export function ContactLinks({ className = '' }: { className?: string }) {
         <li key={l.href}>
           {/* The padding is the tap target, not the look: 36px tall at the meta size without moving a single glyph, and
               44px under a finger (its 20px line and 12px above and below). */}
-          <a href={l.href} className="inline-block max-w-full min-w-6 py-2 text-center leading-5 [overflow-wrap:anywhere] pointer-coarse:py-3">
+          <a href={l.href} className="inline-block max-w-full min-w-6 py-2 text-left leading-5 [overflow-wrap:anywhere] pointer-coarse:py-3">
             {/* An address breaks after its @ where the column is narrower than it (320px and less): not mid-domain. */}
             {l.label.includes('@') ? (
               <>

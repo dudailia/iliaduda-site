@@ -888,16 +888,32 @@
   }
   /* A touch screen from 48rem (a phone turned sideways, an iPad) reads the sheet at 15px, a phone's reading size, not
      the printed page's 13.5px; its lines then break where they fall, not where the PDF's do. Print is untouched. */
-  /* To 64rem: an iPad turned sideways gets the laptop's sheet, and at 15px across it read 86 characters a line. */
-  @media screen and (min-width: 48rem) and (max-width: 63.99rem) and (pointer: coarse) {
+  /* From 64rem (an iPad turned sideways, the laptop's sheet) at 15px too, the sheet narrowed to keep its lines near 75
+     characters: at 15px across it they read 86, at the printed 13.5px 99, small for a tablet's pixels. */
+  @media screen and (min-width: 48rem) and (pointer: coarse) {
     .cv {
       font-size: 15px;
+    }
+  }
+  @media screen and (min-width: 64rem) and (pointer: coarse) {
+    .cv {
+      max-width: 46rem;
     }
   }
   @media screen {
     .cv-note {
       display: inline-block;
       max-width: 100%;
+    }
+    /* Hung outside the title, not drawn back by a negative margin: at the start of a line WebKit kept the margin's
+       0.75em, and a wrapped role read "· Quantitative analyst…", 12px in from the column. */
+    .cv-title {
+      position: relative;
+    }
+    .cv-title::before {
+      position: absolute;
+      right: 100%;
+      margin-left: 0;
     }
   }
   /* An iPad held upright (40–48rem) reads the phone's layout at 15px: across up to 704px, 84–89 characters a line, and

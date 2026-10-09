@@ -306,7 +306,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         data-seq={sig.state}
         role="group"
         aria-label={`A circular drum, initial shape ${shape.formula}, in ${modes} modes`}
-        className="relative -mx-6 aspect-[1000/620] w-[calc(100%+3rem)] touch-pan-y touch-pinch-zoom sm:mx-auto sm:w-full sm:max-w-[calc(88svh*1000/620)] short:mx-auto short:w-full short:max-w-[calc(88svh*1000/620)]"
+        className="relative -mx-6 aspect-[1000/620] w-[calc(100%+3rem)] touch-manipulation sm:mx-auto sm:w-full sm:max-w-[calc(88svh*1000/620)] short:mx-auto short:w-full short:max-w-[calc(88svh*1000/620)]"
         onPointerMove={lean.onPointerMove}
         onPointerLeave={lean.onPointerLeave}
         onClick={lean.onTap}

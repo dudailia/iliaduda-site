@@ -158,7 +158,9 @@ export function Readouts({
   if (across) {
     return (
       // On paper the readouts print together, a few lines, on one sheet: never split between two.
-      <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4">
+      // One column on a page under 20.5rem (a large Android font size): two, a formula held whole ran into its neighbour.
+      // The cells of a row meet at their foot, so the values share a line where one label wraps to two.
+      <dl className="text-meta grid grid-cols-2 items-end gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono max-[20.5rem]:grid-cols-1 sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4">
         {rows.map((r) => (
           <div key={r.label} className="min-w-0 break-inside-avoid">
             <dt className="text-graphite text-balance">

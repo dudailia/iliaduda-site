@@ -113,6 +113,23 @@ type Posters = { book: ReactNode; fan: ReactNode }
 /** The calm frame has the surface's picture too; a shocked surface is drawn on the page (../surface/still.ts). */
 type CalmPosters = Posters & { surface: ReactNode }
 
+/**
+ * The book pane's title in its two phrases, each an inline block: the line breaks after the comma ("Order book, the /
+ * last 20 seconds" in a 146–190px pane), and inside a phrase only where the pane is narrower than it (held whole, at a
+ * large font size it ran into the futures pane's title).
+ */
+const BOOK_PHRASES = ['Order book,', 'the last 20 seconds'] as const
+function setBookTitle(el: HTMLElement) {
+  el.replaceChildren(
+    ...BOOK_PHRASES.flatMap((p, i) => {
+      const s = document.createElement('span')
+      s.className = 'inline-block max-w-full'
+      s.textContent = p
+      return i ? [' ', s] : [s]
+    }),
+  )
+}
+
 export function MarketLive({
   posters: stills,
   initial: initials,
@@ -769,7 +786,7 @@ export function MarketLive({
       pointed.current = null
       if (v) v.book.hover = null
       if (hoverEl.current) {
-        hoverEl.current.textContent = 'Order book, the last 20 seconds'
+        setBookTitle(hoverEl.current)
         hoverEl.current.classList.remove('text-ink')
       }
       if (el?.hasAttribute('aria-valuenow')) {
@@ -1216,7 +1233,9 @@ export function MarketLive({
             {/* On a phone the reading ("6.1 s ago · vol 51.2% · stress 0.32") takes three lines in this pane: both panes'
                 titles keep that room, so a tap moves nothing under them and the two panes stay level. */}
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0" data-market-book-title="">
-              <span ref={hoverEl}>Order book, the last 20 seconds</span>
+              <span ref={hoverEl}>
+                <span className="inline-block max-w-full">{BOOK_PHRASES[0]}</span> <span className="inline-block max-w-full">{BOOK_PHRASES[1]}</span>
+              </span>
             </p>
             {/* The slider's description only (hidden, so it is never read as the page's text); there is none to
                 describe on a still frame. */}
@@ -1285,7 +1304,9 @@ export function MarketLive({
           </div>
           {/* The futures: a year from the price now. */}
           <div className="-mx-6 sm:mx-0 short:mx-0">
-            <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0">Futures, the next year</p>
+            <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0">
+              <span className="inline-block max-w-full">Futures,</span> <span className="inline-block max-w-full">the next year</span>
+            </p>
             <div className="relative h-28 overflow-hidden bg-paper sm:h-52" data-market-fan="" data-market-pane="">
               <div data-market-still="" style={underlay(live)}>{stillsOf('fan')}</div>
               <canvas ref={fanCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />

@@ -1,6 +1,7 @@
 import { otherWork, visiblePapers } from '@/content/papers'
 import { roles } from '@/content/experience'
 import { SITE } from '@/lib/site'
+import { TitleText } from './CaseStudy'
 import { Items, Row, TAP, Whole } from './Layout'
 import { PaperThumb } from './PaperThumb'
 import { ContentsLive } from './thumbs/ContentsLive'
@@ -63,7 +64,7 @@ export function Contents() {
               <h3 className="text-h3 min-w-0 max-[18.5rem]:text-[1.25rem] max-[16rem]:text-[1.125rem] [grid-area:title]">
                 {/* Under a finger an inline title reaches 44px a line by its padding (inline: nothing moves). */}
                 <a href={p.href} className="underline decoration-transparent hover:decoration-ink pointer-coarse:py-[calc((44px-1lh)/2)]">
-                  <Whole text={p.title} />
+                  <TitleText title={p.title} />
                 </a>
               </h3>
               <p className="text-meta mt-1.5 min-w-0 font-mono text-graphite [grid-area:byline]">

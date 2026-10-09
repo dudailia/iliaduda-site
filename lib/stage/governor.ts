@@ -51,10 +51,26 @@ export class Governor {
     return fresh.length >= 3 ? median(fresh) : fresh.length && this.probe ? Math.min(...fresh) : Infinity
   }
 
-  /** A step down is being tested: the kit gives the clock one light frame to read it by (useStage.ts). */
+  /** A step down is being tested, or one is about to be: the kit gives the clock one light frame to read it by. */
   get probing(): boolean {
-    return this.probe !== null
+    return this.probe !== null || this.wantLight
   }
+  /** Asked for one light frame before a step down while held (the kit lets a frame go undrawn; observe clears it). */
+  private wantLight = false
+
+  /**
+   * The clock as the last light frame read it, if that was within two seconds (or untimed): the freshest evidence.
+   * The ten-second median held the load's 60 Hz readings on a figure that draws every frame, and Low Power Mode turned
+   * on in its story stepped it to its lightest; the jitter at 30 Hz stepped the home figure mid-story on 2 visits in 8.
+   */
+  private freshLight(since: number): number | null {
+    const l = this.lights.at(-1)
+    // Read since `since` (the frames turned slow, or the step down under test), and within two seconds: what came
+    // before says nothing of the clock now.
+    return l && (l.at === null || (this.lastNow - l.at < 2000 && l.at >= since)) ? l.ms : null
+  }
+  /** When the frames last turned slow (ms). */
+  private slowAt = 0
 
   /** The drawn frames' interval when they are steady (see steadyAt), else null. */
   private steady(): number | null {
@@ -77,6 +93,7 @@ export class Governor {
    */
   observe(ms: number, now?: number): void {
     if (ms < 4) return
+    this.wantLight = false
     this.lights.push({ ms, at: now ?? null })
     if (this.lights.length > 15) this.lights.shift()
   }
@@ -101,8 +118,10 @@ export class Governor {
     if (this.recent.length > 15) this.recent.shift()
     this.ema = this.ema * 0.9 + dt * 1000 * 0.1
     this.refresh = Math.min(this.refresh * 1.0005, this.ema)
-    if (this.ema > Math.max(this.refresh * 1.35, 20)) this.slow += dt
-    else this.slow = 0
+    if (this.ema > Math.max(this.refresh * 1.35, 20)) {
+      if (!this.slow) this.slowAt = now
+      this.slow += dt
+    } else this.slow = 0
     if (this.ema < this.refresh * 1.15) this.fast += dt
     else this.fast = 0
     // A clock learned while the figure held the quality: back to the level it left once the hold is let go.
@@ -118,8 +137,8 @@ export class Governor {
     // a display seen giving frames a quarter quicker than these: its clock is faster, and the work held them.
     if (this.probe && now - this.probe.at > 1500) {
       const p = this.probe
-      // Read while the probe stands: the one light frame the kit gave it counts then, even alone.
-      const fastest = this.fastest
+      // Read while the probe stands: the one light frame the kit gave it counts then, even alone, and before the rest.
+      const fastest = this.freshLight(p.at) ?? this.fastest
       this.probe = null
       const st = this.steady()
       if (this.ema > p.ema * 0.9 && st !== null && isDisplayRate(st) && fastest > st * 0.75) {
@@ -161,11 +180,23 @@ export class Governor {
     // Mid-story (held), frames steady at a display's own rate on a display never seen faster are a clock's: learned at
     // once, with no step down to test it, so the signature's effects never change mid-moment (Low Power Mode stepped
     // every figure down 0.3–1.3s into its story, and back up after it).
-    const st = this.slow > 1 && held && !this.probe ? this.steady() : null
-    if (st !== null && isDisplayRate(st) && this.fastest > st * 0.75) {
-      this.refresh = st
-      this.slow = this.fast = 0
-      return false
+    // Before a step down mid-story, the clock is read afresh: one light frame, asked of the kit, says it (with no light
+    // frame ever seen, nothing says the display ran faster). Frames steady at a display's rate, or (Low Power Mode's
+    // jitter can keep them from reading steady) at the pace the fresh light names, are the clock's: learned at once, so
+    // the signature's effects never change mid-moment.
+    if (this.slow > 1 && held && !this.probe) {
+      const fresh = this.freshLight(this.slowAt) ?? (this.lights.length ? null : Infinity)
+      if (fresh === null) {
+        this.wantLight = true
+        return false
+      }
+      const st = this.steady()
+      const clock = st !== null && isDisplayRate(st) ? st : fresh
+      if (isDisplayRate(clock) && fresh > clock * 0.75 && this.ema < clock * 1.35) {
+        this.refresh = clock
+        this.slow = this.fast = 0
+        return false
+      }
     }
     // Hysteresis: a level the device has just failed to hold is off limits for 30s, doubling each time it fails
     // again, so a marginal phone does not climb and fall every four seconds.

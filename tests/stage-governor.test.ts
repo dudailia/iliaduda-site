@@ -205,6 +205,36 @@ describe('the quality governor', () => {
     expect(Math.min(...after)).toBe(3)
   })
 
+  it('reads the clock afresh before stepping down mid-story: 60 Hz light frames from the load do not outvote a 30 Hz clock', () => {
+    // Light frames at 60 Hz before the first drawn one, then Low Power Mode's jittered 30 Hz through a held story. When it
+    // asks (probing), the kit lets one frame go undrawn, and the interval after it is the clock's.
+    const rnd = (() => {
+      let x = 5
+      return () => (x = (x * 16807) % 2147483647) / 2147483647
+    })()
+    let late = 0
+    const step = () => {
+      const was = late
+      late = rnd() * 22
+      return 1000 / 30 + late - was
+    }
+    const g = new Governor(2, 3)
+    let now = 0
+    for (let i = 0; i < 8; i++) {
+      now += 1000 / 60
+      g.observe(1000 / 60, now)
+    }
+    const seen: number[] = []
+    while (now < 6000) {
+      const dt = step()
+      now += dt
+      if (g.probing) g.observe(1000 / 30, now)
+      g.frame(dt / 1000, now, true)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBe(2)
+  })
+
   it('follows the clock back when it speeds up again (Low Power Mode turned off)', () => {
     const g = new Governor(3, 3)
     const a = run(g, 10, () => 1000 / 30)

@@ -436,7 +436,8 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           }}
           // Sideways on a phone the strips are drawn at 0.72 of their height (309px): at 429 a 326–390px screen never
           // held them whole, the queues and the time axis under it while the orders were on it. Lanes stay 13px tall.
-          className="peer relative cursor-crosshair touch-pan-y touch-pinch-zoom select-none [--g:0px] [--k:1] focus-visible:outline-none short:[--k:0.72] @min-[520px]:[--g:124px]"
+          // Under 21rem tall (an SE, or a large font size: 277–313px) at 0.6, 257px.
+          className="peer relative cursor-crosshair touch-manipulation select-none [--g:0px] [--k:1] focus-visible:outline-none short:[--k:0.72] short:[@media(max-height:21rem)]:[--k:0.6] @min-[520px]:[--g:124px]"
           style={{ height: `calc(${HEIGHT}px * var(--k))` }}
         >
           <div className="absolute inset-y-0 right-2 left-(--g)" style={underlay(live)} data-orderflow-still="">
