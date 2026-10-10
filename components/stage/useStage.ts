@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { GL } from '@/lib/gl'
 import { Governor } from '@/lib/stage/governor'
+import { onPageClock, readPageClock } from '@/lib/stage/clock'
 import { deviceTier, type Tier } from '@/lib/tier'
 import { cssColor, onDprChange, saveData, supportsWebGL2, useColorScheme, useReducedMotion, whenIdle } from './env'
 import { DPR_MAX } from '@/lib/stage/dpr'
@@ -153,12 +154,14 @@ export function useStage(
     const el = box.current
     const cv = canvas.current
     if (!el || !cv) return
+    readPageClock()
 
     let visible = false
     let started = false
     let raf = 0
     let disposed = false
     let cancelIdle: (() => void) | null = null
+    let stopClock: (() => void) | null = null
     let renderer: Renderer | null = null
     let gl: GL | null = null
     let q = 0
@@ -219,6 +222,8 @@ export function useStage(
     const drawnAt: number[] = []
     let crawlFor = 0
     let deepFor = 0
+    /** How long the frames have run at 15 a second or more, ms. */
+    let fineFor = 0
     /** Whether the step down under test has had its light frame. */
     let probeLit = false
     /** Since when the frames have drawn nothing (ms), or null while they draw. */
@@ -299,7 +304,7 @@ export function useStage(
         idleSince ??= now
         if (now - idleSince > 500) {
           drawnAt.length = 0
-          crawlFor = deepFor = 0
+          crawlFor = deepFor = fineFor = 0
         }
       } else if (raw > 1000) {
         // A single gap of over a second (a collection, the system, another tab) is a restart, not a crawl: alone in the
@@ -307,21 +312,28 @@ export function useStage(
         idleSince = null
         drawnAt.length = 0
         drawnAt.push(now)
-        crawlFor = deepFor = 0
+        crawlFor = deepFor = fineFor = 0
       } else if (raw > 0) {
         idleSince = null
         drawnAt.push(now)
         while (drawnAt.length && drawnAt[0]! < now - 1500) drawnAt.shift()
         const span = now - (drawnAt[0] ?? now)
-        // Judged on three drawn frames at least: fewer say nothing of a rate.
-        const fps = drawnAt.length < 3 ? Infinity : span >= 1000 ? ((drawnAt.length - 1) * 1000) / span : Infinity
-        const near = gov.q <= gov.minQ || (gov.q <= gov.minQ + 1 && fps * 3 * gov.refresh < 1000)
-        if (near && fps < 13) crawlFor += Math.min(raw, 2000)
-        else if (fps >= 15 || !near) crawlFor = 0
-        // Under 6 a second it is no figure at all, at any level: a second and a half of it gives way (the home burst
-        // played whole at 1–7 frames a second while the levels stepped down, 8–9 seconds before its still frame).
-        if (fps < 6) deepFor += Math.min(raw, 2000)
-        else deepFor = 0
+        // Judged on three drawn frames at least, over a second: fewer, or less, say nothing of a rate, and change nothing.
+        const fps = drawnAt.length >= 3 && span >= 1000 ? ((drawnAt.length - 1) * 1000) / span : null
+        if (fps !== null) {
+          const near = gov.q <= gov.minQ || (gov.q <= gov.minQ + 1 && fps * 3 * gov.refresh < 1000)
+          if (!near) crawlFor = fineFor = 0
+          else if (fps < 13) {
+            crawlFor += Math.min(raw, 2000)
+            fineFor = 0
+          }
+          // A second of 15 a second clears it, not one reading: a starved GPU alternating 9 and 16 never added up.
+          else if (fps >= 15 && (fineFor += raw) >= 1000) crawlFor = fineFor = 0
+          // Under 6 a second it is no figure at all, at any level: a second and a half of it gives way (the home burst
+          // played whole at 1–7 frames a second while the levels stepped down, 8–9 seconds before its still frame).
+          if (fps < 6) deepFor += Math.min(raw, 2000)
+          else deepFor = 0
+        }
         // In the story (its hold) after 2.5 seconds, not 6: /market and the order book played their whole story at
         // 3–15 frames a second before their still frames stood.
         if (crawlFor > (hold.current?.() ? 2500 : 6000) || deepFor > 1500) {
@@ -403,6 +415,9 @@ export function useStage(
       const vp = gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array | null
       maxSide = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE) as number, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number, vp?.[0] ?? 4096, vp?.[1] ?? 4096) || 4096
       gov = new Governor(q, maxQ, t === 'low' ? -1 : 0)
+      // The display's clock as the page read it (lib/stage/clock.ts): now, or when it arrives.
+      stopClock?.()
+      stopClock = onPageClock((v) => gov.seed(v))
       told = gov.refresh
       setTier(t)
       setQuality(q)
@@ -518,6 +533,7 @@ export function useStage(
 
     return () => {
       disposed = true
+      stopClock?.()
       cancelIdle?.()
       cancelAnimationFrame(raf)
       io.disconnect()

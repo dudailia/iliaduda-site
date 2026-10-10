@@ -132,9 +132,10 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
   // The quality waits until the drum is let go, as the order book's does: a 30 Hz clock stepped it 2 to 0 mid-story.
   const [stageOpts] = useState(() => ({ hold: () => seq.current.started && !seq.current.done }))
   const { box, canvas, live, eligible, slow, reduced, fps, quality, tier } = useStage(create, stageOpts)
-  // As the IV surface's and the order book's: at 0.3 held, a tall phone's first screen (35–43% of the stage at its foot)
-  // played the drum's rise under the fold while the reader was still on the title.
-  const sig = useSignature('membrane', box, seq, { start: 0.6, hold: 0.45 })
+  // At 0.3 held, a tall phone's first screen (35–43% of the stage at its foot) played the drum's rise under the fold while
+  // the reader was still on the title; at 0.6, the drum's foot (78px of it) was still under the fold as it rose, its key
+  // moment. Of what the screen can show at once (a phone turned sideways holds less than the stage).
+  const sig = useSignature('membrane', box, seq, { start: 0.85, hold: 0.6, fit: true })
   useEffect(() => {
     sigRef.current = sig
     stageEl.current = box.current
