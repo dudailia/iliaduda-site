@@ -79,7 +79,7 @@ export function Masthead() {
         <p className="mt-4 max-w-[36rem] [text-wrap:wrap] lg:max-w-none [@media(max-height:30rem)]:max-w-(--measure) low:text-note low:mt-3 short:mt-3 flat:mt-3 [@media(max-height:21rem)]:text-note">{POSITIONING}</p>
       </Row>
 
-      <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 low:mt-4 low:pt-3 short:mt-4 short:pt-3 lg:mt-6 flat:mt-3 flat:pt-3 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
+      <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] max-[20.5rem]:grid-cols-1 gap-x-4 gap-y-2 border-t border-rule pt-5 low:mt-4 low:pt-3 short:mt-4 short:pt-3 lg:mt-6 flat:mt-3 flat:pt-3 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
         {/* Contact second, under Seeking: what a recruiter acts on, on a phone's first screen under the positioning line. */}
         {rows.map(([k, v]) => (
           <div key={k} className="contents">

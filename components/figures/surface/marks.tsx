@@ -36,16 +36,24 @@ const ALIGN: Record<string, string> = {
  * for a live figure that moves it every frame; a poster's stand still. A title sits on a paper chip, as the notes do,
  * so an edge of the sheet or a line of the mesh behind it never takes its contrast.
  */
-export function AxisLabel({ text, align, kind, frame, className = '', style, ref, moving = false }: { text: string; align: string; kind: string; frame?: string; className?: string; style?: CSSProperties; ref?: Ref<HTMLSpanElement>; moving?: boolean }) {
+export function AxisLabel({ text, short, align, kind, frame, keep = false, className = '', style, ref, moving = false }: { text: string; short?: string | undefined; align: string; kind: string; frame?: string; keep?: boolean; className?: string; style?: CSSProperties; ref?: Ref<HTMLSpanElement>; moving?: boolean }) {
   // Its kind and its framing's set, for the stage to thin its ticks where it is narrower than that set was laid out for
   // (globals.css, [data-surface-stage]).
   return (
-    <span ref={ref} data-axis="" data-kind={kind} data-frame={frame} className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
+    <span ref={ref} data-axis="" data-align={align} data-kind={kind} data-frame={frame} data-keep={keep ? '' : undefined} className={`absolute top-0 left-0 ${moving ? 'will-change-transform' : ''} ${className}`} style={style}>
       <span
         className={`block font-mono text-meta leading-none whitespace-nowrap ${kind === 'title' ? 'rounded-sm bg-paper/90 px-1 py-0.5 text-ink' : 'text-graphite [text-shadow:0_0_2px_var(--color-paper),0_0_4px_var(--color-paper)]'}`}
         style={{ transform: ALIGN[align] }}
       >
-        {text}
+        {/* The rest of a label that has a shorter form, for the stage to take away where the whole would give way. */}
+        {short && text.startsWith(short) ? (
+          <>
+            {short}
+            <span data-tail="">{text.slice(short.length)}</span>
+          </>
+        ) : (
+          text
+        )}
       </span>
     </span>
   )

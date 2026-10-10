@@ -19,7 +19,7 @@ import { params, PHASE_TEXT, SIZE_MAX, type Phase } from '@/lib/surface/shock'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
 import type { Sequence } from '@/lib/stage/sequence'
 import { invert } from '@/lib/m4'
-import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, PROBE_START as PROBE_ORIGIN, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
+import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, PROBE_START as PROBE_ORIGIN, SPARSE_TICKS, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel, Frame, FRAME_ASPECT, NoteMark, noteRise, setNoteRise } from './marks'
 import type { Probe, Sim, SurfaceRenderer } from './renderer'
 import { rangeFill } from '@/components/stage/range'
@@ -85,9 +85,25 @@ const HEADLINE = [
  */
 function posterGiveWay(el: HTMLElement) {
   const notes = [...el.querySelectorAll<HTMLElement>('[data-iv-poster] [data-note-words]')].map((w) => w.getBoundingClientRect()).filter((r) => r.width)
+  const touches = (r: DOMRect) => r.width > 0 && notes.some((b) => r.left < b.right + 4 && r.right > b.left - 4 && r.top < b.bottom + 4 && r.bottom > b.top - 4)
   for (const a of el.querySelectorAll<HTMLElement>('[data-iv-poster] [data-axis]')) {
+    // A label with a shorter form reads short before it gives way, as on the live stage. Both boxes are worked out from
+    // the one shown and the rest's width (kept from when it was shown), so nothing is written but a change.
+    const tail = a.querySelector<HTMLElement>('[data-tail]')
     const r = a.firstElementChild!.getBoundingClientRect()
-    const near = r.width > 0 && notes.some((b) => r.left < b.right + 4 && r.right > b.left - 4 && r.top < b.bottom + 4 && r.bottom > b.top - 4)
+    let near = touches(r)
+    if (tail) {
+      const cut = tail.style.display === 'none'
+      if (!cut) tail.dataset.w = String(tail.getBoundingClientRect().width)
+      const tw = Number(tail.dataset.w || 0), f = a.dataset.align === 'right' ? 1 : a.dataset.align === 'left' ? 0 : 0.5
+      // The whole box and the short one: the words shorten from their anchor, a right-aligned label's right end.
+      const whole = cut ? new DOMRect(r.left - f * tw, r.top, r.width + tw, r.height) : r
+      const short = cut ? r : new DOMRect(r.left + f * tw, r.top, r.width - tw, r.height)
+      const wholeNear = touches(whole)
+      near = wholeNear && touches(short)
+      const want = wholeNear && !near ? 'none' : ''
+      if (tail.style.display !== want) tail.style.display = want
+    }
     // Written only when it changes: the figure watches the poster's styles, and its own write then ends the round.
     if (a.style.visibility !== (near ? 'hidden' : '')) a.style.visibility = near ? 'hidden' : ''
   }
@@ -422,7 +438,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             // At a large shock the peak rises: the words stay inside the stage, as the live figure's do.
             const frame = at.parentElement, words = at.querySelector<HTMLElement>('[data-note-words]')
             if (frame && words)
-              setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight), n.align, { x: n.x * frame.offsetWidth, w: words.offsetWidth, stageW: frame.offsetWidth })
+              setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight, frame.offsetHeight < 260 ? -18 : 4), n.align, { x: n.x * frame.offsetWidth, w: words.offsetWidth, stageW: frame.offsetWidth })
           }
         }
         posterGiveWay(el)
@@ -787,9 +803,11 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
                   }}
                   moving
                   text={l.text}
+                  short={l.short}
                   align={l.align}
                   kind={l.kind}
                   frame={kind}
+                  keep={SPARSE_TICKS.has(l.id)}
                   {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
                 />
               ))}

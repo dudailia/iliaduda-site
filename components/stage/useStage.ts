@@ -301,12 +301,20 @@ export function useStage(
           drawnAt.length = 0
           crawlFor = deepFor = 0
         }
+      } else if (raw > 1000) {
+        // A single gap of over a second (a collection, the system, another tab) is a restart, not a crawl: alone in the
+        // window, the frame after it read 0 frames a second, and one stall turned every figure still for the visit.
+        idleSince = null
+        drawnAt.length = 0
+        drawnAt.push(now)
+        crawlFor = deepFor = 0
       } else if (raw > 0) {
         idleSince = null
         drawnAt.push(now)
         while (drawnAt.length && drawnAt[0]! < now - 1500) drawnAt.shift()
         const span = now - (drawnAt[0] ?? now)
-        const fps = span >= 1000 ? ((drawnAt.length - 1) * 1000) / span : drawnAt.length >= 2 ? Infinity : 0
+        // Judged on three drawn frames at least: fewer say nothing of a rate.
+        const fps = drawnAt.length < 3 ? Infinity : span >= 1000 ? ((drawnAt.length - 1) * 1000) / span : Infinity
         const near = gov.q <= gov.minQ || (gov.q <= gov.minQ + 1 && fps * 3 * gov.refresh < 1000)
         if (near && fps < 13) crawlFor += Math.min(raw, 2000)
         else if (fps >= 15 || !near) crawlFor = 0

@@ -97,7 +97,7 @@ export function Annotated({
 }) {
   return (
     <div className="lg:-ml-[calc(var(--rail)+var(--gutter))] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-(--gutter)">
-      <div className="min-w-0 lg:col-start-2 lg:row-start-1">{keepDashes(children)}</div>
+      <div className="min-w-0 short:max-w-[40rem] lg:col-start-2 lg:row-start-1">{keepDashes(children)}</div>
       <aside className="text-note mt-3 border-l-2 border-rule pl-4 text-graphite lg:col-start-1 lg:row-start-1 lg:mt-0 lg:mb-2 lg:border-l-0 lg:pl-0 lg:text-right">
         {keepDashes(note)}
       </aside>
@@ -107,7 +107,8 @@ export function Annotated({
 
 /** Body prose. One measure, one rhythm, no bullet lists. */
 export function Prose({ children }: { children: ReactNode }) {
-  return <div className="max-w-[var(--measure)] [&>p+p]:mt-[1.1em]">{keepDashes(children)}</div>
+  // A phone turned sideways sets 19px across up to 710px: at 40rem its prose keeps to ~70 characters a line, not 74–84.
+  return <div className="max-w-[var(--measure)] short:max-w-[40rem] [&>p+p]:mt-[1.1em]">{keepDashes(children)}</div>
 }
 
 /**

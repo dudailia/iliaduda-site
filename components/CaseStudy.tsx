@@ -113,7 +113,7 @@ export function Section({
             tests/e2e/rail.spec.ts asserts no two rail items ever intersect. */}
         {/* The measure holds at every width, not only beside the rail: a tablet's column would otherwise run to 85
             characters a line. */}
-        <div className="min-w-0 max-w-(--measure) lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
+        <div className="min-w-0 max-w-(--measure) short:[&>p]:max-w-[40rem] lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
           {keepDashes(children)}
         </div>
       </div>

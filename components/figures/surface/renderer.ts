@@ -458,6 +458,10 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   /** Each axis label's size (measured once a size and once the page's face has arrived), and whether it is shown. */
   const labelSize: ([number, number] | undefined)[] = []
   const labelOn: boolean[] = []
+  /** A label with a shorter form: the rest of its words (taken away, it reads short), their width, and whether it does. */
+  const labelTail: (HTMLElement | null | undefined)[] = []
+  const tailW: number[] = []
+  const labelShort: boolean[] = []
   const labelXY: number[] = []
   const SHIFT: Record<string, readonly [number, number]> = { center: [-0.5, -0.5], left: [0, -0.5], right: [-1, -0.5], above: [-0.5, -1] }
   /**
@@ -481,30 +485,39 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     for (const i of order) {
       const el = els[i]
       if (!el) continue
-      const size = (labelSize[i] ||= [el.offsetWidth, el.offsetHeight])
+      if (!labelSize[i]) {
+        // Measured whole: a label read short is put back for it, and decided again below.
+        const tail = (labelTail[i] = el.querySelector<HTMLElement>('[data-tail]'))
+        if (tail && labelShort[i]) tail.style.display = ''
+        labelShort[i] = false
+        labelSize[i] = [el.offsetWidth, el.offsetHeight]
+        tailW[i] = tail?.offsetWidth ?? 0
+      }
+      const size = labelSize[i]!
       // The other framing's labels are in the layer too, not shown: nothing to place, nothing to make room for.
       if (!size[0]) continue
       const [fx, fy] = SHIFT[LABELS[i]!.align]!
-      const x0 = labelXY[i * 2]! + fx * size[0], y0 = labelXY[i * 2 + 1]! + fy * size[1]
-      const x1 = x0 + size[0], y1 = y0 + size[1]
-      const inside = x0 >= -2 && y0 >= -2 && x1 <= cssW + 2 && y1 <= cssH + 2
-      let clear = inside && !turned(LABELS[i]!.id)
-      // Boxes, not ink: a label's box is its line, taller than its glyphs (about 3px above and below them, at
-      // leading-none), so two may share that much and still read apart (the 1M and 3M ticks of /market's short pane do,
-      // at rest, as the poster draws them); across, a box is its glyphs' advance, and words closer than 1px touch.
-      // Ticks of one axis stacked one over another (most of the narrower's width shared, as a foreshortened axis piles
-      // them) need a real gap: there the 3px of shared line read as one block of figures.
-      const axis = LABELS[i]!.kind === 'tick' ? LABELS[i]!.id[0]! : null
+      const y0 = labelXY[i * 2 + 1]! + fy * size[1], y1 = y0 + size[1]
       // A label given way comes back only with 4px more room on every side: at the edge of room, "implied volatility"
-      // went and came five times in 50ms as the view moved a pixel either way.
-      const m = labelOn[i] === false ? 4 : 0
-      for (let k = 0; clear && k < kept.length; k += 4) {
-        const ox = Math.min(x1, kept[k + 2]!) - Math.max(x0, kept[k]!)
-        const stacked = axis !== null && axisOf[k] === axis && ox > 0.5 * Math.min(x1 - x0, kept[k + 2]! - kept[k]!)
-        const slack = stacked ? -1 : 3
-        // Across, a gap of 4px: words of two axes closer than that read as one ("130%2Y").
-        if (x0 - m < kept[k + 2]! + 4 && x1 + m > kept[k]! - 4 && y0 - m < kept[k + 3]! - slack && y1 + m > kept[k + 1]! + slack) clear = false
+      // went and came five times in 50ms as the view moved a pixel either way. Its whole words come back from its short
+      // form so too.
+      const away = turned(LABELS[i]!.id)
+      let x0 = labelXY[i * 2]! + fx * size[0], x1 = x0 + size[0]
+      let clear = fits(x0, y0, x1, y1, labelOn[i] === false || labelShort[i] ? 4 : 0, i, away, kept, axisOf)
+      let short = false
+      // Where the whole would give way, a label with a shorter form reads short ("implied vol" beside the Skew note of
+      // a phone turned sideways, where "implied volatility" gave way for the whole visit).
+      if (!clear && tailW[i]) {
+        const w = size[0] - tailW[i]!, sx = labelXY[i * 2]! + fx * w
+        if (fits(sx, y0, sx + w, y1, labelOn[i] === false ? 4 : 0, i, away, kept, axisOf)) {
+          ;[x0, x1, clear, short] = [sx, sx + w, true, true]
+        }
       }
+      if (labelShort[i] !== short) {
+        labelShort[i] = short
+        if (labelTail[i]) labelTail[i]!.style.display = short ? 'none' : ''
+      }
+      const axis = LABELS[i]!.kind === 'tick' ? LABELS[i]!.id[0]! : null
       if (clear) {
         axisOf[kept.length] = axis
         kept.push(x0, y0, x1, y1)
@@ -515,6 +528,27 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         el.style.opacity = clear ? '' : '0'
       }
     }
+  }
+  /**
+   * Whether label `i`, in the box from (x0, y0) to (x1, y1), stands inside the stage, on an edge not turned `away`, and
+   * clear of every box kept by `m` more on every side.
+   */
+  const fits = (x0: number, y0: number, x1: number, y1: number, m: number, i: number, away: boolean, kept: readonly number[], axisOf: readonly (string | null)[]) => {
+    let clear = x0 >= -2 && y0 >= -2 && x1 <= cssW + 2 && y1 <= cssH + 2 && !away
+    // Boxes, not ink: a label's box is its line, taller than its glyphs (about 3px above and below them, at
+    // leading-none), so two may share that much and still read apart (the 1M and 3M ticks of /market's short pane do,
+    // at rest, as the poster draws them); across, a box is its glyphs' advance, and words closer than 1px touch.
+    // Ticks of one axis stacked one over another (most of the narrower's width shared, as a foreshortened axis piles
+    // them) need a real gap: there the 3px of shared line read as one block of figures.
+    const axis = LABELS[i]!.kind === 'tick' ? LABELS[i]!.id[0]! : null
+    for (let k = 0; clear && k < kept.length; k += 4) {
+      const ox = Math.min(x1, kept[k + 2]!) - Math.max(x0, kept[k]!)
+      const stacked = axis !== null && axisOf[k] === axis && ox > 0.5 * Math.min(x1 - x0, kept[k + 2]! - kept[k]!)
+      const slack = stacked ? -1 : 3
+      // Across, a gap of 4px: words of two axes closer than that read as one ("130%2Y").
+      if (x0 - m < kept[k + 2]! + 4 && x1 + m > kept[k]! - 4 && y0 - m < kept[k + 3]! - slack && y1 + m > kept[k + 1]! + slack) clear = false
+    }
+    return clear
   }
   /** Each note's words: their height (measured once a size), and how far above the point they last stood. */
   const noteH: number[] = []
@@ -811,12 +845,14 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         const below = (noteDy[i] ?? -1) > 0
         if (noteSwap[i]) {
           // Mid-swap the words keep riding the point on the side they are leaving.
-          const keep = below ? 10 : Math.min(-10, Math.max(o[1], 4 + noteH[i]! - sy))
+          const keep = below ? 10 : Math.min(-10, Math.max(o[1], (cssH < 260 ? -18 : 4) + noteH[i]! - sy))
           const b = setNoteRise(el, (noteDy[i] = keep), o[2], at)
           noteBox[i] = b ? [sx + b[0], sy + b[1], sx + b[2], sy + b[3]] : null
           return
         }
-        const dy = noteRise(sy, o[1], noteH[i]!, 4, below)
+        // A short stage (a phone turned sideways, 209–264px) lends its words the 20px over it, to the figure's rule: in
+        // it, at rest, a calm peak 40px from the top swayed in and out of room, and the words dropped onto the crest.
+        const dy = noteRise(sy, o[1], noteH[i]!, cssH < 260 ? -18 : 4, below)
         if (noteDy[i] !== undefined && dy > 0 !== below) {
           // To the other side of its point: out where they are and in where they go, through the site's blur and with
           // the opacity too (a 3px blur alone did not hide a 50–80px move of two lines), on the ease-out.

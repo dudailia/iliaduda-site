@@ -120,7 +120,8 @@ export function OfzLive({
 
   const rows = [
     // A date is one item: at a large font size it split as "Tue, 15 / Aug 2023".
-    { label: 'Trading day', value: <span className="whitespace-nowrap">{day(d.date)}</span> },
+    // Its row-mate's two lines held here too: the cells meet at their foot, and the labels stood a line apart.
+    { label: 'Trading day', value: <span className="block whitespace-nowrap max-sm:min-h-[2lh]">{day(d.date)}</span> },
     // A phone sets 21 July's "7.50%, 8.50% from 24 Jul" on two lines: they are held on every day, so stepping onto it
     // and off it moves nothing under the readouts.
     { label: 'Key rate', value: <span className="block max-sm:min-h-[2lh]">{`${rate.toFixed(2)}%${pending}`}</span> },

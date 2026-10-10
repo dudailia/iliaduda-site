@@ -305,9 +305,11 @@ export function CategorisationLive({
                     {money(l.amount)}
                   </span>
                 </div>
-                <div className="mt-1 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 sm:grid-cols-[1.25rem_minmax(0,1fr)_7.5rem_9.5rem] sm:items-center">
+                {/* On a phone the confidence and what the row asks for share a line, under the account (each on its own,
+                    a row took four lines and the batch over two screens). */}
+                <div className="mt-1 grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-3 sm:grid-cols-[1.25rem_minmax(0,1fr)_7.5rem_9.5rem] sm:items-center">
                   <span />
-                  <span className="text-meta min-w-0 font-mono text-graphite">
+                  <span className="text-meta col-span-2 min-w-0 font-mono text-graphite sm:col-span-1">
                     → {acct ? `${acct.code} ${acct.name}` : `${l.suggested.code} ${l.suggested.name}`}
                     {/* The line is reserved before the row settles, and the rules' note and a reviewer's share one
                         cell, the one not shown kept invisible, so neither settling nor a click changes the row's height. */}
@@ -348,7 +350,7 @@ export function CategorisationLive({
                     </span>
                   </span>
                   {/* A button's height kept from the start, so a row's "…" becoming Approve or Map does not grow it. */}
-                  <span className="col-start-2 mt-1.5 flex min-h-8 items-center gap-2 sm:col-start-auto sm:mt-0 sm:justify-end">
+                  <span className="col-start-3 mt-1.5 flex min-h-8 items-center justify-end gap-2 sm:col-start-auto sm:mt-0">
                     {/* What the settled row asks for (Approve, Map, or its status) arrives through the same blur as its
                         note, in the same frame, rather than appearing crisp beside it. */}
                     <span

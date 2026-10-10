@@ -33,7 +33,7 @@ import { MARKET_SEQ, marketSequence, punch, storyOf } from '@/lib/market/sequenc
 import { FAN_RANGE, fanBand, logTicks, priceTicks, SPAN, WINDOW } from '@/lib/market/views'
 import { params } from '@/lib/surface/shock'
 import { iv, type Params } from '@/lib/surface/ssvi'
-import { LABELS, WIDE_QUERY, type FrameKind } from '@/lib/surface/view'
+import { LABELS, SPARSE_TICKS, WIDE_QUERY, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel } from '../surface/marks'
 import type { Hooks, SurfaceRenderer } from '../surface/renderer'
 import type { BookView, FanView, Landing } from './draw'
@@ -118,7 +118,7 @@ type CalmPosters = Posters & { surface: ReactNode }
  * last 20 seconds" in a 146–190px pane), and inside a phrase only where the pane is narrower than it (held whole, at a
  * large font size it ran into the futures pane's title).
  */
-const BOOK_PHRASES = ['Order book,', 'the last 20 seconds'] as const
+const BOOK_PHRASES = ['Order book,', 'the last 20\u00a0seconds'] as const
 function setBookTitle(el: HTMLElement) {
   el.replaceChildren(
     ...BOOK_PHRASES.flatMap((p, i) => {
@@ -854,7 +854,7 @@ export function MarketLive({
     if (!t || t.id !== e.pointerId) return
     touching.current = null
     // A finger that travelled was a drag or a swipe of the page, not a tap.
-    if (t.moved || Math.abs(e.clientY - t.y) > 6) return
+    if (t.moved || Math.hypot(e.clientX - t.x, e.clientY - t.y) > 10) return
     // A tap reads the moment under it, as the other figures' taps do (no drag needed: WCAG 2.5.7), and a later tap
     // moves the reading there; a tap on the moment already read lets it go.
     const again = readingAgo.current !== null && tappedAt.current !== null && Math.abs(e.clientX - tappedAt.current) < 16
@@ -1200,9 +1200,11 @@ export function MarketLive({
                     }}
                     moving
                     text={l.text}
+                    short={l.short}
                     align={l.align}
                     kind={l.kind}
                     frame={kind}
+                    keep={SPARSE_TICKS.has(l.id)}
                     {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
                   />
                 ))}

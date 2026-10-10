@@ -37,7 +37,7 @@ export interface PosterData {
   readonly walls: readonly { id: string; d: string; x1: number; y1: number; x2: number; y2: number; stops: readonly { o: number; c: string }[] }[]
   readonly lines: readonly { d: string; c: string; w: number }[]
   readonly ticks: string
-  readonly labels: readonly { id: string; text: string; x: number; y: number; align: string; kind: string; only: FrameKind | undefined }[]
+  readonly labels: readonly { id: string; text: string; short: string | undefined; x: number; y: number; align: string; kind: string; only: FrameKind | undefined }[]
   readonly notes: readonly { id: string; lead: string; text: string; x: number; y: number; dx: number; dy: number; align: string; kind: FrameKind }[]
 }
 
@@ -262,7 +262,7 @@ export function poster(p: Params, kind: FrameKind = 'wide', probe?: { readonly k
   tickPaths.push(pathOf([proj(POST[0], 0, POST[1]), proj(POST[0], wy(1), POST[1])], false))
   for (const v of VOL_TICKS) tickPaths.push(pathOf([proj(POST[0], wy(v), POST[1]), proj(POST[0] + 0.04, wy(v), POST[1])], false))
 
-  const labels = LABELS.filter((l) => !l.only || l.only === kind).map((l) => ({ id: l.id, text: l.text, ...frac(l.at[0], l.at[1], l.at[2]), align: l.align, kind: l.kind, only: l.only }))
+  const labels = LABELS.filter((l) => !l.only || l.only === kind).map((l) => ({ id: l.id, text: l.text, short: l.short, ...frac(l.at[0], l.at[1], l.at[2]), align: l.align, kind: l.kind, only: l.only }))
   const notes = NOTES.flatMap((n) => {
     const o = n.offset[kind]
     if (!o) return []

@@ -15,6 +15,29 @@ export type Permission = 'unasked' | 'granted' | 'denied'
 /** The visit's answer to iOS's tilt question (sessionStorage), shared by every figure. */
 const TILT_KEY = 'tilt-permission'
 
+/** Asks for the tilt from a tap, once a visit (see onTap below); the home figure's own tap asks through it too. */
+export function askTilt(setPermission: (p: Permission) => void) {
+  if (!window.matchMedia('(pointer: coarse)').matches) return
+  const D = (typeof DeviceOrientationEvent === 'undefined' ? undefined : DeviceOrientationEvent) as
+    | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<'granted' | 'denied'> })
+    | undefined
+  if (typeof D?.requestPermission !== 'function') return
+  let kept: string | null = null
+  try {
+    kept = sessionStorage.getItem(TILT_KEY)
+  } catch {}
+  setPermission('denied')
+  if (kept === 'denied') return
+  D.requestPermission()
+    .then((r) => {
+      setPermission(r === 'granted' ? 'granted' : 'denied')
+      try {
+        sessionStorage.setItem(TILT_KEY, r === 'granted' ? 'granted' : 'denied')
+      } catch {}
+    })
+    .catch(() => setPermission('denied'))
+}
+
 export function useLean(live: boolean, reduced: boolean, paused: { current: boolean }) {
   const lean = useRef({ x: 0, y: 0 })
   const from = useRef<'drift' | 'pointer' | 'tilt'>('drift')
@@ -53,25 +76,8 @@ export function useLean(live: boolean, reduced: boolean, paused: { current: bool
    * sheet over the tap the reader meant), and a grant is taken again without a sheet.
    */
   const onTap = useCallback(() => {
-    if (permission !== 'unasked' || !live || reduced || !window.matchMedia('(pointer: coarse)').matches) return
-    const D = (typeof DeviceOrientationEvent === 'undefined' ? undefined : DeviceOrientationEvent) as
-      | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<'granted' | 'denied'> })
-      | undefined
-    if (typeof D?.requestPermission !== 'function') return
-    let kept: string | null = null
-    try {
-      kept = sessionStorage.getItem(TILT_KEY)
-    } catch {}
-    setPermission('denied')
-    if (kept === 'denied') return
-    D.requestPermission()
-      .then((r) => {
-        setPermission(r === 'granted' ? 'granted' : 'denied')
-        try {
-          sessionStorage.setItem(TILT_KEY, r === 'granted' ? 'granted' : 'denied')
-        } catch {}
-      })
-      .catch(() => setPermission('denied'))
+    if (permission !== 'unasked' || !live || reduced) return
+    askTilt(setPermission)
   }, [permission, live, reduced])
 
   return { lean, from, permission, onPointerMove, onPointerLeave, onTap }

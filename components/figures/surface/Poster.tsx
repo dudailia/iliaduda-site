@@ -1,6 +1,6 @@
 import type { Params } from '@/lib/surface/ssvi'
 import { FRAME_H, poster, type PosterData } from '@/lib/surface/poster'
-import type { FrameKind } from '@/lib/surface/view'
+import { SPARSE_TICKS, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel, Frame, NoteMark } from './marks'
 
 /**
@@ -59,7 +59,9 @@ function Marks({ d, kind, notes }: { d: PosterData; kind: FrameKind; notes: bool
         <AxisLabel
           key={l.id}
           frame={kind}
+          keep={SPARSE_TICKS.has(l.id)}
           text={l.text}
+          short={l.short}
           align={l.align}
           kind={l.kind}
           className={shown(kind)}

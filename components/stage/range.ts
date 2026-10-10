@@ -21,6 +21,8 @@ export const rangeFill = (value: number, min: number, max: number): CSSPropertie
  * ends (its 16px), as the site's slider draws it.
  */
 const TAP_PX = 10
+/** The thumb's radius (app/globals.css): a finger further from its centre is on the track. */
+const THUMB_PX = 8
 type Down = { id: number; x: number; y: number; t: number; el: HTMLInputElement; value: string; off: boolean; drag: boolean; held: boolean; seek: string | null; dragAt: number }
 let down: Down | null = null
 /**
@@ -81,7 +83,7 @@ function onDown(e: PointerEvent) {
   }
   dead = null
   // Held: until the touch shows what it is, the browser's own seek is kept from the figure (see onInput).
-  down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > TAP_PX, drag: false, held: true, seek: null, dragAt: 0 }
+  down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, el, value: el.value, off: Math.abs(e.clientX - thumbX(el)) > THUMB_PX, drag: false, held: true, seek: null, dragAt: 0 }
 }
 
 function onMove(e: PointerEvent) {
@@ -90,7 +92,8 @@ function onMove(e: PointerEvent) {
   const dx = e.clientX - d.x, dy = e.clientY - d.y
   // Sideways, it is the slider's: from the track the value follows the finger (iOS moves a range only by its thumb; on
   // Android this is where the browser's own drag has it anyway), and what the browser does from here reaches the figure.
-  if (d.held && Math.abs(dx) > TAP_PX && Math.abs(dx) > Math.abs(dy) + 1) {
+  // A swipe at exactly 45° is the slider's, as Chrome splits it (it keeps the touch): taken by neither, it did nothing.
+  if (d.held && Math.abs(dx) > TAP_PX && Math.abs(dx) >= Math.abs(dy)) {
     d.held = false
     d.drag = d.off
     d.dragAt = e.timeStamp
@@ -121,9 +124,9 @@ function onUp(e: PointerEvent) {
   // Still held at the lift, the touch was a press: a scroll ends in a cancel, never here. However long it was held, the
   // value goes where the browser sought it (Android), or under the finger off the thumb (iOS seeks nothing); on the thumb
   // itself, nowhere. Pressed and held 650ms on a live figure, the value was lost half the time.
-  if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX) return
-  if (d.seek !== null) put(d.el, d.seek)
-  else if (d.off) put(d.el, valueAt(d.el, e.clientX))
+  // On the thumb a tap moves nothing, even where the browser sought 3–7px off its centre (σ 35 → 33).
+  if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_PX || !d.off) return
+  put(d.el, d.seek ?? valueAt(d.el, e.clientX))
 }
 
 /**
