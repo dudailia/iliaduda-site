@@ -91,3 +91,35 @@ describe('Low Power Mode turned on at rest', () => {
     expect(gov.q).toBe(1)
   })
 })
+
+describe('Low Power Mode turned on mid-visit, with late stamps', () => {
+  /** The kit at rest on a 30 Hz clock whose stamps run 0–22ms late; asked for light frames, every other one undrawn. */
+  function jittered(gov: Governor, from: number, ms: number, seed: number) {
+    let r = seed, now = from, late = 0, lit = false, changes = 0
+    const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647)
+    while (now < from + ms) {
+      const next = rand() * 22
+      const iv = 1000 / 30 + next - late
+      late = next
+      now += iv
+      if (gov.probing && !lit) {
+        lit = true
+        gov.observe(iv, now)
+        continue
+      }
+      lit = false
+      if (gov.frame(iv / 1000, now)) changes++
+    }
+    return changes
+  }
+
+  it('changes the quality in at most one visit in forty', () => {
+    let changed = 0
+    for (let seed = 1; seed <= 40; seed++) {
+      const gov = new Governor(2, 2)
+      const a = atRest(gov, 1000 / 60, 8, 3000)
+      if (a.changes + jittered(gov, a.now, 8000, seed) > 0) changed++
+    }
+    expect(changed).toBeLessThanOrEqual(1)
+  })
+})

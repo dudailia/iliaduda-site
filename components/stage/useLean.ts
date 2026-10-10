@@ -15,9 +15,17 @@ export type Permission = 'unasked' | 'granted' | 'denied'
 /** The visit's answer to iOS's tilt question (sessionStorage), shared by every figure. */
 const TILT_KEY = 'tilt-permission'
 
+/** When a tap last did something of its own (set the strike, pinned a reading), ms. */
+let usedAt = -Infinity
+/**
+ * A tap did something of its own: it does not also ask for the tilt. iOS's sheet covered what the tap had just set (the
+ * first tap on a figure set the strike or pinned the probe, and asked); a later tap that does nothing asks.
+ */
+export const tapUsed = () => void (usedAt = performance.now())
+
 /** Asks for the tilt from a tap, once a visit (see onTap below); the home figure's own tap asks through it too. */
 export function askTilt(setPermission: (p: Permission) => void) {
-  if (!window.matchMedia('(pointer: coarse)').matches) return
+  if (!window.matchMedia('(pointer: coarse)').matches || performance.now() - usedAt < 500) return
   const D = (typeof DeviceOrientationEvent === 'undefined' ? undefined : DeviceOrientationEvent) as
     | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<'granted' | 'denied'> })
     | undefined

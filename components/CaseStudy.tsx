@@ -44,10 +44,13 @@ export function CaseStudyTitle({
   // "Order flow that remembers:" and "on a circular membrane" each keep a line of their own. A
   // larger Android font size narrows the page in CSS px: at 130% (277px) "Fourier–Bessel series", held whole, was 258px
   // in a 229px column and the page scrolled sideways. So 21px under 20.5rem (115%, 313px: "Ranking startup segments,"
-  // and "A debt-settlement portal" each on a line in 265px), 18px under 18.5rem (130%, 229px) and 17px at 150%.
+  // and "A debt-settlement portal" each on a line in 265px), 18px under 18.5rem (130%, 229px) and 17px at 150%. Between
+  // them, where a phrase came within a few pixels of its line ("Ranking startup segments," and "CloseBooks: a
+  // multi-tenant" broke inside themselves at 300–316 and 332–336px, a 384px Galaxy at 115%): 22px under 21.25rem, 20px
+  // under 19.75rem, and 17px from 17.25rem down.
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[26rem]:text-[1.6875rem] max-[25.5rem]:text-[1.5625rem] max-[23.5rem]:text-[1.5rem] max-[22.75rem]:text-[1.4375rem] max-[20.5rem]:text-[1.3125rem] max-[18.5rem]:text-[1.125rem] max-[16rem]:text-[1.0625rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
+      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[26rem]:text-[1.6875rem] max-[25.5rem]:text-[1.5625rem] max-[23.5rem]:text-[1.5rem] max-[22.75rem]:text-[1.4375rem] max-[21.25rem]:text-[1.375rem] max-[20.5rem]:text-[1.3125rem] max-[19.75rem]:text-[1.25rem] max-[18.5rem]:text-[1.125rem] max-[17.25rem]:text-[1.0625rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
         <TitleText title={title} />
       </Heading>
       {byline ? (

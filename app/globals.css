@@ -200,6 +200,12 @@
     [data-axis][data-frame='tall'][data-kind='tick'] {
       display: none !important;
     }
+    /* The titles there lose their paper box for the ticks' halo: on a surface 229–265px wide (a large font size) the
+       boxes lay across its front face and its peak. */
+    [data-axis][data-kind='title'] > span {
+      background: transparent !important;
+      text-shadow: 0 0 2px var(--color-paper), 0 0 4px var(--color-paper), 0 0 6px var(--color-paper);
+    }
   }
   /* The wide set thins in two steps: to the phone's ticks under 32rem (a phone turned sideways, 374–510px: "1M3M",
      "100%" under the strike axis's title), and to none only under 18rem; at 23rem with none the surface had no scale. */

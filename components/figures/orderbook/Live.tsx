@@ -8,7 +8,7 @@ import { saveData, supportsWebGL2, whenIdle } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { DECLINED_TEXT, SLOW_TEXT, useFallback } from '@/components/stage/useFallback'
-import { useLean } from '@/components/stage/useLean'
+import { tapUsed, useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create, type Palette } from '@/components/stage/useStage'
 import { Flow, POSTER_T, type Stats } from '@/lib/market/flow'
@@ -237,7 +237,10 @@ export function OrderBookLive({
             writeStats(stats)
             writeProbe(reading)
           },
-          onPin: (k) => pinApi.current(k),
+          onPin: (k) => {
+            tapUsed()
+            pinApi.current(k)
+          },
         }
       })
       return {

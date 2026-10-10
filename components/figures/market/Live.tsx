@@ -837,7 +837,7 @@ export function MarketLive({
       if (!t || t.id !== e.pointerId) return
       // Sideways, as the home figure's drag reads it: a diagonal swipe of the page is not a reading.
       const dx = Math.abs(e.clientX - t.x), dy = Math.abs(e.clientY - t.y)
-      if (dx > 10 && dx > dy) t.moved = true
+      if (dx > 10 && dx >= dy) t.moved = true
       if (t.moved) readAt(agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
       return
     }
@@ -1118,7 +1118,7 @@ export function MarketLive({
     ['stress', 'Stress, 0 to 1'],
     ['atm', '1-month ATM vol'],
     // The fan is drawn at the realized vol of the moment, and says so: it is not the surface's one-year implied.
-    ['range', 'A year out at realized vol, 5–95%'],
+    ['range', 'A year out at\u00a0realized vol, 5–95%'],
   ] as const
   // Rendered with the still frame's numbers on the server, so the rail arrives full and nothing below it moves.
   const first: Record<(typeof READOUTS)[number][0], string> = {

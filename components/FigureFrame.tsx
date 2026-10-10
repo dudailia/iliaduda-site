@@ -154,7 +154,7 @@ export function Readouts({
   across = false,
 }: {
   /** `ch`: the longest the value can be, for one that changes while the figure runs (held still in the margin). */
-  rows: readonly { readonly label: string; readonly value: ReactNode; readonly ch?: number }[]
+  rows: readonly { readonly label: string; readonly value: ReactNode; readonly ch?: number; /** Across, the row's whole width. */ readonly span?: boolean }[]
   /** Label over value in a row of columns, for a figure with no margin to stack them in. */
   across?: boolean
 }) {
@@ -165,7 +165,7 @@ export function Readouts({
       // The cells of a row meet at their foot, so the values share a line where one label wraps to two.
       <dl className="text-meta grid grid-cols-2 items-end gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono max-[20.5rem]:grid-cols-1 sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4">
         {rows.map((r) => (
-          <div key={r.label} className="min-w-0 break-inside-avoid">
+          <div key={r.label} className={`min-w-0 break-inside-avoid ${r.span ? 'col-span-full' : ''}`}>
             <dt className="text-graphite text-balance">
               <Whole text={r.label} />
             </dt>

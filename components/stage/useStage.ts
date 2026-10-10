@@ -329,9 +329,10 @@ export function useStage(
           }
           // A second of 15 a second clears it, not one reading: a starved GPU alternating 9 and 16 never added up.
           else if (fps >= 15 && (fineFor += raw) >= 1000) crawlFor = fineFor = 0
-          // Under 6 a second it is no figure at all, at any level: a second and a half of it gives way (the home burst
-          // played whole at 1–7 frames a second while the levels stepped down, 8–9 seconds before its still frame).
-          if (fps < 6) deepFor += Math.min(raw, 2000)
+          // Under 8 a second it is no figure at all, at any level: a second and a half of it gives way (the home burst
+          // played whole at 1–7 frames a second while the levels stepped down, 8–9 seconds before its still frame; at
+          // under 6, a reading of 6 cleared the count, and it still played 5 seconds of slideshow).
+          if (fps < 8) deepFor += Math.min(raw, 2000)
           else deepFor = 0
         }
         // In the story (its hold) after 2.5 seconds, not 6: /market and the order book played their whole story at
