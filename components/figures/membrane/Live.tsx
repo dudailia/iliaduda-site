@@ -211,6 +211,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
     // "f = 3, then 1" wrapped it onto a third line and moved everything under the figure by 19px.
     {
       label: 'Initial shape',
+      // The row's whole width: in a third of it the longest formula took two lines, and laid under the one shown, it
+      // held this cell a line higher than its neighbours (the cells meet at their foot).
+      span: true,
       value: (
         <span className="grid">
           {SHAPES.map((x) => (
@@ -223,7 +226,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
     },
     { label: 'Modes kept', value: `${modes}, in Bessel J${e.order}` },
     { label: 'Energy, conserved', value: num(E, 3) },
-    { label: 'Error (L², relative)', value: `${(100 * err).toFixed(1)}%` },
+    { label: 'Error (L²,\u00a0relative)', value: `${(100 * err).toFixed(1)}%` },
     { label: 'Model time', value: <span data-membrane-time="">0.0</span> },
   ]
   const kind = shape.field === 'f' ? 'cos λt' : 'sin λt'
@@ -242,6 +245,13 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         </li>
       ))}
       {modes > 6 ? <li className="text-graphite">{`and ${modes - 6} more`}</li> : null}
+      {/* The list's room is its longest (six modes and the line for more), held as the slider runs: it grew 21px a step
+          under the reader's drag, and moved the caption and the page under it. */}
+      {Array.from({ length: 6 - Math.min(6, modes) + (modes > 6 ? 0 : 1) }, (_, i) => (
+        <li key={`room${i}`} aria-hidden className="invisible">
+          λ
+        </li>
+      ))}
     </ol>
   )
 

@@ -80,14 +80,14 @@ export function pointRows(p: Params, at: { k: number; T: number }): readonly Row
   const b = black(FORWARD, K, at.T, sigma)
   const months = at.T * 12
   return [
-    { id: 'strike', label: 'Strike', value: `${K.toFixed(1)} · ${pct(K / FORWARD, 0)}\u00a0of\u00a0forward` },
+    { id: 'strike', label: 'Strike', value: `${K.toFixed(1)}\u00a0· ${pct(K / FORWARD, 0)}\u00a0of\u00a0forward` },
     { id: 'expiry', label: 'Expiry', value: months < 23.95 ? `${months.toFixed(1)} months` : `${at.T.toFixed(2)} years` },
     { id: 'iv', label: 'Implied vol', value: pct(sigma) },
     { id: 'lv', label: 'Local vol', value: pct(localVol(p, at.k, at.T)) },
     { id: 'call', label: 'Call price', value: b.call.toFixed(2) },
     { id: 'delta', label: 'Delta', value: b.delta.toFixed(3) },
     { id: 'gamma', label: 'Gamma', value: b.gamma.toFixed(4) },
-    { id: 'vega', label: 'Vega, per vol pt', value: b.vega.toFixed(3) },
-    { id: 'theta', label: 'Theta, per day', value: signed(b.theta, 4) },
+    { id: 'vega', label: 'Vega, per vol\u00a0pt', value: b.vega.toFixed(3) },
+    { id: 'theta', label: 'Theta, per\u00a0day', value: signed(b.theta, 4) },
   ]
 }

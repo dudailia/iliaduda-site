@@ -94,7 +94,7 @@ export default function Membrane() {
 
         <Meta
           rows={[
-            ['Bessel functions', <a key="b" href={`${SRC}/lib/membrane/bessel.ts`}>lib/membrane/bessel.ts</a>],
+            ['Bessel\u00a0functions', <a key="b" href={`${SRC}/lib/membrane/bessel.ts`}>lib/membrane/bessel.ts</a>],
             ['the drum', <a key="e" href={`${SRC}/lib/membrane/expand.ts`}>lib/membrane/expand.ts</a>],
             [
               'tests',

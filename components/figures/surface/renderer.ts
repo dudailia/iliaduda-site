@@ -476,7 +476,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
     const turned = (id: string) => (id[0] === 'k' ? e[2]! < ZW : id[0] === 't' ? e[0]! < XW : false)
     // The notes' words and the reading point first: they are the figure's reading, and an axis label that would touch
     // them gives way (held at a drag's limit, the dot sat on "implied vol").
-    const kept: number[] = noteBox.flatMap((b) => (b ? [b[0], b[1], b[2], b[3]] : []))
+    const kept: number[] = [...noteBox, ...noteLead].flatMap((b) => (b ? [b[0], b[1], b[2], b[3]] : []))
     if (dotAt) kept.push(dotAt[0] - 8, dotAt[1] - 8, dotAt[0] + 8, dotAt[1] + 8)
     if (tagAt) kept.push(tagAt[0], tagAt[1], tagAt[2], tagAt[3])
     /** Each kept tick's axis, by its box's index in `kept` (a note or the dot has none). */
@@ -555,6 +555,12 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
   const noteW: number[] = []
   /** Where each note's words stood last frame, on the stage: the axis labels give way to them (thinLabels). */
   const noteBox: (readonly [number, number, number, number] | null)[] = []
+  /**
+   * Each note's leader and its point, from the point to the words' near edge, 6px about them: the axis labels give way
+   * to these too (sideways on an SE, "implied volatility" sat on the Skew note's leader, beside its crest dot).
+   */
+  const noteLead: (readonly [number, number, number, number] | null)[] = []
+  const lead = (sx: number, sy: number, b: readonly number[] | null) => (b ? ([sx - 6, Math.min(sy, sy + b[3]!) - 6, sx + 6, Math.max(sy, sy + b[1]!) + 6] as const) : null)
   /** Where the reading point stood last frame, on the stage (an obstacle the axis labels give way to too). */
   let dotAt: readonly [number, number] | null = null
   /** Where the reading's tag stood last frame, and its size (measured once a text). */
@@ -848,6 +854,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
           const keep = below ? 10 : Math.min(-10, Math.max(o[1], (cssH < 260 ? -18 : 4) + noteH[i]! - sy))
           const b = setNoteRise(el, (noteDy[i] = keep), o[2], at)
           noteBox[i] = b ? [sx + b[0], sy + b[1], sx + b[2], sy + b[3]] : null
+          noteLead[i] = lead(sx, sy, b)
           return
         }
         // A short stage (a phone turned sideways, 209–264px) lends its words the 20px over it, to the figure's rule: in
@@ -875,6 +882,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
         // Every frame: the point moves across the stage as the surface turns, and the words are held inside it.
         const b = setNoteRise(el, (noteDy[i] = dy), o[2], at)
         noteBox[i] = b ? [sx + b[0], sy + b[1], sx + b[2], sy + b[3]] : null
+        noteLead[i] = lead(sx, sy, b)
       })
       const dot = hooks.dot()
       const at = iv(p, probe.k, probe.T)

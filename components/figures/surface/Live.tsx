@@ -9,7 +9,7 @@ import { FocusRing } from '@/components/stage/FocusRing'
 import { Items } from '@/components/Layout'
 import { DECLINED_TEXT, SLOW_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2, useColorScheme, whenIdle } from '@/components/stage/env'
-import { useLean } from '@/components/stage/useLean'
+import { tapUsed, useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create } from '@/components/stage/useStage'
 import type { LiveInfo } from '@/lib/stage/debug'
@@ -309,6 +309,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             paused: () => pausedRef.current,
             lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
             onPin: (p) => {
+              tapUsed()
               setProbe(p)
               readHere()
             },
@@ -952,7 +953,7 @@ function Margin({
           </div>
         ))}
         <div className="min-w-0">
-          <dt className="text-graphite">No static arbitrage</dt>
+          <dt className="text-graphite">No static&nbsp;arbitrage</dt>
           <dd className="tabular text-ink">
             <span ref={set(`arb${suffix}`)}>{initial.arb}</span>
             <span ref={set(`arb-detail${suffix}`)} className="block text-graphite">

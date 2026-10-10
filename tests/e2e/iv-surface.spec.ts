@@ -184,10 +184,10 @@ test('a point pinned by a click is where the arrow keys step from', async ({ pag
   await page.mouse.click(box.x + box.width * 0.62, box.y + box.height * 0.62)
   const strike = value(page, 'Strike')
   await expect(strike).not.toHaveText(/^100\.0 /)
-  const pinned = Number((await strike.textContent())!.split(' ')[0])
+  const pinned = Number((await strike.textContent())!.split(/[\s\u00a0]/)[0])
   await page.locator(STAGE).focus()
   await page.keyboard.press('ArrowRight')
-  const next = Number((await strike.textContent())!.split(' ')[0])
+  const next = Number((await strike.textContent())!.split(/[\s\u00a0]/)[0])
   // One step from the pinned strike (about 2.5% of the forward), not a jump back to where the keys last left it.
   expect(Math.abs(next - pinned)).toBeLessThan(6)
   expect(next).toBeGreaterThan(pinned)

@@ -20,7 +20,7 @@ import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
 import type { FuturesRenderer, Stats } from './renderer'
 import { rangeFill } from '@/components/stage/range'
-import { askTilt } from '@/components/stage/useLean'
+import { askTilt, tapUsed } from '@/components/stage/useLean'
 
 /**
  * Fig. 1, live. The page arrives with the poster — a real frame computed on
@@ -687,6 +687,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     if (d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return
     const k = kAt(e.clientX, e.clientY)
     renderer.current?.preview(null)
+    if (k != null) tapUsed()
     if (k != null && k !== strike) commit(sigma, k, true)
   }
   // A cancelled pointer (the page took the gesture: a scroll, a pinch) sets nothing: what its first moves changed goes
@@ -863,7 +864,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     <div className="text-meta font-mono lg:text-right">
       {/* The price, then the machine: two groups, one hairline apart. */}
       <dl className="grid grid-cols-1 gap-y-px [&_dd]:mb-2">
-        <dt className="text-graphite">Simulated price ± 2 SE</dt>
+        <dt className="text-graphite">Simulated price ± 2&nbsp;SE</dt>
         <dd className="tabular text-indigo" data-mc-price={priced ? shown.mean : ''} data-mc-se={priced ? shown.se : ''}>
           <Steady text={mc} ch={16} />
         </dd>
@@ -871,7 +872,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         <dd className="tabular text-ink" data-bs-price={exact}>
           {exact.toFixed(4)}
         </dd>
-        <dt className="text-graphite">Gap to the formula</dt>
+        <dt className="text-graphite">Gap to the&nbsp;formula</dt>
         <dd className="tabular text-ink">
           <Steady text={gapText} ch={12} />
         </dd>
@@ -1056,7 +1057,10 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             where it never will (reduced motion, no WebGL2), the pre-paint script collapses it. */}
         {/* On a 360px phone the four buttons at full padding took a second line when Reset came, moving the caption 40px
             under the reader's thumb: there they close up (8px padding, 6px gaps), and the row keeps its one line. */}
-        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2 pointer-coarse:gap-y-3.5">
+        {/* Sideways, in the 13.5rem column beside the stage, Replay takes a second row: its room is kept from the start
+            (two rows, and Reset fits on the second), so the readouts under it never move as the figure goes live (46px
+            on a Pro Max). The still frame keeps none (globals.css). */}
+        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2 pointer-coarse:gap-y-3.5 short:min-h-[4.5rem] short:pointer-coarse:min-h-[4.875rem]">
           {live && (
             <>
               <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem] max-sm:[--min:4.125rem]`}>
@@ -1090,7 +1094,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             slider and the stage it moves share a phone's screen (between them they ran 733–794px). */}
         <dl className="text-meta mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono short:grid-cols-1 lg:hidden">
           <div className="min-w-0">
-            <dt className="text-graphite">Simulated ± 2 SE</dt>
+            <dt className="text-graphite">Simulated ± 2&nbsp;SE</dt>
             <dd className="tabular text-indigo">{mc}</dd>
           </div>
           <div className="min-w-0">
@@ -1098,7 +1102,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             <dd className="tabular text-ink">{exact.toFixed(4)}</dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-graphite">Gap to the formula</dt>
+            <dt className="text-graphite">Gap to the&nbsp;formula</dt>
             <dd className="tabular text-ink">{gapText}</dd>
           </div>
           <div className="min-w-0">

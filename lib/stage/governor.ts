@@ -57,8 +57,8 @@ export class Governor {
    * one interval read 24.7 or 45.8 on a 33ms clock, and /iv-surface and /market stepped down mid-story).
    */
   get probing(): boolean {
-    if (this.probe) return this.freshAt(this.probe.at).length < 3
-    return this.needSince !== null && this.freshAt(this.needSince).length < 3
+    if (this.probe) return this.freshAt(this.probe.at).length < FRESH
+    return this.needSince !== null && this.freshAt(this.needSince).length < FRESH
   }
   /** Light frames wanted since (ms), before a step down while held; null when none are. */
   private needSince: number | null = null
@@ -75,13 +75,35 @@ export class Governor {
     // before says nothing of the clock now. Untimed ones (no clock given) always count.
     return this.lights.filter((l) => l.at === null || (this.lastNow - l.at < 2000 && l.at >= since)).map((l) => l.ms)
   }
-  /** The clock as the light frames since `since` read it: their median, once there are three. */
+  /**
+   * The clock as the light frames since `since` read it, once there are FRESH: the mean of the middle three of the last
+   * five (late stamps scatter each; a median of them read three low ones as a fast clock one try in twenty, and one
+   * stall among a GPU's light frames cannot pass for a slow clock).
+   */
   private freshLight(since: number): number | null {
     const f = this.freshAt(since)
-    return f.length >= 3 ? median(f) : null
+    if (f.length < FRESH) return null
+    const s = f.slice(-FRESH).sort((a, b) => a - b).slice(1, -1)
+    return s.reduce((a, b) => a + b, 0) / s.length
   }
   /** When the frames last turned slow (ms). */
   private slowAt = 0
+
+  /**
+   * The display's rate the drawn frames come at, else null: theirs when steady (see steadyAt) at a display's rate, or,
+   * where Low Power Mode's late stamps keep them from reading steady, the display's rate within 10% of their median
+   * (the light frames then say whether it is the clock's or the work's).
+   */
+  private pace(): number | null {
+    const st = this.steady()
+    if (st !== null && isDisplayRate(st)) return st
+    // The median of the last drawn frames and the light ones read with them, not the running mean (late stamps carried
+    // that to 29ms on a 33ms clock), nor the drawn ones alone: a frame left undrawn late makes the drawn one after it short.
+    const all = [...this.recent, ...this.freshAt(this.slowAt)]
+    const m = all.length >= 10 ? median(all) : this.ema
+    const hz = RATES.find((r) => Math.abs(m - 1000 / r) <= 0.1 * (1000 / r))
+    return hz ? 1000 / hz : null
+  }
 
   /** The drawn frames' interval when they are steady (see steadyAt), else null. */
   private steady(): number | null {
@@ -150,18 +172,23 @@ export class Governor {
       // Read while the probe stands: the one light frame the kit gave it counts then, even alone, and before the rest.
       const fastest = this.freshLight(p.at) ?? this.fastest
       this.probe = null
-      const st = this.steady()
-      if (this.ema > p.ema * 0.9 && st !== null && isDisplayRate(st) && fastest > st * 0.75) {
+      const st = this.pace()
+      if (this.ema > p.ema * 0.9 && st !== null && fastest > st * CLOCK_SHARE) {
+        // The clock set the pace: every level stepped down from on the way here goes back, unblocked (Low Power Mode
+        // turned on mid-visit took the order book 3, 2, 1 and back to 2 only, the 3 held off for 30 seconds).
+        const to = Math.max(p.from, this.chainFrom ?? p.from)
         this.refresh = st
-        this.failures[p.from] = Math.max(0, (this.failures[p.from] ?? 1) - 1)
-        this.blockedUntil[p.from] = 0
+        for (let l = p.from; l <= to; l++) {
+          this.failures[l] = Math.max(0, (this.failures[l] ?? 1) - 1)
+          this.blockedUntil[l] = 0
+        }
         this.slow = this.fast = 0
         this.chainFrom = null
         if (held) {
-          this.restoreTo = p.from
+          this.restoreTo = to
           return false
         }
-        this.q = p.from
+        this.q = to
         return true
       }
       // Stepped all the way to its lightest and its frames still no quicker, steady, at a display's rate: no level drew
@@ -169,7 +196,7 @@ export class Governor {
       // mid-visit, under a figure that draws every frame and so never shows the clock a light one: /market and the order
       // book sat at their lightest for 45 seconds). A GPU that holds its heavy levels at 33ms draws its lightest quicker,
       // and stays there.
-      if (this.q <= this.minQ && this.ema > p.ema * 0.9 && st !== null && isDisplayRate(st) && this.chainFrom !== null) {
+      if (this.q <= this.minQ && this.ema > p.ema * 0.9 && st !== null && this.chainFrom !== null) {
         const to = this.chainFrom
         this.chainFrom = null
         this.refresh = st
@@ -207,9 +234,8 @@ export class Governor {
         return false
       }
       this.needSince = null
-      const st = this.steady()
-      const clock = st !== null && isDisplayRate(st) ? st : fresh
-      if (fresh !== null && clock !== null && isDisplayRate(clock) && fresh > clock * 0.75 && this.ema < clock * 1.35) {
+      const clock = this.pace() ?? (fresh !== null && isDisplayRate(fresh) ? fresh : null)
+      if (fresh !== null && clock !== null && fresh > clock * CLOCK_SHARE && this.ema < clock * 1.35) {
         this.refresh = clock
         this.slow = this.fast = 0
         this.askedAt = null
@@ -243,6 +269,14 @@ export class Governor {
  * energy holds pages to. A steady frame interval within 5% of one can be a clock's.
  */
 const RATES = [30, 60, 90, 120, 144, 165, 240]
+/**
+ * Light frames read afresh before the clock is judged, and the share of the drawn frames' interval their median must
+ * reach for those to be the clock's. Five, at 0.65: Low Power Mode's stamps run 0–22ms late, and the median of three
+ * on a 33ms clock read under 0.75 of it in about one try in ten (6 of 40 stories stepped mid-story when it was turned
+ * on). A GPU holding a 60 Hz display at half rate reads 0.5.
+ */
+const FRESH = 5
+const CLOCK_SHARE = 0.65
 export const isDisplayRate = (ms: number) => RATES.some((hz) => Math.abs(ms - 1000 / hz) <= 0.05 * (1000 / hz))
 
 /**

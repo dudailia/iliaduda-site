@@ -66,7 +66,8 @@ export function labelSpecs(sim: Flow, o: { centre: number; fracZ: number; narrow
     const y = height(sim.depthAt(sim.row(age), price)) * rowRise(rise, age, n) * lift + 0.02
     out.push({ id: `t${s}`, kind: 'time', text: s === 0 ? 'now' : `${s} s ago`, at: [xOf(price), y, zOf(age)], dx: o.narrow ? 0 : 6, dy: 0, anchor: o.narrow ? 'r' : 'l' })
   }
-  time(0)
+  // On a phone "now" stands on the sellers' wall by the price, and comes first; on a wider stage after the walls (below).
+  if (o.narrow) time(0)
 
   // Each wall is named on its face: on a phone near the price, where the frame shows it; on a wider stage half-way
   // out and a few seconds back, clear of the front row's prices and of the time marked at the row ends.
@@ -75,7 +76,9 @@ export function labelSpecs(sim: Flow, o: { centre: number; fracZ: number; narrow
   const wallY = height(REF * 0.8) + 0.06
   out.push({ id: 'buyers', kind: 'wall', text: 'Buyers waiting', at: [-XW * wallX, wallY, wallZ], dx: 0, dy: 0, anchor: 'c' })
   out.push({ id: 'sellers', kind: 'wall', text: 'Sellers waiting', at: [XW * wallX, wallY, wallZ], dx: 0, dy: 0, anchor: 'c' })
-  for (let i = 1; i < TIMES.length; i++) time(i)
+  // On a wider stage the walls' names come before "now": the price tag already marks the front row, and on a phone
+  // turned sideways (a 452×301 stage) "now" at the row's end kept "Buyers waiting" 2px short of its room for good.
+  for (let i = o.narrow ? 1 : 0; i < TIMES.length; i++) time(i)
 
   // Price along the front row, every $0.20, except the one the price tag already says.
   const b = Math.floor(o.centre) - VIS / 2

@@ -33,7 +33,7 @@ export const DESCRIPTION =
   'Quantitative analyst and engineer at a proprietary options trading firm; Northeastern mathematics and business, class of 2028. Co-op from January 2027.'
 
 export const POSITIONING =
-  'Quantitative analyst and engineer at a proprietary options trading firm since January\u00a02026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at Northeastern, class\u00a0of\u00a02028.'
+  'Quantitative analyst and engineer at a proprietary options trading firm since January\u00a02026. I build the tools that automate the firm’s investment workflows for its traders: real-time dashboards, analysis tooling, and research tooling around the firm’s proprietary options model. Mathematics and Business Administration at\u00a0Northeastern, class\u00a0of\u00a02028.'
 
 /**
  * The CV is a page (/cv) and a PDF printed from it at build time by

@@ -159,8 +159,9 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
     const size = () => {
       w = st.clientWidth
       dpr = deviceRatio()
-      // The stage's scale (short: 0.72), as its CSS height gives it: the strips' geometry is drawn squeezed by it.
-      k = st.clientHeight / HEIGHT || 1
+      // The stage's scale (short: 0.72), as its CSS height gives it: the strips' geometry is drawn squeezed by it. Its
+      // height as laid out, not rounded: at 0.6 the stage is 257.4px, and from 257 a 3× phone's canvas came 1 row short.
+      k = st.getBoundingClientRect().height / HEIGHT || 1
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(HEIGHT * k * dpr)
     }
@@ -436,8 +437,9 @@ export function OrderFlowLive({ poster, initial, title, subtitle, caption, table
           }}
           // Sideways on a phone the strips are drawn at 0.72 of their height (309px): at 429 a 326–390px screen never
           // held them whole, the queues and the time axis under it while the orders were on it. Lanes stay 13px tall.
-          // Under 21rem tall (an SE, or a large font size: 277–313px) at 0.6, 257px.
-          className="peer relative cursor-crosshair touch-manipulation select-none [--g:0px] [--k:1] focus-visible:outline-none short:[--k:0.72] short:[@media(max-height:21rem)]:[--k:0.6] @min-[520px]:[--g:124px]"
+          // Under 22.5rem tall (an SE, an iPhone 15–17 sideways at 343–352px, or a large font size: 277–313px) at 0.6,
+          // 257px: at 0.72 an iPhone 15's strips left the reading and Pause at the screen's foot, 13px of them showing.
+          className="peer relative cursor-crosshair touch-manipulation select-none [--g:0px] [--k:1] focus-visible:outline-none short:[--k:0.72] short:[@media(max-height:22.5rem)]:[--k:0.6] @min-[520px]:[--g:124px]"
           style={{ height: `calc(${HEIGHT}px * var(--k))` }}
         >
           <div className="absolute inset-y-0 right-2 left-(--g)" style={underlay(live)} data-orderflow-still="">
