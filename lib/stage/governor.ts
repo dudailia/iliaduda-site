@@ -62,6 +62,8 @@ export class Governor {
   }
   /** Light frames wanted since (ms), before a step down while held; null when none are. */
   private needSince: number | null = null
+  /** Since when a step down at rest has waited for the fresh light frames that say the clock (ms), or null. */
+  private askedAt: number | null = null
 
   /**
    * The clock as the last light frame read it, if that was within two seconds (or untimed): the freshest evidence.
@@ -192,18 +194,25 @@ export class Governor {
     // frame ever seen, nothing says the display ran faster). Frames steady at a display's rate, or (Low Power Mode's
     // jitter can keep them from reading steady) at the pace the fresh light names, are the clock's: learned at once, so
     // the signature's effects never change mid-moment.
-    if (this.slow > 1 && held && !this.probe) {
-      const fresh = this.freshLight(this.slowAt) ?? (this.lights.length ? null : Infinity)
-      if (fresh === null) {
+    // At rest too, before a step down, the clock is read afresh from three light frames: Low Power Mode turned on
+    // mid-visit stepped every figure down 1.4s after and back up 1.5s later, two changes the clock alone explained. At
+    // rest no light frame ever seen proves nothing, and the step down tests it as before (a GPU holding 60 Hz's half
+    // rate is as steady at 33ms as the clock).
+    if (this.slow > 1 && !this.probe && (held || this.q > this.minQ)) {
+      const fresh = this.freshLight(this.slowAt) ?? (this.lights.length || !held ? null : Infinity)
+      // Waited for: mid-story as long as it takes; at rest a second, and then the step down tests it instead.
+      this.askedAt = fresh === null ? (this.askedAt ?? now) : null
+      if (fresh === null && (held || now - this.askedAt! < 1000)) {
         this.needSince = this.slowAt
         return false
       }
       this.needSince = null
       const st = this.steady()
       const clock = st !== null && isDisplayRate(st) ? st : fresh
-      if (isDisplayRate(clock) && fresh > clock * 0.75 && this.ema < clock * 1.35) {
+      if (fresh !== null && clock !== null && isDisplayRate(clock) && fresh > clock * 0.75 && this.ema < clock * 1.35) {
         this.refresh = clock
         this.slow = this.fast = 0
+        this.askedAt = null
         return false
       }
     }
@@ -242,7 +251,7 @@ export const isDisplayRate = (ms: number) => RATES.some((hz) => Math.abs(ms - 10
  * frame). A 60 Hz display missing every other frame (17, 33, 17, 33ms) is steady at 25ms, which is no display's rate,
  * so it reads as work.
  */
-function steadyAt(v: readonly number[]): number | null {
+export function steadyAt(v: readonly number[]): number | null {
   const means: number[] = []
   for (let i = 0; i + 4 <= v.length; i++) means.push((v[i]! + v[i + 1]! + v[i + 2]! + v[i + 3]!) / 4)
   if (!means.length) return null
