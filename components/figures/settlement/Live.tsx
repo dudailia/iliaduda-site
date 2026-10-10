@@ -536,7 +536,7 @@ export function SettlementLive({
                     const refused = e.currentTarget.checked
                     setAllowance((a) => ({ ...a, refused }))
                   }}
-                  className="peer size-5 cursor-pointer appearance-none rounded-sm border border-graphite bg-paper transition-colors duration-150 ease-out checked:border-ink checked:bg-ink hover:border-ink focus-visible:transition-none forced-colors:appearance-auto"
+                  className="peer size-5 cursor-pointer appearance-none rounded-sm border border-graphite bg-paper transition-colors duration-150 ease-out checked:border-ink checked:bg-ink hover:border-ink active:border-ink active:transition-none focus-visible:transition-none forced-colors:appearance-auto"
                 />
                 <svg aria-hidden viewBox="0 0 20 20" className="pointer-events-none invisible absolute inset-0 size-5 peer-checked:visible forced-colors:hidden">
                   <path d="M5 10.5l3.2 3.2L15 7" fill="none" stroke="var(--color-paper)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

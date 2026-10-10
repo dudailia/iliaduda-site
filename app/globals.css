@@ -201,7 +201,14 @@
       display: none !important;
     }
   }
-  @container (max-width: 22.9rem) {
+  /* The wide set thins in two steps: to the phone's ticks under 32rem (a phone turned sideways, 374–510px: "1M3M",
+     "100%" under the strike axis's title), and to none only under 18rem; at 23rem with none the surface had no scale. */
+  @container (max-width: 31.9rem) {
+    [data-axis][data-frame='wide'][data-kind='tick']:not([data-keep]) {
+      display: none !important;
+    }
+  }
+  @container (max-width: 17.9rem) {
     [data-axis][data-frame='wide'][data-kind='tick'] {
       display: none !important;
     }

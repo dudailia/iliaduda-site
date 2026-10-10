@@ -61,14 +61,15 @@ const person = {
 }
 
 /**
- * A phone turned keeps the reader's place: the first block of text (or heading, or figure) still on screen stands where
- * it stood. The page turns scroll anchoring off (globals.css: WebKit's anchoring scrolled the page under a finger
+ * A phone turned keeps the reader's place: the first block of text (or heading, or figure) that starts on the screen
+ * stands where it stood (the first that only ends on it, a tall list item or figure, reflowed around the reader's lines
+ * and lost them 100–260px). The page turns scroll anchoring off (globals.css: WebKit's anchoring scrolled the page under a finger
  * working a figure), and without it a turn kept only the pixel offset: the paragraph being read landed 600–1,090px
  * above the screen as the text reflowed shorter. Put back at once, and again a frame later, once the figures have
  * taken their new sizes. And a touch listener that does nothing: iOS Safari applies :active only under one, and no
  * link or control showed its press under a finger.
  */
-const KEEP_PLACE = `(function(){var a=null,w=innerWidth,t=0,S='p,li,dt,h1,h2,h3,figure';function pick(){t=0;a=null;if(scrollY<1)return;var e=document.querySelectorAll(S);for(var i=0;i<e.length;i++){var r=e[i].getBoundingClientRect();if(r.bottom>0&&r.height>0){a={el:e[i],top:r.top};return}}}function back(k){var d=k.el.getBoundingClientRect().top-k.top;if(Math.abs(d)>1)scrollBy(0,d)}addEventListener('scroll',function(){if(!t)t=requestAnimationFrame(pick)},{passive:true});addEventListener('touchstart',function(){},{passive:true});addEventListener('resize',function(){if(innerWidth===w)return;w=innerWidth;var k=a;if(!k)return;back(k);requestAnimationFrame(function(){back(k);requestAnimationFrame(function(){back(k);a=k})})})})()`
+const KEEP_PLACE = `(function(){var a=null,w=innerWidth,t=0,S='p,li,dt,h1,h2,h3,figure';function pick(){t=0;a=null;if(scrollY<1)return;var e=document.querySelectorAll(S),f=null;for(var i=0;i<e.length;i++){var r=e[i].getBoundingClientRect();if(!r.height)continue;if(r.top>=0){a={el:e[i],top:r.top};return}if(!f&&r.bottom>0)f={el:e[i],top:r.top}}a=f}function back(k){var d=k.el.getBoundingClientRect().top-k.top;if(Math.abs(d)>1)scrollBy(0,d)}addEventListener('scroll',function(){if(!t)t=requestAnimationFrame(pick)},{passive:true});addEventListener('touchstart',function(){},{passive:true});addEventListener('resize',function(){if(innerWidth===w)return;w=innerWidth;var k=a;if(!k)return;back(k);requestAnimationFrame(function(){back(k);requestAnimationFrame(function(){back(k);a=k})})})})()`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

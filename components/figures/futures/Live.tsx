@@ -20,6 +20,7 @@ import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
 import type { FuturesRenderer, Stats } from './renderer'
 import { rangeFill } from '@/components/stage/range'
+import { askTilt } from '@/components/stage/useLean'
 
 /**
  * Fig. 1, live. The page arrives with the poster — a real frame computed on
@@ -702,17 +703,11 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     renderer.current?.preview(null)
     if (leanFrom.current === 'pointer') lean.current = { x: 0, y: 0 }
   }
-  // iOS asks before a page may read the tilt, and only from a tap: the first tap on the figure asks.
+  // iOS asks before a page may read the tilt, and only from a tap: the first tap on the figure asks, unless the visit
+  // has answered already (a refusal on /market asked again here).
   const onTap = () => {
-    if (permission !== 'unasked' || !live || reduced || !window.matchMedia('(pointer: coarse)').matches) return
-    const D = (typeof DeviceOrientationEvent === 'undefined' ? undefined : DeviceOrientationEvent) as
-      | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<'granted' | 'denied'> })
-      | undefined
-    if (typeof D?.requestPermission !== 'function') return
-    setPermission('denied')
-    D.requestPermission()
-      .then((r) => setPermission(r === 'granted' ? 'granted' : 'denied'))
-      .catch(() => setPermission('denied'))
+    if (permission !== 'unasked' || !live || reduced) return
+    askTilt(setPermission)
   }
 
   // Drawn whenever the live figure is not: from the table's numbers, which always match its inputs, again on a resize
@@ -930,7 +925,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         id="fig-futures"
         number="Fig. 1"
         className="mt-10 mb-12 lg:mt-6 lg:mb-16"
-        title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
+        // "a $100 stock" whole: a phone set "for a / $100 stock" and "$100 / stock".
+        title={`Every line is one possible year for a\u00a0$${MODEL.s0}\u00a0stock; together they price a call.`}
         subtitle={`Simulated · geometric Brownian motion · σ\u00a0${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realized\u00a0vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         subtitleRoom={`Simulated · geometric Brownian motion · σ\u00a0${pct(MODEL.sigma)}, the simulated market’s realized\u00a0vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}

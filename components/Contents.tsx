@@ -131,14 +131,14 @@ export function ExperienceBrief() {
                   <>
                     {' '}
                     {/* Named in one string: an sr-only span was read as "Read the paper : X". */}
-                    <a href={r.href} aria-label={`Read the paper: ${r.org}`} className="whitespace-nowrap">
+                    <a href={r.href} aria-label={`Read the paper: ${r.org}`} className={`inline-block whitespace-nowrap ${TAP}`}>
                       Read the paper
                     </a>
                   </>
                 ) : r.figure ? (
                   <>
                     {' '}
-                    <a href={r.figure} aria-label={`See the curve: ${r.org}`} className="whitespace-nowrap">
+                    <a href={r.figure} aria-label={`See the curve: ${r.org}`} className={`inline-block whitespace-nowrap ${TAP}`}>
                       See the curve
                     </a>
                   </>
