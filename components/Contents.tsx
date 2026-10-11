@@ -2,7 +2,7 @@ import { otherWork, visiblePapers } from '@/content/papers'
 import { roles } from '@/content/experience'
 import { SITE } from '@/lib/site'
 import { TitleText } from './CaseStudy'
-import { Items, Row, TAP, Whole } from './Layout'
+import { Items, Row, TAP, TAP_INLINE, Whole } from './Layout'
 import { PaperThumb } from './PaperThumb'
 import { ContentsLive } from './thumbs/ContentsLive'
 
@@ -140,14 +140,14 @@ export function ExperienceBrief() {
                   <>
                     {' '}
                     {/* Named in one string: an sr-only span was read as "Read the paper : X". */}
-                    <a href={r.href} aria-label={`Read the paper: ${r.org}`} className={`inline-block whitespace-nowrap ${TAP}`}>
+                    <a href={r.href} aria-label={`Read the paper: ${r.org}`} className={`inline-block whitespace-nowrap ${TAP_INLINE}`}>
                       Read the paper
                     </a>
                   </>
                 ) : r.figure ? (
                   <>
                     {' '}
-                    <a href={r.figure} aria-label={`See the curve: ${r.org}`} className={`inline-block whitespace-nowrap ${TAP}`}>
+                    <a href={r.figure} aria-label={`See the curve: ${r.org}`} className={`inline-block whitespace-nowrap ${TAP_INLINE}`}>
                       See the curve
                     </a>
                   </>

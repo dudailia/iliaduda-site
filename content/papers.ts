@@ -167,7 +167,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'debt-portal',
     href: '/debt-portal',
-    title: 'A debt-settlement portal built to\u00a0Russian federal law',
+    // "Russian federal law" held: at 130% text a phone broke its phrase as "built to Russian / federal law".
+    title: 'A debt-settlement portal built to Russian\u00a0federal\u00a0law',
     abstract: `A self-service portal where people settle a debt without a phone call, built end to end as sole developer for a licensed Russian collection organization. Federal law set the architecture: personal data stays in the country, and every login code is counted against a legal contact allowance, the conservative reading of an unsettled question; both are enforced in code and at build time.`,
     dek: 'A self-service portal for settling a debt without a phone call, built end to end as sole developer for a licensed Russian collection organization, with federal law enforced in code.',
     description: 'A self-service debt-settlement portal built to Russian federal law: personal data kept in the country, every login code counted against a legal allowance.',
@@ -191,7 +192,7 @@ export const TITLE_PHRASES: Readonly<Record<string, readonly string[]>> = Object
   [
     ['The vibrating drum:', 'Fourier–Bessel\u00a0series', 'on a circular\u00a0membrane'],
     ['What ball-by-ball cricket predicts', 'beyond the\u00a0scoreboard'],
-    ['A debt-settlement portal', 'built to\u00a0Russian federal law'],
+    ['A debt-settlement portal', 'built to Russian\u00a0federal\u00a0law'],
     ['Ranking startup\u00a0segments,', 'and how\u00a0much the answer', 'depends on the data'],
     ['A carbon model', 'for campus\u00a0AI\u00a0use,', 'built to be argued with'],
     ['An implied-', 'volatility surface', 'free of\u00a0static arbitrage'],

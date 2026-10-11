@@ -17,6 +17,13 @@ import { PERSON, SITE } from '@/lib/site'
  */
 export const TAP = 'pointer-coarse:py-[calc((44px-1lh)/2)]'
 
+/**
+ * A link inside running text ("Read the paper" at a paragraph's end) under a finger: the same 44px reach, from a box
+ * drawn over the line rather than padding, which grew the line box and set the paragraph's last line 11px apart.
+ */
+export const TAP_INLINE =
+  'relative pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-inset-y-[calc((44px-1lh)/2)]'
+
 export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">

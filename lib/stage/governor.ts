@@ -147,7 +147,9 @@ export class Governor {
   frame(dt: number, now: number, held = false): boolean {
     this.lastNow = now
     this.recent.push(dt * 1000)
-    if (this.recent.length > 15) this.recent.shift()
+    // Thirty-one: the median of fifteen of Low Power Mode's jittered frames fell outside a display's 10% often enough
+    // that turning it on mid-visit stepped a figure down and up again in one visit in five.
+    if (this.recent.length > 31) this.recent.shift()
     this.ema = this.ema * 0.9 + dt * 1000 * 0.1
     this.refresh = Math.min(this.refresh * 1.0005, this.ema)
     if (this.ema > Math.max(this.refresh * 1.35, 20)) {
@@ -239,6 +241,31 @@ export class Governor {
         this.refresh = clock
         this.slow = this.fast = 0
         this.askedAt = null
+        // Learned after a step down in this chain (that step's own test still to come, or gone by): the steps were the
+        // clock's, so the level they left comes back, unblocked, as the probe's pass gives it back (Low Power Mode
+        // turned on mid-story left a figure a level down for the rest of the visit).
+        if (this.chainFrom !== null && this.chainFrom > this.q) {
+          const to = this.chainFrom
+          for (let l = this.q + 1; l <= to; l++) {
+            this.failures[l] = Math.max(0, (this.failures[l] ?? 1) - 1)
+            this.blockedUntil[l] = 0
+          }
+          this.chainFrom = null
+          this.probe = null
+          if (held) {
+            this.restoreTo = to
+            return false
+          }
+          this.q = to
+          return true
+        }
+        return false
+      }
+      // Mid-story, a reading that names no clock is no proof against one: read on, unless the light frames show the
+      // work is the limit (they come well inside the drawn frames' interval). The signature's effects never step down on
+      // an inconclusive reading (Low Power Mode turned on mid-story stepped 8 stories in 50).
+      if (held && fresh !== null && clock === null && fresh > this.ema * CLOCK_SHARE) {
+        this.needSince = this.slowAt
         return false
       }
     }

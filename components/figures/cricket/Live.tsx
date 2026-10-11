@@ -309,8 +309,16 @@ export function CricketLive({ balls, maxBalls, first, second, result, caption, t
     setFrac(0)
   }
   const onPlotDown = (e: PointerEvent<HTMLDivElement>) => {
-    // A second finger (a pinch) does not take the scrub from the first.
-    if (drag.current) return
+    // A second finger (a pinch) does not take the scrub from the first: it gives back the ball the first one's scrub
+    // left and ends it, as the sliders do (a pinch that began with a sideways drift left the replay moved).
+    const held = drag.current
+    if (held) {
+      if (held.touch && e.pointerType === 'touch') {
+        drag.current = null
+        if (held.on) scrubTo(held.from)
+      }
+      return
+    }
     const touch = e.pointerType === 'touch'
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, on: !touch, touch, from: at }
     if (!touch) {

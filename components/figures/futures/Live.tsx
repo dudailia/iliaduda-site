@@ -651,6 +651,14 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     return p == null ? null : Math.round(Math.min(MODEL.strikeMax, Math.max(MODEL.strikeMin, p)))
   }
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
+    // A second finger (a pinch) gives back what the first one's drag moved and ends it, as the sliders do: a pinch
+    // that began with a sideways drift left the volatility changed.
+    const held = drag.current
+    if (held?.touch && e.pointerType === 'touch') {
+      drag.current = null
+      if (held.moved) commit(held.s, strike)
+      return
+    }
     if (!live || drag.current || playing()) return
     // Touching the figure mid-flight brings the camera home instead.
     if (flight.current.flying) return stopFlight()
