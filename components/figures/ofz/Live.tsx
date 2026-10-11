@@ -123,8 +123,8 @@ export function OfzLive({
     // Its row-mate's two lines held here too: the cells meet at their foot, and the labels stood a line apart.
     { label: 'Trading day', value: <span className="block whitespace-nowrap max-sm:min-h-[2lh]">{day(d.date)}</span> },
     // A phone sets 21 July's "7.50%, 8.50% from 24 Jul" on two lines: they are held on every day, so stepping onto it
-    // and off it moves nothing under the readouts.
-    { label: 'Key rate', value: <span className="block max-sm:min-h-[2lh]">{`${rate.toFixed(2)}%${pending}`}</span> },
+    // and off it moves nothing under the readouts (sideways too: the SE's 667px is no narrow screen, but its rail is).
+    { label: 'Key rate', value: <span className="block max-sm:min-h-[2lh] short:min-h-[2lh]">{`${rate.toFixed(2)}%${pending}`}</span> },
     { label: '3-month', value: pc(short) },
     { label: '10-year', value: pc(long) },
     { label: 'Slope, 10y − 3m', value: bp((long - short) * 100) },

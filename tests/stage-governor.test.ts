@@ -236,6 +236,58 @@ describe('the quality governor', () => {
     expect(Math.min(...seen)).toBe(2)
   })
 
+  it('never steps a story down when Low Power Mode comes on mid-story, and ends at the level it started on', () => {
+    // 60 Hz to the story's 0.8s, then Low Power Mode's 30 Hz, each stamp up to 22ms late, held for 5s; then 10s at rest.
+    // Forty visits: an inconclusive reading mid-story stepped 8 stories in 50, and left 2 a level down for the visit.
+    let stepped = 0, below = 0
+    for (let seed = 1; seed <= 40; seed++) {
+      let x = seed * 7919
+      const rnd = () => (x = (x * 16807) % 2147483647) / 2147483647
+      const g = new Governor(2, 2)
+      g.seed(Array(16).fill(1000 / 60))
+      let now = 0, late = 0, vs = 0
+      while (now < 15800) {
+        const lpm = vs >= 800
+        vs += lpm ? 1000 / 30 : 1000 / 60
+        const was = late
+        late = lpm ? rnd() * 22 : 0
+        const dt = (lpm ? 1000 / 30 : 1000 / 60) + late - was
+        now += dt
+        if (g.probing) g.observe(lpm ? 1000 / 30 + (rnd() - 0.5) * 44 : 1000 / 60, now)
+        const held = vs < 5800
+        const q = g.q
+        g.frame(dt / 1000, now, held)
+        if (held && g.q < q) stepped++
+      }
+      if (g.q < 2) below++
+    }
+    expect(stepped).toBe(0)
+    expect(below).toBe(0)
+  })
+
+  it('reads on mid-story when the reading names no clock and the light frames are as slow as the drawn ones', () => {
+    // Drawn frames about 40ms apart, no display's rate, and the kit's light frames as slow: nothing says the work is the
+    // limit, so the story keeps its effects; once it is over, a step down may test it.
+    let x = 99
+    const rnd = () => (x = (x * 16807) % 2147483647) / 2147483647
+    const g = new Governor(2, 2)
+    let now = 0
+    for (let i = 0; i < 30; i++) {
+      now += 1000 / 60
+      g.frame(1 / 60, now, true)
+    }
+    const held: number[] = []
+    while (now < 9000) {
+      const dt = 40 + (rnd() - 0.5) * 8
+      now += dt
+      if (g.probing) g.observe(38 + (rnd() - 0.5) * 6, now)
+      const inStory = now < 6000
+      g.frame(dt / 1000, now, inStory)
+      if (inStory) held.push(g.q)
+    }
+    expect(Math.min(...held)).toBe(2)
+  })
+
   it('follows the clock back when it speeds up again (Low Power Mode turned off)', () => {
     const g = new Governor(3, 3)
     const a = run(g, 10, () => 1000 / 30)

@@ -328,7 +328,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={fade(live)} />
       </div>
 
-      <div data-membrane-controls="" className="mt-3 grid gap-y-3 short:mt-0 short:gap-y-2">
+      <div data-membrane-controls="" className="mt-3 grid gap-y-3 short:mt-0 short:gap-y-2 short:pointer-coarse:gap-y-3">
         {/* One choice of shape, in two groups: a radio group each, the arrow keys moving within it. */}
         {GROUPS.map((g) => {
           const ids = SHAPES.filter((x) => x.from === g.from)
