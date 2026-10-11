@@ -11,4 +11,5 @@ export const MINIS: Record<string, () => Promise<{ make: MakeMini }>> = {
   'startup-investments': () => import('./minis/startup-investments'),
   'debt-portal': () => import('./minis/debt-portal'),
   membrane: () => import('./minis/membrane'),
+  arclo: () => import('./minis/arclo'),
 }

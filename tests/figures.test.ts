@@ -57,6 +57,8 @@ const PROJECT_OF: Readonly<Record<string, string>> = {
   'VolSurfaceSmile.tsx': 'vs',
   'VolSurfaceHoldout.tsx': 'vs',
   'VolSurfaceVrp.tsx': 'vs',
+  'ArcloSystem.tsx': 'ar',
+  'ArcloReel.tsx': 'ar',
 }
 
 function ownValues(file: string): Set<string> {

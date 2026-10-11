@@ -95,6 +95,17 @@ export const papers: readonly Paper[] = [
     status: 'published',
   },
   {
+    slug: 'arclo',
+    href: '/arclo',
+    title: 'Arclo: a brand system with a template engine and an export pipeline',
+    abstract: `A brand system for a fictional city e-bike and e-scooter service, taken from a blank brief to a live site in ${words('arDays')} day. One set of tokens drives every deliverable: ${words('arTemplates')} social templates in ${words('arColorways')} colorways with a live editor, a CMYK print flyer with bleed, HTML5 banners and a motion set, each drawn once and exported by one pipeline.`,
+    dek: `A brand system for a fictional e-bike and e-scooter service, built in ${words('arDays')} day: one set of tokens drives its templates, a live editor, print, banners and motion.`,
+    description: 'A brand system for a fictional e-bike and e-scooter service, built in one day: one token set drives its templates, live editor, print, banners and motion.',
+    figureNote: 'fictional brand',
+    byline: 'Independent work · October 2026',
+    status: 'published',
+  },
+  {
     slug: 'membrane',
     href: '/membrane',
     title: 'The vibrating drum: Fourier–Bessel series on a circular membrane',
