@@ -196,6 +196,15 @@
   [data-label-box] {
     container-type: inline-size;
   }
+  /* On /market a phone's stage is wider than the surface's own frame (1.62 against 1.1), and the live labels are set
+     across the stage: the poster's are judged by the stage's width too, or its still (the reduced-motion reader's whole
+     figure) carried none of the ticks the live surface shows over the same 254px of surface. */
+  [data-market-surface] {
+    container-type: inline-size;
+  }
+  [data-market-surface] [data-label-box='frame'] {
+    container-type: normal;
+  }
   @container (max-width: 21.9rem) {
     [data-axis][data-frame='tall'][data-kind='tick'] {
       display: none !important;
@@ -260,8 +269,10 @@
     }
   }
   /* Pressed, a link answers at once, under any pointer: its line goes to ink and its box (a finger's 44px, where it has
-     one) takes the rule's tone. A thumbnail presses as its own. */
-  a:not([data-vt-thumb]):active {
+     one) takes the rule's tone. A thumbnail presses as its own. A disclosure ("Greeks at the point") presses as a link:
+     its text going to ink alone was the weakest press on the site. */
+  a:not([data-vt-thumb]):active,
+  summary:active {
     text-decoration-color: var(--color-ink);
     background-color: color-mix(in oklab, var(--color-rule) 55%, transparent);
     border-radius: 1px;

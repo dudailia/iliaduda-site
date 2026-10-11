@@ -553,7 +553,9 @@ function Labels() {
       {/* One line where there is room; on a phone two, so none runs off the frame. */}
       <span className={`${text} hidden text-ink @min-[520px]:block @min-[520px]:left-(--g)`} style={top(Y.intensity, -17)}>
         Market orders a second: <Swatch className="bg-rule" /> on their own <Swatch className="bg-indigo/70" /> set off
-        {/* The long form where it fits: its ~520px past the 124px gutter (an iPhone SE turned sideways, 603px, cut it). */}
+        {/* The long form where it fits: its ~520px past the 124px gutter (an iPhone SE turned sideways, 603px, cut it);
+            under that the phone's "by others", so the line never ends on a clipped "set off". */}
+        <span className="@min-[660px]:hidden"> by others</span>
         <span className="hidden @min-[660px]:inline"> by earlier orders</span>
       </span>
       {/* In a stage under 300px (a 360px phone at a 130% font size) at 12px, the figures' smallest: at 13 its second line

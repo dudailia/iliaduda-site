@@ -845,8 +845,15 @@ export function MarketLive({
     readAt(agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
   }
   const onBookDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    // A second finger (a pinch) does not take the book from the first.
-    if (e.pointerType !== 'touch' || touching.current) return
+    // A second finger (a pinch) does not take the book from the first: it gives back what the first one's read moved and
+    // ends it, as the other figures and the sliders do.
+    const held = touching.current
+    if (e.pointerType === 'touch' && held) {
+      touching.current = null
+      if (held.moved) readAt(held.before)
+      return
+    }
+    if (e.pointerType !== 'touch') return
     touching.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, before: readingAgo.current }
   }
   const onBookUp = (e: ReactPointerEvent<HTMLDivElement>) => {

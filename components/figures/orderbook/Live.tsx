@@ -136,7 +136,7 @@ export function OrderBookLive({
     (r: Reading | null) => {
       last.current = r
       if (!r) {
-        write('p-price', '—'.padStart(PRICE_CH, '\u00a0'))
+        write('p-price', '—'.padEnd(PRICE_CH, '\u00a0'))
         // A finger taps (the hint under the figure says so too).
         write('p-side', `${(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'tap' : 'point at')} the terrain`)
         write('p-queue', '—')
@@ -628,8 +628,10 @@ export function OrderBookLive({
         <dl id="fig-order-book-probe" className="text-meta grid min-h-[4lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono print:hidden" aria-label="Probe reading">
           <dt className="text-graphite">Probe</dt>
           <dd className="text-ink">
+            {/* A price's room is kept after the dash, not before it: padded before, the dash stood ten characters right of
+                the Queue and When dashes under it. */}
             <span ref={ref('p-price')} className="tabular">
-              {'—'.padStart(PRICE_CH, '\u00a0')}
+              {'—'.padEnd(PRICE_CH, '\u00a0')}
             </span>{' '}
             <span ref={ref('p-side')} className="text-graphite">
               {mounted && matchMedia('(pointer: coarse)').matches ? 'tap the terrain' : 'point at the terrain'}
