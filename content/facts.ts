@@ -449,6 +449,38 @@ const facts = {
     source: 'nucarbon/app/executive/page.tsx:457',
   },
 
+  // ── Arclo ──────────────────────────────────────────────────────────────────
+  arTemplates: {
+    value: 3,
+    unit: 'count',
+    label: 'reusable social templates',
+    source: 'arclo-portfolio @7b08ccc — src/components/site/Social.tsx TEMPLATES (Route of the week, Event announcement, Ride tips)',
+  },
+  arColorways: {
+    value: 2,
+    unit: 'count',
+    label: 'colorways each template ships in',
+    source: 'arclo-portfolio @7b08ccc — src/pieces/registry.tsx, two variants per social template',
+  },
+  arDays: {
+    value: 1,
+    unit: 'count',
+    label: 'days from blank brief to live site',
+    source: 'arclo-portfolio @7b08ccc — git log, every commit on 2026-10-10',
+  },
+  arReelStates: {
+    value: 4,
+    unit: 'count',
+    label: 'routes the template reel passes through',
+    source: 'arclo-portfolio @7b08ccc — src/pieces/motion/templateReel.tsx REEL_STATES',
+  },
+  arReelSeconds: {
+    value: 10,
+    unit: 'seconds',
+    label: 'length of the template reel, one loop',
+    source: 'arclo-portfolio @7b08ccc — src/pieces/motion/templateReel.tsx REEL_SECONDS',
+  },
+
   // ── BCS: the OFZ curve, July–August 2023 ──────────────────────────────────
   // Public market data, written by scripts/ofz_curve.mjs from the Moscow
   // Exchange and cross-checked against the Bank of Russia.
