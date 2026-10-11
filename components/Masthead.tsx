@@ -75,10 +75,11 @@ export function Masthead() {
         {/* Wrapped, not balanced: pretty shortened its last lines into a notch on the first screen. */}
         {/* On a screen under 600px tall (an iPhone SE) the line is set at the note size and the head closes up, so every
             contact link is on the first screen (at 17px only "CV (PDF)" was, across the fold). The SE turned sideways
-            too (326px tall): at 19px the line took six lines and Contact began under the screen. */}
+            too (326px tall): at 19px the line took six lines and Contact began under the screen. A phone turned sideways
+            sets it at the papers' sideways measure (40rem, ~70 characters; the full measure ran 77). */}
         {/* Under 20.5rem wide (a 115–130% font size) at the note size, and the head closer, so the contact links stay on
             the first screen: at 130% only "CV (PDF)" was. */}
-        <p className="mt-4 max-w-[36rem] [text-wrap:wrap] max-[20.5rem]:text-note max-[20.5rem]:mt-3 lg:max-w-none [@media(max-height:30rem)]:max-w-(--measure) low:text-note low:mt-3 short:mt-3 flat:mt-3 [@media(max-height:21rem)]:text-note [@media(max-height:20rem)]:mt-2">{POSITIONING}</p>
+        <p className="mt-4 max-w-[36rem] [text-wrap:wrap] max-[20.5rem]:text-note max-[20.5rem]:mt-3 lg:max-w-none [@media(max-height:30rem)]:max-w-[40rem] low:text-note low:mt-3 short:mt-3 flat:mt-3 [@media(max-height:21rem)]:text-note [@media(max-height:20rem)]:mt-2">{POSITIONING}</p>
       </Row>
 
       <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] max-[20.5rem]:grid-cols-1 max-[20.5rem]:mt-4 max-[20.5rem]:pt-3 gap-x-4 gap-y-2 max-[20.5rem]:gap-y-1 [@media(max-height:20rem)]:gap-y-1 border-t border-rule pt-5 low:mt-4 low:pt-3 short:mt-4 short:pt-3 [@media(max-height:20rem)]:mt-2 [@media(max-height:20rem)]:pt-1 lg:mt-6 flat:mt-3 flat:pt-3 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">

@@ -21,7 +21,7 @@ export const FRAME_ASPECT = 'aspect-[1.1] sm:aspect-[1.62]'
  * live renderer letterboxes its projection the same way.
  */
 export function Frame({ className = '', children }: { className?: string; children: ReactNode }) {
-  return <div data-label-box="" className={`pointer-events-none absolute inset-0 m-auto max-h-full max-w-full ${FRAME_ASPECT} ${className}`}>{children}</div>
+  return <div data-label-box="frame" className={`pointer-events-none absolute inset-0 m-auto max-h-full max-w-full ${FRAME_ASPECT} ${className}`}>{children}</div>
 }
 
 const ALIGN: Record<string, string> = {
