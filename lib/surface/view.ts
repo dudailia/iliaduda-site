@@ -321,9 +321,10 @@ const TALL_VOLS = new Set<number>([0.6])
 export const SPARSE_TICKS = new Set<string>([...[...TALL_STRIKES].map((K) => `k${K}`), ...[...TALL_EXPIRIES].map((s) => `t${s}`), ...[...TALL_VOLS].map((v) => `v${v}`)])
 
 export const LABELS: readonly Label[] = [
-  // Every strike tick is drawn; the 85% one goes unlabelled, where the axis title needs the room.
+  // Every strike tick is drawn; the 85% one goes unlabelled, where the axis title needs the room. Clear of the tick's
+  // end (it runs to ZW + 0.05): at ZW + 0.12 the mark ran through "70%" and "115%" seen from a phone's height.
   ...STRIKE_TICKS.filter((K) => K !== 0.85).map((K): Label => ({
-    id: `k${K}`, text: `${Math.round(K * 100)}%`, at: [wx(Math.log(K)), 0, ZW + 0.12], align: 'center', kind: 'tick',
+    id: `k${K}`, text: `${Math.round(K * 100)}%`, at: [wx(Math.log(K)), 0, ZW + 0.17], align: 'center', kind: 'tick',
     ...(TALL_STRIKES.has(K) ? {} : { only: 'wide' as const }),
   })),
   // From the slab's left corner, reading right, as the phone's: centred on the strikes it ran past the frame's edge on
