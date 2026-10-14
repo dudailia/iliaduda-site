@@ -25,3 +25,19 @@ test('goes live or says why, forms once, and leaves the page clean', async ({ pa
   expect(sw).toBeLessThanOrEqual(cw)
   expect(errors).toEqual([])
 })
+
+test.describe('an iPad mini turned sideways', () => {
+  test.use({ viewport: { width: 1133, height: 673 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+
+  // Under a finger the margin does not stick, so with its Greeks open it must fit the screen whole on its own.
+  test('the margin with its Greeks open fits one screen', async ({ page }) => {
+    await page.goto('/iv-surface')
+    const greeks = page.locator('#fig-iv-surface details:visible').filter({ hasText: 'Greeks at the point' }).first()
+    await greeks.locator('summary').tap()
+    await expect(greeks).toHaveAttribute('open', '')
+    await expect.poll(() => greeks.locator('dl').evaluate((d) => d.getAnimations().length)).toBe(0)
+    const rail = greeks.locator('xpath=../..')
+    const h = await rail.evaluate((e) => e.getBoundingClientRect().height)
+    expect(h).toBeLessThanOrEqual(673 - 24)
+  })
+})
