@@ -939,7 +939,9 @@ function Margin({
   across?: boolean
 }) {
   // On paper the readouts print together, on one sheet, as every figure's do (components/FigureFrame.tsx, Readouts).
-  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
+  // Under a finger the margin does not stick (components/FigureFrame.tsx), so opened it must fit a screen on its own: an
+  // iPad mini turned sideways (673px) had the last Greek at 684. There its readouts sit 4px apart rather than 8.
+  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2 pointer-coarse:[&_dd]:mb-1'
   const row = (id: string) => rows.find((r) => r.id === id)!
   return (
     <div className={across ? 'grid gap-y-4' : ''}>
@@ -991,7 +993,7 @@ function Margin({
         <summary onClick={glideDetails} className="cursor-pointer py-1 pointer-coarse:py-[calc((44px-1lh)/2)] text-graphite marker:text-graphite hover:text-ink active:text-ink">
           Greeks at the point
         </summary>
-        <dl className={`${dl} mt-2 ${across ? 'border-t-0 pt-0' : ''}`}>
+        <dl className={`${dl} ${across ? 'mt-2 border-t-0 pt-0' : 'mt-2 pointer-coarse:mt-0'}`}>
           {GREEKS.map((id) => (
             <div key={id} className="min-w-0">
               <dt className="text-graphite">{row(id).label}</dt>
