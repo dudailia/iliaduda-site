@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { storyEnds } from './story'
 import { errorsOf } from './hero-kit'
 
 /**
@@ -16,7 +17,9 @@ test('goes live or says why, forms once, and leaves the page clean', async ({ pa
   await page.locator('#fig-iv-surface [data-seq]').scrollIntoViewIfNeeded()
   const figure = page.locator('[data-stage-debug] div').filter({ has: page.locator('dt', { hasText: /^figure$/ }) }).locator('dd')
   await expect(figure).toHaveText(/^(live|declined: Still frame.*)$/, { timeout: 20_000 })
-  if ((await figure.textContent()) === 'live') await expect.poll(() => page.locator('#fig-iv-surface [data-seq]').getAttribute('data-seq'), { timeout: 15_000 }).toBe('done')
+  // A 5s story (lib/surface/sequence.ts, FORM_MS): 50 slow frames at most (tests/e2e/story.ts).
+  if ((await figure.textContent()) === 'live')
+    expect(await storyEnds(page, '#fig-iv-surface [data-seq]', 80), `the story ends within 80 frames or 15s, whichever is longer`).toBe(true)
   else await expect(page.locator('#fig-iv-surface').getByText(/Still frame/).first()).toBeVisible()
   const [sw, cw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
   expect(sw).toBeLessThanOrEqual(cw)
