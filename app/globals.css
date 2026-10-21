@@ -504,7 +504,7 @@
   font-weight: 200 900;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
+  unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03C8, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
 }
 @font-face {
   font-family: sourceCodePro;
@@ -512,7 +512,7 @@
   font-weight: 200 900;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
+  unicode-range: U+03BB, U+03BC, U+03A3, U+03B2, U+03B8, U+03C1, U+03C6, U+03C8, U+03B7, U+03B3, U+03BA, U+0394, U+03B1, U+2265, U+2264, U+2202, U+2248, U+221A, U+221E, U+2192, U+2082, U+20BD;
 }
 
 /* The IV surface's poster: on a first visit (the pre-paint mark) the stage is empty paper and the surface forms out of

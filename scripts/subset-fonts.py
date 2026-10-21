@@ -31,7 +31,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
 LATIN = set(range(0x20, 0x7F)) | set(range(0xA0, 0xC0)) | {0xD7, 0xF7} | set(range(0x2000, 0x2070)) | {0x20AC, 0x2122, 0x2191, 0x2193, 0x2212, 0x2215, ord('σ')}
-EXTRA = 'λμΣβθρφηγκΔα' + '≥≤∂≈√∞' + '→' + '₂' + '₽'
+EXTRA = 'λμΣβθρφψηγκΔα' + '≥≤∂≈√∞' + '→' + '₂' + '₽'
 
 src = sys.argv[1]
 faces = [

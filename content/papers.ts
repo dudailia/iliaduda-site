@@ -47,9 +47,27 @@ export interface Paper {
   readonly cv?: string
   /** A short name for the CV's run-in heading. */
   readonly cvName?: string
+  /** Where the work runs live, when it is a tool someone can open: linked from the Contents and the CV beside the paper. */
+  readonly live?: { readonly href: string; readonly label: string }
 }
 
 export const papers: readonly Paper[] = [
+  {
+    slug: 'vol-surface',
+    href: '/vol-surface',
+    title: 'A live implied-volatility surface for bitcoin and ether',
+    abstract: `Every listed BTC and ETH option on Deribit, read every five minutes and fitted with SSVI and extended SSVI under no-arbitrage constraints, with the raw quotes checked for static arbitrage. Across ${n('vsCmpBtcSnapshots')} bitcoin snapshots, extended SSVI’s error on quotes held out of the fit was ${fact('vsCmpBtcHoldoutEssvi').value} vol points against ${fact('vsCmpBtcHoldoutSsvi').value}, and it lay inside the bid-ask spread for ${fact('vsCmpBtcInsideEssvi').value}% of quotes against ${fact('vsCmpBtcInsideSsvi').value}%.`,
+    standfirst:
+      'The real-data counterpart to One market, three views: a surface fitted every five minutes to the BTC and ETH options on Deribit, two models side by side, with the arbitrage checks and every expiry’s error published alongside them.',
+    dek: 'Every BTC and ETH option on Deribit, read every five minutes and fitted with SSVI and extended SSVI under no-arbitrage constraints, the better model chosen on held-out quotes.',
+    description: 'Every BTC and ETH option on Deribit, read every five minutes and fitted arbitrage-free with SSVI and extended SSVI, the model chosen on held-out quotes.',
+    byline: 'Independent work · October 2026 · Deribit public data',
+    status: 'published',
+    live: { href: 'https://vol.iliaduda.com', label: 'vol.iliaduda.com' },
+    cvName: 'Live BTC/ETH implied-volatility surface',
+    // The owner's line (2026-10-20); the CV sets the live address after the name, in brackets.
+    cv: 'SSVI and extended SSVI fitted every five minutes to Deribit quotes, with static-arbitrage checks, daily reports and an open-source Python/Next.js stack.',
+  },
   {
     slug: 'market',
     href: '/market',

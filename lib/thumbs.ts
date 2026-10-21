@@ -13,6 +13,8 @@ import { orderBookShape } from './minis/orderBook'
 import { ivSurfaceShape } from './minis/ivSurface'
 import { membraneShape } from './minis/membrane'
 import { TH, TW, type Pts, type Shape } from './minis/shape'
+import smile from './volsurface/snapshot.json'
+import { essviSlice, sliceVol, ssviSlice } from './volsurface/ssvi'
 
 /**
  * Miniatures of each paper's Fig. 1, drawn from the same data: for the
@@ -67,6 +69,25 @@ function market(): Thumb {
   )
 }
 
+
+function volSurface(): Thumb {
+  // Fig. 1 of /vol-surface: one expiry's quotes from bid to ask as context, the eSSVI fit through them as the claim, on
+  // the figure's axes; the SSVI fit's heights at the same points for the miniature, which moves between the two models.
+  const k0 = Math.min(...smile.k)
+  const k1 = Math.max(...smile.k)
+  const lo = Math.min(...smile.bid)
+  const hi = Math.max(...smile.ask)
+  const x = (k: number) => ((k - k0) / (k1 - k0)) * TW
+  const y = (v: number) => TH * 0.06 + (1 - (v - lo) / (hi - lo)) * TH * 0.88
+  const fit = essviSlice(smile.essvi.theta, smile.essvi.rho, smile.essvi.psi)
+  const plain = ssviSlice(smile.ssvi.theta, smile.ssvi.rho, smile.ssvi.eta, smile.ssvi.gamma)
+  const ks = Array.from({ length: 61 }, (_, i) => k0 + ((k1 - k0) * i) / 60)
+  return {
+    context: smile.k.map((k, i) => line([[x(k), y(smile.bid[i]!)], [x(k), y(smile.ask[i]!)]])),
+    claim: [line(ks.map((k) => [x(k), y(sliceVol(k, fit, smile.T))] as const))],
+    mini: JSON.stringify(ks.map((k) => Number(y(sliceVol(k, plain, smile.T)).toFixed(1)))),
+  }
+}
 
 function cricket(): Thumb {
   const b = replay.balls
@@ -133,6 +154,7 @@ function bcs(): Thumb {
 
 
 const BUILDERS: Record<string, () => Thumb> = {
+  'vol-surface': volSurface,
   market,
   'iv-surface': ivSurface,
   membrane,

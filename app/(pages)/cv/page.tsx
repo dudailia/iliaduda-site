@@ -31,12 +31,15 @@ const bare = (href: string) => href.replace(/^https?:\/\/(www\.)?/, '').replace(
 /**
  * The résumé keeps its own list and order, so a new paper in Contents does not reshuffle it. The one-page sheet holds
  * three: the market (the Hawkes order book, the determinism, the fan and the surface in one frame) took the startup
- * ranking's place, which stays on the site (TODO(owner): the swap is revertible, here).
+ * ranking's place, which stays on the site (TODO(owner): the swap is revertible, here). The live surface leads it (the
+ * owner, 2026-10-20), its address in brackets after its name, as the owner wrote the line; with four the sheet ran to a
+ * second Letter page, so it takes the synthetic IV surface's place, the same model on real quotes (/iv-surface stays on
+ * the site; TODO(owner): revertible, here).
  */
 /** Courses /about lists that the one printed page leaves out, the least quantitative first (the owner's rule: keep the
  * strongest when the sheet is full); the sheet also leaves out /about's notes in brackets (the A-Level transfer credit). */
 const CV_DROP = ['MATH 2321', 'FINA 4340', 'FINA 4320']
-const CV_ORDER = ['iv-surface', 'cricstate', 'market']
+const CV_ORDER = ['vol-surface', 'cricstate', 'market']
 const PROJECTS = papers
   .filter((p) => p.status === 'published' && p.cv && CV_ORDER.includes(p.slug))
   .sort((a, b) => (CV_ORDER.indexOf(a.slug) + 1 || 99) - (CV_ORDER.indexOf(b.slug) + 1 || 99))
@@ -147,8 +150,14 @@ export default function Cv() {
             {PROJECTS.map((p) => (
               <p key={p.slug}>
                 <strong>
-                  <a href={url(p.href)}>{p.cvName ?? p.title}</a>.
-                </strong>{' '}
+                  <a href={url(p.href)}>{p.cvName ?? p.title}</a>
+                  {p.live ? null : '.'}
+                </strong>
+                {p.live ? (
+                  <>
+                    {' '}(<a href={p.live.href}>{p.live.label}</a>):
+                  </>
+                ) : null}{' '}
                 {p.cv ? <Whole text={p.cv} /> : null}
               </p>
             ))}

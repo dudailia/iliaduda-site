@@ -22,8 +22,16 @@ async function toContents(page: Page) {
   await page.goto('/')
   await page.evaluate(() => document.querySelector('#contents')?.scrollIntoView({ block: 'start' }))
 }
-/** One thumbnail moves at a time: the entry under the reader's pointer or focus. Focus leaves the thumbnail's border as it is. */
-const choose = (page: Page, slug: string) => page.locator(`[data-vt-contents] li:has([data-vt-thumb="fig-${slug}"]) h3 a`).focus()
+/** One thumbnail moves at a time: the entry under the reader's pointer or focus. Focus leaves the thumbnail's border as it is.
+ *  Its thumbnail is brought on screen first, as a reader scrolling to it would: a phone's column puts an entry below the
+ *  first one's (/market's, since the live surface leads the Contents) under the fold, and focus scrolls only its title in.
+ *  The pointer goes to the page's corner first: left where an earlier tap was (on Pause), the scroll brings another entry
+ *  under it, and the entry under a pointer is the one that moves. */
+const choose = async (page: Page, slug: string) => {
+  await page.mouse.move(0, 0)
+  await thumb(page, slug).scrollIntoViewIfNeeded()
+  await page.locator(`[data-vt-contents] li:has([data-vt-thumb="fig-${slug}"]) h3 a`).focus()
+}
 
 test('the thumbnails are the build’s pictures until they are on screen, then each comes alive', async ({ page }) => {
   const errors = errorsOf(page)
