@@ -127,7 +127,8 @@ describe('the estimator', () => {
     })
   }
 
-  it('has a standard error that falls like 1/√n', () => {
+  // About 340,000 paths: up to 3.3s among the other suites, so a budget for the work rather than vitest's 5s default.
+  it('has a standard error that falls like 1/√n', { timeout: 30_000 }, () => {
     const a = price(0.25, 100, 16_384)
     const b = price(0.25, 100, 65_536, 16_384)
     const c = price(0.25, 100, 262_144, 81_920)
