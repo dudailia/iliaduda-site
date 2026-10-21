@@ -26,8 +26,8 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: BASE, trace: 'off' },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /webkit|clock/ },
-    { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 780 } }, testIgnore: /webkit|clock/ },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /webkit|clock|hero-software/ },
+    { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 780 } }, testIgnore: /webkit|clock|hero-software/ },
     // WebKit at an iPhone's size, touch and pixel ratio. It is WebKit for the
     // desktop, so it has the desktop's WebGL: the iPhone's missing extensions
     // are tested in Chromium (hero-formats.spec.ts), and a real phone checks the rest.
@@ -45,6 +45,22 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
       testMatch: /clock\.spec\.ts/,
       dependencies: ['desktop', 'mobile', 'iphone', ...(FIREFOX ? ['firefox'] : [])],
+    },
+    // The home figure in software (hero-software.spec.ts): its still frame fades in only as fast as the page draws
+    // frames, which other workers rasterizing WebGL in software on the same CPU held back for seconds. Alone, after
+    // the clock, which a second suite beside it would falsify in turn.
+    {
+      name: 'software',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+      testMatch: /hero-software\.spec\.ts/,
+      dependencies: ['clock'],
+    },
+    // And at a phone's size, as it ran before, after it: one at a time.
+    {
+      name: 'software-phone',
+      use: { ...devices['Pixel 7'], viewport: { width: 360, height: 780 } },
+      testMatch: /hero-software\.spec\.ts/,
+      dependencies: ['software'],
     },
   ],
   /**

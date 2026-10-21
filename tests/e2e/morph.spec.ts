@@ -64,11 +64,22 @@ test('arriving from the footer is no morph: nothing is marked as one, and the st
 })
 
 test('a click that opens a new tab names nothing on the contents page', async ({ page, context }) => {
+  // What is tested is the page's own handler, which must leave a modified click alone; the tab the browser opens is the
+  // browser's, and is closed as it comes (CI once waited 30s for one that never arrived, the click itself unseen). So
+  // the wait is for the click: the link records that a modified click reached it, after the handler had its turn.
+  context.on('page', (p) => void p.close())
   await page.goto('/')
   const entry = page.locator('[data-vt-contents] li').filter({ has: page.locator('[data-vt-thumb="fig-order-book"]') })
   await entry.scrollIntoViewIfNeeded()
-  const [popup] = await Promise.all([context.waitForEvent('page'), entry.locator('h3 a').click({ modifiers: [process.platform === 'darwin' ? 'Meta' : 'Control'] })])
-  await popup.close()
+  const link = entry.locator('h3 a')
+  await link.evaluate((a) =>
+    a.addEventListener('click', (e) => {
+      if (e.ctrlKey || e.metaKey) (window as unknown as { __modified?: boolean }).__modified = true
+    }),
+  )
+  await link.click({ modifiers: [process.platform === 'darwin' ? 'Meta' : 'Control'] })
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __modified?: boolean }).__modified ?? false)).toBe(true)
+  expect(page.url()).not.toContain('/order-book')
   const named = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-vt-thumb]')].filter((e) => getComputedStyle(e).viewTransitionName !== 'none').length)
   expect(named).toBe(0)
 })
@@ -86,7 +97,7 @@ test('back to the contents, the paper’s figure is the thumbnail it came from a
       })
     })
   })
-  // The first entry in the contents, so its thumbnail is on the screen the contents link opens on.
+  // An entry near the top of the contents, so its thumbnail is on the screen the contents link opens on.
   await openFromContents(page, 'closebooks')
   await page.locator('header a[href="/#contents"]').click()
   await page.waitForURL((u) => u.pathname === '/')

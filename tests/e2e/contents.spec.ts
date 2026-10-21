@@ -12,6 +12,15 @@ test.use({ launchOptions: { args: GPU } })
 /** The home figure's story, seen: the Contents is what these tests look at. */
 const seen = (page: Page) => page.addInitScript(() => sessionStorage.setItem('futures-seq', '1'))
 const thumb = (page: Page, slug: string) => page.locator(`[data-vt-contents] [data-vt-thumb="fig-${slug}"]`)
+/** How many miniatures are moving: those whose frame count rises over 400ms. A miniature that has had its turn keeps
+ *  its canvas shown, holding its frame, so a count of shown canvases is not a count of moving ones. */
+const moving = (page: Page) =>
+  page.evaluate(async () => {
+    const cs = [...document.querySelectorAll<HTMLCanvasElement>('[data-vt-contents] canvas[data-shown]')]
+    const before = cs.map((c) => Number(c.dataset.frames ?? 0))
+    await new Promise((r) => setTimeout(r, 400))
+    return cs.filter((c, i) => Number(c.dataset.frames ?? 0) > before[i]!).length
+  })
 const frames = (page: Page, slug: string) =>
   thumb(page, slug)
     .locator('canvas')
@@ -41,8 +50,10 @@ test('the thumbnails are the build’s pictures until they are on screen, then e
   await page.waitForTimeout(1_500)
   expect(await page.locator('[data-vt-contents] canvas').count()).toBe(0)
   await page.evaluate(() => document.querySelector('#contents')?.scrollIntoView({ block: 'start' }))
-  // The one nearest the screen's middle comes alive first, with no pointer or focus.
-  await expect(page.locator('[data-vt-contents] canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })
+  // One comes alive with no pointer or focus: the nearest the screen's middle of those loaded. They load in no fixed
+  // order, so one further off may move for a moment before the nearest arrives and takes over (CI once found two
+  // shown); one moves at a time.
+  await expect.poll(() => moving(page), { timeout: 10_000 }).toBe(1)
   await choose(page, 'market')
   const first = thumb(page, 'market')
   await expect(first.locator('canvas[data-shown]')).toHaveCount(1, { timeout: 10_000 })

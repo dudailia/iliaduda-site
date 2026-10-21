@@ -53,6 +53,14 @@ jobs:
       # server would be measuring an environment no real visitor uses.
       - name: Axe (incl. best-practice), focus rings, off-origin requests, 360px
         run: pnpm exec playwright test
+      # A failure keeps its evidence: each failed test's error context (the page as Playwright last saw it), for a week.
+      - name: Keep the failures' context
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failures
+          path: test-results
+          retention-days: 7
 
   budget:
     name: lighthouse — accessibility 100, CLS, no third party

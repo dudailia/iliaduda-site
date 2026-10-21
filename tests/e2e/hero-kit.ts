@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 /** Helpers shared by the home figure's specs (hero, hero-bfcache, hero-software). */
 
@@ -11,6 +11,21 @@ export const canvasShown = (page: Page) =>
 export const seq = (page: Page) => page.locator(STAGE).getAttribute('data-seq')
 export const fillOpacity = (page: Page) =>
   page.locator('[data-futures-poster] [data-fill]').first().evaluate((e) => Number(getComputedStyle(e).opacity))
+/**
+ * Waits until an element's transitions and animations have run to their end, however long that takes, within the
+ * test's own timeout. A CSS transition advances only on frames the page draws, and on a machine busy drawing other
+ * suites' WebGL in software they can stall for seconds (CI once held a 240ms fade at 0.70 for ten): a fixed window
+ * fails there, while the fade itself is right. getAnimations() brings style up to date first, so a transition the last
+ * render started is in the list; one cancelled and replaced is waited for again.
+ */
+export const settle = (loc: Locator) =>
+  loc.evaluate(async (e) => {
+    for (;;) {
+      const running = e.getAnimations({ subtree: false }).filter((a) => a.playState !== 'finished')
+      if (!running.length) return
+      await Promise.all(running.map((a) => a.finished.catch(() => {})))
+    }
+  })
 export const errorsOf = (page: Page) => {
   const errors: string[] = []
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
