@@ -37,7 +37,6 @@ const figureFiles = existsSync(dir)
 const PROJECT_OF: Readonly<Record<string, string>> = {
   'MaterialityBar.tsx': 'cr',
   'TenantIsolation.tsx': 'cb',
-  'SchemaReconciliation.tsx': 'ac',
   'DataLoss.tsx': 'si',
   'ConstantsDerivation.tsx': 'nc',
   'ArbitrageBound.tsx': 'iv',

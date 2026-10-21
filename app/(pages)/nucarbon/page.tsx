@@ -6,7 +6,7 @@ import { fact } from '@/content/facts'
 import { otherWork } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 
-/** Small counts in words, as the figure and the rest of the site set them ("six constants", "eight integrations"). */
+/** Small counts in words, as the figure and the rest of the site set them ("six constants", "three treatments"). */
 const words = (n: number | string) => ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][Number(n)] ?? String(n)
 
 export const metadata = pageMeta(

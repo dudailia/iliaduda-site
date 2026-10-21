@@ -13,8 +13,6 @@ import { fact, type FactKey } from './facts'
  */
 
 const n = (k: FactKey) => fact(k).value.toLocaleString('en-US')
-/** A count under ten in words, as prose sets it ("eight integrations"), from the same fact. */
-const words = (k: FactKey) => ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][fact(k).value] ?? n(k)
 
 export interface Paper {
   readonly slug: string
@@ -195,7 +193,7 @@ export const otherWork: readonly OtherWork[] = [
     slug: 'adconfirm',
     href: '/adconfirm',
     name: 'AdConfirm',
-    what: `Advertising inside invoices and receipts, across ${words('acIntegrations')} accounting and point-of-sale integrations, with metered billing`,
+    what: 'Advertising inside invoices and receipts, with metered billing',
     status: 'Co-founder · May 2026 – present',
   },
 ]

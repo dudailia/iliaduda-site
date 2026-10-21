@@ -99,10 +99,10 @@ export const roles: readonly Role[] = [
     brief: 'Co-founded a product placing ads inside invoices and receipts, with metered billing and Stripe Connect payouts.',
     detail: [
       'Co-founded a product placing ads inside invoices and receipts, with metered billing and Stripe Connect payouts to the businesses hosting the placements.',
-      'Built eight accounting and point-of-sale integrations onto one invoice type, and a billing ledger in millicents so a fifth-of-a-penny impression is exact.',
+      'Built a billing ledger in millicents, so a fifth-of-a-penny impression is exact, charged only once the message carrying the ad is confirmed delivered.',
     ],
     cv: [
-      'Co-founded a product placing ads inside invoices and receipts; built eight accounting and point-of-sale integrations onto one invoice type, a millicent billing ledger and Stripe Connect payouts.',
+      'Co-founded a product placing ads inside invoices and receipts; built a millicent billing ledger, charged only on confirmed delivery, metered billing and Stripe Connect payouts.',
     ],
     href: '/adconfirm',
   },

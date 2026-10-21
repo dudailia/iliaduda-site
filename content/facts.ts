@@ -278,12 +278,6 @@ const facts = {
   },
 
   // ── AdConfirm ─────────────────────────────────────────────────────────────
-  acIntegrations: {
-    value: 8,
-    unit: 'count',
-    label: 'accounting and point-of-sale integrations',
-    source: 'adconfirm/apps/backend/src/adapters — 8 adapter modules',
-  },
   acMillicentsPerImpression: {
     value: 200,
     unit: 'count',
@@ -295,12 +289,6 @@ const facts = {
     unit: 'count',
     label: 'minimum payout, pence',
     source: 'adconfirm/apps/backend/src/workers/payoutWorker.ts — MIN_PAYOUT_MILLICENTS 500000',
-  },
-  acAdaptersWithoutLineItems: {
-    value: 3,
-    unit: 'count',
-    label: 'adapters that cannot populate line items',
-    source: 'adconfirm — Square (square.ts:187), Sage (sage.ts:257), EposNow line-item gap',
   },
 
   // ── startup-investment-analysis ───────────────────────────────────────────
