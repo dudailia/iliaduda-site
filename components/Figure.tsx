@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
+import { vtStyle } from './FigureFrame'
 import { Items, Row, keepDashes } from './Layout'
 
 /**
@@ -42,6 +43,8 @@ export interface FigureProps {
   caption: ReactNode
   arrangements: readonly Arrangement[]
   table?: ReactNode
+  /** A paper's Fig. 1: named for the view transition from its Contents thumbnail, as FigureFrame's `vt` is. */
+  vt?: string
 }
 
 export function Figure({
@@ -53,7 +56,29 @@ export function Figure({
   caption,
   arrangements,
   table,
+  vt,
 }: FigureProps) {
+  const svgs = arrangements.map(({ key, viewBox, width, height, Marks, className }) => {
+    const titleId = `${id}-${key}-title`
+    const descId = `${id}-${key}-desc`
+    return (
+      <svg
+        key={key}
+        role="img"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        viewBox={viewBox}
+        width={width}
+        height={height}
+        className={`${vt ? '' : 'mt-5 '}h-auto w-full ${className}`}
+        style={{ aspectRatio: `${width} / ${height}` }}
+      >
+        <title id={titleId}>{title}</title>
+        <desc id={descId}>{description}</desc>
+        <Marks />
+      </svg>
+    )
+  })
   return (
     // A quiet diagram is short: it prints whole, never cut between its title and its picture.
     <figure id={id} className="my-12 lg:my-16 print:break-inside-avoid!" aria-labelledby={`${id}-title`} aria-describedby={`${id}-caption`}>
@@ -67,27 +92,14 @@ export function Figure({
           ) : null}
         </div>
 
-        {arrangements.map(({ key, viewBox, width, height, Marks, className }) => {
-          const titleId = `${id}-${key}-title`
-          const descId = `${id}-${key}-desc`
-          return (
-            <svg
-              key={key}
-              role="img"
-              aria-labelledby={titleId}
-              aria-describedby={descId}
-              viewBox={viewBox}
-              width={width}
-              height={height}
-              className={`mt-5 h-auto w-full ${className}`}
-              style={{ aspectRatio: `${width} / ${height}` }}
-            >
-              <title id={titleId}>{title}</title>
-              <desc id={descId}>{description}</desc>
-              <Marks />
-            </svg>
-          )
-        })}
+        {/* Named, the pictures are one opaque box on the page's paper, as the thumbnail they grow out of is. */}
+        {vt ? (
+          <div className="mt-5 bg-paper" style={vtStyle(vt)}>
+            {svgs}
+          </div>
+        ) : (
+          svgs
+        )}
 
         <figcaption id={`${id}-caption`} className="text-note mt-5 max-w-[39.2rem] text-graphite">{keepDashes(caption)}</figcaption>
 

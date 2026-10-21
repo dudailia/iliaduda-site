@@ -45,6 +45,10 @@ export interface Fact {
   readonly kind?: 'measured' | 'synthetic'
 }
 
+const VS_SNAP = 'vol-surface-live paper/data/snapshot-2026-10-20T0154Z.json'
+const VS_CMP = 'vol-surface-live paper/data/model-comparison-2026-10-19.json'
+const VS_VRP = 'vol-surface-live paper/data/vrp-2026-10-20T0223Z.json'
+
 const facts = {
   // Synthetic parameters for the hero figure live in ./synthetic, so the
   // browser bundle carries seven numbers rather than this whole table.
@@ -476,6 +480,55 @@ const facts = {
     label: 'key rate from 15 August',
     source: 'cbr.ru/hd_base/KeyRate — 12.00 from 15.08.2023; Bank of Russia press release, extraordinary meeting of 15 August 2023',
   },
+
+  // ── vol-surface: the live BTC and ETH surface ─────────────────────────────
+  // Every value is read from files archived in the public vol-surface-live repository (paper/data): one live bundle as
+  // the worker on Fly.io served it, SSVI against eSSVI on every snapshot of 19 October 2026 (`python -m
+  // volsurf.evaluate`), and implied against realized volatility from Deribit's public API.
+
+  // One live snapshot.
+  vsBtcAtm30: { value: 36.51, unit: 'percent', label: 'BTC 30-day ATM implied vol, eSSVI', source: `${VS_SNAP}: BTC.essvi.tenors.30d.atm` },
+  vsBtcRr30: { value: -4.06, unit: 'none', label: 'BTC 30-day 25-delta risk reversal, eSSVI, vol points', source: `${VS_SNAP}: BTC.essvi.tenors.30d.rr25` },
+  vsBtcRr30Ssvi: { value: -3.66, unit: 'none', label: 'BTC 30-day 25-delta risk reversal, SSVI, vol points', source: `${VS_SNAP}: BTC.tenors.30d.rr25` },
+  vsEthAtm30: { value: 49.59, unit: 'percent', label: 'ETH 30-day ATM implied vol, eSSVI', source: `${VS_SNAP}: ETH.essvi.tenors.30d.atm` },
+  vsBtcRaw: { value: 884, unit: 'count', label: 'BTC option quotes in the snapshot', source: `${VS_SNAP}: BTC.cleaning.n_raw` },
+  vsBtcKept: { value: 328, unit: 'count', label: 'BTC quotes kept for the fit', source: `${VS_SNAP}: BTC.cleaning.n_kept` },
+  vsBtcExpiries: { value: 9, unit: 'count', label: 'BTC expiries fitted', source: `${VS_SNAP}: BTC.expiries.length` },
+  vsBtcRhoShort: { value: -0.24, unit: 'none', label: 'Most negative eSSVI rho across BTC expiries', source: `${VS_SNAP}: min BTC.essvi.rho (-0.2396)` },
+  vsBtcRhoLong: { value: -0.14, unit: 'none', label: 'Least negative eSSVI rho across BTC expiries', source: `${VS_SNAP}: max BTC.essvi.rho (-0.1449)` },
+  vsBtcEssviWorst: { value: 2.7, unit: 'none', label: 'Worst eSSVI expiry RMSE, vol points (25DEC26)', source: `${VS_SNAP}: max BTC.essvi.expiries[].rmse_vol_pts (2.7032)` },
+  vsBtcMinG: { value: 0.259, unit: 'none', label: 'Lowest Durrleman g(k) on the BTC eSSVI surface', source: `${VS_SNAP}: BTC.essvi.min_g` },
+  vsBtcIvGapMedian: { value: 0.0017, unit: 'none', label: 'Median |our IV − Deribit IV|, vol points, 20 comparisons', source: `${VS_SNAP}: BTC.iv_check.median_gap_pts` },
+  vsBtcArbMid: { value: 9, unit: 'count', label: 'BTC raw-quote butterfly failures at mid', source: `${VS_SNAP}: BTC.arbitrage.counts.mid.butterfly` },
+  vsBtcArbTrade: { value: 0, unit: 'count', label: 'BTC raw-quote failures tradeable at quoted prices', source: `${VS_SNAP}: sum BTC.arbitrage.counts.tradeable` },
+  // A day of snapshots.
+  vsCmpBtcSnapshots: { value: 65, unit: 'count', label: 'BTC snapshots compared, 17:22 to 24:00 UTC, 19 October 2026', source: `${VS_CMP}: [BTC].snapshots` },
+  vsCmpBtcHoldoutEssvi: { value: 1.2, unit: 'none', label: 'Median held-out RMSE, eSSVI, BTC, vol points', source: `${VS_CMP}: [BTC].median.essvi_holdout (1.2038)` },
+  vsCmpBtcHoldoutSsvi: { value: 1.51, unit: 'none', label: 'Median held-out RMSE, SSVI, BTC, vol points', source: `${VS_CMP}: [BTC].median.ssvi_holdout (1.5069)` },
+  vsCmpEthHoldoutEssvi: { value: 1.42, unit: 'none', label: 'Median held-out RMSE, eSSVI, ETH, vol points', source: `${VS_CMP}: [ETH].median.essvi_holdout (1.4247)` },
+  vsCmpEthHoldoutSsvi: { value: 1.82, unit: 'none', label: 'Median held-out RMSE, SSVI, ETH, vol points', source: `${VS_CMP}: [ETH].median.ssvi_holdout (1.8213)` },
+  vsCmpBtcInsideEssvi: { value: 68, unit: 'percent', label: 'Median share of BTC quotes with the eSSVI fit inside bid/ask', source: `${VS_CMP}: [BTC].median.essvi_inside_median (0.6842)` },
+  vsCmpBtcInsideSsvi: { value: 40, unit: 'percent', label: 'Median share of BTC quotes with the SSVI fit inside bid/ask', source: `${VS_CMP}: [BTC].median.ssvi_inside_median (0.4043)` },
+  vsCmpEthRmseEssvi: { value: 1.53, unit: 'none', label: 'Median in-sample per-expiry RMSE, eSSVI, ETH', source: `${VS_CMP}: [ETH].median.essvi_rmse_median (1.5338)` },
+  vsCmpEthRmseSsvi: { value: 1.39, unit: 'none', label: 'Median in-sample per-expiry RMSE, SSVI, ETH', source: `${VS_CMP}: [ETH].median.ssvi_rmse_median (1.3912)` },
+  vsCmpMinG: { value: 0.2556, unit: 'none', label: 'Lowest eSSVI g(k) over all 129 snapshots', source: `${VS_CMP}: min of [*].median.min_essvi_min_g` },
+  // Implied against realized (generated 02:22 UTC, 20 October 2026).
+  vsVrpBtcDvol: { value: 37.3, unit: 'none', label: 'BTC DVOL at 00:00 UTC, 20 October 2026', source: `${VS_VRP}: currencies.BTC.latest.dvol (37.33)` },
+  vsVrpBtcRealized: { value: 24.4, unit: 'none', label: 'BTC realized vol over the previous 30 days', source: `${VS_VRP}: currencies.BTC.latest.realized_30d (24.431)` },
+  vsVrpBtcDays: { value: 335, unit: 'count', label: 'Days with a forward gap, 21 Oct 2025 to 20 Sep 2026', source: `${VS_VRP}: currencies.BTC.forward.days` },
+  vsVrpBtcShare: { value: 89, unit: 'percent', label: 'Share of days DVOL exceeded the following 30 days realized vol, BTC', source: `${VS_VRP}: currencies.BTC.forward.share_positive (0.8925)` },
+  vsVrpBtcMedian: { value: 11.9, unit: 'none', label: 'Median forward gap, BTC, vol points', source: `${VS_VRP}: currencies.BTC.forward.median_gap (11.889)` },
+  vsVrpEthShare: { value: 90, unit: 'percent', label: 'Share of days DVOL exceeded the following 30 days realized vol, ETH', source: `${VS_VRP}: currencies.ETH.forward.share_positive (0.8985)` },
+  vsVrpEthMedian: { value: 17.7, unit: 'none', label: 'Median forward gap, ETH, vol points', source: `${VS_VRP}: currencies.ETH.forward.median_gap (17.688)` },
+  // Bitcoin against ether, eSSVI, same snapshot as above.
+  vsEthRr30: { value: -3.46, unit: 'none', label: 'ETH 30-day 25-delta risk reversal, eSSVI', source: `${VS_SNAP}: ETH.essvi.tenors.30d.rr25` },
+  vsEthBf30: { value: 1.81, unit: 'none', label: 'ETH 30-day 25-delta butterfly, eSSVI', source: `${VS_SNAP}: ETH.essvi.tenors.30d.bf25 (1.805)` },
+  vsBtcBf30: { value: 1.05, unit: 'none', label: 'BTC 30-day 25-delta butterfly, eSSVI', source: `${VS_SNAP}: BTC.essvi.tenors.30d.bf25 (1.0475)` },
+  // Local volatility, eSSVI, same snapshot.
+  vsBtcLvLo: { value: 30.3, unit: 'percent', label: 'Lowest BTC local vol on the grid', source: `${VS_SNAP}: min BTC.essvi.local_vol.vol (30.28)` },
+  vsBtcLvHi: { value: 79.1, unit: 'percent', label: 'Highest BTC local vol on the grid', source: `${VS_SNAP}: max BTC.essvi.local_vol.vol (79.064)` },
+  vsBtcLvBlank: { value: 434, unit: 'count', label: 'Blank BTC local vol cells (beyond 3 ATM standard deviations)', source: `${VS_SNAP}: null cells in BTC.essvi.local_vol.vol` },
+  vsLvCells: { value: 792, unit: 'count', label: 'Local vol grid cells (33 strikes by 24 maturities)', source: `${VS_SNAP}: len(k) * len(T)` },
 } as const satisfies Record<string, Fact>
 
 export type FactKey = keyof typeof facts

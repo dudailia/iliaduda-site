@@ -2,6 +2,7 @@ import type { MakeMini } from './paint'
 
 /** Each paper's live miniature, loaded only when its thumbnail is on screen (components/thumbs/ContentsLive.tsx). */
 export const MINIS: Record<string, () => Promise<{ make: MakeMini }>> = {
+  'vol-surface': () => import('./minis/vol-surface'),
   market: () => import('./minis/market'),
   closebooks: () => import('./minis/closebooks'),
   cricstate: () => import('./minis/cricstate'),

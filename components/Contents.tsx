@@ -55,7 +55,7 @@ export function Contents() {
               key={p.slug}
               // A phone reads the title, the byline, the figure (the column's width) and then its line; from sm the
               // figure sits beside the text, as a paper's does.
-              className="grid grid-cols-1 gap-x-6 border-b border-rule py-6 print:break-inside-avoid [grid-template-areas:'title'_'byline'_'thumb'_'dek'] sm:grid-cols-[minmax(0,1fr)_9rem] sm:grid-rows-[auto_auto_1fr] sm:[grid-template-areas:'title_thumb'_'byline_thumb'_'dek_thumb']"
+              className="grid grid-cols-1 gap-x-6 border-b border-rule py-6 print:break-inside-avoid [grid-template-areas:'title'_'byline'_'thumb'_'dek'_'live'] sm:grid-cols-[minmax(0,1fr)_9rem] sm:grid-rows-[auto_auto_auto_1fr] sm:[grid-template-areas:'title_thumb'_'byline_thumb'_'dek_thumb'_'live_thumb']"
             >
               <h3 className="text-h3 min-w-0 [grid-area:title]">
                 <a href={p.href} className="underline decoration-transparent hover:decoration-ink">
@@ -68,6 +68,15 @@ export function Contents() {
               <p className="text-note mt-3 max-w-[38rem] min-w-0 [grid-area:dek]">
                 <Whole text={p.dek} />
               </p>
+              {/* A tool someone can open: its live address under the line, the paper still the title's link. */}
+              {p.live ? (
+                <p className="text-meta mt-2 min-w-0 font-mono text-graphite [grid-area:live]">
+                  Live at{' '}
+                  <a href={p.live.href} className="inline-block py-1 text-ink">
+                    {p.live.label}
+                  </a>
+                </p>
+              ) : null}
               <div className="mt-4 [grid-area:thumb] sm:mt-0 sm:self-start sm:pt-1.5">
                 <PaperThumb slug={p.slug} href={p.href} />
               </div>
