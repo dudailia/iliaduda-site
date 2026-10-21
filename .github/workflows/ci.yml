@@ -82,6 +82,16 @@ jobs:
       # reports green while failing two runs in five.
       - name: Lighthouse CI (a11y = 100, CLS <= 0.01, fonts per page, 0 third-party requests)
         run: pnpm exec lhci autorun
+      # A failed budget keeps its evidence: every run's report (.lighthouseci, lighthouserc.json's upload target), for a
+      # week. A runner's numbers can differ from a laptop's by an order of magnitude, and the reports show what blocked.
+      - name: Keep the Lighthouse reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci
+          include-hidden-files: true
+          retention-days: 7
 
   # The deployed site is the only place the font actually swaps, so it is the
   # only place a font-driven layout shift can be measured. A gate that runs

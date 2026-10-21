@@ -41,7 +41,10 @@ describe('the worker’s market', () => {
     expect(readFrame(buf).nRows).toBe(ROWS)
   })
 
-  it('runs at the page’s clock, one market at 60 or 120 frames a second', () => {
+  // Thirty seconds of market at both rates and a straight run besides, about 5,400 frames: some 2s alone, up to 4.2s
+  // among the other suites on eight workers, and once past vitest's default 5s. The clock it runs on is the fake one
+  // above, so wall time is in none of its assertions: the budget is for the work, not a claim about its speed.
+  it('runs at the page’s clock, one market at 60 or 120 frames a second', { timeout: 30_000 }, () => {
     const a = new MarketHost(SEED, POSTER_T, ticking())
     const b = new MarketHost(SEED, POSTER_T, ticking())
     run(a, 1000 / 60, 30)

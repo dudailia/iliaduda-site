@@ -19,7 +19,9 @@ function frames(host: MarketHost, ms: number, secs: number) {
 }
 
 describe('the story’s shock', () => {
-  it('lands on the same quantum at any frame rate, as a straight run that takes it there', () => {
+  // Several runs of the market to the shock: up to 3.1s among the other suites, so a budget for the work rather than
+  // vitest's 5s default.
+  it('lands on the same quantum at any frame rate, as a straight run that takes it there', { timeout: 30_000 }, () => {
     const straight = new Market(SEED)
     straight.advance(AT)
     straight.apply('shock')
