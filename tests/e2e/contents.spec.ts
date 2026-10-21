@@ -160,7 +160,7 @@ test.describe('through the morph', () => {
     expect(mini).toBeGreaterThan(145)
     // The mark as the page first paints, whatever the figure then decides.
     await page.addInitScript(() =>
-      document.addEventListener('DOMContentLoaded', () => ((window as unknown as { __handoff?: string }).__handoff = document.documentElement.dataset.marketHandoff)),
+      document.addEventListener('DOMContentLoaded', () => ((window as unknown as { __handoff?: string | undefined }).__handoff = document.documentElement.dataset.marketHandoff)),
     )
     await page.locator('[data-vt-contents] h3 a[href="/market"]').click()
     await page.waitForURL('**/market')

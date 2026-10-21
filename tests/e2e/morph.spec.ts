@@ -74,7 +74,7 @@ test('a click that opens a new tab names nothing on the contents page', async ({
   const link = entry.locator('h3 a')
   await link.evaluate((a) =>
     a.addEventListener('click', (e) => {
-      if (e.ctrlKey || e.metaKey) (window as unknown as { __modified?: boolean }).__modified = true
+      if ((e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey) (window as unknown as { __modified?: boolean }).__modified = true
     }),
   )
   await link.click({ modifiers: [process.platform === 'darwin' ? 'Meta' : 'Control'] })

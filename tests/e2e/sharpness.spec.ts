@@ -108,7 +108,7 @@ for (const screen of SCREENS) {
         // The backing store, at once (the signature is playing): the CSS box at the screen's density, to a pixel.
         const size = () => canvas.evaluate((c) => {
           const r = c.getBoundingClientRect()
-          return { w: c.width, h: c.height, cw: r.width * devicePixelRatio, ch: r.height * devicePixelRatio }
+          return { w: (c as HTMLCanvasElement).width, h: (c as HTMLCanvasElement).height, cw: r.width * devicePixelRatio, ch: r.height * devicePixelRatio }
         })
         const first = await size()
         expect(Math.abs(first.w - first.cw), `width ${first.w} for ${first.cw.toFixed(1)} device pixels`).toBeLessThanOrEqual(1)
