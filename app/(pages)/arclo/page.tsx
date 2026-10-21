@@ -3,21 +3,27 @@ import { Shell } from '@/components/Layout'
 import { ArcloReel } from '@/components/figures/ArcloReel'
 import { ArcloSystem } from '@/components/figures/ArcloSystem'
 import { fact, type FactKey } from '@/content/facts'
-import { papers } from '@/content/papers'
+import { otherWork } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 
-const paper = papers.find((p) => p.slug === 'arclo')!
-
-export const metadata = pageMeta('/arclo', paper.title, paper.description)
-
 const words = (k: FactKey) => ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][fact(k).value] ?? String(fact(k).value)
+
+/** Under Other work on the homepage, not in the Contents (content/papers.ts), so its page carries its own words. */
+const ARCLO = {
+  title: 'Arclo: a brand system with a template engine and an export pipeline',
+  abstract: `A brand system for a fictional city e-bike and e-scooter service, taken from a blank brief to a live site in ${words('arDays')} day. One set of tokens drives every deliverable: ${words('arTemplates')} social templates in ${words('arColorways')} colorways with a live editor, a CMYK print flyer with bleed, HTML5 banners and a motion set, each drawn once and exported by one pipeline.`,
+  description: 'A brand system for a fictional e-bike and e-scooter service, built in one day: one token set drives its templates, live editor, print, banners and motion.',
+  byline: otherWork.find((o) => o.slug === 'arclo')!.status,
+}
+
+export const metadata = pageMeta('/arclo', ARCLO.title, ARCLO.description)
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export default function Arclo() {
   return (
     <Shell>
       <article>
-        <CaseStudyTitle byline={paper.byline} level="h1" title={paper.title} standfirst={<p>{paper.abstract}</p>} />
+        <CaseStudyTitle byline={ARCLO.byline} level="h1" title={ARCLO.title} standfirst={<p>{ARCLO.abstract}</p>} />
 
         <ArcloSystem />
 

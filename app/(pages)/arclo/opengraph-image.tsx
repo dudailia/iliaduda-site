@@ -1,10 +1,9 @@
-import { papers } from '@/content/papers'
-import { OG_SIZE, paperOg } from '@/lib/og'
+import { OG_SIZE, ogThumb, paperCard } from '@/lib/og'
 
-export const alt = `Ilia Duda, working paper: ${papers.find((p) => p.slug === 'arclo')!.title}`
+export const alt = 'Ilia Duda — Arclo: a brand system with a template engine and an export pipeline'
 export const size = OG_SIZE
 export const contentType = 'image/png'
 
-export default function Image() {
-  return paperOg('arclo')
+export default async function Image() {
+  return paperCard({ kicker: 'Arclo', title: 'A brand system with a template engine and an export pipeline', art: ogThumb('arclo') })
 }

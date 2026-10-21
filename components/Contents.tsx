@@ -90,7 +90,7 @@ export function Contents() {
 
 export function OtherWork() {
   return (
-    // Two entries: on paper the section prints whole, its heading never left at the foot of a sheet.
+    // Three short entries: on paper the section prints whole, its heading never left at the foot of a sheet.
     <section aria-labelledby="other-work" className="mt-14 lg:mt-20 print:break-inside-avoid">
       <Row rail={<SectionHeading id="other-work">Other work</SectionHeading>}>
         <ul role="list" className="grid list-none border-t border-rule">
