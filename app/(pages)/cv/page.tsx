@@ -158,7 +158,7 @@ export default function Cv() {
                 </strong>
                 {p.live ? (
                   <>
-                    {' '}(<a href={p.live.href}>{p.live.label}</a>):
+                    {' '}(<a className="cv-live" href={p.live.href}>{p.live.label}</a>):
                   </>
                 ) : null}{' '}
                 {p.cv ? <Whole text={p.cv} /> : null}

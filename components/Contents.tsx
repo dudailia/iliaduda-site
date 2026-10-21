@@ -77,7 +77,7 @@ export function Contents() {
               {p.live ? (
                 <p className="text-meta mt-2 min-w-0 font-mono text-graphite [grid-area:live]">
                   Live at{' '}
-                  <a href={p.live.href} className="inline-block py-1 text-ink">
+                  <a href={p.live.href} className={`inline-block py-1 ${TAP} text-ink`}>
                     {p.live.label}
                   </a>
                 </p>

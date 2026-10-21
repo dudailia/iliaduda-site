@@ -1069,7 +1069,9 @@
       /* A paper's name, inline at the head of its entry: its padding reaches 44px without moving a line, over the line
          after it (which would otherwise cover its lower half). */
       /* An inline box is its font's content area tall (~1.37em), not its line: (44px − 1.37em) / 2 above and below. */
-      .cv-stack strong a {
+      /* And the live address after a name, in brackets: an inline link of the same line. */
+      .cv-stack strong a,
+      .cv-stack .cv-live {
         padding-block: calc(22px - 0.685em);
         position: relative;
         z-index: 1;
