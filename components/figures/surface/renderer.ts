@@ -86,6 +86,8 @@ export interface Hooks {
    * blow: a nod of the camera on the drag's own spring, and the one-month smile lit for a moment, by day in ink.
    */
   impact?(): number
+  /** A blow is waiting for the next frame: the stage draws it then, in the frame the other views take it. */
+  due?(): boolean
   /** Whether the surface is read at a point (the IV paper's): /market's is not, and draws no crosshair. */
   reading?(): boolean
   /** /market's surface only: the camera's distance as a share of its fitted one (a shock's blow draws it in). */
@@ -590,6 +592,7 @@ export function make(env: StageEnv, hooks: Hooks): SurfaceRenderer {
 
   return {
     calm: () => calmNow,
+    due: () => hooks.due?.() ?? false,
     frame(_t, dt) {
       if (!linked) {
         if (!progs.every((p) => p.ready())) return false

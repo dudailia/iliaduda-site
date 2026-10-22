@@ -360,6 +360,7 @@ export function MarketLive({
         impact.current = { k: 0, at: 0 }
         return k > 0 && performance.now() - at < 250 ? k : 0
       },
+      due: () => impact.current.k > 0 && performance.now() - impact.current.at < 250,
       reading: () => false,
       aim: () => aim.current,
       // Held while paused: its clock moves on by each frame's step while performance.now() moves on by the wall's, and the

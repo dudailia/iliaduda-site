@@ -63,6 +63,12 @@ export interface Renderer {
    * every frame back.
    */
   calm?(): boolean
+  /**
+   * The next frame carries a moment another view draws in the same frame (/market's shock, which the book and the
+   * futures take in their own loop): the kit draws it, neither halving it away nor letting it go undrawn to probe the
+   * clock, which left the surface taking a shock one frame after the other two.
+   */
+  due?(): boolean
   dispose(): void
 }
 
@@ -241,7 +247,8 @@ export function useStage(
       // Calm on a 120 Hz display, a dozen drawn frames running: every other frame (see Renderer.calm). Any input ends
       // it on the next frame; the run keeps a figure that is calm only now and then from alternating 8 and 16ms frames.
       calmFor = renderer.calm?.() ? calmFor + 1 : 0
-      const halve = gov.refresh < 12 && calmFor > 12
+      const due = renderer.due?.() ?? false
+      const halve = gov.refresh < 12 && calmFor > 12 && !due
       skip = halve && !skip
       if (skip) {
         // The interval across a skipped frame spans two of the display's: it says nothing about the clock.
@@ -256,7 +263,7 @@ export function useStage(
       // after it says how fast the clock runs now (Low Power Mode turned on mid-visit stepped /market and the order book
       // down three levels, their only light frames those before their first, at 60 Hz).
       // Every other frame, until it has three: one late stamp alone said nothing true of a jittered 30 Hz clock.
-      if (gov.probing && !probeLit) {
+      if (gov.probing && !probeLit && !due) {
         probeLit = true
         last = now
         prevLight = true
