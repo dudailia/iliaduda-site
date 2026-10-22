@@ -9,6 +9,7 @@
         "https://iliaduda-site.vercel.app/iv-surface",
         "https://iliaduda-site.vercel.app/membrane",
         "https://iliaduda-site.vercel.app/closebooks",
+        "https://iliaduda-site.vercel.app/arclo",
         "https://iliaduda-site.vercel.app/cricstate",
         "https://iliaduda-site.vercel.app/startup-investments",
         "https://iliaduda-site.vercel.app/debt-portal",
@@ -247,7 +248,7 @@
           }
         },
         {
-          "matchingUrlPattern": "/(vol-surface|closebooks|cricstate|startup-investments|debt-portal|about|cv|nucarbon|adconfirm)$",
+          "matchingUrlPattern": "/(vol-surface|closebooks|arclo|cricstate|startup-investments|debt-portal|about|cv|nucarbon|adconfirm)$",
           "assertions": {
             "categories:accessibility": [
               "error",

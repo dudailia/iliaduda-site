@@ -198,6 +198,15 @@ export const otherWork: readonly OtherWork[] = [
     what: `Advertising inside invoices and receipts, across ${words('acIntegrations')} accounting and point-of-sale integrations, with metered billing`,
     status: 'Co-founder · May 2026 – present',
   },
+  {
+    // A design project, so under Other work, last: the site is read by quant and finance readers (the owner,
+    // 2026-10-21). Its page keeps its own title and abstract (app/(pages)/arclo/page.tsx).
+    slug: 'arclo',
+    href: '/arclo',
+    name: 'Arclo',
+    what: 'A brand system for a fictional e-bike and e-scooter service: one set of tokens drives its templates, a live editor, print, banners and motion',
+    status: 'Independent work · October 2026 · fictional brand',
+  },
 ]
 
 /** Published everywhere; pending only where the deployment allows it. */
