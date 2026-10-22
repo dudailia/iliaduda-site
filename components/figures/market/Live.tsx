@@ -130,6 +130,9 @@ function setBookTitle(el: HTMLElement) {
   )
 }
 
+/** The animation frame's start, on the page's clock: when a frame that is running began. */
+const frameStart = () => Number(document.timeline?.currentTime ?? performance.now())
+
 export function MarketLive({
   posters: stills,
   initial: initials,
@@ -203,6 +206,8 @@ export function MarketLive({
   const labelLayer = useRef<HTMLDivElement>(null)
   const hoverEl = useRef<HTMLSpanElement>(null)
   const landing = useRef<Landing | null>(null)
+  /** The landing the book and the futures draw: `landing` once a frame that began after it arrived has taken it. */
+  const shownLanding = useRef<Landing | null>(null)
   const seenLanding = useRef(-1)
   /** A landed shock's blow for the surface, and when it landed: taken if drawn within a quarter second, else let go. */
   const impact = useRef({ k: 0, at: 0 })
@@ -354,13 +359,16 @@ export function MarketLive({
       sync: (_p: Params, shown: number) => {
         void shown
       },
-      // A blow the surface was not drawn in time to take (it was off screen) is let go, never struck late.
+      // A blow the surface was not drawn in time to take (it was off screen) is let go, never struck late. It is taken in
+      // the first frame that began after it arrived, as the book and the futures take it (the market's draw), so all three
+      // take it in one frame; that frame is due, and the stage draws it (no probe, no halving).
       impact: () => {
         const { k, at } = impact.current
+        if (k > 0 && frameStart() < at) return 0
         impact.current = { k: 0, at: 0 }
         return k > 0 && performance.now() - at < 250 ? k : 0
       },
-      due: () => impact.current.k > 0 && performance.now() - impact.current.at < 250,
+      due: () => impact.current.k > 0 && frameStart() >= impact.current.at && performance.now() - impact.current.at < 250,
       reading: () => false,
       aim: () => aim.current,
       // Held while paused: its clock moves on by each frame's step while performance.now() moves on by the wall's, and the
@@ -469,9 +477,15 @@ export function MarketLive({
         return
       }
       const v = views.current
-      // The landing is stamped on the message's clock and drawn on the frame's, which can run a few ms behind it: the
-      // first frame to draw it is its first, so the streak has its front from that frame.
-      if (landing.current && landing.current.at > now) landing.current.at = now
+      // A shock is taken in the first frame that began after its message arrived, by all three views alike: a frame that
+      // began before it may have drawn the surface already (the stage's loop runs apart from this one), and the book and
+      // the futures taking it there put them a frame ahead of the surface (CI's WebKit, market-webkit.spec.ts, found the
+      // surface's stage probing in that frame). Its streak starts at the frame that takes it.
+      const fresh = !!landing.current && landing.current !== shownLanding.current && now >= landing.current.at
+      if (fresh) {
+        landing.current!.at = now
+        shownLanding.current = landing.current
+      }
       // The flat views sit inside the column at every width (on a phone side by side, under the surface,
       // app/globals.css): no edge inset to keep for the page's margin.
       v.book.inset = v.fan.inset = 0
@@ -500,7 +514,7 @@ export function MarketLive({
         setStory(next)
       }
 
-      if (stampLanding.current) {
+      if (stampLanding.current && fresh) {
         stampLanding.current = false
         const at = String(document.timeline?.currentTime ?? now)
         if (bookCv.current) bookCv.current.dataset.landed = at
@@ -575,9 +589,9 @@ export function MarketLive({
       // How fast the views' own follows run: the book's price window and the fan's breathing coast to rest with the
       // market on Pause (240ms) and pick up with it on Resume (400ms), so Pause holds every view.
       fanRate.current = pausedRef.current ? Math.max(0, fanRate.current - dt / 0.24) : Math.min(1, fanRate.current + dt / 0.4)
-      if (stageOn.current && v.book.draw(m, p, now, landing.current, dt, fanRate.current)) drewOnce.current.book = true
+      if (stageOn.current && v.book.draw(m, p, now, shownLanding.current, dt, fanRate.current)) drewOnce.current.book = true
       // A moment the reader points at is answered at once, paused or not.
-      if (stageOn.current && v.fan.draw(m, p, now, landing.current, dt, fanRate.current)) drewOnce.current.fan = true
+      if (stageOn.current && v.fan.draw(m, p, now, shownLanding.current, dt, fanRate.current)) drewOnce.current.fan = true
       if (!flat && drewOnce.current.book && drewOnce.current.fan) setFlat(true)
 
       // The book's words: prices up its side, where the window has them now.
