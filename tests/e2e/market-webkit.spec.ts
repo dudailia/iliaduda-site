@@ -42,10 +42,17 @@ test('goes live or says why, lands a shock in all three views at once, and leave
     const stamps = () => page.locator('[data-market-stage] canvas:not([data-ghost]):not([data-still-sheet])').evaluateAll((cs) => cs.map((c) => (c as HTMLCanvasElement).dataset.landed ?? null))
     // 5s here; 15s on CI, whose WebKit draws in software on a shared runner and there sometimes lands the shock in the
     // last view after 5s (the same frame for all three is still required below).
-    await expect.poll(async () => (await stamps()).every((s) => s !== null), { timeout: process.env.CI ? 15_000 : 5_000 }).toBe(true)
-    const landings = await page.evaluate(() => (window as unknown as { __landings: string[] }).__landings)
-    const stageLog = await page.locator('[data-market-stage] canvas[data-live-canvas]').getAttribute('data-stage-log')
-    expect(new Set(await stamps()).size, `stamps written: ${landings.join(' · ')}; the surface's stage: ${stageLog}`).toBe(1)
+    // What each view stamped, and the surface's stage log (components/stage/useStage.ts), for either failure below.
+    const why = async () =>
+      `stamps written: ${(await page.evaluate(() => (window as unknown as { __landings: string[] }).__landings)).join(' · ')}; ` +
+      `the surface's stage: ${await page.locator('[data-market-stage] canvas[data-live-canvas]').getAttribute('data-stage-log')}`
+    const all = await expect
+      .poll(async () => (await stamps()).every((s) => s !== null), { timeout: process.env.CI ? 15_000 : 5_000 })
+      .toBe(true)
+      .then(() => true)
+      .catch(() => false)
+    expect(all, `every view takes the shock: ${await why()}`).toBe(true)
+    expect(new Set(await stamps()).size, await why()).toBe(1)
   } else await expect(page.locator('#fig-1').getByText(/Still frames/).first()).toBeVisible()
   const [sw, cw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
   expect(sw).toBeLessThanOrEqual(cw)

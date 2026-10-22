@@ -168,7 +168,7 @@ export function useStage(
     /** For the specs: the stage's last few stops and skips, on the frame's own clock, as the canvas's data-stage-log. */
     const note = (what: string) => {
       const at = Math.round(Number(document.timeline?.currentTime ?? performance.now()))
-      cv.dataset.stageLog = [...(cv.dataset.stageLog ?? '').split(' ').filter(Boolean).slice(-11), `${what}@${at}`].join(' ')
+      cv.dataset.stageLog = [...(cv.dataset.stageLog ?? '').split(' ').filter(Boolean).slice(-23), `${what}@${at}`].join(' ')
     }
     let disposed = false
     let cancelIdle: (() => void) | null = null
@@ -256,6 +256,7 @@ export function useStage(
       // it on the next frame; the run keeps a figure that is calm only now and then from alternating 8 and 16ms frames.
       calmFor = renderer.calm?.() ? calmFor + 1 : 0
       const due = renderer.due?.() ?? false
+      if (due) note('due')
       const halve = gov.refresh < 12 && calmFor > 12 && !due
       skip = halve && !skip
       if (skip) {
