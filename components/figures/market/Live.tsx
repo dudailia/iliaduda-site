@@ -481,7 +481,10 @@ export function MarketLive({
       // began before it may have drawn the surface already (the stage's loop runs apart from this one), and the book and
       // the futures taking it there put them a frame ahead of the surface (CI's WebKit, market-webkit.spec.ts, found the
       // surface's stage probing in that frame). Its streak starts at the frame that takes it.
-      const fresh = !!landing.current && landing.current !== shownLanding.current && now >= landing.current.at
+      // Judged on the frame's start (its timeline time), as the surface's blow is: WebKit's animation-frame stamp can run
+      // later than that, past a message that arrived while the frame's callbacks ran (CI: the market's loop took it at
+      // 2817 on that stamp, the surface's stage having probed at 2817 without it).
+      const fresh = !!landing.current && landing.current !== shownLanding.current && frameStart() >= landing.current.at
       if (fresh) {
         landing.current!.at = now
         shownLanding.current = landing.current
