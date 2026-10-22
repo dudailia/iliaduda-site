@@ -85,5 +85,5 @@ test('the PDF reads cleanly to a résumé screener: TrueType fonts, every word w
   // Reading order: the name, then the sections in the page's order.
   const at = (s: string) => raw.indexOf(s)
   expect(at('Ilia Duda')).toBe(0)
-  for (const [a, b] of [['Ilia Duda', 'Education'], ['Education', 'Experience'], ['Experience', 'Research'], ['Research', 'Skills']]) expect(at(a)).toBeLessThan(at(b))
+  for (const [a, b] of [['Ilia Duda', 'Education'], ['Education', 'Experience'], ['Experience', 'Research'], ['Research', 'Skills']] as const) expect(at(a)).toBeLessThan(at(b))
 })

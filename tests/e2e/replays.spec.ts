@@ -17,7 +17,7 @@ test('the cricket line is still to be drawn on a first look, then draws from the
   // What first paint shows, before any script of the page's own has run.
   await page.addInitScript(() => {
     document.addEventListener('DOMContentLoaded', () => {
-      const w = window as unknown as { __first: { mark?: string; opacity: number } }
+      const w = window as unknown as { __first: { mark?: string | undefined; opacity: number } }
       const path = document.querySelector('#fig-replay path[data-played]')
       w.__first = { mark: document.documentElement.dataset.cricketSeq, opacity: path ? Number(getComputedStyle(path).opacity) : -1 }
     })
@@ -128,7 +128,7 @@ const shownRows = (page: Page) => rows(page).evaluateAll((ls) => ls.filter((l) =
 test('the CloseBooks batch is still to come on a first look, then arrives row by row: never backwards out of its end', async ({ page }) => {
   await page.addInitScript(() => {
     document.addEventListener('DOMContentLoaded', () => {
-      const w = window as unknown as { __first: { mark?: string; shown: number } }
+      const w = window as unknown as { __first: { mark?: string | undefined; shown: number } }
       const ls = [...document.querySelectorAll('#fig-pipeline ol > li')]
       w.__first = { mark: document.documentElement.dataset.closebooksSeq, shown: ls.filter((l) => Number(getComputedStyle(l).opacity) > 0.5).length }
     })
