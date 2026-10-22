@@ -5,6 +5,7 @@ import { ABOVE_SHOWN, aboveWords, shareAbove } from '@/lib/futures/hist'
 import { histLift } from '@/lib/futures/histLift'
 import { AXIS, HLEN, HX0, LABELS, TICKS, TICK_CLEAR, X0, X1, ZW, wy } from '@/lib/futures/world'
 import { LABEL } from './Poster'
+import { deviceRatio } from '@/lib/stage/dpr'
 
 /**
  * The still frame: the live figure's resting view, drawn once on a 2D canvas,
@@ -57,7 +58,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
   }
   const box = canvas.getBoundingClientRect()
   const cssW = Math.max(1, box.width), cssH = Math.max(1, box.height)
-  const dpr = Math.min(3, window.devicePixelRatio || 1)
+  const dpr = deviceRatio()
   const W = Math.round(cssW * dpr), H = Math.round(cssH * dpr)
   const aspect = cssW / cssH
   const pose = restPose(aspect)
@@ -288,7 +289,7 @@ export function drawStill(canvas: HTMLCanvasElement, labels: HTMLElement, input:
     for (const s of TICKS) if (Math.abs(s - input.strike) >= TICK_CLEAR) put(`$${s}`, LABELS.tick.cls, [LABELS.tick.x, wy(s), ZWALL])
     put(`Strike $${input.strike}`, LABELS.strike.cls, [LABELS.strike.label, wy(input.strike), ZWALL])
     put('Payoff × how often it happens', `${LABELS.hist.cls} text-ink`, [LABELS.hist.at[0], LABELS.hist.at[1], 0])
-    const narrow = cssW < 520
+    const narrow = cssW < 520 || cssH < 360
     put(
       narrow ? `Call price: $${input.price.toFixed(2)}` : `Call price, the average discounted payoff: $${input.price.toFixed(2)}`,
       `${LABELS.value.cls} text-indigo`,

@@ -7,9 +7,9 @@ import { CONTROL } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
 import { Items } from '@/components/Layout'
-import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
+import { DECLINED_TEXT, SLOW_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2, useColorScheme, whenIdle } from '@/components/stage/env'
-import { useLean } from '@/components/stage/useLean'
+import { tapUsed, useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create } from '@/components/stage/useStage'
 import type { LiveInfo } from '@/lib/stage/debug'
@@ -19,7 +19,7 @@ import { params, PHASE_TEXT, SIZE_MAX, type Phase } from '@/lib/surface/shock'
 import { check, DOMAIN, iv, type Check, type Params } from '@/lib/surface/ssvi'
 import type { Sequence } from '@/lib/stage/sequence'
 import { invert } from '@/lib/m4'
-import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, PROBE_START as PROBE_ORIGIN, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
+import { apply, camera, fu, fv, kOfU, LABELS, mvp, NOTES, pickSurface, PROBE_START as PROBE_ORIGIN, SPARSE_TICKS, tOfV, WIDE_QUERY, wx, wy, wz, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel, Frame, FRAME_ASPECT, NoteMark, noteRise, setNoteRise } from './marks'
 import type { Probe, Sim, SurfaceRenderer } from './renderer'
 import { rangeFill } from '@/components/stage/range'
@@ -78,6 +78,36 @@ const HEADLINE = [
   ['premium', 'Crash premium, 80%\u00a0strike'],
   ['put', '1-month put, 10%\u00a0down'],
 ] as const
+
+/**
+ * An axis label of the poster that a note's words would touch gives way, as the live figure's do (renderer.ts,
+ * thinLabels): sideways on a phone the Skew note's words lay over "implied volatility" on the still frame.
+ */
+function posterGiveWay(el: HTMLElement) {
+  const notes = [...el.querySelectorAll<HTMLElement>('[data-iv-poster] [data-note-words]')].map((w) => w.getBoundingClientRect()).filter((r) => r.width)
+  const touches = (r: DOMRect) => r.width > 0 && notes.some((b) => r.left < b.right + 4 && r.right > b.left - 4 && r.top < b.bottom + 4 && r.bottom > b.top - 4)
+  for (const a of el.querySelectorAll<HTMLElement>('[data-iv-poster] [data-axis]')) {
+    // A label with a shorter form reads short before it gives way, as on the live stage. Both boxes are worked out from
+    // the one shown and the rest's width (kept from when it was shown), so nothing is written but a change.
+    const tail = a.querySelector<HTMLElement>('[data-tail]')
+    const r = a.firstElementChild!.getBoundingClientRect()
+    let near = touches(r)
+    if (tail) {
+      const cut = tail.style.display === 'none'
+      if (!cut) tail.dataset.w = String(tail.getBoundingClientRect().width)
+      const tw = Number(tail.dataset.w || 0), f = a.dataset.align === 'right' ? 1 : a.dataset.align === 'left' ? 0 : 0.5
+      // The whole box and the short one: the words shorten from their anchor, a right-aligned label's right end.
+      const whole = cut ? new DOMRect(r.left - f * tw, r.top, r.width + tw, r.height) : r
+      const short = cut ? r : new DOMRect(r.left + f * tw, r.top, r.width - tw, r.height)
+      const wholeNear = touches(whole)
+      near = wholeNear && touches(short)
+      const want = wholeNear && !near ? 'none' : ''
+      if (tail.style.display !== want) tail.style.display = want
+    }
+    // Written only when it changes: the figure watches the poster's styles, and its own write then ends the round.
+    if (a.style.visibility !== (near ? 'hidden' : '')) a.style.visibility = near ? 'hidden' : ''
+  }
+}
 
 export function SurfaceLive({ poster, title, subtitle, caption, table }: { poster: ReactNode; title: string; subtitle: string; caption: ReactNode; table: ReactNode }) {
   const sim = useRef<Sim>({ probe: PROBE_START, hover: null, dirty: true })
@@ -279,6 +309,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             paused: () => pausedRef.current,
             lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
             onPin: (p) => {
+              tapUsed()
               setProbe(p)
               readHere()
             },
@@ -336,7 +367,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
   // The quality waits to climb until the story is told: the forming and the shock never sharpen mid-moment.
   const [stageOpts] = useState(() => ({ hold: () => seq.current.started && !seq.current.done }))
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
+  const { box, canvas, live, eligible, slow, reduced, fps, quality, tier } = useStage(create, stageOpts)
   // The surface forms and takes its shock across the whole stage: the story waits for most of it on screen (60%, or
   // 45% held for a moment), as the order book's does, so on a tall phone it never plays below the fold unseen.
   const sig = useSignature('surface', box, seq, { start: 0.6, hold: 0.45 })
@@ -408,9 +439,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             // At a large shock the peak rises: the words stay inside the stage, as the live figure's do.
             const frame = at.parentElement, words = at.querySelector<HTMLElement>('[data-note-words]')
             if (frame && words)
-              setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight), n.align, { x: n.x * frame.offsetWidth, w: words.offsetWidth, stageW: frame.offsetWidth })
+              setNoteRise(at, noteRise(n.y * frame.offsetHeight, n.dy, words.offsetHeight, frame.offsetHeight < 260 ? -18 : 4), n.align, { x: n.x * frame.offsetWidth, w: words.offsetWidth, stageW: frame.offsetWidth })
           }
         }
+        posterGiveWay(el)
         sync(params(x), x)
       }
       // One redraw a frame, for the latest shock, however fast the slider moves: the mesh is re-serialised whole.
@@ -552,7 +584,9 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           ? saveData()
             ? 'Still frame: your browser asks to save data.'
             : supportsWebGL2()
-              ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
+              ? slow
+                  ? SLOW_TEXT
+                  : 'Still frame: the live figure could not start here. Reloading the page may bring it.'
               : 'Still frame: this browser has no WebGL2.'
           : null
 
@@ -577,6 +611,36 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
   useEffect(() => {
     if (stillFor && stillReady) redrawStill(level.current)
   }, [stillFor, stillReady, kind, scheme, probe, redrawStill])
+
+  // The poster as it first stands (a reduced-motion visit, or before the live figure): its labels give way to its notes
+  // too, and again whenever the stage changes size (a phone turned).
+  useEffect(() => {
+    const el = box.current
+    if (!el || live) return
+    // Once the page's type has loaded too: measured in the fallback face, the note's words were narrower, and missed.
+    let raf = requestAnimationFrame(() => posterGiveWay(el))
+    void document.fonts?.ready.then(() => again())
+    const again = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => posterGiveWay(el))
+    }
+    // The stage, and the notes' words themselves: set in the page's type once it loads, they widen without a style
+    // changing anywhere.
+    const ro = new ResizeObserver(again)
+    ro.observe(el)
+    for (const w of el.querySelectorAll('[data-iv-poster] [data-note-words], [data-iv-poster] [data-axis] > span')) ro.observe(w)
+    // And whenever a note or a label is placed again after the first measure, once it has got there (a note eases to
+    // its place: measured where it set out, it missed the label it then covered).
+    el.addEventListener('transitionend', again)
+    const mo = new MutationObserver(again)
+    mo.observe(el, { attributes: true, attributeFilter: ['style', 'class', 'data-below'], subtree: true, childList: true })
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+      mo.disconnect()
+      el.removeEventListener('transitionend', again)
+    }
+  }, [box, live, kind])
 
   const debugInfo = useRef<() => LiveInfo>(null)
   useEffect(() => {
@@ -647,7 +711,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
       caption={caption}
       table={table}
     >
-      <div className="relative -mx-6 sm:mx-0">
+      {/* Sideways on a phone the words and the controls stand beside the surface, as the home figure's do: under it, the
+          slider and Pause sat below a 360px screen, and the stage's right half stood empty. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
+      <div className="relative -mx-6 sm:mx-0 short:mx-0">
         <div
           ref={box}
           role="group"
@@ -665,6 +732,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
           }}
           // The narration and the Skew note want the same corner: while it speaks, the notes wait (globals.css).
           data-narrating={onStage ? '' : undefined}
+          data-surface-stage=""
           className={`iv-fig peer relative ${FRAME_ASPECT} cursor-crosshair sm:max-w-[calc(88svh*1.62)] touch-pan-y touch-pinch-zoom overflow-x-clip select-none focus-visible:outline-none`}
         >
           <div data-surface-poster="" className="absolute inset-0" style={underlay(live)}>
@@ -724,7 +792,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             </span>
           </p>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={fade(live)}>
-            <div ref={labelLayer}>
+            {/* As large as the stage, as its parent is (the labels are placed in the same box): a layer with no size of
+                its own, faded in, was given a backing store by WebKit too small for its top label, and "implied vol"
+                showed its lower half only while it faded. */}
+            <div ref={labelLayer} data-label-box="" className="absolute inset-0">
               {LABELS.map((l, i) => (
                 <AxisLabel
                   key={l.id}
@@ -733,8 +804,11 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
                   }}
                   moving
                   text={l.text}
+                  short={l.short}
                   align={l.align}
                   kind={l.kind}
+                  frame={kind}
+                  keep={SPARSE_TICKS.has(l.id)}
                   {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
                 />
               ))}
@@ -771,9 +845,10 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         <FocusRing />
       </div>
 
+      <div>
       {/* What the shock is doing, in words; the room is kept, so a change never moves the page. Not on paper, where the
           calm poster stands in for the live surface and the story's moment would contradict it. */}
-      <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em] print:hidden" aria-live="off">
+      <p ref={phaseLine} data-phase-line="" className="text-note mt-3 min-h-[4.5em] text-ink sm:min-h-[3em] short:mt-0 short:min-h-[6em] print:hidden" aria-live="off">
         <span
           key={said}
           className={`block ${phaseMoved ? 'transition-[filter] duration-[120ms] ease-out starting:blur-[3px]' : ''} ${going ? 'blur-[3px]' : ''}`}
@@ -784,9 +859,12 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
 
       {/* The slider first: it is there in every mode, so the buttons a live figure adds arrive after it, moving nothing. */}
       <div data-surface-controls="" className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-3 pointer-coarse:gap-y-3.5">
-        <label className="text-meta flex items-center gap-3 font-mono text-graphite">
+        {/* On a phone the slider takes the row (the buttons wrap under it anyway): at 128px, 30 steps were 3.7px apart.
+            Sideways, in the 15rem column beside the surface, its name stands on a line above it: beside the name it
+            was 94px, 2.6px a step. */}
+        <label className="text-meta flex items-center gap-3 font-mono text-graphite max-sm:w-full short:w-full short:flex-wrap short:gap-y-2">
           {/* The reader's own shock: while the story plays its shock, this one still reads 0.00×, and says whose it is. */}
-          <span>Your shock</span>
+          <span className="short:w-full">Your shock</span>
           <input
             type="range"
             min={0}
@@ -796,7 +874,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             value={shock}
             onChange={(e) => onShock(Number(e.target.value))}
             aria-valuetext={shock < 0.025 ? 'calm' : `${shock.toFixed(2)} times a full shock; 1-month at-the-money volatility ${peakAtm}%`}
-            className="h-6 w-32 sm:w-40 pointer-coarse:-my-2.5 pointer-coarse:h-11"
+            className="h-6 w-32 max-sm:min-w-0 max-sm:flex-1 sm:w-40 short:w-auto short:min-w-0 short:flex-1 pointer-coarse:-my-2.5 pointer-coarse:h-11"
             style={rangeFill(shock, 0, SIZE_MAX)}
           />
           {/* The mark at 1: the size of the story's own shock. */}
@@ -815,7 +893,7 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
         <div data-live-buttons="" className="flex min-h-8 min-w-[9.5rem] gap-2 motion-reduce:hidden" style={why !== null ? { visibility: 'hidden' } : undefined}>
           {live ? (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>
@@ -824,6 +902,8 @@ export function SurfaceLive({ poster, title, subtitle, caption, table }: { poste
             </>
           ) : null}
         </div>
+      </div>
+      </div>
       </div>
       <p className="sr-only" aria-live="polite">
         {spoken}
@@ -859,7 +939,9 @@ function Margin({
   across?: boolean
 }) {
   // On paper the readouts print together, on one sheet, as every figure's do (components/FigureFrame.tsx, Readouts).
-  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
+  // Under a finger the margin does not stick (components/FigureFrame.tsx), so opened it must fit a screen on its own: an
+  // iPad mini turned sideways (673px) had the last Greek at 684. There its readouts sit 4px apart rather than 8.
+  const dl = across ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4' : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2 pointer-coarse:[&_dd]:mb-1'
   const row = (id: string) => rows.find((r) => r.id === id)!
   return (
     <div className={across ? 'grid gap-y-4' : ''}>
@@ -873,7 +955,7 @@ function Margin({
           </div>
         ))}
         <div className="min-w-0">
-          <dt className="text-graphite">No static arbitrage</dt>
+          <dt className="text-graphite">No static&nbsp;arbitrage</dt>
           <dd className="tabular text-ink">
             <span ref={set(`arb${suffix}`)}>{initial.arb}</span>
             <span ref={set(`arb-detail${suffix}`)} className="block text-graphite">
@@ -908,10 +990,10 @@ function Margin({
       {/* The Greeks, one step away: the margin leads with what the figure shows. */}
       {/* Closed, it would print a summary with nothing under it. */}
       <details className={`text-meta font-mono print:hidden ${across ? '' : 'mt-2 lg:text-right'}`}>
-        <summary onClick={glideDetails} className="cursor-pointer py-1 text-graphite marker:text-graphite hover:text-ink">
+        <summary onClick={glideDetails} className="cursor-pointer py-1 pointer-coarse:py-[calc((44px-1lh)/2)] text-graphite marker:text-graphite hover:text-ink active:text-ink">
           Greeks at the point
         </summary>
-        <dl className={`${dl} mt-2 ${across ? 'border-t-0 pt-0' : ''}`}>
+        <dl className={`${dl} ${across ? 'mt-2 border-t-0 pt-0' : 'mt-2 pointer-coarse:mt-0'}`}>
           {GREEKS.map((id) => (
             <div key={id} className="min-w-0">
               <dt className="text-graphite">{row(id).label}</dt>

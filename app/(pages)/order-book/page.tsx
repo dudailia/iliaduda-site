@@ -77,7 +77,9 @@ export default function OrderBook() {
               Six kinds of order arrive: limit buys and sells, market buys and sells, and a cancellation on each side.
               Each arrives as one component of a multivariate Hawkes process, whose intensity is its baseline plus a
               decaying lift from every earlier event:
-              <span className="my-3 block text-center whitespace-nowrap">
+              {/* Scrolls on its own line where a large font size makes it wider than the column, never the page; padded and
+                  clipped top and bottom, so its superscripts never make it a scroller up and down. */}
+              <span className="my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1 text-center whitespace-nowrap">
                 λ<sub>i</sub>(t) = μ<sub>i</sub> + Σ<sub>j</sub> Σ<sub>t
                   <sub>k</sub> &lt; t
                 </sub>{' '}
@@ -165,7 +167,7 @@ export default function OrderBook() {
             [
               'tests',
               <span key="t">
-                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/market-flow.test.ts`}>tests/market-flow.test.ts</a> ·{' '}
+                <span className="inline-block max-w-full"><a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/market-flow.test.ts`}>tests/market-flow.test.ts</a>{'\u00a0·'}</span>{' '}
                 <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/orderbook-flowview.test.ts`}>tests/orderbook-flowview.test.ts</a>
               </span>,
             ],

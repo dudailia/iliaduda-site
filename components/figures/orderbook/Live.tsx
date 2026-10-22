@@ -7,8 +7,8 @@ import { CONTROL } from '@/components/stage/controls'
 import { saveData, supportsWebGL2, whenIdle } from '@/components/stage/env'
 import { DebugSlot } from '@/components/stage/DebugSlot'
 import { FocusRing } from '@/components/stage/FocusRing'
-import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
-import { useLean } from '@/components/stage/useLean'
+import { DECLINED_TEXT, SLOW_TEXT, useFallback } from '@/components/stage/useFallback'
+import { tapUsed, useLean } from '@/components/stage/useLean'
 import { useSignature } from '@/components/stage/useSignature'
 import { fade, underlay, useStage, type Create, type Palette } from '@/components/stage/useStage'
 import { Flow, POSTER_T, type Stats } from '@/lib/market/flow'
@@ -51,8 +51,16 @@ const STAGE_OPTS = { maxQ: { mid: 3 } } as const
 
 type Mod = typeof import('./renderer')
 const noop = () => () => {}
-/** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright. */
-const posterVariant = (): 'wide' | 'narrow' => (matchMedia('(width < 40rem) and (orientation: portrait)').matches ? 'narrow' : 'wide')
+/** Which poster the screen shows (./Poster.tsx): the narrow one on a phone held upright, the low one on a short phone
+ *  held upright, the short one turned sideways. */
+const posterVariant = (): 'wide' | 'narrow' | 'short' | 'low' =>
+  matchMedia('(max-height: 37.5rem) and (orientation: portrait)').matches
+    ? 'low'
+    : matchMedia('(width < 40rem) and (orientation: portrait) and (min-height: 37.5001rem)').matches
+    ? 'narrow'
+    : matchMedia('(min-width: 36rem) and (max-height: 30rem)').matches
+      ? 'short'
+      : 'wide'
 
 /** The probe's price is set in the width of the widest it reads, "$100.00". */
 const PRICE_CH = 7
@@ -128,7 +136,7 @@ export function OrderBookLive({
     (r: Reading | null) => {
       last.current = r
       if (!r) {
-        write('p-price', '—'.padStart(PRICE_CH, '\u00a0'))
+        write('p-price', '—'.padEnd(PRICE_CH, '\u00a0'))
         // A finger taps (the hint under the figure says so too).
         write('p-side', `${(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'tap' : 'point at')} the terrain`)
         write('p-queue', '—')
@@ -216,6 +224,10 @@ export function OrderBookLive({
           sequence: () => (sigApi.current?.armed.current && !seq.current.done ? seq.current.phases() : null),
           waiting: () => !!sigApi.current?.armed.current && !seq.current.started,
           lean: () => leanApi.current?.lean.current ?? { x: 0, y: 0 },
+          // A finger's drag is not a skip input (a touch can be a scroll): taking hold of the terrain ends the story.
+          using: () => {
+            if (sigApi.current?.armed.current && !seq.current.done) seq.current.finish()
+          },
           tick: (dtMs) => {
             // Paused, the rise holds where it is, as everything does (WCAG 2.2.2).
             if (!market.paused) seq.current.advance(dtMs)
@@ -225,7 +237,10 @@ export function OrderBookLive({
             writeStats(stats)
             writeProbe(reading)
           },
-          onPin: (k) => pinApi.current(k),
+          onPin: (k) => {
+            tapUsed()
+            pinApi.current(k)
+          },
         }
       })
       return {
@@ -280,7 +295,7 @@ export function OrderBookLive({
 
   // The quality waits to climb until the rise is over, as the IV figure's does: the terrain's detail never changes mid-rise.
   const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seq.current.started && !seq.current.done }))
-  const { box, canvas, live, eligible, reduced, quality, fps, tier } = useStage(create, stageOpts)
+  const { box, canvas, live, eligible, slow, reduced, quality, fps, tier } = useStage(create, stageOpts)
   // The terrain rises in the middle and bottom of its stage: the story waits for most of it to be in view (on a
   // laptop's first screen only the empty top of the stage shows), or nearly half held for a moment.
   const sig = useSignature('orderbook', box, seq, { start: 0.6, hold: 0.45 })
@@ -314,7 +329,9 @@ export function OrderBookLive({
             ? saveData()
               ? 'Still frame: your browser asks to save data.'
               : supportsWebGL2()
-                ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
+                ? slow
+                  ? SLOW_TEXT
+                  : 'Still frame: the live figure could not start here. Reloading the page may bring it.'
                 : 'Still frame: this browser has no WebGL2.'
             : null
 
@@ -547,7 +564,10 @@ export function OrderBookLive({
       caption={caption}
       table={table}
     >
-      <div className="relative -mx-6 sm:mx-0">
+      {/* Sideways on a phone the reading and the controls stand beside the terrain, as the IV surface's do: under it, the
+          stage ran 2.4 times as wide as tall, the terrain took half its width and Pause sat below a 380px screen. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
+      <div className="relative -mx-6 sm:mx-0 short:mx-0">
         <div
           ref={box}
           data-seq={sig.state}
@@ -571,7 +591,7 @@ export function OrderBookLive({
             lean.onTap()
             onStillPick(e)
           }}
-          className="peer relative h-[clamp(26rem,70svh,38rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(26rem,56svh,36rem)] print:h-[26rem]"
+          className="peer relative h-[clamp(26rem,70svh,38rem)] low:h-[clamp(21rem,62svh,26rem)] cursor-crosshair touch-pan-y touch-pinch-zoom overflow-hidden select-none focus-visible:outline-none sm:h-[clamp(min(28rem,88svh),62svh,38rem)] short:h-[calc(88svh-1rem)] lg:h-[clamp(26rem,56svh,36rem)] flat:h-[clamp(26rem,calc(100svh-9rem),36rem)] print:h-[26rem]"
         >
           <div data-orderbook-poster="" className="absolute inset-0" style={underlay(live)}>
             {poster}
@@ -602,14 +622,16 @@ export function OrderBookLive({
       </div>
 
       {/* The reading takes the row's width and the controls keep their own place, so a reading never moves them. */}
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6 short:mt-0 short:flex-col short:gap-3">
         {/* The reading wraps rather than lose its end (enlarged text included), in room kept for its longest: four lines,
             in the reading's own line height, so the room grows with the text. */}
         <dl id="fig-order-book-probe" className="text-meta grid min-h-[4lh] min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 font-mono print:hidden" aria-label="Probe reading">
           <dt className="text-graphite">Probe</dt>
           <dd className="text-ink">
+            {/* A price's room is kept after the dash, not before it: padded before, the dash stood ten characters right of
+                the Queue and When dashes under it. */}
             <span ref={ref('p-price')} className="tabular">
-              {'—'.padStart(PRICE_CH, '\u00a0')}
+              {'—'.padEnd(PRICE_CH, '\u00a0')}
             </span>{' '}
             <span ref={ref('p-side')} className="text-graphite">
               {mounted && matchMedia('(pointer: coarse)').matches ? 'tap the terrain' : 'point at the terrain'}
@@ -633,7 +655,7 @@ export function OrderBookLive({
           {live ? (
             <>
               {/* Figs. 1 and 2 are one market: either Pause stops both, and its name says so (two buttons were both "Pause"). */}
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem]`} data-hold="" aria-label={`${paused ? 'Resume' : 'Pause'} both figures`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button
@@ -652,6 +674,7 @@ export function OrderBookLive({
             </>
           ) : null}
         </div>
+      </div>
       </div>
       <p className="sr-only" aria-live="polite">
         {probing ? spoken : ''}
@@ -677,7 +700,7 @@ function Readouts({ initial, set, suffix = '', across = false }: { initial: Init
     <dl
       className={
         across
-          ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4'
+          ? 'text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono max-[18.5rem]:gap-x-4 sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4'
           : 'text-meta grid grid-cols-1 gap-y-px font-mono lg:text-right [&_dd]:mb-2'
       }
     >

@@ -33,7 +33,7 @@ import { MARKET_SEQ, marketSequence, punch, storyOf } from '@/lib/market/sequenc
 import { FAN_RANGE, fanBand, logTicks, priceTicks, SPAN, WINDOW } from '@/lib/market/views'
 import { params } from '@/lib/surface/shock'
 import { iv, type Params } from '@/lib/surface/ssvi'
-import { LABELS, WIDE_QUERY, type FrameKind } from '@/lib/surface/view'
+import { LABELS, SPARSE_TICKS, WIDE_QUERY, type FrameKind } from '@/lib/surface/view'
 import { AxisLabel } from '../surface/marks'
 import type { Hooks, SurfaceRenderer } from '../surface/renderer'
 import type { BookView, FanView, Landing } from './draw'
@@ -113,6 +113,26 @@ type Posters = { book: ReactNode; fan: ReactNode }
 /** The calm frame has the surface's picture too; a shocked surface is drawn on the page (../surface/still.ts). */
 type CalmPosters = Posters & { surface: ReactNode }
 
+/**
+ * The book pane's title in its two phrases, each an inline block: the line breaks after the comma ("Order book, the /
+ * last 20 seconds" in a 146–190px pane), and inside a phrase only where the pane is narrower than it (held whole, at a
+ * large font size it ran into the futures pane's title).
+ */
+const BOOK_PHRASES = ['Order book,', 'the last 20\u00a0seconds'] as const
+function setBookTitle(el: HTMLElement) {
+  el.replaceChildren(
+    ...BOOK_PHRASES.flatMap((p, i) => {
+      const s = document.createElement('span')
+      s.className = 'inline-block max-w-full'
+      s.textContent = p
+      return i ? [' ', s] : [s]
+    }),
+  )
+}
+
+/** The animation frame's start, on the page's clock: when a frame that is running began. */
+const frameStart = () => Number(document.timeline?.currentTime ?? performance.now())
+
 export function MarketLive({
   posters: stills,
   initial: initials,
@@ -186,6 +206,8 @@ export function MarketLive({
   const labelLayer = useRef<HTMLDivElement>(null)
   const hoverEl = useRef<HTMLSpanElement>(null)
   const landing = useRef<Landing | null>(null)
+  /** The landing the book and the futures draw: `landing` once a frame that began after it arrived has taken it. */
+  const shownLanding = useRef<Landing | null>(null)
   const seenLanding = useRef(-1)
   /** A landed shock's blow for the surface, and when it landed: taken if drawn within a quarter second, else let go. */
   const impact = useRef({ k: 0, at: 0 })
@@ -337,12 +359,16 @@ export function MarketLive({
       sync: (_p: Params, shown: number) => {
         void shown
       },
-      // A blow the surface was not drawn in time to take (it was off screen) is let go, never struck late.
+      // A blow the surface was not drawn in time to take (it was off screen) is let go, never struck late. It is taken in
+      // the first frame that began after it arrived, as the book and the futures take it (the market's draw), so all three
+      // take it in one frame; that frame is due, and the stage draws it (no probe, no halving).
       impact: () => {
         const { k, at } = impact.current
+        if (k > 0 && frameStart() < at) return 0
         impact.current = { k: 0, at: 0 }
         return k > 0 && performance.now() - at < 250 ? k : 0
       },
+      due: () => impact.current.k > 0 && frameStart() >= impact.current.at && performance.now() - impact.current.at < 250,
       reading: () => false,
       aim: () => aim.current,
       // Held while paused: its clock moves on by each frame's step while performance.now() moves on by the wall's, and the
@@ -395,7 +421,7 @@ export function MarketLive({
 
   // The surface's quality waits to climb until the story is told: the lead-in and the shock never sharpen mid-moment.
   const [stageOpts] = useState(() => ({ ...STAGE_OPTS, hold: () => seq.current.started && !seq.current.done }))
-  const { box, canvas, live: surfaceLive, eligible, reduced, tier, quality, fps } = useStage(create, stageOpts)
+  const { box, canvas, live: surfaceLive, eligible, slow, reduced, tier, quality, fps } = useStage(create, stageOpts)
   // The story waits until all three views are wholly in view (on a laptop and a phone turned sideways they sit side by
   // side, one screen tall at most: app/globals.css), so the shock lands where all three can be seen; never on a partial
   // view held for a moment. On a phone in portrait the three stacked views are taller than the screen: then as much of
@@ -416,7 +442,9 @@ export function MarketLive({
   // Chrome no longer lends a software one) or a software rasteriser keeps the still frames, which Liquidity shock swaps.
   // Arrived by a paper's morph, it starts under the morph, before the stage has a context to judge the device by (a
   // morph is a reader's click, never an audit's load); a stage that then finds no WebGL2 or a software one stops it.
-  const allowed = mounted && !saveData() && (tier === null ? morphed && eligible && supportsWebGL2() : tier !== 'software')
+  // A surface that crawled and gave way (the stage kit's slow) takes the market with it: the book and futures traded on
+  // live beside the build's still surface, three views no longer of one moment, with no word why.
+  const allowed = mounted && !saveData() && !slow && (tier === null ? morphed && eligible && supportsWebGL2() : tier !== 'software')
 
   // ── the flat views, drawn in the market's own frame ────────────────────────────────────────────────────────────
   const lastDraw = useRef(0)
@@ -449,9 +477,18 @@ export function MarketLive({
         return
       }
       const v = views.current
-      // The landing is stamped on the message's clock and drawn on the frame's, which can run a few ms behind it: the
-      // first frame to draw it is its first, so the streak has its front from that frame.
-      if (landing.current && landing.current.at > now) landing.current.at = now
+      // A shock is taken in the first frame that began after its message arrived, by all three views alike: a frame that
+      // began before it may have drawn the surface already (the stage's loop runs apart from this one), and the book and
+      // the futures taking it there put them a frame ahead of the surface (CI's WebKit, market-webkit.spec.ts, found the
+      // surface's stage probing in that frame). Its streak starts at the frame that takes it.
+      // Judged on the frame's start (its timeline time), as the surface's blow is: WebKit's animation-frame stamp can run
+      // later than that, past a message that arrived while the frame's callbacks ran (CI: the market's loop took it at
+      // 2817 on that stamp, the surface's stage having probed at 2817 without it).
+      const fresh = !!landing.current && landing.current !== shownLanding.current && frameStart() >= landing.current.at
+      if (fresh) {
+        landing.current!.at = now
+        shownLanding.current = landing.current
+      }
       // The flat views sit inside the column at every width (on a phone side by side, under the surface,
       // app/globals.css): no edge inset to keep for the page's margin.
       v.book.inset = v.fan.inset = 0
@@ -480,7 +517,7 @@ export function MarketLive({
         setStory(next)
       }
 
-      if (stampLanding.current) {
+      if (stampLanding.current && fresh) {
         stampLanding.current = false
         const at = String(document.timeline?.currentTime ?? now)
         if (bookCv.current) bookCv.current.dataset.landed = at
@@ -509,6 +546,13 @@ export function MarketLive({
           }
         }
         sg.onFrame()
+        // A click or key in the calm (on a phone, any tap on the page) skips the story: its words run to the shock in
+        // 240ms, so the shock lands now, with them, not where the calm would have ended (it came up to 2.5s later, after
+        // "Running", with no story around it). Without a time, the market drops the one it had scheduled.
+        if (!storyPressed.current && seq.current.started && !seq.current.done && seq.current.skipping()) {
+          storyPressed.current = true
+          marketRef.current?.act('shock')
+        }
         const ph = seq.current.phases()
         // The shock has landed (the market took it at its quantum): the story's is spent.
         if (ph.land > 0) storyPressed.current = true
@@ -548,15 +592,16 @@ export function MarketLive({
       // How fast the views' own follows run: the book's price window and the fan's breathing coast to rest with the
       // market on Pause (240ms) and pick up with it on Resume (400ms), so Pause holds every view.
       fanRate.current = pausedRef.current ? Math.max(0, fanRate.current - dt / 0.24) : Math.min(1, fanRate.current + dt / 0.4)
-      if (stageOn.current && v.book.draw(m, p, now, landing.current, dt, fanRate.current)) drewOnce.current.book = true
+      if (stageOn.current && v.book.draw(m, p, now, shownLanding.current, dt, fanRate.current)) drewOnce.current.book = true
       // A moment the reader points at is answered at once, paused or not.
-      if (stageOn.current && v.fan.draw(m, p, now, landing.current, dt, fanRate.current)) drewOnce.current.fan = true
+      if (stageOn.current && v.fan.draw(m, p, now, shownLanding.current, dt, fanRate.current)) drewOnce.current.fan = true
       if (!flat && drewOnce.current.book && drewOnce.current.fan) setFlat(true)
 
       // The book's words: prices up its side, where the window has them now.
       const lay = v.book.layout()
-      // A pane under 90px (the book at 1280×800) marks two or three prices, so their labels never crowd.
-      const ticks = priceTicks(lay.centre - WINDOW.half, lay.centre + WINDOW.half, lay.h < 90 ? 3 : 5)
+      // A pane under 90px (the book at 1280×800) marks two or three prices, so their labels never crowd; so does a heat
+      // map under 120px wide (a 360px phone's, 94px), where three 57px plates covered most of the book.
+      const ticks = priceTicks(lay.centre - WINDOW.half, lay.centre + WINDOW.half, lay.h < 90 || lay.width < 120 ? 3 : 5)
       priceEls.current.forEach((el, i) => {
         if (!el) return
         const p0 = ticks[i]
@@ -759,7 +804,7 @@ export function MarketLive({
       pointed.current = null
       if (v) v.book.hover = null
       if (hoverEl.current) {
-        hoverEl.current.textContent = 'Order book, the last 20 seconds'
+        setBookTitle(hoverEl.current)
         hoverEl.current.classList.remove('text-ink')
       }
       if (el?.hasAttribute('aria-valuenow')) {
@@ -810,7 +855,7 @@ export function MarketLive({
       if (!t || t.id !== e.pointerId) return
       // Sideways, as the home figure's drag reads it: a diagonal swipe of the page is not a reading.
       const dx = Math.abs(e.clientX - t.x), dy = Math.abs(e.clientY - t.y)
-      if (dx > 10 && dx > 1.5 * dy) t.moved = true
+      if (dx > 10 && dx >= dy) t.moved = true
       if (t.moved) readAt(agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
       return
     }
@@ -818,6 +863,14 @@ export function MarketLive({
     readAt(agoAt(e.clientX, e.currentTarget.getBoundingClientRect()))
   }
   const onBookDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    // A second finger (a pinch) does not take the book from the first: it gives back what the first one's read moved and
+    // ends it, as the other figures and the sliders do.
+    const held = touching.current
+    if (e.pointerType === 'touch' && held) {
+      touching.current = null
+      if (held.moved) readAt(held.before)
+      return
+    }
     if (e.pointerType !== 'touch') return
     touching.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, before: readingAgo.current }
   }
@@ -826,7 +879,7 @@ export function MarketLive({
     if (!t || t.id !== e.pointerId) return
     touching.current = null
     // A finger that travelled was a drag or a swipe of the page, not a tap.
-    if (t.moved || Math.abs(e.clientY - t.y) > 6) return
+    if (t.moved || Math.hypot(e.clientX - t.x, e.clientY - t.y) > 10) return
     // A tap reads the moment under it, as the other figures' taps do (no drag needed: WCAG 2.5.7), and a later tap
     // moves the reading there; a tap on the moment already read lets it go.
     const again = readingAgo.current !== null && tappedAt.current !== null && Math.abs(e.clientX - tappedAt.current) < 16
@@ -976,6 +1029,8 @@ export function MarketLive({
           ? 'Still frames: your browser asks to save data.'
           : market.declined
             ? 'Still frames: the market could not start in this browser.'
+          : slow
+            ? 'Still frames: this device could not draw the market smoothly.'
           : tier === 'software'
             ? 'Still frames: this device draws with its processor, not a graphics chip, so the market is not run here.'
             : !eligible && !supportsWebGL2()
@@ -1088,7 +1143,7 @@ export function MarketLive({
     ['stress', 'Stress, 0 to 1'],
     ['atm', '1-month ATM vol'],
     // The fan is drawn at the realized vol of the moment, and says so: it is not the surface's one-year implied.
-    ['range', 'A year out at realized vol, 5–95%'],
+    ['range', 'A year out at\u00a0realized vol, 5–95%'],
   ] as const
   // Rendered with the still frame's numbers on the server, so the rail arrives full and nothing below it moves.
   const first: Record<(typeof READOUTS)[number][0], string> = {
@@ -1134,7 +1189,7 @@ export function MarketLive({
       <div ref={stage} className="relative" data-market-stage="" data-market-live={live ? '1' : '0'}>
         <div ref={viewsBox} data-market-views="">
         {/* The surface: the market's stress sets its shock. */}
-        <div className="relative -mx-6 sm:mx-0" data-market-surface-box="">
+        <div className="relative -mx-6 sm:mx-0 short:mx-0" data-market-surface-box="">
           {/* The surface leans with the reader, as every 3D figure does: toward a fine pointer, with a phone's tilt (iOS
               asks on the first tap); a drag, or the arrow keys, turn it. */}
           <div
@@ -1148,6 +1203,7 @@ export function MarketLive({
             // iv-fig: the IV figure's color ramp (STAGE_CSS, RAMP_CSS) is scoped to it, and the still surface draws with it.
             className="iv-fig peer relative aspect-[1.1] w-full cursor-grab overflow-hidden bg-paper select-none focus-visible:outline-none sm:aspect-[1.62] sm:max-w-[calc(88svh*1.62)]"
             data-market-surface=""
+            data-surface-stage=""
             data-hold=""
             onPointerMove={lean.onPointerMove}
             onPointerLeave={lean.onPointerLeave}
@@ -1159,7 +1215,8 @@ export function MarketLive({
             <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={{ ...fade(surfaceLive && live), touchAction: 'pan-y pinch-zoom' }} aria-hidden="true" />
             {/* The axes' words, placed by the renderer each frame with its own projection (the IV figure's). */}
             <div aria-hidden data-market-words="" className="pointer-events-none absolute inset-0" style={fade(surfaceLive && live)}>
-              <div ref={labelLayer}>
+              {/* As large as the stage (WebKit clipped a faded layer with no size of its own: the IV figure's). */}
+              <div ref={labelLayer} data-label-box="" className="absolute inset-0">
                 {LABELS.map((l, i) => (
                   <AxisLabel
                     key={l.id}
@@ -1168,8 +1225,11 @@ export function MarketLive({
                     }}
                     moving
                     text={l.text}
+                    short={l.short}
                     align={l.align}
                     kind={l.kind}
+                    frame={kind}
+                    keep={SPARSE_TICKS.has(l.id)}
                     {...(l.only && l.only !== kind ? { style: { display: 'none' } } : {})}
                   />
                 ))}
@@ -1198,12 +1258,14 @@ export function MarketLive({
         </p>
 
         <div data-market-lower="" className="mt-3 grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-4">
-          {/* The book: the last twenty seconds, and the book at now. */}
-          <div className="-mx-6 sm:mx-0">
+          {/* The book: the last twenty seconds, and the book at now. A size container: its axis reads by its own width. */}
+          <div className="@container -mx-6 sm:mx-0 short:mx-0">
             {/* On a phone the reading ("6.1 s ago · vol 51.2% · stress 0.32") takes three lines in this pane: both panes'
                 titles keep that room, so a tap moves nothing under them and the two panes stay level. */}
             <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0" data-market-book-title="">
-              <span ref={hoverEl}>Order book, the last 20 seconds</span>
+              <span ref={hoverEl}>
+                <span className="inline-block max-w-full">{BOOK_PHRASES[0]}</span> <span className="inline-block max-w-full">{BOOK_PHRASES[1]}</span>
+              </span>
             </p>
             {/* The slider's description only (hidden, so it is never read as the page's text); there is none to
                 describe on a still frame. */}
@@ -1236,7 +1298,7 @@ export function MarketLive({
                     }
                   : {})}
                 data-market-pane=""
-                className="peer relative h-28 overflow-hidden bg-paper focus-visible:outline-none sm:h-52"
+                className="peer relative h-28 overflow-hidden bg-paper select-none focus-visible:outline-none sm:h-52"
                 style={{ touchAction: 'pan-y pinch-zoom' }}
                 onPointerMove={onBookMove}
                 onPointerDown={onBookDown}
@@ -1260,17 +1322,21 @@ export function MarketLive({
               </div>
               <FocusRing />
             </div>
-            <div className="text-meta relative mt-1 flex justify-between pr-14 pl-0 font-mono whitespace-nowrap text-graphite" aria-hidden="true">
-              {/* At 360px "ago" would run into "now": there the axis reads "−20 s", a time back from now, not a length. */}
+            <div className="text-meta relative mt-1 flex justify-between pr-14 pl-0 font-mono whitespace-nowrap text-graphite @max-[8rem]:pr-10" aria-hidden="true">
+              {/* In a narrow pane "ago" would run into "now" (a 360px phone; a phone turned sideways, where the pane is
+                  116–140px): there the axis reads "−20 s", a time back from now, not a length. By the pane's width. Under
+                  8rem (an iPhone SE sideways, 116px) "now" stands over the depth column's edge: it touched "−20 s". */}
               <span>
-                <span className="min-[380px]:hidden">−</span>20 s<span className="max-[379px]:hidden"> ago</span>
+                <span className="@min-[11rem]:hidden">−</span>20 s<span className="@max-[11rem]:hidden"> ago</span>
               </span>
               <span>now</span>
             </div>
           </div>
           {/* The futures: a year from the price now. */}
-          <div className="-mx-6 sm:mx-0">
-            <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0">Futures, the next year</p>
+          <div className="-mx-6 sm:mx-0 short:mx-0">
+            <p className="text-meta mb-1.5 px-6 font-mono text-graphite max-sm:min-h-[3lh] sm:px-0">
+              <span className="inline-block max-w-full">Futures,</span> <span className="inline-block max-w-full">the next year</span>
+            </p>
             <div className="relative h-28 overflow-hidden bg-paper sm:h-52" data-market-fan="" data-market-pane="">
               <div data-market-still="" style={underlay(live)}>{stillsOf('fan')}</div>
               <canvas ref={fanCv} className="absolute inset-0 h-full w-full" style={fade(live)} aria-hidden="true" />
@@ -1291,7 +1357,7 @@ export function MarketLive({
 
         <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2 pointer-coarse:gap-y-3.5 print:hidden" data-market-controls="">
           {mounted && why && !live ? (
-            <button type="button" className={`${CONTROL} min-w-[8.75rem]`} onClick={toggleStill} onPointerEnter={() => void fetchShock()} onFocus={() => void fetchShock()} data-market-still-shock="">
+            <button type="button" className={`${CONTROL} [--min:8.75rem]`} onClick={toggleStill} onPointerEnter={() => void fetchShock()} onFocus={() => void fetchShock()} data-market-still-shock="">
               {still === 'calm' ? 'Liquidity shock' : 'Back to calm'}
             </button>
           ) : null}
@@ -1300,7 +1366,7 @@ export function MarketLive({
               <button type="button" className={CONTROL} onClick={shockNow} data-market-shock="">
                 Liquidity shock
               </button>
-              <button type="button" className={`${CONTROL} min-w-[4.5rem]`} onClick={togglePause} data-hold="">
+              <button type="button" className={`${CONTROL} [--min:4.5rem]`} onClick={togglePause} data-hold="">
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" className={CONTROL} onClick={replayNow} data-replay="">

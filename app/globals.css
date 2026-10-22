@@ -1,5 +1,15 @@
 @import 'tailwindcss';
 
+/* A phone turned sideways: wide enough for two columns, too short for a figure and its controls one above the other.
+   From 36rem, not the 40rem of sm: at a 123–130% Android font size a phone turned sideways is 600 CSS px wide, and every
+   stage stood stacked as upright, 1.3–2.2 times the screen's height. */
+@custom-variant short (@media (min-width: 36rem) and (max-height: 30rem));
+/* A phone held upright whose screen is under 600px tall (an iPhone SE, 548px under Safari's bars). */
+@custom-variant low (@media (max-height: 37.5rem) and (orientation: portrait));
+/* A tablet turned sideways (an iPad mini, 1133×673 under Safari's bars): a laptop's layout on a laptop's width, but
+   under 720px tall, so the masthead closes up for Fig. 1 to reach the first screen. */
+@custom-variant flat (@media (min-width: 64rem) and (max-height: 45rem) and (pointer: coarse));
+
 /* ---------------------------------------------------------------------------
    Palette — six values, and one rule that gives them meaning.
 
@@ -119,7 +129,9 @@
     text-rendering: optimizeLegibility;
   }
 
-  @media (min-width: 48rem) {
+  /* The text column's own size from 40rem: an iPad held upright (744) and a phone turned sideways (667–863) set 17px
+     across a 600–700px column, 75–83 characters a line; at 19px it is the measure's ~68. */
+  @media (min-width: 40rem) {
     body {
       font-size: var(--text-body);
       line-height: 1.62;
@@ -144,16 +156,93 @@
 
   p,
   li,
-  figcaption {
+  figcaption,
+  aside,
+  dd {
     text-wrap: pretty;
   }
 
   /* iOS paints its own grey rectangle on a tapped control, over the control's own press (and its corners); the
-     controls and the Contents' thumbnails have feedback of their own. Text links keep it: they have no other. */
+     controls and the Contents' thumbnails have feedback of their own. (Tailwind's base takes the highlight off
+     everywhere, links too: they press as below.) */
   button,
   [role='radio'],
   [data-vt-thumb] {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* A tap is taken at once: no wait to see whether it was the first of a double tap's zoom (pinching still zooms). A
+     long press on a control never selects its label. */
+  a,
+  button,
+  label,
+  summary,
+  [role='radio'],
+  input[type='range'],
+  input[type='checkbox'] {
+    touch-action: manipulation;
+  }
+  button,
+  summary,
+  [role='radio'],
+  label:has(> input[type='range'], input[type='checkbox']) {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* A surface's tick labels give way where the box they are set in is narrower than their set was laid out for (the
+     phone's at 360px, the wide at about 370): a large font size or an iPhone SE turned sideways left /market's surface
+     310–350px wide with every tick, under the strike axis's title and on each other ("1M3M", "130%2Y"). The axes'
+     titles stay. The poster's frame and the live labels' layer are the boxes (neither sized by what is in it). */
+  [data-label-box] {
+    container-type: inline-size;
+  }
+  /* On /market a phone's stage is wider than the surface's own frame (1.62 against 1.1), and the live labels are set
+     across the stage: the poster's are judged by the stage's width too, or its still (the reduced-motion reader's whole
+     figure) carried none of the ticks the live surface shows over the same 254px of surface. */
+  [data-market-surface] {
+    container-type: inline-size;
+  }
+  [data-market-surface] [data-label-box='frame'] {
+    container-type: normal;
+  }
+  @container (max-width: 21.9rem) {
+    [data-axis][data-frame='tall'][data-kind='tick'] {
+      display: none !important;
+    }
+    /* The titles there lose their paper box for the ticks' halo: on a surface 229–265px wide (a large font size) the
+       boxes lay across its front face and its peak. */
+    [data-axis][data-kind='title'] > span {
+      background: transparent !important;
+      text-shadow: 0 0 2px var(--color-paper), 0 0 4px var(--color-paper), 0 0 6px var(--color-paper);
+    }
+  }
+  /* The wide set thins in two steps: to the phone's ticks under 32rem (a phone turned sideways, 374–510px: "1M3M",
+     "100%" under the strike axis's title), and to none only under 18rem; at 23rem with none the surface had no scale. */
+  @container (max-width: 31.9rem) {
+    [data-axis][data-frame='wide'][data-kind='tick']:not([data-keep]) {
+      display: none !important;
+    }
+  }
+  @container (max-width: 17.9rem) {
+    [data-axis][data-frame='wide'][data-kind='tick'] {
+      display: none !important;
+    }
+  }
+
+  /* A figure's pictures are the figure, not images to save: a long press on a poster raised iOS's share sheet. */
+  figure img {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Nothing scrolls the page while a reader works a figure: WebKit's scroll anchoring took a node in or after the
+     figure as its anchor, and as a drag or a press moved it, scrolled the page under the finger (a full σ drag on
+     the home figure, 390–690px). The pages reserve their figures' room, so there is no shift for anchoring to hide. */
+  html,
+  body {
+    overflow-anchor: none;
   }
 
   /* Links — ink with a graphite-mixed underline going to ink on hover (focus
@@ -178,6 +267,16 @@
     a:hover {
       text-decoration-color: var(--color-ink);
     }
+  }
+  /* Pressed, a link answers at once, under any pointer: its line goes to ink and its box (a finger's 44px, where it has
+     one) takes the rule's tone. A thumbnail presses as its own. A disclosure ("Greeks at the point") presses as a link:
+     its text going to ink alone was the weakest press on the site. */
+  a:not([data-vt-thumb]):active,
+  summary:active {
+    text-decoration-color: var(--color-ink);
+    background-color: color-mix(in oklab, var(--color-rule) 55%, transparent);
+    border-radius: 1px;
+    transition: none;
   }
 
   :focus-visible {
@@ -271,6 +370,13 @@
   /* Under a finger the box is 44px, pulled up over the slider's label, and a ring around it ran through the label and
      over the buttons below: there the focus is drawn on the thumb, an ink ring outside its paper one. */
   @media (pointer: coarse) {
+    /* Held under a finger, the thumb answers as the hover's ring does under a mouse. */
+    input[type='range']:active::-webkit-slider-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 6px var(--color-indigo-wash);
+    }
+    input[type='range']:active::-moz-range-thumb {
+      box-shadow: 0 0 0 1px var(--color-indigo), 0 0 0 6px var(--color-indigo-wash);
+    }
     input[type='range']:focus-visible {
       outline: none;
     }
@@ -319,6 +425,9 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* And no waits before them (a control's arrival stagger, a visibility held through a fade): nothing to wait for. */
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }
@@ -578,7 +687,7 @@
    stage one screen tall at most (--h), so on a laptop's first screen, and once in view on a phone, the shock lands in
    all three at once. Each pane's canvas is half the height left after the titles and axes (6.5rem in all). Outside
    any layer, so it wins over the panes' own sizes. */
-@media (min-width: 64rem), (min-width: 40rem) and (max-height: 30rem), print {
+@media (min-width: 64rem), (min-width: 36rem) and (max-height: 30rem), print {
   [data-market-views] {
     --h: clamp(15rem, calc(100svh - 34.75rem), 24rem);
     display: grid;
@@ -612,9 +721,31 @@
     height: calc((var(--h) - 6.5rem) / 2);
   }
 }
-@media (min-width: 40rem) and (max-width: 63.99rem) and (max-height: 30rem) {
+@media (min-width: 36rem) and (max-width: 63.99rem) and (max-height: 30rem) {
   [data-market-views] {
     --h: calc(100svh - 7rem);
+  }
+  /* A phone turned sideways: stacked in the right column the book and the futures were 55–68px strips (two titles and
+     two axes took half of it). Side by side, as on a phone held upright, each is the column's height less one title
+     (three lines kept for the book's reading, as there) and one axis. */
+  [data-market-views] > [data-market-lower] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.75rem;
+  }
+  [data-market-views] > [data-market-lower] > div > p {
+    min-height: 3lh;
+  }
+  /* Less the title (three 13px lines at 1.45 and its 0.375rem margin) and the axis (one line and 0.25rem over it). */
+  [data-market-views] [data-market-pane] {
+    height: calc(var(--h) - 5.35rem);
+  }
+}
+/* An iPad turned sideways (a touch screen at the laptop's layout, 673px tall): the laptop's clamp left the three views at
+   its 240px floor and the book and futures 68px strips. A touch screen has no browser chrome to leave room for under
+   the title, so the views take the screen less the page's head and the story's line: 384px on an iPad mini. */
+@media (min-width: 64rem) and (pointer: coarse) {
+  [data-market-views] {
+    --h: clamp(15rem, calc(100svh - 18rem), 24rem);
   }
 }
 /* On paper as on a laptop: stacked, the three views took a sheet and a half and were cut between the surface and the
@@ -797,6 +928,43 @@
       border: 1px solid var(--color-rule);
     }
   }
+  /* A touch screen from 48rem (a phone turned sideways, an iPad) reads the sheet at 15px, a phone's reading size, not
+     the printed page's 13.5px; its lines then break where they fall, not where the PDF's do. Print is untouched. */
+  /* From 64rem (an iPad turned sideways, the laptop's sheet) at 15px too, the sheet narrowed to keep its lines near 75
+     characters: at 15px across it they read 86, at the printed 13.5px 99, small for a tablet's pixels. */
+  @media screen and (min-width: 48rem) and (pointer: coarse) {
+    .cv {
+      font-size: 15px;
+    }
+  }
+  @media screen and (min-width: 64rem) and (pointer: coarse) {
+    .cv {
+      max-width: 46rem;
+    }
+  }
+  @media screen {
+    .cv-note {
+      display: inline-block;
+      max-width: 100%;
+    }
+    /* Hung outside the title, not drawn back by a negative margin: at the start of a line WebKit kept the margin's
+       0.75em, and a wrapped role read "· Quantitative analyst…", 12px in from the column. */
+    .cv-title {
+      position: relative;
+    }
+    .cv-title::before {
+      position: absolute;
+      right: 100%;
+      margin-left: 0;
+    }
+  }
+  /* An iPad held upright (40–48rem) reads the phone's layout at 15px: across up to 704px, 84–89 characters a line, and
+     at 40rem still 85. At 35rem, about 72: the sheet keeps to the measure, as the paper's text does. */
+  @media screen and (min-width: 40rem) and (max-width: 47.99rem) {
+    .cv {
+      max-width: 35rem;
+    }
+  }
 
   .cv p,
   .cv li,
@@ -893,6 +1061,22 @@
       padding: 0.4em 0;
       min-height: 1.5rem;
     }
+    /* Under a finger, 44px: its line and the rest above and below (a wrapped row's links stand 44px apart). */
+    @media (pointer: coarse) {
+      .cv-contact a {
+        padding-block: calc((44px - 1lh) / 2);
+      }
+      /* A paper's name, inline at the head of its entry: its padding reaches 44px without moving a line, over the line
+         after it (which would otherwise cover its lower half). */
+      /* An inline box is its font's content area tall (~1.37em), not its line: (44px − 1.37em) / 2 above and below. */
+      /* And the live address after a name, in brackets: an inline link of the same line. */
+      .cv-stack strong a,
+      .cv-stack .cv-live {
+        padding-block: calc(22px - 0.685em);
+        position: relative;
+        z-index: 1;
+      }
+    }
   }
 
   .cv-entry-head strong {
@@ -906,6 +1090,13 @@
   }
   .cv-title {
     white-space: nowrap;
+  }
+  /* On a page under 20rem (a 360px phone at a 130% Android font size, 277px) a role ran past its line and was cut
+     ("Quantitative analyst and enginee"): there it wraps, its dot still hung before it. */
+  @media screen and (max-width: 20rem) {
+    .cv-title {
+      white-space: normal;
+    }
   }
   /* In the flow (the PDF's text keeps its order): drawn back over the gap the note leaves, by its own width. */
   .cv-title::before {

@@ -86,7 +86,7 @@ export const papers: readonly Paper[] = [
     slug: 'closebooks',
     href: '/closebooks',
     // "a" held to its noun: before the unbreakable "multi-tenant" a phone left it alone at a line's end.
-    title: 'CloseBooks: a\u00a0multi-tenant month-end close with an LLM in the loop',
+    title: 'CloseBooks: a\u00a0multi-tenant month-end\u00a0close with an LLM in the loop',
     abstract: `A multi-tenant month-end close for CPA firms that I designed, built and deployed alone: ${n('cbApiRoutes')} API routes over Postgres with row-level security, and an LLM pipeline that maps every bank line to the client’s chart of accounts with a confidence it has to earn, or a reviewer’s approval, before it is exported.`,
     dek: 'A multi-tenant month-end close for CPA firms that I built alone: an LLM pipeline maps every bank line to the client’s accounts, and only confident or reviewer-approved lines export.',
     description: 'A multi-tenant month-end close for CPA firms, built alone: an LLM maps every bank line to the client’s accounts, and only confident lines export.',
@@ -97,7 +97,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'membrane',
     href: '/membrane',
-    title: 'The vibrating drum: Fourier–Bessel series on a circular membrane',
+    // "Fourier–Bessel series" and "circular membrane" held together: phones split the name or left "membrane" alone.
+    title: 'The vibrating drum: Fourier–Bessel\u00a0series on a circular\u00a0membrane',
     abstract:
       'A drum that rings in exactly the Fourier–Bessel modes the reader keeps, released from the initial shapes of a directed study’s exercises (MATH 4992, Spring 2026). Its Bessel functions and their zeros are computed in the page with no library and agree with SciPy’s to within a trillionth, and its coefficients match the exercises’ to four places.',
     standfirst:
@@ -126,7 +127,9 @@ export const papers: readonly Paper[] = [
   {
     slug: 'order-book',
     href: '/order-book',
-    title: 'Order flow that remembers: a Hawkes-driven limit order book',
+    // "a Hawkes-driven" held together: balanced, the heading ended a line on "a" on every phone and the iPad; and "that
+    // remembers:", so that held, "remembers:" never stands alone on a phone's line.
+    title: 'Order flow that\u00a0remembers: a\u00a0Hawkes-driven limit\u00a0order\u00a0book',
     standfirst: `A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain. Most market orders are set off by earlier ones; Fig.\u00a02 shows what set off any one.`,
     abstract: `A synthetic limit order book whose order flow is a six-kind Hawkes process, simulated exactly in your browser at about 300\u00a0events a second and drawn as terrain, with the flow beside it: most market orders are set off by earlier ones, and you can read what set off any one. It steps in whole quanta and computes its own exponentials, so the server and every browser draw one market from one seed (Chromium, WebKit and Firefox are tested to agree), and a time-rescaling test checks the simulation against the model.`,
     dek: 'A synthetic limit order book driven by a six-kind Hawkes process, simulated exactly in your browser and drawn as terrain: read the odds of what set off any market order.',
@@ -137,7 +140,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'iv-surface',
     href: '/iv-surface',
-    title: 'An implied-volatility surface free of static arbitrage',
+    // "of static arbitrage" and "to Russian federal law" (below) held: phones ended a heading's line on "of", "to".
+    title: 'An implied-volatility surface free of\u00a0static arbitrage',
     standfirst: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and the Greeks at any point. It takes a simulated volatility shock and stays free of static arbitrage through every frame; Fig.\u00a02 lets you break the condition.`,
     abstract: `A synthetic SSVI surface shaped like an equity index, in live 3D, with implied and local volatility and Black–Scholes Greeks at any point. It takes a simulated volatility shock, the short end lifting and the skew steepening, and stays free of static arbitrage through every frame of it; the tests check Gatheral and Jacquier’s conditions on a dense grid, and Fig.\u00a02 lets you break them.`,
     dek: 'A synthetic SSVI volatility surface in live 3D, with local vol and Black–Scholes Greeks at any point, that takes a shock and stays free of static arbitrage in every frame.',
@@ -151,7 +155,7 @@ export const papers: readonly Paper[] = [
   {
     slug: 'startup-investments',
     href: '/startup-investments',
-    title: 'Ranking startup segments, and how much the answer depends on the data',
+    title: 'Ranking startup\u00a0segments, and how\u00a0much the answer depends on the data',
     abstract: `A composite model ranks ${n('siMassSegments')} startup segments on growth and size across ${n('siRowsFinal')} funding records. Re-executing my capstone exactly, then changing one data decision at a time, measures how much the recommendation depends on them — three treatments give three different top picks — and finds the segments that hold up under all three.`,
     dek: `A composite model ranks ${n('siMassSegments')} startup segments on growth and size; changing one data decision at a time gives three treatments three top picks, and shows which segments hold up.`,
     description: `A composite model ranks ${n('siMassSegments')} startup segments. Changing one data decision at a time gives three different top picks, and shows which segments hold up.`,
@@ -163,7 +167,8 @@ export const papers: readonly Paper[] = [
   {
     slug: 'debt-portal',
     href: '/debt-portal',
-    title: 'A debt-settlement portal built to Russian federal law',
+    // "Russian federal law" held: at 130% text a phone broke its phrase as "built to Russian / federal law".
+    title: 'A debt-settlement portal built to Russian\u00a0federal\u00a0law',
     abstract: `A self-service portal where people settle a debt without a phone call, built end to end as sole developer for a licensed Russian collection organization. Federal law set the architecture: personal data stays in the country, and every login code is counted against a legal contact allowance, the conservative reading of an unsettled question; both are enforced in code and at build time.`,
     dek: 'A self-service portal for settling a debt without a phone call, built end to end as sole developer for a licensed Russian collection organization, with federal law enforced in code.',
     description: 'A self-service debt-settlement portal built to Russian federal law: personal data kept in the country, every login code counted against a legal allowance.',
@@ -172,6 +177,28 @@ export const papers: readonly Paper[] = [
     status: 'published',
   },
 ]
+
+/**
+ * Where a page title breaks first: between these phrases, each of which wraps inside only where it is wider than the
+ * column (a large font size), so no line strands a word or splits a phrase ("portal built / to", "on / a circular
+ * membrane", "beyond / the scoreboard"). Joined by spaces, they are the title exactly (tests/title-phrases.test.ts); a
+ * phrase that ends on a hyphen joins the next with none, and the line may break there ("An implied- / volatility
+ * surface": held whole, "An implied-volatility surface" was wider than a phone's column, and "surface free" broke away).
+ */
+/** Phrases joined back into their title: by a space, or by nothing after a hyphen. */
+export const joinPhrases = (p: readonly string[]) => p.reduce((a, x, i) => (i ? a + (a.endsWith('-') ? '' : ' ') + x : x), '')
+
+export const TITLE_PHRASES: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
+  [
+    ['The vibrating drum:', 'Fourier–Bessel\u00a0series', 'on a circular\u00a0membrane'],
+    ['What ball-by-ball cricket predicts', 'beyond the\u00a0scoreboard'],
+    ['A debt-settlement portal', 'built to Russian\u00a0federal\u00a0law'],
+    ['Ranking startup\u00a0segments,', 'and how\u00a0much the answer', 'depends on the data'],
+    ['A carbon model', 'for campus\u00a0AI\u00a0use,', 'built to be argued with'],
+    ['An implied-', 'volatility surface', 'free of\u00a0static arbitrage'],
+    ['CloseBooks: a\u00a0multi-tenant', 'month-end\u00a0close', 'with an LLM in the loop'],
+  ].map((p) => [joinPhrases(p), p]),
+)
 
 export interface OtherWork {
   readonly slug: string

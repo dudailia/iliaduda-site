@@ -10,6 +10,20 @@ import { PERSON, SITE } from '@/lib/site'
  * it. Below 64rem the rail collapses and its contents move inline.
  */
 
+/**
+ * A link that stands on its own (a list's, a row's, the running head's) under a finger: its block padding grows to make
+ * a 44px line ((44px − its line) / 2 above and below), so a tap target is never shorter than that. A mouse keeps the
+ * tighter rhythm. Rows of such links stack 44px apart, so one never covers another.
+ */
+export const TAP = 'pointer-coarse:py-[calc((44px-1lh)/2)]'
+
+/**
+ * A link inside running text ("Read the paper" at a paragraph's end) under a finger: the same 44px reach, from a box
+ * drawn over the line rather than padding, which grew the line box and set the paragraph's last line 11px apart.
+ */
+export const TAP_INLINE =
+  'relative pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-inset-y-[calc((44px-1lh)/2)]'
+
 export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[calc(var(--rail)+var(--gutter)+var(--measure))] px-6 sm:px-8 print:max-w-none print:px-0">
@@ -90,7 +104,7 @@ export function Annotated({
 }) {
   return (
     <div className="lg:-ml-[calc(var(--rail)+var(--gutter))] lg:grid lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-(--gutter)">
-      <div className="min-w-0 lg:col-start-2 lg:row-start-1">{keepDashes(children)}</div>
+      <div className="min-w-0 short:max-w-[40rem] lg:col-start-2 lg:row-start-1">{keepDashes(children)}</div>
       <aside className="text-note mt-3 border-l-2 border-rule pl-4 text-graphite lg:col-start-1 lg:row-start-1 lg:mt-0 lg:mb-2 lg:border-l-0 lg:pl-0 lg:text-right">
         {keepDashes(note)}
       </aside>
@@ -100,7 +114,8 @@ export function Annotated({
 
 /** Body prose. One measure, one rhythm, no bullet lists. */
 export function Prose({ children }: { children: ReactNode }) {
-  return <div className="max-w-[var(--measure)] [&>p+p]:mt-[1.1em]">{keepDashes(children)}</div>
+  // A phone turned sideways sets 19px across up to 710px: at 40rem its prose keeps to ~70 characters a line, not 74–84.
+  return <div className="max-w-[var(--measure)] short:max-w-[40rem] [&>p+p]:mt-[1.1em]">{keepDashes(children)}</div>
 }
 
 /**
@@ -119,9 +134,12 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
       {list.map((it, i) => {
         // Held to its item by a no-break space, inside an inline block, which no engine breaks (WebKit found a break
         // before the middle dot at the no-break space in a nowrap span): a line never starts with the dot. A long item
-        // may wrap, but its last word keeps the dot.
+        // may wrap, but its last two words keep the dot (one word alone on a line read as a stray: "wins ·").
+        // A short item is an inline block, not a nowrap one: it moves to the next line whole, and wraps inside only where
+        // it is wider than the whole column (a phone with a large font setting, 277–320px wide, scrolled sideways).
         const dot = i < list.length - 1 ? '\u00a0·' : ''
-        const cut = it.length > 34 ? it.lastIndexOf(' ') : -1
+        const last = it.lastIndexOf(' ')
+        const cut = it.length > 34 ? (it.lastIndexOf(' ', last - 1) > 0 ? it.lastIndexOf(' ', last - 1) : last) : -1
         return (
           <Fragment key={it}>
             {cut > 0 ? (
@@ -133,7 +151,7 @@ export function Items({ items }: { items: readonly (string | undefined | false)[
                 </span>
               </span>
             ) : (
-              <span className={it.length <= 34 ? 'inline-block whitespace-nowrap' : ''}>
+              <span className={it.length <= 34 ? 'inline-block max-w-full' : ''}>
                 {it}
                 {dot}
               </span>

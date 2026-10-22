@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
+import { TITLE_PHRASES } from '@/content/papers'
 import { Items, Row, Whole, keepDashes } from './Layout'
 
 /**
@@ -34,10 +35,23 @@ export function CaseStudyTitle({
   const Heading = level
   // At lg the first figure sits 2.5rem under the abstract's rule rather than the 4rem between figures (its own margin,
   // less this block's 1.5rem), so a laptop's first screen shows more of Fig. 1's stage.
+  // A phone turned sideways keeps the phone's title size: at 44px the title took up to 148px of a 326–390px screen. On
+  // every phone held upright (to 28rem, a Pro Max's 440) it is 28px: at 31px a 360px phone left "beyond" and "membrane"
+  // alone on a line, and a Pro Max "remembers:" and "CloseBooks:" ("Order flow that remembers:" is 407px at 31, 368 at
+  // 28, in a 382–392px column). Under 26rem (a Pixel, 412px) 27px, where "Order flow that remembers:" (368px at 28)
+  // fits its 364px; under 25.5rem (an iPhone 15–17, a 384px Galaxy) 25px ("An implied-volatility surface" in 336px), under 23.5rem (an SE) 24px and under 22.75rem
+  // (a 360px Android) 23px, where "Ranking startup segments," (352px at 28, 1.9px too wide at 25 in a 312px column),
+  // "Order flow that remembers:" and "on a circular membrane" each keep a line of their own. A
+  // larger Android font size narrows the page in CSS px: at 130% (277px) "Fourier–Bessel series", held whole, was 258px
+  // in a 229px column and the page scrolled sideways. So 21px under 20.5rem (115%, 313px: "Ranking startup segments,"
+  // and "A debt-settlement portal" each on a line in 265px), 18px under 18.5rem (130%, 229px) and 17px at 150%. Between
+  // them, where a phrase came within a few pixels of its line ("Ranking startup segments," and "CloseBooks: a
+  // multi-tenant" broke inside themselves at 300–316 and 332–336px, a 384px Galaxy at 115%): 22px under 21.25rem, 20px
+  // under 19.75rem, and 17px from 17.25rem down.
   return (
     <Row className={`pt-10 lg:pt-12 ${figure ? 'lg:-mb-6' : ''}`}>
-      <Heading className={`${level === 'h1' ? 'text-h2 sm:text-h1' : 'text-h2'} ${measure}`}>
-        <Whole text={title} />
+      <Heading className={`${level === 'h1' ? 'text-h2 max-[28rem]:text-[1.75rem] max-[26rem]:text-[1.6875rem] max-[25.5rem]:text-[1.5625rem] max-[23.5rem]:text-[1.5rem] max-[22.75rem]:text-[1.4375rem] max-[21.25rem]:text-[1.375rem] max-[20.5rem]:text-[1.3125rem] max-[19.75rem]:text-[1.25rem] max-[18.5rem]:text-[1.125rem] max-[17.25rem]:text-[1.0625rem] sm:[@media(min-height:30.0625rem)]:text-h1' : 'text-h2'} ${measure}`}>
+        <TitleText title={title} />
       </Heading>
       {byline ? (
         <p className="text-meta mt-3 font-mono text-graphite">{typeof byline === 'string' ? <Items items={byline} /> : byline}</p>
@@ -46,6 +60,24 @@ export function CaseStudyTitle({
       <hr className="mt-8 border-0 border-t border-rule" />
     </Row>
   )
+}
+
+/**
+ * A paper's title, in its phrases where it has them (content/papers.ts, TITLE_PHRASES): each an inline block, so the
+ * lines break between them, and inside one only where it is wider than the line. The page's h1 and the Contents' entry
+ * alike: the entry broke "cricket / predicts beyond / the scoreboard" where the page no longer did.
+ */
+export function TitleText({ title }: { title: string }) {
+  const phrases = TITLE_PHRASES[title]
+  if (!phrases) return <Whole text={title} />
+  return phrases.map((p, i) => (
+    <Fragment key={p}>
+      {i ? (phrases[i - 1]!.endsWith('-') ? <wbr /> : ' ') : null}
+      <span className="inline-block max-w-full">
+        <Whole text={p} />
+      </span>
+    </Fragment>
+  ))
 }
 
 /**
@@ -84,7 +116,7 @@ export function Section({
             tests/e2e/rail.spec.ts asserts no two rail items ever intersect. */}
         {/* The measure holds at every width, not only beside the rail: a tablet's column would otherwise run to 85
             characters a line. */}
-        <div className="min-w-0 max-w-(--measure) lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
+        <div className="min-w-0 max-w-(--measure) short:[&>p]:max-w-[40rem] lg:col-start-2 lg:row-start-1 lg:[&>div:first-child>aside]:mt-8 [&>p+p]:mt-[1.05em] [&>div+p]:mt-[1.05em] [&>p+div]:mt-[1.05em] [&>div+div]:mt-[1.05em]">
           {keepDashes(children)}
         </div>
       </div>
@@ -112,10 +144,13 @@ export function Meta({ rows }: { rows: readonly (readonly [string, ReactNode])[]
         <dl className="text-note grid grid-cols-1 gap-y-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-y-2 print:block">
           {rows.map(([k, v]) => (
             <div key={k} className="sm:contents print:mb-2 print:grid! print:grid-cols-[7.5rem_minmax(0,1fr)] print:break-inside-avoid">
-              <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5">{k}</dt>
+              <dt className="text-meta mb-0.5 font-mono text-graphite sm:mb-0 sm:pt-0.5 sm:pointer-coarse:[&:has(+dd_a)]:pt-[calc((44px-1.5*var(--text-note))/2+0.125rem)]">{k}</dt>
               {/* Its links take a little more room above and below than their line, so a finger has room; inline, so a
-                  long address still wraps at 360px. */}
-              <dd className="min-w-0 break-words font-mono [&_a]:py-1">{typeof v === 'string' ? <Items items={v} /> : v}</dd>
+                  long address still wraps at 360px. Under a finger each is a 44px line of its own (inline-block, so a
+                  wrapped list's lines stand 44px apart instead of covering each other; it still wraps, never wider
+                  than the column). Beside its label (from sm) that padding lowers the link's glyphs by half of 44px less
+                  its line, so the label of a row that holds a link comes down by as much. */}
+              <dd className="min-w-0 break-words font-mono [&_a]:py-1 pointer-coarse:[&_a]:inline-block pointer-coarse:[&_a]:max-w-full pointer-coarse:[&_a]:py-[calc((44px-1lh)/2)]">{typeof v === 'string' ? <Items items={v} /> : v}</dd>
             </div>
           ))}
         </dl>

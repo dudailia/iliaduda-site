@@ -25,7 +25,10 @@ export class Lean {
    * ms: the neutral settles by time, however often the sensor reports); x and y in −1…1.
    */
   read(beta: number | null, gamma: number | null, angle: number, time?: number): { x: number; y: number } {
-    if (beta == null || gamma == null || Math.abs(beta) > 80) return this.last
+    // Tipped past upright (beta near ±90), or, turned sideways, rolled toward upright about the long side (gamma near
+    // ±90: gimbal lock, where beta swings wildly for a small turn): the reading says nothing reliable; hold the last.
+    const a = ((Math.round(angle) % 360) + 360) % 360
+    if (beta == null || gamma == null || Math.abs(beta) > 80 || ((a === 90 || a === 270) && Math.abs(gamma) > 70)) return this.last
     if (this.b0 == null) {
       this.b0 = beta
       this.g0 = gamma

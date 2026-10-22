@@ -4,6 +4,7 @@ import { PROTOCOL } from '@/lib/market/protocol'
 import { FAN_RANGE, fanAt, LADDER, levelTone, PriceWindow, smoothedQueue, SPAN, WINDOW } from '@/lib/market/views'
 import { spring } from '@/lib/stage/spring'
 import type { Palette, RGB } from '@/components/stage/useStage'
+import { deviceRatio } from '@/lib/stage/dpr'
 
 /**
  * /market's two flat views, drawn on 2D canvases from the page's copy of the market (lib/market/mirror.ts), in the
@@ -44,7 +45,7 @@ function sizeOf(cv: HTMLCanvasElement) {
 /** A canvas sized to its box at the screen's own density, up to three device pixels a CSS pixel; true when its size changed. */
 function fit(cv: HTMLCanvasElement, box: { w: number; h: number }): boolean {
   const r = sizeOf(cv)
-  const dpr = Math.min(3, window.devicePixelRatio || 1)
+  const dpr = deviceRatio()
   const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr))
   box.w = r.width
   box.h = r.height

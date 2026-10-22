@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { FigureFrame, Readouts } from '@/components/FigureFrame'
 import { CONTROL, option } from '@/components/stage/controls'
 import { DebugSlot } from '@/components/stage/DebugSlot'
-import { DECLINED_TEXT, useFallback } from '@/components/stage/useFallback'
+import { DECLINED_TEXT, SLOW_TEXT, useFallback } from '@/components/stage/useFallback'
 import { saveData, supportsWebGL2 } from '@/components/stage/env'
 import { useRadios, type ChoiceBy } from '@/components/stage/radios'
 import { useLean } from '@/components/stage/useLean'
@@ -129,8 +129,14 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
       dispose: () => made?.dispose(),
     }
   }, [])
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create)
-  const sig = useSignature('membrane', box, seq, { start: 0.5, hold: 0.3 })
+  // The quality waits until the drum is let go, as the order book's does: a 30 Hz clock stepped it 2 to 0 mid-story.
+  const [stageOpts] = useState(() => ({ hold: () => seq.current.started && !seq.current.done }))
+  const { box, canvas, live, eligible, slow, reduced, fps, quality, tier } = useStage(create, stageOpts)
+  // At 0.3 held, a tall phone's first screen (35–43% of the stage at its foot) played the drum's rise under the fold while
+  // the reader was still on the title; at 0.6, the drum's foot (78px of it) was still under the fold as it rose, its key
+  // moment, and a Pixel held upright still rose that way, held 1.2s at 69%: held, it waits for 0.8. Of what the screen
+  // can show at once (a phone turned sideways holds less than the stage).
+  const sig = useSignature('membrane', box, seq, { start: 0.85, hold: 0.8, fit: true })
   useEffect(() => {
     sigRef.current = sig
     stageEl.current = box.current
@@ -187,15 +193,41 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         ? saveData()
           ? 'Still frame: your browser asks to save data.'
           : supportsWebGL2()
-            ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
+            ? slow
+                  ? SLOW_TEXT
+                  : 'Still frame: the live figure could not start here. Reloading the page may bring it.'
             : 'Still frame: this browser has no WebGL2.'
         : null
 
+  // Each clause whole ("f = 2 sin 2θ," then "g = 0"): at 360px the line broke inside the last, leaving "0" alone.
+  const clauses = (formula: string) =>
+    formula.split(', ').map((c, i, all) => (
+      <Fragment key={i}>
+        <span className="whitespace-nowrap">{i < all.length - 1 ? `${c},` : c}</span>
+        {i < all.length - 1 ? ' ' : null}
+      </Fragment>
+    ))
   const rows = [
-    { label: 'Initial shape', value: shape.formula },
+    // Every shape's formula laid in one cell, the others unseen, so the room is the longest one's: a press on
+    // "f = 3, then 1" wrapped it onto a third line and moved everything under the figure by 19px.
+    {
+      label: 'Initial shape',
+      // The row's whole width: in a third of it the longest formula took two lines, and laid under the one shown, it
+      // held this cell a line higher than its neighbours (the cells meet at their foot).
+      span: true,
+      value: (
+        <span className="grid">
+          {SHAPES.map((x) => (
+            <span key={x.id} aria-hidden={x.id !== shape.id || undefined} className={`[grid-area:1/1] ${x.id === shape.id ? '' : 'invisible'}`}>
+              {clauses(x.formula)}
+            </span>
+          ))}
+        </span>
+      ),
+    },
     { label: 'Modes kept', value: `${modes}, in Bessel J${e.order}` },
     { label: 'Energy, conserved', value: num(E, 3) },
-    { label: 'Error (L², relative)', value: `${(100 * err).toFixed(1)}%` },
+    { label: 'Error (L²,\u00a0relative)', value: `${(100 * err).toFixed(1)}%` },
     { label: 'Model time', value: <span data-membrane-time="">0.0</span> },
   ]
   const kind = shape.field === 'f' ? 'cos λt' : 'sin λt'
@@ -214,6 +246,13 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         </li>
       ))}
       {modes > 6 ? <li className="text-graphite">{`and ${modes - 6} more`}</li> : null}
+      {/* The list's room is its longest (six modes and the line for more), held as the slider runs: it grew 21px a step
+          under the reader's drag, and moved the caption and the page under it. */}
+      {Array.from({ length: 6 - Math.min(6, modes) + (modes > 6 ? 0 : 1) }, (_, i) => (
+        <li key={`room${i}`} aria-hidden className="invisible">
+          λ
+        </li>
+      ))}
     </ol>
   )
 
@@ -248,6 +287,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
       number="Fig. 1"
       title="A circular drum, ringing in the modes its shape is made of."
       subtitle={`Fourier–Bessel series · radius 1 · wave speed 1 · ${modes} mode${modes === 1 ? '' : 's'} · the exercises' shapes`}
+      // Room kept for its longest (two digits, the plural): at 1↔2 and 9↔10 modes the line wrapped and moved the slider
+      // under the reader's thumb.
+      subtitleRoom={`Fourier–Bessel series · radius 1 · wave speed 1 · ${MODES_MAX} modes · the exercises' shapes`}
       rail={
         <>
           {/* Under the figure on a phone, label over value in two columns, so a formula is not broken across lines
@@ -265,13 +307,18 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
       caption={caption}
       table={table}
     >
+      {/* Sideways on a phone the shapes, the modes and the buttons stand beside the drum, as the home figure's controls do:
+          under it, a shape and the drum it sets never shared a 343px screen. */}
+      {/* 17rem: in 15 the shapes wrapped to three rows and the column ran 391px down a 380px screen. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_17rem] short:items-start short:gap-x-6">
+      {/* Edge to edge on a phone, as the other Fig. 1s: inside the column the drum stood a third of the screen tall. */}
       <div
         ref={box}
         data-membrane-stage=""
         data-seq={sig.state}
         role="group"
         aria-label={`A circular drum, initial shape ${shape.formula}, in ${modes} modes`}
-        className="relative mx-auto aspect-[1000/620] w-full touch-pan-y sm:max-w-[calc(88svh*1000/620)]"
+        className="relative -mx-6 aspect-[1000/620] w-[calc(100%+3rem)] touch-manipulation sm:mx-auto sm:w-full sm:max-w-[calc(88svh*1000/620)] short:mx-auto short:w-full short:max-w-[calc(88svh*1000/620)]"
         onPointerMove={lean.onPointerMove}
         onPointerLeave={lean.onPointerLeave}
         onClick={lean.onTap}
@@ -282,7 +329,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
         <canvas ref={canvas} data-live-canvas="" className="absolute inset-0 h-full w-full" style={fade(live)} />
       </div>
 
-      <div data-membrane-controls="" className="mt-3 grid gap-y-3">
+      <div data-membrane-controls="" className="mt-3 grid gap-y-3 short:mt-0 short:gap-y-2 short:pointer-coarse:gap-y-3">
         {/* One choice of shape, in two groups: a radio group each, the arrow keys moving within it. */}
         {GROUPS.map((g) => {
           const ids = SHAPES.filter((x) => x.from === g.from)
@@ -291,7 +338,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
               <p id={`membrane-shapes-${g.from}`} className="text-meta font-mono text-graphite">
                 {g.label}
               </p>
-              <div role="radiogroup" aria-labelledby={`membrane-shapes-${g.from}`} className="mt-1 flex flex-wrap gap-2">
+              <div role="radiogroup" aria-labelledby={`membrane-shapes-${g.from}`} className="mt-1 flex flex-wrap gap-2 pointer-coarse:gap-y-3.5 short:pointer-coarse:gap-y-3">
                 {ids.map((x) => (
                   <button key={x.id} {...radio(x.id, ids.map((y) => y.id))} className={option(x.id === shapeId)}>
                     {x.label}
@@ -301,7 +348,9 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
             </div>
           )
         })}
-        <label className="block max-w-[28rem]">
+        {/* Sideways on a phone the buttons and the modes come first in the column, the shapes under them: last, Pause and
+            the slider sat below a 326–352px screen while the drum rang on it. The keys keep the reading order. */}
+        <label className="block max-w-[28rem] short:order-[-1]">
           <span className="text-meta font-mono text-graphite">
             Modes <span className="tabular text-ink">{modes}</span>
             <span className="ml-2">(the exercises: {MODES_EXERCISE})</span>
@@ -318,14 +367,14 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
               setModes(Number(ev.currentTarget.value))
               changedRef.current = true
             }}
-            className="mt-0.5 block h-6 w-full"
+            className="mt-0.5 block h-6 w-full pointer-coarse:-mb-2.5 pointer-coarse:mt-[calc(0.125rem-10px)] pointer-coarse:h-11"
             style={rangeFill(modes, 1, MODES_MAX)}
           />
         </label>
-        <div data-live-buttons="" className="flex min-h-8 gap-2">
+        <div data-live-buttons="" className="flex min-h-8 gap-2 short:order-[-2]">
           {live ? (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem]`} data-hold="">
+              <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem]`} data-hold="">
                 {paused ? 'Resume' : 'Pause'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>
@@ -334,6 +383,7 @@ export function MembraneLive({ poster, caption, table }: { poster: ReactNode; ca
             </>
           ) : null}
         </div>
+      </div>
       </div>
       <DebugSlot title="Membrane, Fig. 1" read={readDebug} />
     </FigureFrame>

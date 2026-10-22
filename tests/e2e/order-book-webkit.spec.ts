@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { errorsOf } from './hero-kit'
-import { storyEnds } from './story'
+import { storyOutcome } from './story'
 
 /**
  * /order-book in WebKit at an iPhone's size, touch and pixel ratio (the
@@ -27,7 +27,8 @@ test('goes live or says why, rises once, and leaves the page clean', async ({ pa
   await expect(figure).toHaveText(/^(live|declined: Still frame.*)$/, { timeout: 20_000 })
   // A 3.2s rise (lib/orderbook/sequence.ts, RISE_MS): 32 slow frames at most (tests/e2e/story.ts).
   if ((await figure.textContent()) === 'live')
-    expect(await storyEnds(page, STAGE, 60), `the story ends within 60 frames or 15s, whichever is longer`).toBe(true)
+    // It plays to its end, or the figure, crawling, gives way to its still frame and says so (CI's WebKit; a phone plays it).
+    expect(['done', 'gave way'], `the story ends within 60 frames or 15s, whichever is longer`).toContain(await storyOutcome(page, STAGE, 60))
   else await expect(page.locator('#fig-order-book').getByText(/Still frame/).first()).toBeVisible()
   const [sw, cw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
   expect(sw).toBeLessThanOrEqual(cw)

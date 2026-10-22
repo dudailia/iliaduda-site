@@ -27,6 +27,7 @@ export function FigureFrame({
   table,
   vt,
   railBelow = true,
+  railShort = true,
   inline = false,
   span = false,
   breakable = false,
@@ -50,6 +51,8 @@ export function FigureFrame({
   /** Repeat the rail under the figure on narrow screens. Off when the figure
    *  already shows its state inline where a phone reader needs it. */
   railBelow?: boolean
+  /** The rail under the figure on a phone turned sideways too; off where the figure sets it beside its stage there. */
+  railShort?: boolean
   /** Already inside the text column (an entry on /about, not a paper), so the
    *  narrow-screen arrangement holds at every width: number above, readouts
    *  below, nothing in a margin that belongs to someone else. */
@@ -108,7 +111,8 @@ export function FigureFrame({
             {children}
           </div>
           {/* On paper the readouts keep to the figure they read (a few lines; printed a sheet after it, they read nothing). */}
-          {rail && (railBelow || inline) ? <div className={`mt-5 print:break-before-avoid ${wide ? 'lg:hidden' : ''}`}>{rail}</div> : null}
+          {/* Not on a phone turned sideways where the figure sets its readouts beside its stage itself (railShort false). */}
+          {rail && (railBelow || inline) ? <div className={`mt-5 print:break-before-avoid ${wide ? 'lg:hidden' : ''} ${railShort ? '' : 'short:hidden'}`}>{rail}</div> : null}
           {/* A hint written as items (" · ") wraps between them, never inside one or before its dot. */}
           {hint ? <p className="text-meta mt-4 max-w-[36rem] font-mono text-graphite print:hidden">{typeof hint === 'string' ? <Items items={hint} /> : hint}</p> : null}
           <figcaption id={`${id}-caption`} className="text-note mt-4 max-w-[39.2rem] text-graphite">{keepDashes(caption)}</figcaption>
@@ -118,7 +122,10 @@ export function FigureFrame({
             order, so the keyboard and a screen reader meet the figure before what reads it. */}
         {rail && wide ? (
           <div className="text-meta hidden text-right font-mono text-graphite lg:col-start-1 lg:row-start-2 lg:block">
-            <div className="sticky top-6 mt-[4.75rem]">{rail}</div>
+            {/* Not sticky under a finger (an iPad turned sideways, whose stage fits its screen): opening the Greeks grew a
+                sticking rail past its column, which slid it up, and holding the summary under the finger meant
+                scrolling the whole page 194px. Here the rail grows down, and nothing moves. */}
+            <div className="sticky top-6 mt-[4.75rem] pointer-coarse:static">{rail}</div>
           </div>
         ) : null}
       </div>
@@ -147,17 +154,19 @@ export function Readouts({
   across = false,
 }: {
   /** `ch`: the longest the value can be, for one that changes while the figure runs (held still in the margin). */
-  rows: readonly { readonly label: string; readonly value: ReactNode; readonly ch?: number }[]
+  rows: readonly { readonly label: string; readonly value: ReactNode; readonly ch?: number; /** Across, the row's whole width. */ readonly span?: boolean }[]
   /** Label over value in a row of columns, for a figure with no margin to stack them in. */
   across?: boolean
 }) {
   if (across) {
     return (
       // On paper the readouts print together, a few lines, on one sheet: never split between two.
-      <dl className="text-meta grid grid-cols-2 gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4">
+      // One column on a page under 20.5rem (a large Android font size): two, a formula held whole ran into its neighbour.
+      // The cells of a row meet at their foot, so the values share a line where one label wraps to two.
+      <dl className="text-meta grid grid-cols-2 items-end gap-x-6 gap-y-3 border-t border-rule pt-3 font-mono max-[20.5rem]:grid-cols-1 sm:grid-cols-3 print:break-inside-avoid print:grid-cols-4">
         {rows.map((r) => (
-          <div key={r.label} className="min-w-0 break-inside-avoid">
-            <dt className="text-graphite">
+          <div key={r.label} className={`min-w-0 break-inside-avoid ${r.span ? 'col-span-full' : ''}`}>
+            <dt className="text-graphite text-balance">
               <Whole text={r.label} />
             </dt>
             <dd className="tabular text-ink">{r.value}</dd>
@@ -172,7 +181,7 @@ export function Readouts({
     <dl className="text-meta grid grid-cols-1 font-mono max-sm:[&_dd]:mb-1.5 sm:grid-cols-[auto_1fr] sm:gap-x-4 sm:gap-y-1 lg:grid-cols-1 lg:gap-y-px print:break-inside-avoid lg:[&_dd]:mb-2">
       {rows.map((r) => (
         <div key={r.label} className="contents">
-          <dt className="text-graphite">{r.label}</dt>
+          <dt className="text-graphite text-balance">{r.label}</dt>
           <dd className="tabular text-ink">{r.ch && typeof r.value === 'string' ? <Steady text={r.value} ch={r.ch} /> : r.value}</dd>
         </div>
       ))}

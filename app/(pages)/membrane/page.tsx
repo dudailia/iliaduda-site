@@ -94,16 +94,23 @@ export default function Membrane() {
 
         <Meta
           rows={[
-            ['Bessel functions', <a key="b" href={`${SRC}/lib/membrane/bessel.ts`}>lib/membrane/bessel.ts</a>],
+            ['Bessel\u00a0functions', <a key="b" href={`${SRC}/lib/membrane/bessel.ts`}>lib/membrane/bessel.ts</a>],
             ['the drum', <a key="e" href={`${SRC}/lib/membrane/expand.ts`}>lib/membrane/expand.ts</a>],
             [
               'tests',
               <span key="t">
-                <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/membrane-bessel.test.ts`}>tests/membrane-bessel.test.ts</a> ·{' '}
+                <span className="inline-block max-w-full"><a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/membrane-bessel.test.ts`}>tests/membrane-bessel.test.ts</a>{'\u00a0·'}</span>{' '}
                 <a className="inline-block max-w-full py-0.5 [overflow-wrap:anywhere]" href={`${SRC}/tests/membrane-expand.test.ts`}>tests/membrane-expand.test.ts</a>
               </span>,
             ],
-            ['renderer', <a key="r" href={`${SRC}/components/figures/membrane/renderer.ts`}>components/figures/membrane/renderer.ts</a>],
+            [
+              'renderer',
+              <a key="r" href={`${SRC}/components/figures/membrane/renderer.ts`}>
+                {/* The line may break after the last slash, never inside the file's name. */}
+                components/figures/membrane/<wbr />
+                <span className="whitespace-nowrap">renderer.ts</span>
+              </a>,
+            ],
             ['course', 'MATH 4992, directed study, Northeastern University, Spring 2026'],
           ]}
         />

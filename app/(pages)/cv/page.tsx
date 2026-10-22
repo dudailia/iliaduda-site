@@ -2,7 +2,7 @@ import { certifications, education, roles, SKILLS } from '@/content/experience'
 import { papers } from '@/content/papers'
 import { pageMeta } from '@/lib/meta'
 import { AVAILABILITY, CV_PHONE, PERSON, RESUME, SITE, rolesInWords } from '@/lib/site'
-import { Whole } from '@/components/Layout'
+import { TAP, Whole } from '@/components/Layout'
 
 export const metadata = pageMeta(
   '/cv',
@@ -68,7 +68,7 @@ export default function Cv() {
       <p className="text-meta mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-graphite print:hidden">
         <span>One page · prints to Letter or A4</span>
         {/* Opened, not downloaded: on a phone a download files it away unseen; the reader can save it from the viewer. */}
-        <a href={RESUME.pdf} className="inline-block py-2.5 text-ink">
+        <a href={RESUME.pdf} className={`inline-block py-2.5 ${TAP} text-ink`}>
           Open the PDF
         </a>
       </p>
@@ -124,9 +124,12 @@ export default function Cv() {
                     <strong>{r.org}</strong>
                     {/* The title is one item: it moves to the next line whole rather than breaking inside itself. Its dot
                         hangs in the gap before it (globals.css, .cv-title), so a wrapped head never ends on a dot. */}
+                    {/* On screen the note is one item too (globals.css, .cv-note): its last word no longer stays behind
+                        beside the title it was held to ("accounting / firms · Founder"). */}
+                    {/* The gap before the title is the note's own (its two no-break spaces inside the note's block): after the
+                        block, the line broke before them and the title started its line 12px in, its dot showing. */}
                     <span className="cv-muted">
-                      , {r.orgNote}
-                      {'\u00a0\u00a0 '}
+                      , <span className="cv-note">{`${r.orgNote}\u00a0\u00a0`}</span>{' '}
                     </span>
                     <span className="cv-title">{r.title}</span>
                   </p>
@@ -155,7 +158,7 @@ export default function Cv() {
                 </strong>
                 {p.live ? (
                   <>
-                    {' '}(<a href={p.live.href}>{p.live.label}</a>):
+                    {' '}(<a className="cv-live" href={p.live.href}>{p.live.label}</a>):
                   </>
                 ) : null}{' '}
                 {p.cv ? <Whole text={p.cv} /> : null}

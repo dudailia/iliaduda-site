@@ -60,6 +60,9 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
       number="Fig. 2"
       title="A profile from the exercises, against its Fourier–Bessel series."
       subtitle={`${p.formula} · in J${order} · ${terms} term${terms === 1 ? '' : 's'}`}
+      // Room kept for its longest (the step's formula, two digits, the plural): "f = 3, then 1" wrapped it onto a second
+      // line and moved the plot and its buttons under the reader's finger by 19px.
+      subtitleRoom={`${PROFILES.reduce((a, x) => (x.formula.length > a.length ? x.formula : a), '')} · in J1 · ${MODES_MAX} terms`}
       rail={
         <Readouts
           rows={[
@@ -73,8 +76,13 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
       hint="Pick a profile, the Bessel function to expand it in, and how many terms to keep."
       caption={caption}
     >
-      {/* Axis labels in HTML, at the site's label size whatever the figure's width. */}
-      <div className="relative">
+      {/* Sideways on a phone the profile, the function and the terms stand beside the plot, as the drum's controls do:
+          under it, they sat 500px down a 380px screen, and a profile was pressed with its curve out of view. */}
+      <div className="short:grid short:grid-cols-[minmax(0,1fr)_15rem] short:items-start short:gap-x-6">
+      <div className="min-w-0">
+      {/* Axis labels in HTML, at the site's label size whatever the figure's width. Sideways on a phone the plot is half
+          the screen tall (full width it was 83% of it, and its profile and terms never shared the screen with it). */}
+      <div className="relative short:mx-auto short:max-w-[calc(50svh*1000/420)]">
         <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-labelledby="fig-convergence-svg-title" aria-describedby="fig-convergence-svg-desc">
           <title id="fig-convergence-svg-title">{`${p.formula}, and its series in J${order} to ${terms} terms`}</title>
           <desc id="fig-convergence-svg-desc">{`The profile ${p.formula} on 0 to 1, with its Fourier–Bessel series in J${order} kept to ${terms} terms; the error in the mean is ${pct(model.err)} of the profile. Every term is zero at r = 1.`}</desc>
@@ -115,7 +123,8 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
           })}
         </div>
         <span className="text-meta absolute top-0 left-0 -translate-x-full -translate-y-1/2 pr-2 font-mono text-graphite tabular">10</span>
-        <span className="text-meta absolute bottom-0 left-0 -translate-x-full translate-y-1/2 pr-2 font-mono text-graphite tabular">
+        {/* At the bars' floor (their box is 4rem tall): set by the wrapper's foot, it sat 19px lower, on the term numbers. */}
+        <span className="text-meta absolute top-16 left-0 -translate-x-full -translate-y-1/2 pr-2 font-mono text-graphite tabular">
           10<sup>−4</sup>
         </span>
         <div className="text-meta flex font-mono text-graphite tabular">
@@ -129,16 +138,17 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
       <p aria-hidden className="text-meta mt-1 font-mono text-graphite">
         |coefficient| by term, log scale (the exercises&rsquo; two in indigo)
       </p>
+      </div>
 
-      <div className="mt-3 grid gap-y-3">
-        <div role="radiogroup" aria-label="Profile" className="flex flex-wrap gap-2">
+      <div className="mt-3 grid gap-y-3 short:mt-0">
+        <div role="radiogroup" aria-label="Profile" className="flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
           {PROFILES.map((x) => (
             <button key={x.id} {...profileRadio(x.id, pids)} className={option(x.id === pid)}>
               {x.label}
             </button>
           ))}
         </div>
-        <div role="radiogroup" aria-label="Expanded in" className="flex flex-wrap gap-2">
+        <div role="radiogroup" aria-label="Expanded in" className="flex flex-wrap gap-2 pointer-coarse:gap-y-3.5">
           {([0, 1] as const).map((n) => (
             <button key={n} {...orderRadio(n, [0, 1])} className={option(order === n)}>
               {`J${n}`}
@@ -157,10 +167,11 @@ export function ConvergenceLive({ caption }: { caption: ReactNode }) {
             value={terms}
             aria-valuetext={`${terms} terms`}
             onChange={(ev) => setTerms(Number(ev.currentTarget.value))}
-            className="mt-0.5 block h-6 w-full"
+            className="mt-0.5 block h-6 w-full pointer-coarse:-mb-2.5 pointer-coarse:mt-[calc(0.125rem-10px)] pointer-coarse:h-11"
             style={rangeFill(terms, 1, MODES_MAX)}
           />
         </label>
+      </div>
       </div>
     </FigureFrame>
   )

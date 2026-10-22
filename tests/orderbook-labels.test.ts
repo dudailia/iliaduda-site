@@ -17,8 +17,9 @@ const centre = sim.mids[head]!
 const specs = (narrow: boolean) => labelSpecs(sim, { centre, fracZ: 0, narrow, rows: HISTORY })
 
 describe('the label list', () => {
-  it('puts the price first, then now, then the two walls', () => {
-    for (const narrow of [false, true]) expect(specs(narrow).slice(0, 4).map((s) => s.id)).toEqual(['price', 't0', 'buyers', 'sellers'])
+  it('puts the price first; on a phone then now and the two walls, on a wider stage the walls before now', () => {
+    expect(specs(true).slice(0, 4).map((s) => s.id)).toEqual(['price', 't0', 'buyers', 'sellers'])
+    expect(specs(false).slice(0, 4).map((s) => s.id)).toEqual(['price', 'buyers', 'sellers', 't0'])
   })
 
   it('hangs the price tag from the river where it meets the front row, not from the floor below it', () => {

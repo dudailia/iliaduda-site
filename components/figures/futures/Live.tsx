@@ -20,6 +20,7 @@ import { Convergence, type Point } from './Convergence'
 import { Poster } from './Poster'
 import type { FuturesRenderer, Stats } from './renderer'
 import { rangeFill } from '@/components/stage/range'
+import { askTilt, tapUsed } from '@/components/stage/useLean'
 
 /**
  * Fig. 1, live. The page arrives with the poster — a real frame computed on
@@ -55,7 +56,7 @@ const dollars = (x: number) => `$${x.toFixed(2)}`
 
 type Mode = 'server' | 'cpu' | 'gpu'
 type Seq = 'off' | 'pending' | 'playing' | 'done'
-type Declined = 'software' | 'targets' | 'load' | 'error' | 'lost' | null
+type Declined = 'software' | 'targets' | 'load' | 'error' | 'lost' | 'slow' | null
 interface Shown {
   /** The option a live estimate is for (absent: the one on screen, as the server's and the CPU's are). */
   for?: { sigma: number; strike: number }
@@ -209,6 +210,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     }
   }, [])
 
+  // The story's end, let go after the frame it ended in (below).
+  const doneQueued = useRef(false)
   // The clocks move only on drawn frames: off screen, nothing is drawn, and
   // the sequence and the flight wait where they were.
   const onTick = useCallback(
@@ -220,10 +223,20 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       f.advance(dtMs)
       if (was && !f.flying) setFlying(false)
       if (armed.current && t.started) {
-        setSeqState(t.done ? 'done' : 'playing')
-        // The story is over: the mark that hid the poster for it goes, as the other figures' do, so a still frame
-        // later (a lost context) shows.
-        if (t.done) delete document.documentElement.dataset.futuresSeq
+        if (!t.done) setSeqState('playing')
+        else if (!doneQueued.current) {
+          // The story is over: the state, and the mark that hid the poster for it (so a still frame later, a lost
+          // context, shows), are let go after this frame, not inside it: in it, the figure's re-render and the root's
+          // style recalculation made one long frame (33–85ms on a mid-range phone) where the swing into depth begins.
+          doneQueued.current = true
+          setTimeout(() => {
+            setSeqState('done')
+            requestAnimationFrame(() => {
+              delete document.documentElement.dataset.futuresSeq
+              doneQueued.current = false
+            })
+          }, 0)
+        }
       }
     },
     [setSeqState],
@@ -257,7 +270,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
       // Whatever becomes of it — a failed load, a shader that will not link, a
       // renderer that throws — the reader is left with the finished picture,
       // never an empty frame waiting on a figure that will not come.
-      const fail = (why: 'targets' | 'load' | 'error') => {
+      const fail = (why: 'targets' | 'load' | 'error' | 'slow') => {
         if (gone || broken) return
         broken = true
         setDeclined(why)
@@ -298,10 +311,28 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           }
         })
         .catch(() => fail('load'))
+      // At its lightest and still under 13 frames a second for six seconds (a phone whose GPU cannot draw it, measured at
+      // 3–5), the figure gives way to its still frame, as it does where WebGL runs in software: a picture that crawls
+      // reads worse than the finished one, and costs the phone its battery. Judged on the frames' real intervals (the
+      // kit's dt stops at a tenth of a second), smoothed over half a second, so a jittery 11–13 fps counts too and one
+      // quick frame does not start the count again; back over 15 fps, it does.
+      let crawl = 0, lastT = -1, ema = 1 / 60
       const wrap: Renderer = {
         frame: (t, dt) => {
           if (broken) return null
           if (!real) return false
+          const raw = lastT >= 0 && t > lastT ? t - lastT : 1 / 60
+          lastT = t
+          // A gap over half a second is the loop starting again (off screen, a hidden tab, Pause), not a slow frame.
+          if (raw <= 0.5) {
+            ema += (raw - ema) * (1 - Math.exp(-raw / 0.5))
+            if (quality === 0 && ema > 1 / 13) crawl += raw
+            else if (ema < 1 / 15 || quality > 0) crawl = 0
+          }
+          if (crawl > 6) {
+            fail('slow')
+            return null
+          }
           try {
             return real.frame(t, dt)
           } catch {
@@ -345,7 +376,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     ...STAGE_OPTS,
     hold: () => seqRef.current === 'pending' || seqRef.current === 'playing' || ['settle', 'flight', 'return'].includes(labels.current?.dataset.camera ?? ''),
   }))
-  const { box, canvas, live, eligible, reduced, fps, quality, tier } = useStage(create, stageOpts)
+  const { box, canvas, live, eligible, slow, reduced, fps, quality, tier } = useStage(create, stageOpts)
 
   // One market, checked here: once the figure runs live, this browser builds the same seeded market in a worker
   // (lib/market/market.worker.ts, /market's own) to the moment the volatility is read at, and marks what it got
@@ -438,22 +469,30 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const go = () => {
       if (armed.current && !timeline.current.started) timeline.current.start()
     }
+    // Under a finger at once with "Today" on screen, where the paths set out, 54% down the stage: at a third the burst
+    // played with it just under the fold (a Pro Max sideways, scrolling); a third held 1.2s starts it too. A tablet
+    // turned sideways (globals.css, flat) waits for more, as the order book does: there the burst played at load with
+    // Today under the fold. A laptop keeps a third, or a fifth held: its first screen shows that much and plays it.
+    const flat = matchMedia('(min-width: 64rem) and (max-height: 45rem) and (pointer: coarse)').matches
+    const coarse = matchMedia('(pointer: coarse)').matches
+    // (0.68: at 0.55, exactly where Today stands, a reader scrolling at a reading pace saw it rise 1–9px over the edge.)
+    const start = flat ? 0.6 : coarse ? 0.68 : 0.35, hold = flat ? 0.45 : coarse ? 0.45 : 0.2
     const io = new IntersectionObserver(
       (es) => {
         // The latest entry: one element is watched, and a batch can hold several of its crossings, the first stale.
         const e = es[es.length - 1]
         const seen = e?.isIntersecting ? e.intersectionRatio : 0
-        if (seen >= 0.35 || seen < 0.2) {
+        if (seen >= start || seen < hold) {
           clearTimeout(wait)
           wait = 0
-          if (seen >= 0.35) go()
+          if (seen >= start) go()
         } else if (!wait)
           wait = window.setTimeout(() => {
             wait = 0
             go()
           }, 1200)
       },
-      { threshold: [0, 0.2, 0.35] },
+      { threshold: [0, hold, start] },
     )
     io.observe(el)
     return () => {
@@ -612,6 +651,14 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     return p == null ? null : Math.round(Math.min(MODEL.strikeMax, Math.max(MODEL.strikeMin, p)))
   }
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
+    // A second finger (a pinch) gives back what the first one's drag moved and ends it, as the sliders do: a pinch
+    // that began with a sideways drift left the volatility changed.
+    const held = drag.current
+    if (held?.touch && e.pointerType === 'touch') {
+      drag.current = null
+      if (held.moved) commit(held.s, strike)
+      return
+    }
     if (!live || drag.current || playing()) return
     // Touching the figure mid-flight brings the camera home instead.
     if (flight.current.flying) return stopFlight()
@@ -630,9 +677,10 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const d = drag.current
     if (d && d.id === e.pointerId) {
       const dx = e.clientX - d.x
-      // A finger's drag is a drag only when it is plainly sideways: a thumb scrolling past the figure, a little off
-      // vertical, is a scroll, and moves nothing.
-      if (d.touch ? Math.abs(dx) > 10 && Math.abs(dx) > 1.5 * Math.abs(e.clientY - d.y) : Math.abs(dx) > 4) d.moved = true
+      // A finger's drag is a drag once it goes more sideways than up or down: the stage is pan-y, so the browser has
+      // already taken a swipe that started more vertical (a scroll), and one between 34° and 45° (more than 1.5 to 1
+      // was asked) moved neither the page nor the figure.
+      if (d.touch ? Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(e.clientY - d.y) : Math.abs(dx) > 4) d.moved = true
       if (!d.moved) return
       const w = e.currentTarget.getBoundingClientRect().width
       const s = Math.round(Math.min(MODEL.sigmaMax, Math.max(MODEL.sigmaMin, d.s + (dx / w) * 0.9)) * 100) / 100
@@ -643,9 +691,11 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
     drag.current = null
-    if (d.moved) return
+    // A tap sets the strike; a swipe that was neither a drag nor a scroll (a diagonal the browser kept) sets nothing.
+    if (d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return
     const k = kAt(e.clientX, e.clientY)
     renderer.current?.preview(null)
+    if (k != null) tapUsed()
     if (k != null && k !== strike) commit(sigma, k, true)
   }
   // A cancelled pointer (the page took the gesture: a scroll, a pinch) sets nothing: what its first moves changed goes
@@ -654,23 +704,19 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     const d = drag.current
     if (d?.id !== e.pointerId) return
     drag.current = null
-    if (d.moved && d.s !== sigma) commit(d.s, strike)
+    // Not compared with `sigma`: the last move's commit may not have rendered yet when the page takes the gesture (a
+    // pinch's second finger), and the stale value said nothing had changed.
+    if (d.moved) commit(d.s, strike)
   }
   const onLeave = () => {
     renderer.current?.preview(null)
     if (leanFrom.current === 'pointer') lean.current = { x: 0, y: 0 }
   }
-  // iOS asks before a page may read the tilt, and only from a tap: the first tap on the figure asks.
+  // iOS asks before a page may read the tilt, and only from a tap: the first tap on the figure asks, unless the visit
+  // has answered already (a refusal on /market asked again here).
   const onTap = () => {
-    if (permission !== 'unasked' || !live || reduced || !window.matchMedia('(pointer: coarse)').matches) return
-    const D = (typeof DeviceOrientationEvent === 'undefined' ? undefined : DeviceOrientationEvent) as
-      | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<'granted' | 'denied'> })
-      | undefined
-    if (typeof D?.requestPermission !== 'function') return
-    setPermission('denied')
-    D.requestPermission()
-      .then((r) => setPermission(r === 'granted' ? 'granted' : 'denied'))
-      .catch(() => setPermission('denied'))
+    if (permission !== 'unasked' || !live || reduced) return
+    askTilt(setPermission)
   }
 
   // Drawn whenever the live figure is not: from the table's numbers, which always match its inputs, again on a resize
@@ -768,6 +814,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           ? 'Still frame: this browser cannot render to a target the live figure needs.'
           : declined === 'lost'
             ? 'Still frame: the graphics context was lost.'
+            : declined === 'slow' || slow
+              ? 'Still frame: this device could not draw the live figure smoothly.'
             : declined === 'load' || declined === 'error'
               ? 'Still frame: the live figure could not start here. Reloading the page may bring it.'
               : !eligible
@@ -824,7 +872,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
     <div className="text-meta font-mono lg:text-right">
       {/* The price, then the machine: two groups, one hairline apart. */}
       <dl className="grid grid-cols-1 gap-y-px [&_dd]:mb-2">
-        <dt className="text-graphite">Simulated price ± 2 SE</dt>
+        <dt className="text-graphite">Simulated price ± 2&nbsp;SE</dt>
         <dd className="tabular text-indigo" data-mc-price={priced ? shown.mean : ''} data-mc-se={priced ? shown.se : ''}>
           <Steady text={mc} ch={16} />
         </dd>
@@ -832,7 +880,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         <dd className="tabular text-ink" data-bs-price={exact}>
           {exact.toFixed(4)}
         </dd>
-        <dt className="text-graphite">Gap to the formula</dt>
+        <dt className="text-graphite">Gap to the&nbsp;formula</dt>
         <dd className="tabular text-ink">
           <Steady text={gapText} ch={12} />
         </dd>
@@ -886,7 +934,8 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         id="fig-futures"
         number="Fig. 1"
         className="mt-10 mb-12 lg:mt-6 lg:mb-16"
-        title={`Every line is one possible year for a $${MODEL.s0} stock; together they price a call.`}
+        // "a $100 stock" whole: a phone set "for a / $100 stock" and "$100 / stock".
+        title={`Every line is one possible year for a\u00a0$${MODEL.s0}\u00a0stock; together they price a call.`}
         subtitle={`Simulated · geometric Brownian motion · σ\u00a0${pct(sigma)}${sigma === MODEL.sigma ? ', the simulated market’s realized\u00a0vol' : ''} · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         subtitleRoom={`Simulated · geometric Brownian motion · σ\u00a0${pct(MODEL.sigma)}, the simulated market’s realized\u00a0vol · r ${pct(MODEL.r)} · ${MODEL.steps} steps · not market data`}
         rail={rail}
@@ -915,6 +964,12 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
         }
         table={tableView}
       >
+        {/* A phone turned sideways sets the controls and the readouts beside the stage, not under it: one above the other
+            they ran 581–604px on a 326–352px screen, and a slider moved the stage out of sight. */}
+        <div className="short:grid short:grid-cols-[minmax(0,1fr)_13.5rem] short:items-start short:gap-x-6">
+        <div>
+        {/* On a tablet turned sideways (flat) the stage is 404px, not 480: under the masthead only a quarter of it was on
+            the first screen, and the burst played with "Today" under the fold. */}
         <div
           ref={box}
           data-sigma-server={MODEL.sigma}
@@ -922,7 +977,7 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           data-fps={fps}
           data-quality={quality}
           data-tier={tier ?? ''}
-          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
+          className={`relative -mx-6 h-[clamp(26rem,70svh,38rem)] overflow-hidden low:h-[clamp(21rem,62svh,26rem)] sm:mx-0 sm:h-[clamp(min(28rem,88svh),62svh,38rem)] short:mx-0 short:h-[clamp(min(28rem,88svh),62svh,38rem)] lg:h-[clamp(30rem,64svh,40rem)] flat:h-[clamp(24rem,60svh,30rem)] ${live ? 'cursor-crosshair touch-pan-y touch-pinch-zoom select-none' : ''}`}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -961,32 +1016,11 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
           </span>
         </p>
 
-        {/* A phone gets the margin's numbers too, in pairs: the estimate against the formula, how far apart they are
-            and on how many paths (what the caption says the readouts show), and the machine. */}
-        <dl className="text-meta mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono lg:hidden">
-          <div className="min-w-0">
-            <dt className="text-graphite">Simulated ± 2 SE</dt>
-            <dd className="tabular text-indigo">{mc}</dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-graphite">Black–Scholes</dt>
-            <dd className="tabular text-ink">{exact.toFixed(4)}</dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-graphite">Gap to the formula</dt>
-            <dd className="tabular text-ink">{gapText}</dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
-            <dd className="tabular text-ink">{paths}</dd>
-          </div>
-          <div className="col-span-2 min-w-0">
-            <dt className="text-graphite">{speedLabel}</dt>
-            <dd className="tabular text-ink">{speed}</dd>
-          </div>
-        </dl>
-
-        <div className="mt-4 grid grid-cols-2 gap-x-6">
+        </div>
+        <div>
+        {/* One above the other on a phone, each the column's width: side by side each had ~145px of travel for 75 and 100
+            steps, and a lifting thumb moved them a step or three. */}
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 pointer-coarse:gap-y-3 sm:grid-cols-2 sm:gap-y-0 short:mt-0 short:grid-cols-1 short:gap-y-2 short:pointer-coarse:gap-y-3">
           <label className="block">
             <span className="text-meta font-mono text-graphite">
               Volatility{' '}
@@ -1031,13 +1065,16 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
             where it never will (reduced motion, no WebGL2), the pre-paint script collapses it. */}
         {/* On a 360px phone the four buttons at full padding took a second line when Reset came, moving the caption 40px
             under the reader's thumb: there they close up (8px padding, 6px gaps), and the row keeps its one line. */}
-        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2 pointer-coarse:gap-y-3.5">
+        {/* Sideways, in the 13.5rem column beside the stage, Replay takes a second row: its room is kept from the start
+            (two rows, and Reset fits on the second), so the readouts under it never move as the figure goes live (46px
+            on a Pro Max). The still frame keeps none (globals.css). */}
+        <div data-futures-controls="" className="mt-3 flex min-h-8 flex-wrap gap-2 max-sm:gap-1.5 max-sm:[&>button]:px-2 pointer-coarse:gap-y-3.5 short:min-h-[4.5rem] short:pointer-coarse:min-h-[4.875rem]">
           {live && (
             <>
-              <button type="button" onClick={togglePause} className={`${CONTROL} min-w-[4.5rem] max-sm:min-w-[4.125rem]`}>
+              <button type="button" onClick={togglePause} className={`${CONTROL} [--min:4.5rem] max-sm:[--min:4.125rem]`}>
                 {paused ? 'Resume' : 'Pause'}
               </button>
-              <button type="button" onClick={toggleFlight} className={`${CONTROL} min-w-[6.75rem] max-sm:min-w-[6.5rem]`}>
+              <button type="button" onClick={toggleFlight} className={`${CONTROL} [--min:6.75rem] max-sm:[--min:6.5rem]`}>
                 {flying ? 'Stop' : 'Fly through'}
               </button>
               <button type="button" data-replay="" onClick={replay} className={CONTROL}>
@@ -1059,6 +1096,34 @@ export function FuturesLive({ initial, market }: { initial: PosterFrame; market:
               Reset
             </button>
           )}
+        </div>
+        {/* A phone gets the margin's numbers too, in pairs: the estimate against the formula, how far apart they are
+            and on how many paths (what the caption says the readouts show), and the machine. Under the controls, so a
+            slider and the stage it moves share a phone's screen (between them they ran 733–794px). */}
+        <dl className="text-meta mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-rule pt-3 font-mono short:grid-cols-1 lg:hidden">
+          <div className="min-w-0">
+            <dt className="text-graphite">Simulated ± 2&nbsp;SE</dt>
+            <dd className="tabular text-indigo">{mc}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">Black–Scholes</dt>
+            <dd className="tabular text-ink">{exact.toFixed(4)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">Gap to the&nbsp;formula</dt>
+            <dd className="tabular text-ink">{gapText}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-graphite">{shown.mode === 'gpu' && shown.done ? 'Paths · complete' : 'Paths simulated'}</dt>
+            <dd className="tabular text-ink">{paths}</dd>
+          </div>
+          <div className="col-span-2 min-w-0 short:col-span-1">
+            <dt className="text-graphite">{speedLabel}</dt>
+            <dd className="tabular text-ink">{speed}</dd>
+          </div>
+        </dl>
+
+        </div>
         </div>
         <p className="sr-only" aria-live="polite">
           {spoken}

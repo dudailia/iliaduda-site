@@ -60,12 +60,33 @@ const person = {
   sameAs: [PERSON.linkedin, PERSON.github],
 }
 
+/**
+ * A phone turned keeps the reader's place: the first block of text (or heading, or figure) that starts on the screen
+ * stands as far down the new screen as it stood down the old one, and never below its foot (the first that only ends on
+ * it, a tall list item, reflowed around the reader's lines and lost them 100–260px; at its old pixel offset, 615px
+ * down a phone held upright, a readout put the order book's whole figure under a 343px screen). A figure across the
+ * screen's top, a quarter of the screen or more of it showing, is itself the place: the reader is in it, as far in as
+ * they were (a readout under its stage was taken for the place, and the turn left the stage off the screen). Nothing
+ * inside a figure is the place but the figure: its readouts move into the margin on an iPad turned sideways, and the
+ * paragraph after it went 423px up with them. The figure whose stage is most on the screen (half of it or more) keeps
+ * that stage whole where the new screen can hold it, with the buttons under it where they fit too, moved no further than
+ * that: at once where the stage held the reader's eye (two fifths of the screen, or nearly all of it and a quarter of
+ * the screen: the cricket chart on an iPad held upright), else only if the place stays on the screen (kept at its fraction, a Pro Max turned sideways cut 6–15% of the
+ * stage off the screen's foot and /market's controls with it). The page turns scroll anchoring off (globals.css: WebKit's anchoring scrolled the page under a finger
+ * working a figure), and without it a turn kept only the pixel offset: the paragraph being read landed 600–1,090px
+ * above the screen as the text reflowed shorter. Put back at once, and again a frame later, once the figures have
+ * taken their new sizes. And a touch listener that does nothing: iOS Safari applies :active only under one, and no
+ * link or control showed its press under a finger.
+ */
+const KEEP_PLACE = `(function(){var a=null,w=innerWidth,t=0,S='p,li,dt,h1,h2,h3,figure';function stage(el,fr){var b=el.querySelector('[data-market-views]'),ba=0;if(!b){var c=el.querySelectorAll('canvas,svg,img,video');for(var i=0;i<c.length;i++){var q=c[i].getBoundingClientRect(),z=q.width*q.height;if(z>ba&&q.width>=fr.width*.6){ba=z;b=c[i]}}}return b}function watched(h){var fs=document.querySelectorAll('main figure'),best=null,bv=0;for(var i=0;i<fs.length;i++){var fr=fs[i].getBoundingClientRect();if(fr.bottom<0||fr.top>h)continue;var g=stage(fs[i],fr);if(!g)continue;var r=g.getBoundingClientRect();if(!r.height)continue;var v=Math.min(r.bottom,h)-Math.max(r.top,0);if(v/r.height>=.5&&v>bv){bv=v;best={g:g,f:fs[i],m:v/h>=.4||(v/r.height>=.9&&v/h>=.25)}}}return best}function pick(){t=0;a=null;if(scrollY<1)return;var h=innerHeight;a=find(h);if(a)a.w=watched(h)}function find(h){var e=document.querySelectorAll(S),f=null;for(var i=0;i<e.length;i++){var r=e[i].getBoundingClientRect();if(!r.height)continue;var fig=e[i].tagName==='FIGURE';if(!fig&&e[i].closest('figure'))continue;if(fig&&r.top<0&&r.bottom>h/4){return {el:e[i],f:-r.top/r.height}}if(r.top>=0){return {el:e[i],s:r.top/h}}if(!f&&r.bottom>0)f={el:e[i],s:r.top/h}}return f}function back(k){var r=k.el.getBoundingClientRect(),h=innerHeight,y=k.f!=null?-k.f*r.height:Math.min(k.s*h,h-Math.min(r.height,h));var d=r.top-y;if(k.w){var q=k.w.g.getBoundingClientRect(),lo=q.bottom,bs=k.w.f.querySelectorAll('button');for(var i=0;i<bs.length;i++){var p=bs[i].getBoundingClientRect();if(p.height&&p.top>=q.top&&p.bottom-q.top<=h-16)lo=Math.max(lo,p.bottom)}if(q.height&&q.height<=h-16){var fit=function(b){var n=d;if(b-n>h-8)n=b-(h-8);if(q.top-n<8)n=q.top-8;return n},ok=function(n){return k.w.m||k.el===k.w.f||(r.top-n>=0&&r.top-n<=h-24)},n1=fit(lo),n2=fit(q.bottom);d=ok(n1)?n1:ok(n2)?n2:d}}if(Math.abs(d)>1)scrollBy(0,d)}addEventListener('scroll',function(){if(!t)t=requestAnimationFrame(pick)},{passive:true});addEventListener('touchstart',function(){},{passive:true});addEventListener('resize',function(){if(innerWidth===w)return;w=innerWidth;var k=a;if(!k)return;back(k);requestAnimationFrame(function(){back(k);requestAnimationFrame(function(){back(k);a=k})})})})()`
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${sourceSerif.variable} ${sourceCodePro.variable}`}>
       {/* The site's address for print: a printed link carries its full target (globals.css, print). */}
       <body style={{ ['--print-origin' as string]: JSON.stringify(SITE.public.replace(/^https?:\/\//, '')) }}>
         <SkipLink />
+        <script dangerouslySetInnerHTML={{ __html: KEEP_PLACE }} />
         {children}
         <Footer />
         <script

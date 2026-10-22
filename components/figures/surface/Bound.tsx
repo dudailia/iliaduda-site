@@ -75,7 +75,8 @@ export function BoundLive({ caption, table, description }: { caption: ReactNode;
         />
       }
     >
-      <div className="relative h-56" role="img" aria-label={description}>
+      {/* Sideways on a phone 176px: at 224 the chart and its slider ran past a 326–360px screen. */}
+      <div className="relative h-56 short:h-44" role="img" aria-label={description}>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-hidden" aria-hidden>
           {GRID.map((v) => (
             <line key={v} x1={0} x2={100} y1={y(v)} y2={y(v)} stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />

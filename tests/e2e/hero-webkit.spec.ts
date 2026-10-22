@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { STAGE, errorsOf, goLive, seq } from './hero-kit'
-import { storyEnds } from './story'
+import { storyOutcome } from './story'
 
 /**
  * The home figure in WebKit at an iPhone's size, touch and pixel ratio (the
@@ -19,9 +19,10 @@ test('goes live or says why, plays its sequence, and leaves the page clean', asy
   if (live) {
     await expect(figure).toHaveText('live')
     await expect(page.locator(`${STAGE} [data-density]`)).toHaveAttribute('data-density', /^rgba(16f|8)$/)
-    // A 3.6s story: 36 slow frames at most (tests/e2e/story.ts).
-    const ended = await storyEnds(page, STAGE, 60)
-    expect(ended, `the story ends within 60 frames or 15s, whichever is longer (now ${await seq(page)})`).toBe(true)
+    // A 3.6s story: 36 slow frames at most (tests/e2e/story.ts). It plays to its end, or the figure, crawling, gives
+    // way to its still frame and says so (CI's WebKit; a phone plays it).
+    const outcome = await storyOutcome(page, STAGE, 60)
+    expect(['done', 'gave way'], `the story ends within 60 frames or 15s, whichever is longer (now ${await seq(page)})`).toContain(outcome)
   } else {
     await expect(figure).toHaveText(/^declined: Still frame/)
     await expect(page.getByText(/^Still frame/)).toBeVisible()

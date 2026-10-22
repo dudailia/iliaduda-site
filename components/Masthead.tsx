@@ -29,10 +29,19 @@ export function ContactLinks({ className = '' }: { className?: string }) {
     <ul role="list" className={`flex flex-wrap gap-x-5 gap-y-0 ${className}`}>
       {contactLinks().map((l) => (
         <li key={l.href}>
-          {/* The padding is the tap target, not the look: 36px tall at the
-              meta size without moving a single glyph. */}
-          <a href={l.href} className="inline-block max-w-full min-w-6 py-2 text-center leading-5 [overflow-wrap:anywhere]">
-            {l.label}
+          {/* The padding is the tap target, not the look: 36px tall at the meta size without moving a single glyph, and
+              44px under a finger (its 20px line and 12px above and below). */}
+          <a href={l.href} className="inline-block max-w-full min-w-6 py-2 text-left leading-5 [overflow-wrap:anywhere] pointer-coarse:py-3">
+            {/* An address breaks after its @ where the column is narrower than it (320px and less): not mid-domain. */}
+            {l.label.includes('@') ? (
+              <>
+                {l.label.slice(0, l.label.indexOf('@') + 1)}
+                <wbr />
+                {l.label.slice(l.label.indexOf('@') + 1)}
+              </>
+            ) : (
+              l.label
+            )}
             {/* On paper a profile link says where it goes, as the site's own links do. */}
             {l.href.startsWith('http') ? <span className="hidden text-graphite print:inline"> ({l.href.replace(/^https?:\/\/(www\.)?/, '')})</span> : null}
           </a>
@@ -56,16 +65,24 @@ export function Masthead() {
   ] as const
 
   return (
-    <header className="pt-8 sm:pt-14 lg:pt-12 [@media(max-height:30rem)]:pt-6">
+    <header className="pt-8 max-[20.5rem]:pt-4 sm:pt-14 lg:pt-12 [@media(max-height:30rem)]:pt-4 [@media(max-height:20rem)]:pt-2 low:pt-4 flat:pt-4">
       <Row>
-        <h1 className="text-h1 lg:text-display">{PERSON.name}</h1>
+        {/* Under 21rem tall (a phone turned sideways at a large font size, or an iPhone SE's 326px) a step smaller, so the
+            contact links reach the first screen: at 130% they stood 55px under it. */}
+        <h1 className="text-h1 max-[20.5rem]:text-h2 lg:text-display flat:text-h1 [@media(max-height:21rem)]:text-h2">{PERSON.name}</h1>
         {/* The full measure at lg: three lines instead of four, so the front matter and Fig. 1 share a laptop's first screen;
             on a short screen (a phone turned sideways) too, so the contact links are on its first. */}
         {/* Wrapped, not balanced: pretty shortened its last lines into a notch on the first screen. */}
-        <p className="mt-4 max-w-[36rem] [text-wrap:wrap] lg:max-w-none [@media(max-height:30rem)]:max-w-none">{POSITIONING}</p>
+        {/* On a screen under 600px tall (an iPhone SE) the line is set at the note size and the head closes up, so every
+            contact link is on the first screen (at 17px only "CV (PDF)" was, across the fold). The SE turned sideways
+            too (326px tall): at 19px the line took six lines and Contact began under the screen. A phone turned sideways
+            sets it at the papers' sideways measure (40rem, ~70 characters; the full measure ran 77). */}
+        {/* Under 20.5rem wide (a 115–130% font size) at the note size, and the head closer, so the contact links stay on
+            the first screen: at 130% only "CV (PDF)" was. */}
+        <p className="mt-4 max-w-[36rem] [text-wrap:wrap] max-[20.5rem]:text-note max-[20.5rem]:mt-3 lg:max-w-none [@media(max-height:30rem)]:max-w-[40rem] low:text-note low:mt-3 short:mt-3 flat:mt-3 [@media(max-height:21rem)]:text-note [@media(max-height:20rem)]:mt-2">{POSITIONING}</p>
       </Row>
 
-      <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-rule pt-5 lg:mt-6 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
+      <dl className="mt-6 grid grid-cols-[5.25rem_minmax(0,1fr)] max-[20.5rem]:grid-cols-1 max-[20.5rem]:mt-4 max-[20.5rem]:pt-3 gap-x-4 gap-y-2 max-[20.5rem]:gap-y-1 [@media(max-height:20rem)]:gap-y-1 border-t border-rule pt-5 low:mt-4 low:pt-3 short:mt-4 short:pt-3 [@media(max-height:20rem)]:mt-2 [@media(max-height:20rem)]:pt-1 lg:mt-6 flat:mt-3 flat:pt-3 lg:grid-cols-[var(--rail)_minmax(0,var(--measure))] lg:gap-x-(--gutter)">
         {/* Contact second, under Seeking: what a recruiter acts on, on a phone's first screen under the positioning line. */}
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
@@ -74,9 +91,10 @@ export function Masthead() {
             {k === 'Seeking' ? (
               <>
                 <dt className="text-meta pt-0.5 font-mono text-graphite lg:text-right">Contact</dt>
-                {/* -my-2 takes back the links' own py-2 above and below: the row sits on its label's line, and keeps
-                    its tap height. */}
-                <dd className="text-note min-w-0 -my-2">
+                {/* -my-2 takes back the links' own py-2 above and below: the row sits on its label's line. Under a
+                    finger only above (-mt-3 their py-3): stacked 44px apart, three lines of links read as three loose
+                    rows when Roles came as close under them as they stand to each other, so their last 12px is kept. */}
+                <dd className="text-note min-w-0 -my-2 pointer-coarse:-mt-3 pointer-coarse:mb-0">
                   <ContactLinks />
                 </dd>
               </>

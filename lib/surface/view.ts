@@ -302,6 +302,8 @@ export interface Label {
   readonly kind: 'tick' | 'title'
   /** Drawn in one framing only; the phone frame keeps fewer, shorter labels. */
   readonly only?: FrameKind
+  /** A shorter form, the start of `text`, taken where the whole would give way to a note (a phone turned sideways). */
+  readonly short?: string
 }
 
 // On a phone the strike and expiry ticks would meet at the front-right corner, so its last strike tick stops at 115%;
@@ -312,10 +314,17 @@ const TALL_EXPIRIES = new Set<string>(['1M', '6M', '2Y'])
 // title, and a 20% one sits on the surface's own back edge.
 const TALL_VOLS = new Set<number>([0.6])
 
+/**
+ * The ticks a narrow wide frame keeps (the phone's own set): under about 28rem the wide set's other ticks crowded each
+ * other ("1M3M", "130%2Y"); under 23rem none was left, and the surface carried no scale (globals.css, data-keep).
+ */
+export const SPARSE_TICKS = new Set<string>([...[...TALL_STRIKES].map((K) => `k${K}`), ...[...TALL_EXPIRIES].map((s) => `t${s}`), ...[...TALL_VOLS].map((v) => `v${v}`)])
+
 export const LABELS: readonly Label[] = [
-  // Every strike tick is drawn; the 85% one goes unlabelled, where the axis title needs the room.
+  // Every strike tick is drawn; the 85% one goes unlabelled, where the axis title needs the room. Clear of the tick's
+  // end (it runs to ZW + 0.05): at ZW + 0.12 the mark ran through "70%" and "115%" seen from a phone's height.
   ...STRIKE_TICKS.filter((K) => K !== 0.85).map((K): Label => ({
-    id: `k${K}`, text: `${Math.round(K * 100)}%`, at: [wx(Math.log(K)), 0, ZW + 0.12], align: 'center', kind: 'tick',
+    id: `k${K}`, text: `${Math.round(K * 100)}%`, at: [wx(Math.log(K)), 0, ZW + 0.17], align: 'center', kind: 'tick',
     ...(TALL_STRIKES.has(K) ? {} : { only: 'wide' as const }),
   })),
   // From the slab's left corner, reading right, as the phone's: centred on the strikes it ran past the frame's edge on
@@ -336,7 +345,7 @@ export const LABELS: readonly Label[] = [
   ...VOL_TICKS.filter((v) => TALL_VOLS.has(v)).map((v): Label => ({
     id: `vs${v}`, text: `${Math.round(v * 100)}%`, at: [POST[0] - 0.05, wy(v), POST[1]], align: 'right', kind: 'tick', only: 'tall',
   })),
-  { id: 'vt', text: 'implied volatility', at: [POST[0] - 0.04, wy(1) + 0.08, POST[1]], align: 'right', kind: 'title', only: 'wide' },
+  { id: 'vt', text: 'implied volatility', short: 'implied vol', at: [POST[0] - 0.04, wy(1) + 0.08, POST[1]], align: 'right', kind: 'title', only: 'wide' },
   // Ending at the post, so on a phone's narrow frame it never runs past the right edge.
   { id: 'vts', text: 'implied vol', at: [POST[0] - 0.04, wy(1) + 0.08, POST[1]], align: 'right', kind: 'title', only: 'tall' },
 ]

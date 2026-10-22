@@ -68,7 +68,7 @@ export function SettlementLive({
       <>
         {/* In the plot it ran off its left edge and over the lowest payment's label. */}
         {h && before ? (
-          <p aria-hidden {...(shown ? { 'data-hidden-term-line': '' } : {})} className="text-meta mt-1 font-mono text-ink sm:hidden">
+          <p aria-hidden {...(shown ? { 'data-hidden-term-line': '' } : {})} className="text-meta mt-1 font-mono text-ink sm:hidden short:block">
             {`Hollow: ${h.months} months at ${rub(h.s.monthly)}, more a month than ${before.months} months at ${rub(before.s.monthly)}.`}
           </p>
         ) : null}
@@ -82,7 +82,7 @@ export function SettlementLive({
                 {hidden ? (
                   <>
                     {`; ${hidden} hidden (hollow`}
-                    <span className="hidden sm:inline">{hidden > 1 ? ', the first magnified in the corner' : ', magnified in the corner'}</span>
+                    <span className="hidden sm:inline short:hidden">{hidden > 1 ? ', the first magnified in the corner' : ', magnified in the corner'}</span>
                     {'): at a step in the discount ladder a longer term would cost more a month'}
                   </>
                 ) : null}
@@ -329,12 +329,14 @@ export function SettlementLive({
               <span className="text-meta font-mono text-graphite">Can pay per month, ₽</span>
               <input
                 inputMode="numeric"
+                enterKeyHint="done"
+                autoComplete="off"
                 value={typed}
                 onChange={(e) => onTyped(e.currentTarget.value)}
                 placeholder="e.g. 4000"
                 aria-invalid={typedNote.invalid || undefined}
                 aria-describedby="settlement-typed"
-                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite aria-invalid:border-ink aria-invalid:shadow-[inset_0_0_0_1px_var(--color-ink)] pointer-coarse:text-small"
+                className="text-note tabular mt-1 w-full rounded-sm border border-graphite bg-paper px-2 py-1.5 text-ink placeholder:text-graphite aria-invalid:border-ink aria-invalid:shadow-[inset_0_0_0_1px_var(--color-ink)] pointer-coarse:min-h-11 pointer-coarse:text-small"
               />
             </label>
             {/* What the amount chose, for the eye at once, under the field it answers (beside the slider it sat under the
@@ -348,8 +350,11 @@ export function SettlementLive({
             </p>
           </div>
 
+          {/* Sideways on a phone the readings stand beside the chart, one under another: under it with the chart, they
+              took the chart below a 380px screen while the reader set the term. */}
+          <div className="short:mt-5 short:grid short:grid-cols-[minmax(0,1fr)_12rem] short:items-start short:gap-x-6">
           {/* Not a live region: these follow the reader's own inputs, which speak for themselves. */}
-          <dl className="text-meta mt-4 grid grid-cols-2 gap-x-6 gap-y-2 font-mono sm:grid-cols-4 lg:hidden">
+          <dl className="text-meta mt-4 grid grid-cols-2 gap-x-6 gap-y-2 font-mono sm:grid-cols-4 short:order-last short:mt-0 short:grid-cols-1 lg:hidden">
             <div>
               <dt className="text-graphite">Discount</dt>
               <dd className="tabular text-ink">{(s.bp / 100).toFixed(0)}%</dd>
@@ -368,7 +373,10 @@ export function SettlementLive({
             </div>
           </dl>
 
-          <div className="relative mt-5 h-36 sm:h-44 print:break-inside-avoid" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
+          <div className="min-w-0">
+          {/* Sideways on a phone 144px tall; there, as on a phone held upright, the hidden term is said in a line under
+              the plot: its 17×7rem inset covered most of the chart and the labels at its corners. */}
+          <div className="relative mt-5 h-36 sm:h-44 short:mt-0 short:h-36 print:break-inside-avoid" role="img" aria-label={`Monthly payment by term for ${rub(debt)}: ${offered.length} terms offered, ${hidden} hidden because a shorter term costs less a month.`}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
               <rect x={0} y={0} width={100} height={100} fill="none" stroke="var(--color-rule)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
               {LADDER.slice(0, -1)
@@ -416,7 +424,7 @@ export function SettlementLive({
               const line = win.filter((t) => t.offered).map((t, k) => `${k ? 'L' : 'M'}${wx(t.months).toFixed(2)} ${wy(t.s.monthly).toFixed(2)}`).join('')
               return (
                 <>
-                  <div aria-hidden data-hidden-term="" className="text-meta absolute top-1.5 right-1.5 hidden h-[7rem] w-[17rem] flex-col border border-rule bg-paper px-2 py-1 font-mono sm:flex">
+                  <div aria-hidden data-hidden-term="" className="text-meta absolute top-1.5 right-1.5 hidden h-[7rem] w-[17rem] flex-col border border-rule bg-paper px-2 py-1 font-mono sm:flex short:hidden">
                     <span className="whitespace-nowrap text-ink">{`hidden: ${h.months} months, ${rub(h.s.monthly)}`}</span>
                     <div className="relative min-h-0 flex-1">
                       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
@@ -460,6 +468,8 @@ export function SettlementLive({
                 {ladderNote(d, d === debt)}
               </div>
             ))}
+          </div>
+          </div>
           </div>
         </section>
     </FigureFrame>
@@ -514,7 +524,7 @@ export function SettlementLive({
             >
               Reset
             </button>
-            <label className="text-meta ml-1 inline-flex min-h-9 cursor-pointer items-center gap-2 py-1 font-mono text-ink">
+            <label className="text-meta ml-1 inline-flex min-h-9 pointer-coarse:min-h-11 cursor-pointer items-center gap-2 py-1 font-mono text-ink">
               {/* The site's own box, in its tokens (the browser's was a 2.4:1 gray by day and a gray slab by night): a
                   graphite border on paper, ink with a paper tick when checked. */}
               <span className="relative inline-grid size-5 shrink-0">
@@ -526,7 +536,7 @@ export function SettlementLive({
                     const refused = e.currentTarget.checked
                     setAllowance((a) => ({ ...a, refused }))
                   }}
-                  className="peer size-5 cursor-pointer appearance-none rounded-sm border border-graphite bg-paper transition-colors duration-150 ease-out checked:border-ink checked:bg-ink hover:border-ink focus-visible:transition-none forced-colors:appearance-auto"
+                  className="peer size-5 cursor-pointer appearance-none rounded-sm border border-graphite bg-paper transition-colors duration-150 ease-out checked:border-ink checked:bg-ink hover:border-ink active:border-ink active:transition-none focus-visible:transition-none forced-colors:appearance-auto"
                 />
                 <svg aria-hidden viewBox="0 0 20 20" className="pointer-events-none invisible absolute inset-0 size-5 peer-checked:visible forced-colors:hidden">
                   <path d="M5 10.5l3.2 3.2L15 7" fill="none" stroke="var(--color-paper)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -542,12 +552,13 @@ export function SettlementLive({
               // The count beside its squares, not at the far end of the row. On a phone the label and count columns are
               // as wide as "24 hours" and "16/16", so the thirty-day row fits a 312px column.
               return (
-                <div key={w.key} className="grid grid-cols-[4.25rem_auto_2.5rem] items-center sm:grid-cols-[5.5rem_auto_3rem] justify-start gap-3">
+                <div key={w.key} className="grid grid-cols-[4.25rem_minmax(0,1fr)_2.5rem] items-center sm:grid-cols-[5.5rem_auto_3rem] justify-start gap-3">
                   <span className="text-meta font-mono text-graphite">{w.label}</span>
-                  {/* One row at any width: on a phone the thirty-day meter's sixteen boxes are a little smaller. */}
+                  {/* One row at any width: on a phone the thirty-day meter's sixteen boxes are a little smaller, and under
+                      22rem (a phone with a large font setting) smaller still, so the row fits its column. */}
                   <span className="flex gap-0.5 sm:flex-wrap sm:gap-1" aria-hidden>
                     {Array.from({ length: w.cap }, (_, k) => (
-                      <span key={k} className={`size-[9px] shrink-0 border sm:size-3 ${k < n ? 'border-indigo bg-indigo' : 'border-rule'} transition-colors duration-150 ease-out`} />
+                      <span key={k} className={`size-[9px] shrink-0 border max-[22rem]:size-[6px] sm:size-3 ${k < n ? 'border-indigo bg-indigo' : 'border-rule'} transition-colors duration-150 ease-out`} />
                     ))}
                   </span>
                   <span className="text-meta tabular text-right text-ink">

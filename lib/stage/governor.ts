@@ -6,7 +6,20 @@
  * A clock slower than any seen yet (an iPhone in Low Power Mode, a laptop saving energy: 30 frames a second, however
  * light the frame) reads as slow frames at first. So a step down is a test: if a second and a half later the frames
  * are no quicker, steady, and at a rate a page's frames come at, the work was not what held them, the clock was. The governor takes that interval as the refresh
- * and goes back to the quality it left, forgiven, rather than falling level by level to its lightest.
+ * and goes back to the quality it left, forgiven, rather than falling level by level to its lightest. Unless the
+ * display has been seen running faster: a 60 Hz phone whose GPU holds every heavy frame at 33ms looks like a 30 Hz
+ * clock, but its light frames (a paused or settled figure, the frames before the story) came every 16.7ms, so the
+ * work held them and the step down stands.
+ *
+ * Both readings are medians, never one interval: Safari stamps a frame when its update starts, so a late frame and the
+ * on-time one after it read 9–24ms apart on a 30 Hz clock, and one such reading (the shortest ever seen, as it was)
+ * said the display ran faster for the rest of the visit: Low Power Mode then stepped every figure to its lightest
+ * mid-story (42 of 45 stories on WebKit).
+ *
+ * And steadiness is judged four frames at a time: sideways in Low Power Mode Safari stamps every frame late by its own
+ * 0–22ms, so its intervals run 12–56ms about a 33ms median, under half of them within 15% of it, and the clock was never
+ * learned (the home figure fell to its lightest for the visit). Four in a row keep the clock (their lateness cancels but
+ * for the first and last). A frame that took over 1.8 times the median is a missed one, which no clock explains.
  */
 export class Governor {
   /** The smoothed frame interval, and the display's refresh interval as learned, in ms. */
@@ -18,10 +31,84 @@ export class Governor {
   private readonly blockedUntil: number[] = []
   /** A step down being tested: the level it left, the frame interval then, and when. */
   private probe: { from: number; ema: number; at: number } | null = null
-  /** How far frames stray from their smoothed interval, smoothed, in ms: a clock's are steady. */
-  private jitter = 0
+  /** The level a run of steps down began at: where a clock found at the lightest level sends it back. */
+  private chainFrom: number | null = null
   /** A level to go back to, once the figure stops holding the quality (a clock learned mid-story). */
   private restoreTo: number | null = null
+  /**
+   * The last intervals after a light frame (one that drew nothing, or nothing costly), ms: the clock's own pace, and
+   * when each came (null: no time given). Ten seconds old, one says nothing of the clock now: a figure that draws every
+   * frame shows light ones only before its first, and Low Power Mode turned on later met a 60 Hz reading from the load.
+   */
+  private readonly lights: { ms: number; at: number | null }[] = []
+  private lastNow = 0
+  /** The last drawn frames' intervals, ms. */
+  private readonly recent: number[] = []
+
+  /** How fast the display's clock runs, as its light frames show it: their median, once there are three. */
+  get fastest(): number {
+    const fresh = this.lights.filter((l) => l.at === null || this.lastNow - l.at < 10000).map((l) => l.ms)
+    return fresh.length >= 3 ? median(fresh) : fresh.length && this.probe ? Math.min(...fresh) : Infinity
+  }
+
+  /**
+   * A step down is being tested, or one is about to be, and the clock has not yet given three light frames since:
+   * the kit lets every other frame go undrawn until it has (one was not enough: Low Power Mode's stamps run 0–22ms late,
+   * one interval read 24.7 or 45.8 on a 33ms clock, and /iv-surface and /market stepped down mid-story).
+   */
+  get probing(): boolean {
+    if (this.probe) return this.freshAt(this.probe.at).length < FRESH
+    return this.needSince !== null && this.freshAt(this.needSince).length < FRESH
+  }
+  /** Light frames wanted since (ms), before a step down while held; null when none are. */
+  private needSince: number | null = null
+  /** Since when a step down at rest has waited for the fresh light frames that say the clock (ms), or null. */
+  private askedAt: number | null = null
+
+  /**
+   * The clock as the last light frame read it, if that was within two seconds (or untimed): the freshest evidence.
+   * The ten-second median held the load's 60 Hz readings on a figure that draws every frame, and Low Power Mode turned
+   * on in its story stepped it to its lightest; the jitter at 30 Hz stepped the home figure mid-story on 2 visits in 8.
+   */
+  private freshAt(since: number): number[] {
+    // Read since `since` (the frames turned slow, or the step down under test), and within two seconds: what came
+    // before says nothing of the clock now. Untimed ones (no clock given) always count.
+    return this.lights.filter((l) => l.at === null || (this.lastNow - l.at < 2000 && l.at >= since)).map((l) => l.ms)
+  }
+  /**
+   * The clock as the light frames since `since` read it, once there are FRESH: the mean of the middle three of the last
+   * five (late stamps scatter each; a median of them read three low ones as a fast clock one try in twenty, and one
+   * stall among a GPU's light frames cannot pass for a slow clock).
+   */
+  private freshLight(since: number): number | null {
+    const f = this.freshAt(since)
+    if (f.length < FRESH) return null
+    const s = f.slice(-FRESH).sort((a, b) => a - b).slice(1, -1)
+    return s.reduce((a, b) => a + b, 0) / s.length
+  }
+  /** When the frames last turned slow (ms). */
+  private slowAt = 0
+
+  /**
+   * The display's rate the drawn frames come at, else null: theirs when steady (see steadyAt) at a display's rate, or,
+   * where Low Power Mode's late stamps keep them from reading steady, the display's rate within 10% of their median
+   * (the light frames then say whether it is the clock's or the work's).
+   */
+  private pace(): number | null {
+    const st = this.steady()
+    if (st !== null && isDisplayRate(st)) return st
+    // The median of the last drawn frames and the light ones read with them, not the running mean (late stamps carried
+    // that to 29ms on a 33ms clock), nor the drawn ones alone: a frame left undrawn late makes the drawn one after it short.
+    const all = [...this.recent, ...this.freshAt(this.slowAt)]
+    const m = all.length >= 10 ? median(all) : this.ema
+    const hz = RATES.find((r) => Math.abs(m - 1000 / r) <= 0.1 * (1000 / r))
+    return hz ? 1000 / hz : null
+  }
+
+  /** The drawn frames' interval when they are steady (see steadyAt), else null. */
+  private steady(): number | null {
+    return this.recent.length < 10 ? null : steadyAt(this.recent)
+  }
 
   constructor(
     public q: number,
@@ -33,13 +120,42 @@ export class Governor {
     readonly minQ = 0,
   ) {}
 
+  /**
+   * The interval after a light frame, in ms (the kit passes only those: what follows a heavy frame says how long the
+   * work took, not how fast the clock runs). Two callbacks in one frame (under 4ms apart) say nothing.
+   */
+  observe(ms: number, now?: number): void {
+    if (ms < 4) return
+    this.lights.push({ ms, at: now ?? null })
+    if (this.lights.length > 15) this.lights.shift()
+  }
+
+  /**
+   * The clock as the figure's light frames showed it before its first drawn one (the renderer still loading): steady
+   * and at a display's own rate, slower than any seen, it is the refresh from the start. An iPhone in Low Power Mode
+   * then never steps its first story down to test the clock and back (on a visit with no story held, it did).
+   */
+  seed(intervals: readonly number[]): void {
+    if (intervals.length < 6) return
+    // Steady as the drawn frames are judged (Safari's stamps jitter).
+    const mid = steadyAt(intervals)
+    if (mid === null || !isDisplayRate(mid) || mid < this.refresh * 1.15) return
+    this.refresh = this.ema = mid
+  }
+
   /** One drawn frame of `dt` seconds, ending at `now` (ms); `held` keeps it from climbing. Returns whether q changed. */
   frame(dt: number, now: number, held = false): boolean {
-    this.jitter = this.jitter * 0.9 + Math.abs(dt * 1000 - this.ema) * 0.1
+    this.lastNow = now
+    this.recent.push(dt * 1000)
+    // Thirty-one: the median of fifteen of Low Power Mode's jittered frames fell outside a display's 10% often enough
+    // that turning it on mid-visit stepped a figure down and up again in one visit in five.
+    if (this.recent.length > 31) this.recent.shift()
     this.ema = this.ema * 0.9 + dt * 1000 * 0.1
     this.refresh = Math.min(this.refresh * 1.0005, this.ema)
-    if (this.ema > Math.max(this.refresh * 1.35, 20)) this.slow += dt
-    else this.slow = 0
+    if (this.ema > Math.max(this.refresh * 1.35, 20)) {
+      if (!this.slow) this.slowAt = now
+      this.slow += dt
+    } else this.slow = 0
     if (this.ema < this.refresh * 1.15) this.fast += dt
     else this.fast = 0
     // A clock learned while the figure held the quality: back to the level it left once the hold is let go.
@@ -49,23 +165,108 @@ export class Governor {
       this.slow = this.fast = 0
       return true
     }
-    // A step down tested: frames no quicker than before it (within 10%), steady (their spread within a fifth of their
-    // interval), at a display's own rate, means the clock set their pace, not the work. A 60 Hz display on a device
-    // missing frames does not pass: its frames alternate, 17 and 33ms, about 25ms, which is no display's rate.
+    // A step down tested: frames no quicker than before it (within 10%), steady (four in five within 15% of their median),
+    // at a display's own rate, means the clock set their pace, not the work. A 60 Hz display on a device missing frames
+    // does not pass: its frames alternate, 17 and 33ms, which is not steady. Nor does
+    // a display seen giving frames a quarter quicker than these: its clock is faster, and the work held them.
     if (this.probe && now - this.probe.at > 1500) {
       const p = this.probe
+      // Read while the probe stands: the one light frame the kit gave it counts then, even alone, and before the rest.
+      const fastest = this.freshLight(p.at) ?? this.fastest
       this.probe = null
-      if (this.ema > p.ema * 0.9 && this.jitter < this.ema * 0.2 && isDisplayRate(this.ema)) {
-        this.refresh = this.ema
-        this.failures[p.from] = Math.max(0, (this.failures[p.from] ?? 1) - 1)
-        this.blockedUntil[p.from] = 0
+      const st = this.pace()
+      if (this.ema > p.ema * 0.9 && st !== null && fastest > st * CLOCK_SHARE) {
+        // The clock set the pace: every level stepped down from on the way here goes back, unblocked (Low Power Mode
+        // turned on mid-visit took the order book 3, 2, 1 and back to 2 only, the 3 held off for 30 seconds).
+        const to = Math.max(p.from, this.chainFrom ?? p.from)
+        this.refresh = st
+        for (let l = p.from; l <= to; l++) {
+          this.failures[l] = Math.max(0, (this.failures[l] ?? 1) - 1)
+          this.blockedUntil[l] = 0
+        }
         this.slow = this.fast = 0
+        this.chainFrom = null
         if (held) {
-          this.restoreTo = p.from
+          this.restoreTo = to
           return false
         }
-        this.q = p.from
+        this.q = to
         return true
+      }
+      // Stepped all the way to its lightest and its frames still no quicker, steady, at a display's rate: no level drew
+      // faster, so the clock set their pace after all, though the display was once seen faster (Low Power Mode turned on
+      // mid-visit, under a figure that draws every frame and so never shows the clock a light one: /market and the order
+      // book sat at their lightest for 45 seconds). A GPU that holds its heavy levels at 33ms draws its lightest quicker,
+      // and stays there.
+      if (this.q <= this.minQ && this.ema > p.ema * 0.9 && st !== null && this.chainFrom !== null) {
+        const to = this.chainFrom
+        this.chainFrom = null
+        this.refresh = st
+        this.lights.length = 0
+        for (let l = this.minQ; l <= to; l++) {
+          this.failures[l] = 0
+          this.blockedUntil[l] = 0
+        }
+        this.slow = this.fast = 0
+        if (held) {
+          this.restoreTo = to
+          return false
+        }
+        this.q = to
+        return true
+      }
+    }
+    // Mid-story (held), frames steady at a display's own rate on a display never seen faster are a clock's: learned at
+    // once, with no step down to test it, so the signature's effects never change mid-moment (Low Power Mode stepped
+    // every figure down 0.3–1.3s into its story, and back up after it).
+    // Before a step down mid-story, the clock is read afresh: one light frame, asked of the kit, says it (with no light
+    // frame ever seen, nothing says the display ran faster). Frames steady at a display's rate, or (Low Power Mode's
+    // jitter can keep them from reading steady) at the pace the fresh light names, are the clock's: learned at once, so
+    // the signature's effects never change mid-moment.
+    // At rest too, before a step down, the clock is read afresh from three light frames: Low Power Mode turned on
+    // mid-visit stepped every figure down 1.4s after and back up 1.5s later, two changes the clock alone explained. At
+    // rest no light frame ever seen proves nothing, and the step down tests it as before (a GPU holding 60 Hz's half
+    // rate is as steady at 33ms as the clock).
+    if (this.slow > 1 && !this.probe && (held || this.q > this.minQ)) {
+      const fresh = this.freshLight(this.slowAt) ?? (this.lights.length || !held ? null : Infinity)
+      // Waited for: mid-story as long as it takes; at rest a second, and then the step down tests it instead.
+      this.askedAt = fresh === null ? (this.askedAt ?? now) : null
+      if (fresh === null && (held || now - this.askedAt! < 1000)) {
+        this.needSince = this.slowAt
+        return false
+      }
+      this.needSince = null
+      const clock = this.pace() ?? (fresh !== null && isDisplayRate(fresh) ? fresh : null)
+      if (fresh !== null && clock !== null && fresh > clock * CLOCK_SHARE && this.ema < clock * 1.35) {
+        this.refresh = clock
+        this.slow = this.fast = 0
+        this.askedAt = null
+        // Learned after a step down in this chain (that step's own test still to come, or gone by): the steps were the
+        // clock's, so the level they left comes back, unblocked, as the probe's pass gives it back (Low Power Mode
+        // turned on mid-story left a figure a level down for the rest of the visit).
+        if (this.chainFrom !== null && this.chainFrom > this.q) {
+          const to = this.chainFrom
+          for (let l = this.q + 1; l <= to; l++) {
+            this.failures[l] = Math.max(0, (this.failures[l] ?? 1) - 1)
+            this.blockedUntil[l] = 0
+          }
+          this.chainFrom = null
+          this.probe = null
+          if (held) {
+            this.restoreTo = to
+            return false
+          }
+          this.q = to
+          return true
+        }
+        return false
+      }
+      // Mid-story, a reading that names no clock is no proof against one: read on, unless the light frames show the
+      // work is the limit (they come well inside the drawn frames' interval). The signature's effects never step down on
+      // an inconclusive reading (Low Power Mode turned on mid-story stepped 8 stories in 50).
+      if (held && fresh !== null && clock === null && fresh > this.ema * CLOCK_SHARE) {
+        this.needSince = this.slowAt
+        return false
       }
     }
     // Hysteresis: a level the device has just failed to hold is off limits for 30s, doubling each time it fails
@@ -75,11 +276,13 @@ export class Governor {
       this.failures[q] = (this.failures[q] ?? 0) + 1
       this.blockedUntil[q] = now + 30000 * 2 ** (this.failures[q]! - 1)
       this.probe = { from: q, ema: this.ema, at: now }
+      this.chainFrom ??= q
       this.q--
       this.slow = 0
       return true
     }
     if (this.fast > 3 && this.q < this.maxQ && now >= (this.blockedUntil[this.q + 1] ?? 0) && !held) {
+      this.chainFrom = null
       this.q++
       this.fast = 0
       return true
@@ -93,4 +296,32 @@ export class Governor {
  * energy holds pages to. A steady frame interval within 5% of one can be a clock's.
  */
 const RATES = [30, 60, 90, 120, 144, 165, 240]
+/**
+ * Light frames read afresh before the clock is judged, and the share of the drawn frames' interval their median must
+ * reach for those to be the clock's. Five, at 0.65: Low Power Mode's stamps run 0–22ms late, and the median of three
+ * on a 33ms clock read under 0.75 of it in about one try in ten (6 of 40 stories stepped mid-story when it was turned
+ * on). A GPU holding a 60 Hz display at half rate reads 0.5.
+ */
+const FRESH = 5
+const CLOCK_SHARE = 0.65
 export const isDisplayRate = (ms: number) => RATES.some((hz) => Math.abs(ms - 1000 / hz) <= 0.05 * (1000 / hz))
+
+/**
+ * The interval steady frames come at, else null: the means of four in a row, four in five within 15% of their median
+ * (the raw intervals' own median wandered as far as 28ms on a 33ms clock), and no frame over 1.8 times it (a missed
+ * frame). A 60 Hz display missing every other frame (17, 33, 17, 33ms) is steady at 25ms, which is no display's rate,
+ * so it reads as work.
+ */
+export function steadyAt(v: readonly number[]): number | null {
+  const means: number[] = []
+  for (let i = 0; i + 4 <= v.length; i++) means.push((v[i]! + v[i + 1]! + v[i + 2]! + v[i + 3]!) / 4)
+  if (!means.length) return null
+  const m = median(means)
+  if (v.some((x) => x > 1.8 * m)) return null
+  return means.filter((x) => Math.abs(x - m) <= 0.15 * m).length >= 0.8 * means.length ? m : null
+}
+
+const median = (v: readonly number[]) => {
+  const s = [...v].sort((a, b) => a - b)
+  return s[Math.floor(s.length / 2)]!
+}

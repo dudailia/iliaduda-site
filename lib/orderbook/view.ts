@@ -140,16 +140,18 @@ export function toScreen(m: M4, w: number, h: number, x: number, y: number, z: n
  * view brings the sellers' wall nearer, so the target slides along the valley
  * until the paper either side is equal. On a tall phone the camera comes in so
  * the walls near the price fill the width instead of a postage stamp of all
- * 128 ticks.
+ * 128 ticks. A phone turned sideways (a stage over 1.8 times as wide as tall) fits the lower walls too: fitted to
+ * the valley's tall ends, the terrain took half its width.
  */
 export function fit(yaw: number, pitch: number, aspect: number, sway = true): Camera {
   const narrow = aspect < 1
+  const short = aspect > 1.8
   const xw = narrow ? XW * 0.44 : XW
   const back = Z_NOW - 2.2
   const pts: [number, number, number][] = []
   // A laptop's column shows the valley's ends, so it fits them as tall as they stand, at every extreme of the drift
   // and the lean; a phone's full-bleed frame crops the ends anyway, and fits the lower walls near the price.
-  const top = narrow ? H : H * TALL
+  const top = narrow || short ? H : H * TALL
   for (const x of [-xw, xw]) for (const z of [Z_NOW, back]) pts.push([x, 0, z], [x, top, z])
   const swing = sway && !narrow
   const sy = swing ? SWAY.drift + SWAY.yaw : 0, sp = swing ? SWAY.pitch : 0

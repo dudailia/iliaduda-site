@@ -1,5 +1,5 @@
-import { Section } from '@/components/CaseStudy'
-import { Items, Row, Shell, Whole } from '@/components/Layout'
+import { Section, TitleText } from '@/components/CaseStudy'
+import { Items, Row, Shell, TAP, Whole } from '@/components/Layout'
 import { ContactLinks } from '@/components/Masthead'
 import { OfzCurve } from '@/components/figures/OfzCurve'
 import { certifications, education, monitoRounds, roles, SKILLS } from '@/content/experience'
@@ -8,8 +8,10 @@ import { pageMeta } from '@/lib/meta'
 import { AVAILABILITY, PERSON, POSITIONING, SITE, rolesInWords } from '@/lib/site'
 import avif176 from './headshot-176.avif'
 import avif256 from './headshot-256.avif'
+import avif384 from './headshot-384.avif'
 import webp176 from './headshot-176.webp'
 import webp256 from './headshot-256.webp'
+import webp384 from './headshot-384.webp'
 
 export const metadata = pageMeta(
   '/about',
@@ -66,16 +68,17 @@ function MonitoRounds() {
 
 /**
  * The portrait: a plain <picture>, encoded once at build size in AVIF and WebP (next/image would add its client
- * runtime to this page for one 3 KB portrait). Drawn twice, the margin's and a phone's, each shown at its own width;
- * the two ask for the same files, so they are fetched once.
+ * runtime to this page for one 3 KB portrait), up to 384 pixels wide: its 128px on a 3× screen (a phone in landscape
+ * shows 88px at 3×, 264 device pixels, past the 256). Drawn twice, the margin's and a phone's, each shown at its own
+ * width; the two ask for the same files, so they are fetched once.
  */
 function Portrait({ className, size }: { className: string; size: string }) {
   return (
     <picture className={className}>
-      <source type="image/avif" srcSet={`${avif176.src} 176w, ${avif256.src} 256w`} sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px" />
+      <source type="image/avif" srcSet={`${avif176.src} 176w, ${avif256.src} 256w, ${avif384.src} 384w`} sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px" />
       <img
         src={webp256.src}
-        srcSet={`${webp176.src} 176w, ${webp256.src} 256w`}
+        srcSet={`${webp176.src} 176w, ${webp256.src} 256w, ${webp384.src} 384w`}
         sizes="(min-width: 64rem) 128px, (min-width: 40rem) 88px, 56px"
         width={128}
         height={160}
@@ -95,12 +98,16 @@ export default function About() {
           className="pt-6 sm:pt-10 lg:pt-16"
           // From sm the portrait stands in the margin; on a phone beside the name instead (portrait component below), so
           // the first screen still ends on the contact links at 360×800 (stacked above the name it cost ~150px).
-          rail={<Portrait className="hidden sm:block" size="h-auto w-[5.5rem] lg:ml-auto lg:w-32" />}
+          // Sideways on a phone the portrait stays beside the name, as on a phone held upright: above it, in the rail's
+          // place, it cost ~120px of a 380px screen and the contact links left the first one.
+          rail={<Portrait className="hidden sm:block short:hidden" size="h-auto w-[5.5rem] lg:ml-auto lg:w-32" />}
         >
           {/* The person, not the word: /about is a landing page from LinkedIn and email (its tab still says About). */}
           <div className="flex items-start justify-between gap-4">
-            <h1 className="text-h2 sm:text-h1">{PERSON.name}</h1>
-            <Portrait className="shrink-0 sm:hidden" size="h-auto w-14" />
+            {/* The name held whole, as the CV holds it: at Safari's largest text it split beside the portrait ("Ilia /
+                Duda"); smaller where the page is that narrow. */}
+            <h1 className="text-h2 max-[17rem]:text-[1.625rem] max-[15.5rem]:text-[1.5rem] sm:[@media(min-height:30.0625rem)]:text-h1">{PERSON.name.replace(' ', '\u00a0')}</h1>
+            <Portrait className="shrink-0 sm:hidden short:block" size="h-auto w-14" />
           </div>
           <div className="mt-5 max-w-[37.9rem]">
             <p>{POSITIONING}</p>
@@ -148,7 +155,7 @@ export default function About() {
                 {r.href ? (
                   <p className="text-note mt-2">
                     {/* Named with its paper in one string: an sr-only span was read as "Read the paper : X". */}
-                    <a href={r.href} aria-label={`Read the paper: ${r.org}`} className="inline-block py-1 whitespace-nowrap">
+                    <a href={r.href} aria-label={`Read the paper: ${r.org}`} className={`inline-block py-1 ${TAP} whitespace-nowrap`}>
                       Read the paper
                     </a>
                   </p>
@@ -166,7 +173,11 @@ export default function About() {
               <li key={p.slug}>
                 {/* On paper an entry's title and byline go with its description (A4 left one closing a sheet alone). */}
                 <h3 className="text-body font-semibold tracking-normal print:break-after-avoid">
-                  <a href={p.href}>{p.title}</a>
+                  {/* In its phrases, as on the paper and the Contents: at a 130% font size the raw title broke "Ranking /
+                      startup segments, and". */}
+                  <a href={p.href} className={`${TAP} relative z-1 pointer-coarse:inline-block`}>
+                    <TitleText title={p.title} />
+                  </a>
                 </h3>
                 <p className="text-meta mt-0.5 font-mono text-graphite print:break-after-avoid">
                   <Items items={p.byline} />
@@ -186,7 +197,7 @@ export default function About() {
               {other.map((o) => (
                 <li key={o.slug}>
                   <h3 className="text-body font-semibold tracking-normal print:break-after-avoid">
-                    <a href={o.href}>{o.name}</a>
+                    <a href={o.href} className={`${TAP} relative z-1 pointer-coarse:inline-block`}>{o.name}</a>
                   </h3>
                   <p className="text-meta mt-0.5 font-mono text-graphite print:break-after-avoid">
                     <Items items={o.status} />

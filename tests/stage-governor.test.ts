@@ -55,6 +55,239 @@ describe('the quality governor', () => {
     expect(Math.max(...seen.slice(-300))).toBeLessThanOrEqual(2)
   })
 
+  it('does not mistake a GPU that holds every heavy frame at 33ms for a 30 Hz clock, once it has seen the display run faster', () => {
+    // A 60 Hz phone: its light frames (the figure before its story) come every 16.7ms; at 2 and 1 its GPU holds frames to
+    // two refreshes, 33.3ms, steady, which alone would read as Low Power Mode's clock; at 0 it draws in 13ms.
+    const g = new Governor(2, 3)
+    for (let i = 0; i < 30; i++) g.observe(1000 / 60)
+    let now = 0
+    const seen: number[] = []
+    while (now < 20000) {
+      const dt = [13, 1000 / 30, 1000 / 30, 1000 / 30][g.q]!
+      // The display's own frames: a 13ms frame shows on the next 60 Hz refresh. (Heavy frames are not observed: the kit
+      // passes the governor only the intervals after light ones.)
+      const shown = Math.ceil(dt / (1000 / 60)) * (1000 / 60)
+      now += shown
+      g.frame(shown / 1000, now)
+      seen.push(g.q)
+    }
+    expect(Math.max(...seen.slice(-300))).toBe(0)
+    expect(g.refresh).toBeLessThan(20)
+  })
+
+  it('still learns a real 30 Hz clock when every frame it sees, light or heavy, is a thirtieth of a second apart', () => {
+    const g = new Governor(2, 3)
+    let now = 0
+    const seen: number[] = []
+    while (now < 20000) {
+      now += 1000 / 30
+      g.observe(1000 / 30)
+      g.frame(1 / 30, now)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen.slice(-300))).toBe(3)
+  })
+
+  it('learns a 30 Hz clock mid-story without stepping down: the signature keeps its effects throughout', () => {
+    const g = new Governor(2, 3)
+    let now = 0
+    const seen: number[] = []
+    // Four seconds of a story held at 30 Hz (an iPhone in Low Power Mode), every frame a thirtieth apart.
+    while (now < 4000) {
+      now += 1000 / 30
+      g.observe(1000 / 30)
+      g.frame(1 / 30, now, true)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBe(2)
+    expect(g.refresh).toBeCloseTo(1000 / 30, 0)
+  })
+
+  it('still steps down mid-story a GPU that holds frames at 33ms on a display seen running at 60 Hz', () => {
+    const g = new Governor(2, 3)
+    for (let i = 0; i < 30; i++) g.observe(1000 / 60)
+    let now = 0
+    const seen: number[] = []
+    while (now < 4000) {
+      now += 1000 / 30
+      g.frame(1 / 30, now, true)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBeLessThan(2)
+  })
+
+  it('takes a steady 30 Hz clock seen in the light frames before the first drawn one: no step down to test it', () => {
+    const g = new Governor(2, 3)
+    g.seed(Array(10).fill(1000 / 30))
+    expect(g.refresh).toBeCloseTo(1000 / 30, 1)
+    const { seen } = run(g, 6, () => 1000 / 30)
+    expect(Math.min(...seen)).toBe(2)
+  })
+
+  it('takes no clock from light frames that are uneven, at no display rate, or a 60 Hz one', () => {
+    for (const frames of [[16.7, 33.3, 16.7, 33.3, 16.7, 33.3, 16.7], Array(8).fill(27), Array(8).fill(1000 / 60), Array(3).fill(1000 / 30)]) {
+      const g = new Governor(2, 3)
+      g.seed(frames)
+      expect(g.refresh).toBeCloseTo(16.7, 1)
+    }
+  })
+
+  it("learns Safari's 30 Hz clock through its stamps' jitter: a late frame and the on-time one after it (21ms apart) are not a faster display", () => {
+    // Stamped when each update starts: 33.3ms give or take 3, and every 25th frame late by 12 (45ms, then 21.6).
+    const rnd = (() => {
+      let x = 7
+      return () => ((x = (x * 16807) % 2147483647) / 2147483647 - 0.5) * 6
+    })()
+    const step = (i: number) => (i % 25 === 0 ? 45 : i % 25 === 1 ? 21.6 : 1000 / 30 + rnd())
+    const g = new Governor(2, 3)
+    // Light frames before the story, one of them a 12ms spike.
+    for (let i = 0; i < 8; i++) g.observe(i === 3 ? 12 : step(i))
+    let now = 0
+    const seen: number[] = []
+    for (let i = 0; now < 6000; i++) {
+      const dt = step(i)
+      now += dt
+      g.frame(dt / 1000, now, now < 4500)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBe(2)
+    expect(g.refresh).toBeGreaterThan(30)
+  })
+
+  it("learns Safari's 30 Hz clock sideways in Low Power Mode, where every stamp is late by up to 22ms (intervals 11–55ms)", () => {
+    // Each frame stamped late by its own 0–22ms on a 33.3ms clock: an interval is the clock plus this frame's lateness
+    // less the last one's, so under half of them lie within 15% of their median, while four in a row keep the clock.
+    const rnd = (() => {
+      let x = 11
+      return () => (x = (x * 16807) % 2147483647) / 2147483647
+    })()
+    let late = 0
+    const step = () => {
+      const was = late
+      late = rnd() * 22
+      return 1000 / 30 + late - was
+    }
+    const g = new Governor(2, 3)
+    for (let i = 0; i < 8; i++) g.observe(step())
+    let now = 0
+    const seen: number[] = []
+    while (now < 20000) {
+      const dt = step()
+      now += dt
+      g.frame(dt / 1000, now, now < 4000)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBe(2)
+    expect(g.refresh).toBeGreaterThan(30)
+  })
+
+  it('still steps down a 60 Hz display missing every other frame, however its stamps are averaged', () => {
+    const g = new Governor(2, 3)
+    let i = 0
+    const { seen } = run(g, 8, (q) => (q === 2 ? (i++ % 2 ? 1000 / 30 : 1000 / 60) : 1000 / 60))
+    expect(seen.at(-1)).toBeLessThan(2)
+  })
+
+  it('climbs back within seconds when the clock drops to 30 Hz mid-visit on a figure that draws every frame', () => {
+    // A 60 Hz phone seen running at 60 (its light frames before the first drawn one), then Low Power Mode at 10s: every
+    // level now draws at 33ms, and no level draws quicker. Stepped to its lightest and still no quicker, it was the clock.
+    const g = new Governor(3, 3)
+    for (let i = 0; i < 12; i++) g.observe(1000 / 60)
+    let now = 0
+    const seen: [number, number][] = []
+    while (now < 30000) {
+      const dt = now < 10000 ? 1000 / 60 : 1000 / 30
+      now += dt
+      g.frame(dt / 1000, now)
+      seen.push([now, g.q])
+    }
+    const after = seen.filter(([t]) => t > 20000).map(([, q]) => q)
+    expect(Math.min(...after)).toBe(3)
+  })
+
+  it('reads the clock afresh before stepping down mid-story: 60 Hz light frames from the load do not outvote a 30 Hz clock', () => {
+    // Light frames at 60 Hz before the first drawn one, then Low Power Mode's jittered 30 Hz through a held story. When it
+    // asks (probing), the kit lets one frame go undrawn, and the interval after it is the clock's.
+    const rnd = (() => {
+      let x = 12
+      return () => (x = (x * 16807) % 2147483647) / 2147483647
+    })()
+    let late = 0
+    const step = () => {
+      const was = late
+      late = rnd() * 22
+      return 1000 / 30 + late - was
+    }
+    const g = new Governor(2, 3)
+    let now = 0
+    for (let i = 0; i < 8; i++) {
+      now += 1000 / 60
+      g.observe(1000 / 60, now)
+    }
+    const seen: number[] = []
+    while (now < 6000) {
+      const dt = step()
+      now += dt
+      // The kit's light frame is stamped late too: anywhere from 11 to 55ms on the 33ms clock, one interval at a time.
+      if (g.probing) g.observe(1000 / 30 + (rnd() - 0.5) * 44, now)
+      g.frame(dt / 1000, now, true)
+      seen.push(g.q)
+    }
+    expect(Math.min(...seen)).toBe(2)
+  })
+
+  it('never steps a story down when Low Power Mode comes on mid-story, and ends at the level it started on', () => {
+    // 60 Hz to the story's 0.8s, then Low Power Mode's 30 Hz, each stamp up to 22ms late, held for 5s; then 10s at rest.
+    // Forty visits: an inconclusive reading mid-story stepped 8 stories in 50, and left 2 a level down for the visit.
+    let stepped = 0, below = 0
+    for (let seed = 1; seed <= 40; seed++) {
+      let x = seed * 7919
+      const rnd = () => (x = (x * 16807) % 2147483647) / 2147483647
+      const g = new Governor(2, 2)
+      g.seed(Array(16).fill(1000 / 60))
+      let now = 0, late = 0, vs = 0
+      while (now < 15800) {
+        const lpm = vs >= 800
+        vs += lpm ? 1000 / 30 : 1000 / 60
+        const was = late
+        late = lpm ? rnd() * 22 : 0
+        const dt = (lpm ? 1000 / 30 : 1000 / 60) + late - was
+        now += dt
+        if (g.probing) g.observe(lpm ? 1000 / 30 + (rnd() - 0.5) * 44 : 1000 / 60, now)
+        const held = vs < 5800
+        const q = g.q
+        g.frame(dt / 1000, now, held)
+        if (held && g.q < q) stepped++
+      }
+      if (g.q < 2) below++
+    }
+    expect(stepped).toBe(0)
+    expect(below).toBe(0)
+  })
+
+  it('reads on mid-story when the reading names no clock and the light frames are as slow as the drawn ones', () => {
+    // Drawn frames about 40ms apart, no display's rate, and the kit's light frames as slow: nothing says the work is the
+    // limit, so the story keeps its effects; once it is over, a step down may test it.
+    let x = 99
+    const rnd = () => (x = (x * 16807) % 2147483647) / 2147483647
+    const g = new Governor(2, 2)
+    let now = 0
+    for (let i = 0; i < 30; i++) {
+      now += 1000 / 60
+      g.frame(1 / 60, now, true)
+    }
+    const held: number[] = []
+    while (now < 9000) {
+      const dt = 40 + (rnd() - 0.5) * 8
+      now += dt
+      if (g.probing) g.observe(38 + (rnd() - 0.5) * 6, now)
+      const inStory = now < 6000
+      g.frame(dt / 1000, now, inStory)
+      if (inStory) held.push(g.q)
+    }
+    expect(Math.min(...held)).toBe(2)
+  })
+
   it('follows the clock back when it speeds up again (Low Power Mode turned off)', () => {
     const g = new Governor(3, 3)
     const a = run(g, 10, () => 1000 / 30)

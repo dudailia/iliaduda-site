@@ -119,10 +119,12 @@ export function OfzLive({
   const move = at > 0 ? (short - shownY(zcy(prev.params, T_MIN))) * 100 : 0
 
   const rows = [
-    { label: 'Trading day', value: day(d.date) },
+    // A date is one item: at a large font size it split as "Tue, 15 / Aug 2023".
+    // Its row-mate's two lines held here too: the cells meet at their foot, and the labels stood a line apart.
+    { label: 'Trading day', value: <span className="block whitespace-nowrap max-sm:min-h-[2lh]">{day(d.date)}</span> },
     // A phone sets 21 July's "7.50%, 8.50% from 24 Jul" on two lines: they are held on every day, so stepping onto it
-    // and off it moves nothing under the readouts.
-    { label: 'Key rate', value: <span className="block max-sm:min-h-[2lh]">{`${rate.toFixed(2)}%${pending}`}</span> },
+    // and off it moves nothing under the readouts (sideways too: the SE's 667px is no narrow screen, but its rail is).
+    { label: 'Key rate', value: <span className="block max-sm:min-h-[2lh] short:min-h-[2lh]">{`${rate.toFixed(2)}%${pending}`}</span> },
     { label: '3-month', value: pc(short) },
     { label: '10-year', value: pc(long) },
     { label: 'Slope, 10y − 3m', value: bp((long - short) * 100) },
@@ -155,7 +157,8 @@ export function OfzLive({
               </span>
             ))}
           </div>
-          <div className="relative aspect-[4/3] min-w-0 flex-1 sm:aspect-[16/10]">
+          {/* Sideways on a phone 7:2: at 3:1 the curve, its slider and its days ran past an iPhone SE's 326px. */}
+          <div className="relative aspect-[4/3] min-w-0 flex-1 sm:aspect-[16/10] short:aspect-[7/2]">
             <svg
               role="img"
               aria-labelledby={`${frame.id}-svg-title`}
@@ -216,8 +219,9 @@ export function OfzLive({
               ))}
             <span
               aria-hidden
-              // On paper, as a label over a plot is: at a phone's width the line's label falls among the bonds.
-              className={`text-meta pointer-events-none absolute right-1.5 rounded-sm bg-paper/85 px-1 font-mono text-ink max-sm:hidden ${
+              // On paper, as a label over a plot is: at a phone's width the line's label falls among the bonds, and in a
+              // sideways phone's flat plot (7:2) under the line it covered the curve from 10 to 20 years.
+              className={`text-meta pointer-events-none absolute right-1.5 rounded-sm bg-paper/85 px-1 font-mono text-ink max-sm:hidden short:hidden ${
                 sy(rate) / H < 0.12 ? 'pt-0.5' : '-translate-y-full pb-0.5'
               }`}
               style={{ top: `${(sy(rate) / H) * 100}%` }}
@@ -228,7 +232,7 @@ export function OfzLive({
                 the curve (four dots under it on 15 August): there it takes the first end and side clear of both. */}
             <span
               aria-hidden
-              className={`text-meta pointer-events-none absolute rounded-sm bg-paper/85 px-1 font-mono text-ink sm:hidden ${
+              className={`text-meta pointer-events-none absolute rounded-sm bg-paper/85 px-1 font-mono text-ink sm:hidden short:block ${
                 phoneKey.left ? 'left-1.5' : 'right-1.5'
               } ${phoneKey.below ? 'pt-0.5' : '-translate-y-full pb-0.5'}`}
               style={{ top: `${(sy(rate) / H) * 100}%` }}
@@ -242,7 +246,8 @@ export function OfzLive({
           {TICKS_T.map((t, i) => (
             <span
               key={t}
-              className={`absolute ${i === 0 ? '' : i === TICKS_T.length - 1 ? '-translate-x-full' : '-translate-x-1/2'}`}
+              // Under 20.5rem (a large font size) the 1-year label gives way: on the square-root axis it touched "3m".
+              className={`absolute ${i === 0 ? '' : i === TICKS_T.length - 1 ? '-translate-x-full' : '-translate-x-1/2'} ${t === 1 ? 'max-[20.5rem]:hidden' : ''}`}
               style={{ left: `${(sx(t) / W) * 100}%` }}
             >
               {tLabel(t)}
@@ -288,10 +293,12 @@ export function OfzLive({
                     setAnnounce(`${day(x.date)}: 3-month ${pc(zcy(x.params, T_MIN))}, 10-year ${pc(zcy(x.params, 10))}`)
                   }}
                   aria-pressed={at === m.index}
-                  // A hairline box: without it the decision days read as axis labels, not as something to press.
-                  className={`absolute ${align} rounded-sm border px-1.5 py-1.5 text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
+                  // A hairline box: without it the decision days read as axis labels, not as something to press. Under a
+                  // finger its ::before reaches 44px, 10px more below than above: the slider's own 44px box is just above,
+                  // and reaching up the days took its band (a one-line day measured 42.5, the slider 40).
+                  className={`absolute ${align} rounded-sm border px-1.5 py-1.5 pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-top-[3px] pointer-coarse:before:-bottom-[13px] pointer-coarse:before:content-[''] touch-manipulation text-center leading-4 whitespace-nowrap transition-colors duration-150 ease-out focus-visible:transition-none ${
                     // Chosen as every other option on the site is: ink fill, paper text.
-                    at === m.index ? 'border-ink bg-ink text-paper forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink'
+                    at === m.index ? 'border-ink bg-ink text-paper forced-colors:[outline:2px_solid_Highlight]' : 'border-graphite text-graphite hover:border-ink hover:text-ink active:border-ink active:text-ink active:transition-none'
                   }`}
                   style={{ left: end ? `${f * 100}%` : `calc(8px + (100% - 16px) * ${f})` }}
                 >
