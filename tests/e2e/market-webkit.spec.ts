@@ -16,6 +16,18 @@ test('goes live or says why, lands a shock in all three views at once, and leave
   const shocked: string[] = []
   page.on('request', (r) => r.url().includes('-shock.svg') && shocked.push(r.url()))
   await page.addInitScript(() => sessionStorage.setItem('market-seq', '1'))
+  // Every landing stamp as it is written, for the message below: which view, in what order, at what timeline time.
+  await page.addInitScript(() => {
+    const log: string[] = []
+    ;(window as unknown as { __landings: string[] }).__landings = log
+    new MutationObserver((ms) => {
+      for (const m of ms) {
+        const c = m.target as HTMLCanvasElement
+        const view = c.hasAttribute('data-live-canvas') ? 'surface' : c.closest('[data-market-book]') ? 'book' : 'fan'
+        log.push(`${view}=${c.dataset.landed} at ${Math.round(performance.now())}`)
+      }
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-landed'] })
+  })
   await page.goto('/market')
   await page.evaluate(() => document.querySelector('[data-market-stage]')?.scrollIntoView({ block: 'start' }))
   const stage = page.locator('[data-market-stage]')
@@ -31,7 +43,8 @@ test('goes live or says why, lands a shock in all three views at once, and leave
     // 5s here; 15s on CI, whose WebKit draws in software on a shared runner and there sometimes lands the shock in the
     // last view after 5s (the same frame for all three is still required below).
     await expect.poll(async () => (await stamps()).every((s) => s !== null), { timeout: process.env.CI ? 15_000 : 5_000 }).toBe(true)
-    expect(new Set(await stamps()).size).toBe(1)
+    const landings = await page.evaluate(() => (window as unknown as { __landings: string[] }).__landings)
+    expect(new Set(await stamps()).size, `stamps written: ${landings.join(' · ')}`).toBe(1)
   } else await expect(page.locator('#fig-1').getByText(/Still frames/).first()).toBeVisible()
   const [sw, cw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
   expect(sw).toBeLessThanOrEqual(cw)
