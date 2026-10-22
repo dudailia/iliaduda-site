@@ -165,6 +165,11 @@ export function useStage(
     let visible = false
     let started = false
     let raf = 0
+    /** For the specs: the stage's last few stops and skips, on the frame's own clock, as the canvas's data-stage-log. */
+    const note = (what: string) => {
+      const at = Math.round(Number(document.timeline?.currentTime ?? performance.now()))
+      cv.dataset.stageLog = [...(cv.dataset.stageLog ?? '').split(' ').filter(Boolean).slice(-11), `${what}@${at}`].join(' ')
+    }
     let disposed = false
     let cancelIdle: (() => void) | null = null
     let stopClock: (() => void) | null = null
@@ -243,7 +248,10 @@ export function useStage(
     let gone = false
     const tick = (now: number) => {
       raf = 0
-      if (!renderer || !visible || document.hidden || gone) return
+      if (!renderer || !visible || document.hidden || gone) {
+        if (renderer) note(!visible ? 'stop:hidden' : document.hidden ? 'stop:tab' : 'stop:gone')
+        return
+      }
       // Calm on a 120 Hz display, a dozen drawn frames running: every other frame (see Renderer.calm). Any input ends
       // it on the next frame; the run keeps a figure that is calm only now and then from alternating 8 and 16ms frames.
       calmFor = renderer.calm?.() ? calmFor + 1 : 0
@@ -251,6 +259,7 @@ export function useStage(
       const halve = gov.refresh < 12 && calmFor > 12 && !due
       skip = halve && !skip
       if (skip) {
+        if (due) note('skip:due')
         // The interval across a skipped frame spans two of the display's: it says nothing about the clock.
         prevLight = false
         raf = requestAnimationFrame(tick)
@@ -264,6 +273,7 @@ export function useStage(
       // down three levels, their only light frames those before their first, at 60 Hz).
       // Every other frame, until it has three: one late stamp alone said nothing true of a jittered 30 Hz clock.
       if (gov.probing && !probeLit && !due) {
+        note('probe')
         probeLit = true
         last = now
         prevLight = true
@@ -453,6 +463,7 @@ export function useStage(
         // A fifth of the stage to start it; once it has started, it runs while any of it shows, so the strip still
         // on screen as the reader scrolls past does not freeze mid-motion.
         visible = !!e && e.isIntersecting && (started ? e.intersectionRatio > 0 : e.intersectionRatio >= threshold)
+        note(visible ? 'seen' : 'unseen')
         if (visible && !started && !cancelIdle) cancelIdle = whenIdle(start)
         run()
       },

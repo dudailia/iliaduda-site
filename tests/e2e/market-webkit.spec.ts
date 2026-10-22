@@ -44,7 +44,8 @@ test('goes live or says why, lands a shock in all three views at once, and leave
     // last view after 5s (the same frame for all three is still required below).
     await expect.poll(async () => (await stamps()).every((s) => s !== null), { timeout: process.env.CI ? 15_000 : 5_000 }).toBe(true)
     const landings = await page.evaluate(() => (window as unknown as { __landings: string[] }).__landings)
-    expect(new Set(await stamps()).size, `stamps written: ${landings.join(' · ')}`).toBe(1)
+    const stageLog = await page.locator('[data-market-stage] canvas[data-live-canvas]').getAttribute('data-stage-log')
+    expect(new Set(await stamps()).size, `stamps written: ${landings.join(' · ')}; the surface's stage: ${stageLog}`).toBe(1)
   } else await expect(page.locator('#fig-1').getByText(/Still frames/).first()).toBeVisible()
   const [sw, cw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
   expect(sw).toBeLessThanOrEqual(cw)
