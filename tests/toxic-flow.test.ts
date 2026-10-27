@@ -8,8 +8,8 @@ import { Frozen, TagLink } from '../components/figures/toxicflow/Protocol'
 import { TestResult } from '../components/figures/toxicflow/TestResult'
 import { papers } from '../content/papers'
 import { REPO, bundle, ci, commitUrl, num, replay, source, testRun, type TestBlock } from '../lib/toxicflow/data'
-import { STATUS, prereg, type PreregTag } from '../lib/toxicflow/prereg'
-import { ALLOWED_PREREG } from './forbidden'
+import { AFTER_RUN, STATUS, prereg, type PreregTag } from '../lib/toxicflow/prereg'
+import { ALLOWED_PREREG, FORBIDDEN, allowPrereg, exempt } from './forbidden'
 import { replayData } from '../lib/toxicflow/replay'
 
 /**
@@ -122,6 +122,7 @@ describe('"pre-registered", only once the bundle records the tag', () => {
     expect(h).toContain('not yet created')
     expect(h).not.toContain('/releases/tag/')
     expect(h).not.toContain('frozen by')
+    expect(p.afterRun).toBe('One of these sentences will appear here after the test run fixed in the pre-registration.')
   })
 
   it('says pre-registered once it is, with the study’s whole title and links to the tag and its commit', () => {
@@ -134,6 +135,28 @@ describe('"pre-registered", only once the bundle records the tag', () => {
     expect(h).toContain(`href="${REPO}/blob/prereg-v1/PREREGISTRATION.md"`)
     expect(h).toContain('2 November 2026')
     expect(h).not.toContain('not yet created')
+    expect(p.afterRun).toBe('One of these sentences will appear here after the pre-registered test run.')
+  })
+
+  // What the rendered-page gate (tests/e2e/copy.spec.ts) decides for /toxic-flow, for a page holding either line.
+  const fails = (text: string, t: PreregTag | null) =>
+    FORBIDDEN.some(([r]) => !exempt(r, '/toxic-flow', t) && r.test(allowPrereg(text, '/toxic-flow', t)))
+  const noun = 'The pre-registration, drafted. PREREGISTRATION.md fixes the question.'
+
+  it('lets the page body name the pre-registration in both states, and call anything pre-registered only with the tag', () => {
+    expect(fails(`${noun} ${AFTER_RUN.drafted}`, null)).toBe(false)
+    expect(fails(`${noun} ${AFTER_RUN.registered}`, null)).toBe(true)
+    expect(fails('A pre-registered test', null)).toBe(true)
+    expect(fails(`${noun} ${AFTER_RUN.registered}`, tag)).toBe(false)
+    expect(fails(`${noun} ${AFTER_RUN.drafted}`, tag)).toBe(false)
+    // Elsewhere the noun is still banned in either state.
+    expect(FORBIDDEN.some(([r]) => !exempt(r, '/about', null) && r.test(allowPrereg(noun, '/about', null)))).toBe(true)
+  })
+
+  it('prints the line the bundle’s state calls for', () => {
+    const page = readFileSync(join(process.cwd(), 'app/(pages)/toxic-flow/page.tsx'), 'utf8')
+    expect(page).toContain('{PROTOCOL.afterRun}')
+    expect(page).not.toMatch(/One of these sentences/)
   })
 
   it('shows the copied bundle’s own state on the card, the page and the copy gates', () => {

@@ -10,7 +10,7 @@ import { ROUTES } from './routes'
 for (const route of ROUTES) {
   test(`${route} ships no retracted claim`, async ({ page }) => {
     await page.goto(route)
-    const text = allowPrereg(allowPhone(await page.locator('body').innerText(), route))
+    const text = allowPrereg(allowPhone(await page.locator('body').innerText(), route), route)
     const hits = FORBIDDEN.filter(([r]) => !exempt(r, route) && r.test(text)).map(([r, why]) => `${r.source} (${why})`)
     expect(hits).toEqual([])
   })

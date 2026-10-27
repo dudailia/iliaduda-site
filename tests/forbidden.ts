@@ -1,5 +1,6 @@
 import toxicFlow from '../content/data/toxic-flow/toxic-flow.json'
-import { prereg } from '../lib/toxicflow/prereg'
+import { prereg, type PreregTag } from '../lib/toxicflow/prereg'
+import source from '../content/data/toxic-flow/source.json'
 
 /**
  * Phrases that are unsupportable anywhere on this site, with the reason each
@@ -88,9 +89,11 @@ export function allowPhone(text: string, where: string): string {
 
 /**
  * The word cricstate lost, where it is true: the toxic-flow study is frozen by a git tag on its public repository before
- * any test day is downloaded (its PREREGISTRATION.md and split lock, linked from the page). Allowed on that page and in
- * its own files only; anywhere else the ban above still holds, but for the title and status line the page and its card
- * show in the bundle's current state (lib/toxicflow/prereg.ts): "pre-registered" only once the tag is recorded.
+ * any test day is downloaded (its PREREGISTRATION.md and split lock, linked from the page). Its own files may hold both
+ * states' words. What the page renders depends on the copied bundle (lib/toxicflow/prereg.ts): once the tag is recorded,
+ * the page is exempt; until then only the noun, the document and its links, is allowed there, and the adjective
+ * "pre-registered" fails. Anywhere else the ban above still holds, but for the title and status line the page and its
+ * card show in the bundle's current state.
  */
 export const ALLOWED_PREREG = {
   routes: ['/toxic-flow'],
@@ -100,11 +103,19 @@ export const ALLOWED_PREREG = {
   forms: [prereg(toxicFlow.title).title, prereg(toxicFlow.title).statusLine],
 } as const
 
-/** Whether a pattern of the list is exempt where `where` is a route or a repo-relative file. */
-export function exempt(pattern: RegExp, where: string): boolean {
+const TAG = (source as { prereg_tag: PreregTag | null }).prereg_tag
+
+/** Whether a pattern of the list is exempt where `where` is a route or a repo-relative file, with `tag` as the bundle
+ *  records it. */
+export function exempt(pattern: RegExp, where: string, tag: PreregTag | null = TAG): boolean {
   if (pattern !== PREREG) return false
-  return (ALLOWED_PREREG.routes as readonly string[]).includes(where) || ALLOWED_PREREG.files.some((f) => where.startsWith(f))
+  if (ALLOWED_PREREG.files.some((f) => where.startsWith(f))) return true
+  return tag != null && (ALLOWED_PREREG.routes as readonly string[]).includes(where)
 }
 
-/** The text a ban is checked against, with the study's two allowed forms taken out. */
-export const allowPrereg = (text: string): string => ALLOWED_PREREG.forms.reduce((t, f) => t.split(f).join(''), text)
+/** The text a ban is checked against: the study's two allowed forms taken out, and on its page before the tag, the noun
+ *  (so that what is left still fails on the adjective). */
+export function allowPrereg(text: string, where = '', tag: PreregTag | null = TAG): string {
+  const t = ALLOWED_PREREG.forms.reduce((x, f) => x.split(f).join(''), text)
+  return tag == null && (ALLOWED_PREREG.routes as readonly string[]).includes(where) ? t.replace(/pre-?registrations?/gi, '') : t
+}

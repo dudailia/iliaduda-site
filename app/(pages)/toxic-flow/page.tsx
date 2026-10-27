@@ -629,7 +629,7 @@ export default function ToxicFlow() {
                   ))}
                 </tbody>
               </table>
-              <p className="mt-5 text-ink">One of these sentences will appear here after the pre-registered test run.</p>
+              <p className="mt-5 text-ink">{PROTOCOL.afterRun}</p>
             </>
           )}
         </Section>

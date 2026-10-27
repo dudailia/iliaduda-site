@@ -112,7 +112,7 @@ export interface Bundle {
   readonly test: TestBlock
 }
 
-/** The test run's keys: all null until the pre-registered run fills them. */
+/** The test run's keys: all null until the test run fills them. */
 export interface TestBlock {
   readonly note: string
   readonly keys: Readonly<Record<string, number | string | boolean | null>>
