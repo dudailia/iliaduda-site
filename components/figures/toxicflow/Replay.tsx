@@ -6,7 +6,7 @@ import { useInView, useReducedMotion } from '@/components/stage/env'
 import { CONTROL, option } from '@/components/stage/controls'
 import { useRadios } from '@/components/stage/radios'
 import { rangeFill } from '@/components/stage/range'
-import type { ReplayData, ReplayStrategy } from '@/lib/toxicflow/replay'
+import { emptyReplay, type ReplayData, type ReplayHead, type ReplayStrategy } from '@/lib/toxicflow/replayShape'
 
 /**
  * Fig. 1: one real minute of the BTCUSDT book as the strategies saw it, with a strategy's simulated quotes, fills and
@@ -50,7 +50,30 @@ function steps(t: readonly number[], v: readonly (number | null)[], end: number,
   return d
 }
 
-export function ReplayFigure({ d, description, table }: { d: ReplayData; description: string; table: React.ReactNode }) {
+/**
+ * The minute is loaded on its own once the page is up, not carried in the page's HTML (where it was the largest part,
+ * and held the first paint back on a slow phone); until it arrives the figure holds its full size, empty, so nothing
+ * under it moves when it fills.
+ */
+export function ReplayFigure({ head, description, table }: { head: ReplayHead; description: string; table: React.ReactNode }) {
+  const [d, setD] = useState<ReplayData | null>(null)
+  useEffect(() => {
+    let live = true
+    // A chunk of its own: compressed and cached like the page's other scripts, and loaded only once the page is up.
+    import('@/lib/toxicflow/replay')
+      .then(({ replayData }) => {
+        if (live) setD(replayData())
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
+  const empty = useMemo(() => emptyReplay(head), [head])
+  return <ReplayView key={d ? 'minute' : 'frame'} d={d ?? empty} ready={!!d} description={description} table={table} />
+}
+
+function ReplayView({ d, ready, description, table }: { d: ReplayData; ready: boolean; description: string; table: React.ReactNode }) {
   const [k, setK] = useState(0)
   const [i, setI] = useState(d.t.length - 1)
   const [playing, setPlaying] = useState(false)
@@ -162,16 +185,18 @@ export function ReplayFigure({ d, description, table }: { d: ReplayData; descrip
   }, [d.span])
 
   const rail = (
+    <div className={ready ? undefined : 'invisible'}>
     <Readouts
       rows={[
         { label: 'Time, UTC', value: clock(d.t[i]!), ch: 10 },
         { label: 'Best bid · ask', value: `${price(bestBid)} · ${price(bestAsk)}`, ch: 17 },
         { label: `${s.name} bid · ask`, value: `${ourBid == null ? 'pulled' : price(ourBid)} · ${ourAsk == null ? 'pulled' : price(ourAsk)}`, ch: 17 },
         { label: `${s.name} inventory`, value: `${s.q[i]! > 0 ? '+' : ''}${s.q[i]} order sizes`, ch: 14 },
-        { label: 'λ buy · λ sell', value: `${d.lamB[i]!.toFixed(2)} · ${d.lamS[i]!.toFixed(2)} a second`, ch: 22 },
+        { label: 'Intensity, buy · sell', value: `${d.lamB[i]!.toFixed(2)} · ${d.lamS[i]!.toFixed(2)} a second`, ch: 22 },
         { label: `${s.name} fills so far`, value: String(filled.length), ch: 3 },
       ]}
     />
+    </div>
   )
 
   const xPct = (t: number) => `${(t / d.span) * 100}%`
@@ -180,6 +205,7 @@ export function ReplayFigure({ d, description, table }: { d: ReplayData; descrip
     <FigureFrame
       id="replay"
       number="Fig. 1"
+      vt="toxic-flow"
       title={`One minute of the BTCUSDT book, ${d.from} to ${d.to} UTC on ${d.day}, with a strategy’s simulated quotes`}
       subtitle={`Binance USDT-M perpetual · top ${d.levels} levels · ${d.stepMs} ms steps · simulated fills`}
       rail={rail}
@@ -191,7 +217,7 @@ export function ReplayFigure({ d, description, table }: { d: ReplayData; descrip
           quote’s place against the touch shows at any price: the touch in ink, each print a short stroke up from its price
           (buyer-initiated) or down (seller-initiated), the strategy’s quotes, its simulated fills at their exchange time, and
           its pulls as indigo rules. Over it, the mid itself, which a sell sweep took down near the end; under it, the Hawkes
-          intensities B3 reads, on the same clock. The minute was fixed by a rule written before its data was looked at. Over the whole day,{' '}
+          intensities B3 reads, on the same clock. The minute was fixed by a rule written before its data was looked at; it shows how the strategies behave, not how they perform, which only whole days measure. Over the whole day,{' '}
           {s.name} ended at a break-even maker fee of {s.dayBef < 0 ? '−' : ''}{Math.abs(s.dayBef).toFixed(3)} bp on{' '}
           {s.dayFills.toLocaleString('en-US')} simulated fills, the result its committed run reports.
         </>
@@ -199,7 +225,7 @@ export function ReplayFigure({ d, description, table }: { d: ReplayData; descrip
       table={table}
     >
       <p className="sr-only">{description}</p>
-      <div ref={box} aria-hidden="true" className="grid gap-x-4 gap-y-5 sm:grid-cols-[11.5rem_minmax(0,1fr)]">
+      <div ref={box} aria-hidden="true" className={`grid gap-x-4 gap-y-5 sm:grid-cols-[11.5rem_minmax(0,1fr)] ${ready ? '' : 'invisible'}`}>
         {/* The book at this step. */}
         <div className="text-meta font-mono tabular">
           <div className="grid grid-cols-[4.6rem_minmax(0,1fr)_3.2rem] items-center gap-x-2 border-b border-rule pb-1 text-graphite">
@@ -328,6 +354,7 @@ export function ReplayFigure({ d, description, table }: { d: ReplayData; descrip
         <button
           type="button"
           className={`${CONTROL} ${reduced ? 'hidden' : ''}`}
+          disabled={!ready}
           onClick={() => {
             if (playing) setPlaying(false)
             else {
@@ -351,6 +378,7 @@ export function ReplayFigure({ d, description, table }: { d: ReplayData; descrip
           min={0}
           max={d.t.length - 1}
           step={1}
+          disabled={!ready}
           value={i}
           aria-valuetext={`${clock(d.t[i]!)} UTC: best bid ${price(bestBid)}, best ask ${price(bestAsk)}; ${s.name} bid ${ourBid == null ? 'pulled' : price(ourBid)}, ask ${ourAsk == null ? 'pulled' : price(ourAsk)}; ${filled.length} fills so far`}
           onChange={(e) => {

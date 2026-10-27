@@ -4,6 +4,7 @@
       "url": [
         "https://iliaduda-site.vercel.app/",
         "https://iliaduda-site.vercel.app/vol-surface",
+        "https://iliaduda-site.vercel.app/toxic-flow",
         "https://iliaduda-site.vercel.app/market",
         "https://iliaduda-site.vercel.app/order-book",
         "https://iliaduda-site.vercel.app/iv-surface",
@@ -76,6 +77,61 @@
               "error",
               {
                 "maxNumericValue": 280000,
+                "aggregationMethod": "pessimistic"
+              }
+            ]
+          }
+        },
+        {
+          "matchingUrlPattern": "/toxic-flow$",
+          "assertions": {
+            "categories:accessibility": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.01,
+                "aggregationMethod": "median"
+              }
+            ],
+            "largest-contentful-paint": [
+              "error",
+              {
+                "maxNumericValue": 2500,
+                "aggregationMethod": "median"
+              }
+            ],
+            "resource-summary:third-party:count": [
+              "error",
+              {
+                "maxNumericValue": 0,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "color-contrast": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "heading-order": [
+              "error",
+              {
+                "minScore": 1,
+                "aggregationMethod": "pessimistic"
+              }
+            ],
+            "robots-txt": "off",
+            "resource-summary:total:size": [
+              "error",
+              {
+                "maxNumericValue": 310000,
                 "aggregationMethod": "pessimistic"
               }
             ]

@@ -1,3 +1,4 @@
+import toxicFlow from '../content/data/toxic-flow/toxic-flow.json'
 
 /**
  * Phrases that are unsupportable anywhere on this site, with the reason each
@@ -92,6 +93,9 @@ export function allowPhone(text: string, where: string): string {
 export const ALLOWED_PREREG = {
   routes: ['/toxic-flow'],
   files: ['app/(pages)/toxic-flow/', 'components/figures/toxicflow/', 'lib/toxicflow/'],
+  // Elsewhere, only these two, word for word: the study's title (in the Contents, the footer and its share card) and
+  // its Contents status line, the owner's words.
+  forms: [toxicFlow.title, 'Pre-registered. Test results pending.'],
 } as const
 
 /** Whether a pattern of the list is exempt where `where` is a route or a repo-relative file. */
@@ -99,3 +103,6 @@ export function exempt(pattern: RegExp, where: string): boolean {
   if (pattern !== PREREG) return false
   return (ALLOWED_PREREG.routes as readonly string[]).includes(where) || ALLOWED_PREREG.files.some((f) => where.startsWith(f))
 }
+
+/** The text a ban is checked against, with the study's two allowed forms taken out. */
+export const allowPrereg = (text: string): string => ALLOWED_PREREG.forms.reduce((t, f) => t.split(f).join(''), text)

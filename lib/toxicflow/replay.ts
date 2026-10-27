@@ -1,58 +1,17 @@
-import { replay, type Replay } from './data'
+import replayJson from '@/content/data/toxic-flow/replay_window.json'
+import type { Replay } from './data'
+import type { ReplayData, ReplayHead, ReplayStrategy } from './replayShape'
+
+export type { ReplayData, ReplayHead, ReplayStrategy } from './replayShape'
+
+// The minute itself, imported here and not through ./data, so Fig. 1's lazily loaded chunk carries this file alone and
+// never the study's whole bundle.
+const replay = replayJson as unknown as Replay
 
 /**
  * The replay minute in the shape Fig. 1 draws it: prices in ticks above the lowest price the minute shows, one row per
- * 100 ms decision step. Built on the server from replay_window.json; the browser gets these arrays and nothing else.
+ * 100 ms decision step, from replay_window.json.
  */
-
-export interface ReplayStrategy {
-  readonly name: string
-  /** Our bid and ask at each step, in ticks above `base`; null where that side was not quoted. */
-  readonly bid: readonly (number | null)[]
-  readonly ask: readonly (number | null)[]
-  /** Inventory at each step, in order sizes. */
-  readonly q: readonly number[]
-  /** Simulated fills: exchange time (ms into the minute), price in ticks, +1 our bid filled (we bought), −1 our ask. */
-  readonly fills: readonly (readonly [number, number, number])[]
-  /** Steps where a side was pulled: start and end (ms), +1 the bid, −1 the ask. */
-  readonly pulls: readonly (readonly [number, number, number])[]
-  /** The strategy's whole day, as its committed result has it. */
-  readonly dayBef: number
-  readonly dayFills: number
-  readonly reproduces: string
-  readonly p?: number
-  readonly holdS?: number
-}
-
-export interface ReplayData {
-  readonly day: string
-  readonly from: string
-  readonly to: string
-  readonly cell: string
-  readonly stepMs: number
-  readonly levels: number
-  /** The window, in ms. */
-  readonly span: number
-  /** Tick size in price units, and the price `base` ticks stand for. */
-  readonly tick: number
-  readonly base: number
-  /** The mid's range over the minute, in ticks above base (the strip over the chart). */
-  readonly lo: number
-  readonly hi: number
-  /** The chart's range, in ticks from the mid: every quote of every strategy fits, with room. */
-  readonly offLo: number
-  readonly offHi: number
-  /** Step times, ms into the minute (local clock). */
-  readonly t: readonly number[]
-  /** The book at each step: its levels as [ticks, quantity], best first. */
-  readonly bids: readonly (readonly (readonly [number, number])[])[]
-  readonly asks: readonly (readonly (readonly [number, number])[])[]
-  /** Prints: exchange time (ms), ticks, quantity, +1 buyer-initiated, −1 seller-initiated. */
-  readonly trades: readonly (readonly [number, number, number, number])[]
-  readonly lamB: readonly number[]
-  readonly lamS: readonly number[]
-  readonly strategies: readonly ReplayStrategy[]
-}
 
 const ORDER = ['B1', 'B3', 'F'] as const
 
@@ -111,3 +70,9 @@ export function replayData(r: Replay = replay): ReplayData {
     strategies,
   }
 }
+
+export function replayHead(d: ReplayData = replayData()): ReplayHead {
+  const { day, from, to, cell, stepMs, levels, span } = d
+  return { day, from, to, cell, stepMs, levels, span, strategies: d.strategies.map(({ name, dayBef, dayFills, reproduces }) => ({ name, dayBef, dayFills, reproduces })) }
+}
+

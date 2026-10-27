@@ -21,7 +21,6 @@ import {
   day,
   holdsZero,
   int,
-  month,
   num,
   pct,
   source,
@@ -29,14 +28,14 @@ import {
   type Comparison,
   type TestBlock,
 } from '@/lib/toxicflow/data'
-import { replayData } from '@/lib/toxicflow/replay'
+import { replayData, replayHead } from '@/lib/toxicflow/replay'
 import { pageMeta } from '@/lib/meta'
+import { papers } from '@/content/papers'
 
+const paper = papers.find((p) => p.slug === 'toxic-flow')!
 const TITLE = bundle.title
-const DESCRIPTION =
-  'Does a fitted Hawkes model of order flow tell a market maker when to step back, better than a trade count? A test fixed in advance, run in simulation.'
 
-export const metadata = pageMeta('/toxic-flow', TITLE, DESCRIPTION)
+export const metadata = pageMeta('/toxic-flow', TITLE, paper.description)
 
 const link = 'inline-block max-w-full py-0.5 [overflow-wrap:anywhere]'
 
@@ -149,6 +148,8 @@ export default function ToxicFlow() {
   const fh = bundle.fill_hold
   const g = bundle.glft
   const g0 = g.by_gamma[0]!
+  const gChosen = g.by_gamma.find((x) => x.gamma === g.chosen_gamma)!
+  const b1Train = bundle.training.strategies.v2_train!.B1!.mean
   const gMids = g.mid_vs_distance.map((m) => m.mid)
   const gDist = g.mid_vs_distance.map((m) => m.median_bid_dist_ticks)
 
@@ -185,7 +186,7 @@ export default function ToxicFlow() {
     <Shell>
       <article>
         <CaseStudyTitle
-          byline={`Independent work · ${month(source.committed_at)} · Binance BTCUSDT perpetual, simulated fills`}
+          byline={paper.byline}
           level="h1"
           title={TITLE}
           standfirst={
@@ -204,7 +205,7 @@ export default function ToxicFlow() {
         />
 
         <ReplayFigure
-          d={d}
+          head={replayHead(d)}
           description={replayDescription}
           table={
             <table>
@@ -244,6 +245,22 @@ export default function ToxicFlow() {
           <Annotated
             note={
               <>
+                The fit’s branching ratio is {num(fit.branching_ratio, 2)}. Its baseline rate is constant through the day,
+                which ignores intraday seasonality and tends to inflate that ratio.
+              </>
+            }
+          >
+            <p>
+              The simulation replays the exchange’s recorded trades and book updates through hftbacktest. Our orders are the
+              smallest the venue allows and are assumed not to move the market. An order at the front of its queue fills in
+              full on any trade at its price, and also when the book moves through it with no trade there; funding payments
+              are left out. Each of these is a choice a real venue does not have to agree with, and the last section says
+              what better data would replace them with.
+            </p>
+          </Annotated>
+          <Annotated
+            note={
+              <>
                 A negative break-even fee is the expected state of a quote at the touch, not a finding: with a one-tick spread
                 the spread earns far less than the adverse selection it pays.
               </>
@@ -252,13 +269,13 @@ export default function ToxicFlow() {
             <p>
               The measure is the break-even maker fee: the day’s gross result divided by the notional traded, in basis
               points, which is the fee at which that day would have broken even. Fill for fill, every strategy here loses:
-              B1’s mean on the validation days is {num(b1Val.bef_bp, 3)}{' '}bp, and its fills have lost{' '}
-              {num(-b1Val.markout_1s_bp, 2)}{' '}bp of the mid a second after they happen. What the signals are asked is
+              B1’s mean on the validation days is {num(b1Val.bef_bp, 3)}{' '}bp, and one second after a fill the mid has moved{' '}
+              {num(-b1Val.markout_1s_bp, 2)}{' '}bp against it on average. What the signals are asked is
               whether they lose less.
             </p>
           </Annotated>
           <p>
-            The days are the first of each month, one full UTC day each: {sp.train.length} training days from {day(sp.train[0]!)}{' '}
+            The days are the first of each month, the days Tardis.dev publishes free, one full UTC day each: {sp.train.length} training days from {day(sp.train[0]!)}{' '}
             to {day(sp.train[sp.train.length - 1]!)} for fitting, {sp.val.length} validation days from {day(sp.val[0]!)} to{' '}
             {day(sp.val[sp.val.length - 1]!)} for tuning and checks, and {sp.test.length} test days from {day(sp.test[0]!)} to{' '}
             {day(sp.test[sp.test.length - 1]!)}, run once. H1, the one confirmatory hypothesis, is that the mean over test
@@ -317,7 +334,7 @@ export default function ToxicFlow() {
             <span className="text-ink">The canaries.</span> Canaries run beside the strategies, with pass rules set in
             advance, to show the harness can see what it is meant to see and nothing it should not. C2 is an oracle: B1 that
             pulls the side the mid will move against over the next few seconds, the only strategy allowed to see the future.
-            If it cannot beat B1 by {c2Times} times the MDE, information cannot become profit in this harness and the study stops.
+            If it cannot beat B1 by {c2Times} times the MDE, knowing more cannot show up as a better break-even fee in this harness, and the study stops.
             On the validation days it beat B1 by {bp(c2.mean_bp)}{' '}bp {ci(c2.bootstrap_ci_bp)}, on {c2.days_positive} of{' '}
             {c2.n_days} days, against a bar of {num(mde.c2_threshold_bp, 4)}{' '}bp: {c2Passes ? 'it passes' : 'it fails'}. C3
             runs B3 at zero latency as an upper bound; at high latency B3’s mean was {num(c3.high, 4)}{' '}bp against{' '}
@@ -511,8 +528,8 @@ export default function ToxicFlow() {
               for {fh.hold_s}{' '}s, and reads no signal at all. F beat the run-matched random pulls by {bp(fRl.mean_bp)}
               {' '}bp {ci(fRl.bootstrap_ci_bp)} on {fRl.days_positive} of {fRl.n_days} days, {pct(fShare, 0)} of B3’s lead over
               them, and B3 − F was {bp(b3F.mean_bp)}{' '}bp {ci(b3F.bootstrap_ci_bp)}, above 0 on {b3F.days_positive} of{' '}
-              {b3F.n_days} days. On these days, most of what B3 gains over random pulls a rule that never reads the Hawkes
-              intensity gains too. Fig.{' '}1 shows it in the minute: B3 pulled {b3.pulls.length} times, F{' '}
+              {b3F.n_days} days. On these days, a rule that never reads the Hawkes intensity gains most of what B3 gains
+              over random pulls. Fig.{' '}1 shows it in the minute: B3 pulled {b3.pulls.length} times, F{' '}
               {f.pulls.length} times, each F pull right after one of its fills.
             </p>
           </Annotated>
@@ -537,12 +554,14 @@ export default function ToxicFlow() {
             }
           >
             <p>
-              GLFT, the textbook optimal market-making model, was the first design’s base, and it is reported as an
-              exploratory result. Raising its risk aversion γ moves its quotes away from the mid: from γ = {g0.gamma} to{' '}
-              {g.chosen_gamma} the median day falls from {int(g0.median_fills)} fills to {int(g.by_gamma.find((x) => x.gamma === g.chosen_gamma)!.median_fills)},
-              and the break-even fee rises from {num(g0.best_mean_bef_bp, 3)} to about {num(g.chosen_mean_bef_bp, 3)}{' '}bp. It
-              loses less per unit of notional than B1 does at the touch, on far fewer trades ({int(g.chosen_mean_fills)} a day
-              against {int(g.touch_b1_mean_fills)}): each fill is still adversely selected, and GLFT takes fewer of them. It
+              GLFT, the optimal-quoting model with inventory risk aversion that hftbacktest’s tutorial builds, was the first
+              design’s base, and it is reported as an exploratory result. Raising its risk aversion γ moves its quotes away from the mid: from γ = {g0.gamma} to{' '}
+              {gChosen.gamma}, taking the best window at each, the median day falls from {int(g0.median_fills)} fills to{' '}
+              {int(gChosen.median_fills)} and the break-even fee rises from {num(g0.best_mean_bef_bp, 3)} to{' '}
+              {num(gChosen.best_mean_bef_bp, 3)}{' '}bp. At the setting the first design chose it averaged{' '}
+              {num(g.chosen_mean_bef_bp, 3)}{' '}bp on {int(g.chosen_mean_fills)} fills a day, against B1’s{' '}
+              {num(b1Train.bef_bp, 3)}{' '}bp on {int(b1Train.fills)} at the touch on the same days: it loses less per unit
+              of notional because it trades far less, and each fill is still adversely selected. It
               works in ticks, so its distance from the mid grows with the price: across {g.mid_vs_distance.length} days the
               correlation between the mid and that distance is {num(g.mid_distance_corr, 2)}, from {int(Math.min(...gDist))} ticks
               at a mid of {int(gMids[gDist.indexOf(Math.min(...gDist))]!)} to {int(Math.max(...gDist))} at{' '}
@@ -555,7 +574,7 @@ export default function ToxicFlow() {
           id="glft"
           number="Fig. 7"
           title="GLFT’s break-even fee by risk aversion"
-          subtitle={`${sp.train.length} training days · primary cell · best window for each γ`}
+          subtitle={`${sp.train.length} training days · primary cell · best window for each risk aversion`}
           caption={<>Exploratory, from the first design’s runs. Each row is the best of the windows tried at that γ, with its median fills a day.</>}
           table={
             <table>
@@ -582,7 +601,7 @@ export default function ToxicFlow() {
           <p className="sr-only">
             {g.by_gamma.map((r) => `γ ${r.gamma}: ${num(r.best_mean_bef_bp, 3)} bp on a median of ${int(r.median_fills)} fills a day.`).join(' ')}
           </p>
-          <DotRows rows={g.by_gamma.map((r) => ({ label: `γ = ${r.gamma}`, value: r.best_mean_bef_bp, aside: `${int(r.median_fills)} fills a day` }))} digits={3} unit="bp" />
+          <DotRows rows={g.by_gamma.map((r) => ({ label: `risk aversion ${r.gamma}`, value: r.best_mean_bef_bp, aside: `${int(r.median_fills)} fills a day` }))} digits={3} unit="bp" />
         </FigureFrame>
 
         <Section heading="Every cell">

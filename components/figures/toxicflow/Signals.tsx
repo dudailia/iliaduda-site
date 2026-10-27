@@ -14,8 +14,8 @@ export function signalName(key: string): string {
   const [code, kind, rest] = key.split('_') as [string, string | undefined, string | undefined]
   if (code === 'B2') return `OFI, window ${rest?.replace(/s$/, ' s') ?? ''}`
   if (code === 'B2b') return `trade count, decay ${rest?.replace(/s$/, ' s') ?? ''}`
-  if (code === 'B3') return 'Hawkes, fitted β'
-  if (code === 'C4') return `Hawkes, β × ${kind?.replace(/^x/, '') ?? ''}`
+  if (code === 'B3') return 'Hawkes, fitted decay'
+  if (code === 'C4') return `Hawkes, decay × ${kind?.replace(/^x/, '') ?? ''}`
   return key
 }
 
