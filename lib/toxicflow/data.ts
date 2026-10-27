@@ -1,6 +1,7 @@
 import bundleJson from '@/content/data/toxic-flow/toxic-flow.json'
 import replayJson from '@/content/data/toxic-flow/replay_window.json'
 import sourceJson from '@/content/data/toxic-flow/source.json'
+import type { PreregTag } from './prereg'
 
 /**
  * The toxic-flow study, as its own repository publishes it for this page (site/toxic-flow.json and
@@ -152,13 +153,13 @@ export interface Replay {
 
 export const bundle = bundleJson as unknown as Bundle
 export const replay = replayJson as unknown as Replay
-export const source = sourceJson as { readonly repo: string; readonly commit: string; readonly committed_at: string }
+export const source = sourceJson as { readonly repo: string; readonly commit: string; readonly committed_at: string; readonly prereg_tag: PreregTag | null }
 
 export const REPO = source.repo
 /** A file of the toxic-flow repository at the commit the data was copied from. */
 export const at = (path: string) => `${REPO}/blob/${source.commit}/${path}`
 export const commitUrl = (sha: string) => `${REPO}/commit/${sha}`
-export const TAG = 'prereg-v1'
+export { TAG } from './prereg'
 
 // ── Formatting ─────────────────────────────────────────────────────────────────────────────────────────────────────
 // The study's numbers are small differences in basis points; the site sets a minus as U+2212, as its other papers do.

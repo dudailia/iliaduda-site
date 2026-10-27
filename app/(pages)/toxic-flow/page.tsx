@@ -5,6 +5,7 @@ import { DotRows, IntervalFigure, type IntervalRow } from '@/components/figures/
 import { ReplayFigure } from '@/components/figures/toxicflow/Replay'
 import { TestResult } from '@/components/figures/toxicflow/TestResult'
 import { SignalsFigure, signalName } from '@/components/figures/toxicflow/Signals'
+import { Frozen, TagLink } from '@/components/figures/toxicflow/Protocol'
 import { FigureFrame } from '@/components/FigureFrame'
 import {
   LATENCIES,
@@ -28,12 +29,15 @@ import {
   type Comparison,
   type TestBlock,
 } from '@/lib/toxicflow/data'
+import { prereg } from '@/lib/toxicflow/prereg'
 import { replayData, replayHead } from '@/lib/toxicflow/replay'
 import { pageMeta } from '@/lib/meta'
 import { papers } from '@/content/papers'
 
 const paper = papers.find((p) => p.slug === 'toxic-flow')!
-const TITLE = bundle.title
+// The study's title, without its "pre-registered" until the bundle records the tag (lib/toxicflow/prereg.ts).
+const TITLE = paper.title
+const PROTOCOL = prereg(bundle.title)
 
 export const metadata = pageMeta('/toxic-flow', TITLE, paper.description)
 
@@ -116,8 +120,6 @@ export default function ToxicFlow() {
   const mde = bundle.mde
   const val = bundle.validation
   const fit = bundle.hawkes_fit
-  const tagged = bundle.design_history.find((h) => h.event.includes(TAG))
-  const tagCommit = tagged?.commit ?? null
   const ran = testRun()
 
   // Canaries.
@@ -191,6 +193,7 @@ export default function ToxicFlow() {
           title={TITLE}
           standfirst={
             <>
+              <p className="text-meta mb-3 font-mono text-ink">{paper.statusLine}</p>
               <p>
                 A market maker that quotes at the best bid and ask loses to the traders who know where the price goes next,
                 so it wants to step back from a side just before their orders arrive. Does a fitted Hawkes model of buy and
@@ -289,24 +292,7 @@ export default function ToxicFlow() {
             A study that tunes on its data and then reports the tuned result has measured its own search. This one is set up
             so that the test result cannot be shaped after it is seen.
           </p>
-          <p>
-            <span className="text-ink">The pre-registration.</span>{' '}
-            <a href={at('PREREGISTRATION.md')}>PREREGISTRATION.md</a> fixes the question, data, simulation, strategies,
-            metric, hypotheses, analysis and the sentence the paper will print for each possible outcome, before any test day
-            exists on disk. It is frozen by the annotated git tag {TAG} on the public repository;{' '}
-            {tagCommit ? (
-              <>
-                the tag was pushed at <a href={commitUrl(tagCommit)}>{tagCommit}</a> (<a href={`${REPO}/releases/tag/${TAG}`}>{TAG}</a>).
-              </>
-            ) : (
-              <>
-                as of the commit this page reads, it is not created yet, and the test days have not been downloaded. Once it
-                is pushed it is listed under <a href={`${REPO}/tags`}>the repository’s tags</a>, with GitHub’s record of when.
-              </>
-            )}{' '}
-            After the tag, any change goes in <a href={at('DEVIATIONS.md')}>DEVIATIONS.md</a>, and both the original and the
-            changed analysis are reported.
-          </p>
+          <Frozen tag={PROTOCOL.tag} />
           <Annotated
             note={
               <>
@@ -669,7 +655,7 @@ export default function ToxicFlow() {
             ['repository', <a key="r" href={REPO}>github.com/dudailia/toxic-flow</a>],
             ['data', <a key="d" className={link} href={commitUrl(source.commit)}>{`site/toxic-flow.json and site/replay_window.json at ${source.commit.slice(0, 7)}`}</a>],
             ['protocol', <a key="p" href={at('PREREGISTRATION.md')}>PREREGISTRATION.md</a>],
-            ['tag', tagCommit ? <a key="t" href={`${REPO}/releases/tag/${TAG}`}>{TAG}</a> : <a key="t" href={`${REPO}/tags`}>{`${TAG}, not yet created`}</a>],
+            ['tag', <TagLink key="t" tag={PROTOCOL.tag} />],
             ['replay', <a key="w" className={link} href={at('scripts/site_replay.py')}>scripts/site_replay.py</a>],
             ['simulation', 'hftbacktest, replay of Binance USDT-M BTCUSDT trades and book updates from Tardis.dev'],
             ['signals', `${Object.keys(bundle.signal_information.splits.train.table).length / 3} settings, from ${signalName('B2_ofi_1s')} to ${signalName('B3_hawkes')}`],

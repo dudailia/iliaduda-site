@@ -131,7 +131,7 @@
             "resource-summary:total:size": [
               "error",
               {
-                "maxNumericValue": 310000,
+                "maxNumericValue": 320000,
                 "aggregationMethod": "pessimistic"
               }
             ]

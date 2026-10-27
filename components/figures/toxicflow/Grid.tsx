@@ -56,7 +56,7 @@ export function GridFigure({
         <>
           Queue models from the most pessimistic (risk-averse: our order moves up its queue only when trades eat the
           queue ahead of it) to the most generous (log), each at low latency (the day’s observed feed latency) and high
-          latency (a slower participant, without co-location). The pre-registered test needs the same sign in every cell. Most exploratory
+          latency (a slower participant, without co-location). H1 on the test days needs the same sign in every cell. Most exploratory
           comparisons were run in the primary cell only, and their other cells say so.
         </>
       }

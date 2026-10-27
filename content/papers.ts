@@ -1,5 +1,6 @@
 import { fact, type FactKey } from './facts'
 import toxicFlow from './data/toxic-flow/toxic-flow.json'
+import { prereg } from '../lib/toxicflow/prereg'
 
 /**
  * The contents of the issue: every paper and every piece of other work, in the
@@ -74,16 +75,17 @@ export const papers: readonly Paper[] = [
   {
     slug: 'toxic-flow',
     href: '/toxic-flow',
-    // The study's own title (its site bundle, lib/toxicflow/data.ts), word for word.
-    title: toxicFlow.title,
+    // The study's own title (its site bundle), word for word once the bundle records the tag that freezes the protocol,
+    // and without its "pre-registered" sentence until then (lib/toxicflow/prereg.ts).
+    title: prereg(toxicFlow.title).title,
     abstract:
       'A market maker on Binance BTCUSDT that pulls the side a signal marks as toxic: does a fitted Hawkes model of market orders choose those moments better than a decay-weighted trade count? The design, the analysis and the sentence for every outcome were committed publicly before any test day was downloaded; every result is from simulation on historical data.',
     dek: 'Does a fitted Hawkes model tell a market maker when to step back, better than a trade count? Fixed in advance, simulated on historical Binance BTCUSDT data.',
     description:
       'Does a fitted Hawkes model of order flow tell a market maker when to step back, better than a trade count? A test fixed in advance, run in simulation.',
     byline: 'Independent work · October 2026 · Binance BTCUSDT, simulated fills',
-    // The owner's line (2026-10-26).
-    statusLine: 'Pre-registered. Test results pending.',
+    // The owner's lines (2026-10-27): "Pre-registered" only once the bundle records the tag, "drafted" until then.
+    statusLine: prereg(toxicFlow.title).statusLine,
     status: 'published',
   },
   {

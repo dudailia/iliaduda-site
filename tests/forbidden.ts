@@ -1,4 +1,5 @@
 import toxicFlow from '../content/data/toxic-flow/toxic-flow.json'
+import { prereg } from '../lib/toxicflow/prereg'
 
 /**
  * Phrases that are unsupportable anywhere on this site, with the reason each
@@ -88,14 +89,15 @@ export function allowPhone(text: string, where: string): string {
 /**
  * The word cricstate lost, where it is true: the toxic-flow study is frozen by a git tag on its public repository before
  * any test day is downloaded (its PREREGISTRATION.md and split lock, linked from the page). Allowed on that page and in
- * its own files only; anywhere else the ban above still holds.
+ * its own files only; anywhere else the ban above still holds, but for the title and status line the page and its card
+ * show in the bundle's current state (lib/toxicflow/prereg.ts): "pre-registered" only once the tag is recorded.
  */
 export const ALLOWED_PREREG = {
   routes: ['/toxic-flow'],
   files: ['app/(pages)/toxic-flow/', 'components/figures/toxicflow/', 'lib/toxicflow/'],
   // Elsewhere, only these two, word for word: the study's title (in the Contents, the footer and its share card) and
-  // its Contents status line, the owner's words.
-  forms: [toxicFlow.title, 'Pre-registered. Test results pending.'],
+  // its Contents status line, the owner's words, each as the bundle's state has it.
+  forms: [prereg(toxicFlow.title).title, prereg(toxicFlow.title).statusLine],
 } as const
 
 /** Whether a pattern of the list is exempt where `where` is a route or a repo-relative file. */
