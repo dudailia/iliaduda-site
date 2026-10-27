@@ -4,8 +4,12 @@ import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { Frozen, TagLink } from '../components/figures/toxicflow/Protocol'
 import { TestResult } from '../components/figures/toxicflow/TestResult'
-import { bundle, ci, num, replay, source, testRun, type TestBlock } from '../lib/toxicflow/data'
+import { papers } from '../content/papers'
+import { REPO, bundle, ci, commitUrl, num, replay, source, testRun, type TestBlock } from '../lib/toxicflow/data'
+import { STATUS, prereg, type PreregTag } from '../lib/toxicflow/prereg'
+import { ALLOWED_PREREG } from './forbidden'
 import { replayData } from '../lib/toxicflow/replay'
 
 /**
@@ -94,5 +98,53 @@ describe('the test section', () => {
     expect(html).toContain(num(-0.0042, 4, true))
     expect(html).toContain(ci([-0.012, 0.0031]))
     expect(html).toContain('7 of 16')
+  })
+})
+
+describe('"pre-registered", only once the bundle records the tag', () => {
+  const html = (tag: PreregTag | null) => renderToStaticMarkup(createElement('div', null, createElement(Frozen, { tag }), createElement(TagLink, { tag })))
+  const tag: PreregTag = {
+    name: 'prereg-v1',
+    object: 'a'.repeat(40),
+    commit: 'b'.repeat(40),
+    tagged_at: '2026-11-02T09:30:00-05:00',
+  }
+
+  it('says drafted while the tag is not recorded: no "pre-registered" in the title, no link to a tag', () => {
+    const p = prereg(bundle.title, null)
+    expect(p.statusLine).toBe('Pre-registration drafted. Test results pending.')
+    expect(p.title).not.toMatch(/pre-?regist/i)
+    expect(p.title.length).toBeGreaterThan(0)
+    expect(bundle.title.startsWith(p.title)).toBe(true)
+    const h = html(null)
+    expect(h).toContain('The pre-registration, drafted.')
+    expect(h).toContain(`${REPO}/tags`)
+    expect(h).toContain('not yet created')
+    expect(h).not.toContain('/releases/tag/')
+    expect(h).not.toContain('frozen by')
+  })
+
+  it('says pre-registered once it is, with the study’s whole title and links to the tag and its commit', () => {
+    const p = prereg(bundle.title, tag)
+    expect(p.statusLine).toBe('Pre-registered. Test results pending.')
+    expect(p.title).toBe(bundle.title)
+    const h = html(tag)
+    expect(h).toContain(`href="${REPO}/releases/tag/prereg-v1"`)
+    expect(h).toContain(`href="${commitUrl(tag.commit)}"`)
+    expect(h).toContain(`href="${REPO}/blob/prereg-v1/PREREGISTRATION.md"`)
+    expect(h).toContain('2 November 2026')
+    expect(h).not.toContain('not yet created')
+  })
+
+  it('shows the copied bundle’s own state on the card, the page and the copy gates', () => {
+    const now = prereg(bundle.title)
+    expect(now.statusLine).toBe(source.prereg_tag ? STATUS.registered : STATUS.drafted)
+    const card = papers.find((p) => p.slug === 'toxic-flow')!
+    expect(card.title).toBe(now.title)
+    expect(card.statusLine).toBe(now.statusLine)
+    // Second in the Contents, the owner's placement.
+    expect(papers.findIndex((p) => p.slug === 'toxic-flow')).toBe(1)
+    // The copy ban's exception elsewhere: this state's title and status line, and nothing else.
+    expect([...ALLOWED_PREREG.forms]).toEqual([now.title, now.statusLine])
   })
 })
