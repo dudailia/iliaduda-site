@@ -6,6 +6,9 @@
  * receives. They used to keep separate copies, and the rendered-output copy
  * had quietly fallen five patterns behind.
  */
+/** cricstate's retraction, kept apart so the one study that was frozen first (below) can use the word. */
+const PREREG = /pre-?registered|pre-?registration/i
+
 export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
   [/real money/i, 'not supportable — no project handles customer money'],
   [/real clients/i, 'no customer claims without a source'],
@@ -42,7 +45,7 @@ export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
 
   // cricstate. Part of the design was frozen before the test split was read
   // and part was not, so the stronger word is retracted everywhere.
-  [/pre-?registered|pre-?registration/i, 'retracted: the materiality bands were not frozen first'],
+  [PREREG, 'retracted: the materiality bands were not frozen first'],
   [/93\s?%/, 'retracted pairing with the identity result'],
 
   // Trading work is described at résumé level only. No performance, no
@@ -78,4 +81,21 @@ export const ALLOWED_PHONE = {
 export function allowPhone(text: string, where: string): string {
   const here = (ALLOWED_PHONE.routes as readonly string[]).includes(where) || (ALLOWED_PHONE.files as readonly string[]).includes(where)
   return here ? ALLOWED_PHONE.forms.reduce((t, f) => t.split(f).join(''), text) : text
+}
+
+
+/**
+ * The word cricstate lost, where it is true: the toxic-flow study is frozen by a git tag on its public repository before
+ * any test day is downloaded (its PREREGISTRATION.md and split lock, linked from the page). Allowed on that page and in
+ * its own files only; anywhere else the ban above still holds.
+ */
+export const ALLOWED_PREREG = {
+  routes: ['/toxic-flow'],
+  files: ['app/(pages)/toxic-flow/', 'components/figures/toxicflow/', 'lib/toxicflow/'],
+} as const
+
+/** Whether a pattern of the list is exempt where `where` is a route or a repo-relative file. */
+export function exempt(pattern: RegExp, where: string): boolean {
+  if (pattern !== PREREG) return false
+  return (ALLOWED_PREREG.routes as readonly string[]).includes(where) || ALLOWED_PREREG.files.some((f) => where.startsWith(f))
 }

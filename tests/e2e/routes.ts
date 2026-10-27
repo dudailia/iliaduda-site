@@ -10,6 +10,8 @@ export const ROUTES = [
   '/cv',
   ...visiblePapers(false).map((p) => p.href),
   ...otherWork.map((o) => o.href),
+  // Not in the Contents yet: the toxic-flow study's page, reached by its address until its owner lists it.
+  '/toxic-flow',
 ] as const
 
 /** Old URLs that must keep working. */

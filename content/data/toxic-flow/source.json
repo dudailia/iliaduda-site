@@ -1,0 +1,14 @@
+{
+  "repo": "https://github.com/dudailia/toxic-flow",
+  "commit": "c8291e0454d2ad7abd207cea6c1259977bc896fe",
+  "committed_at": "2026-10-26T22:39:25-04:00",
+  "subject": "site/replay_window.json (make site-data): the minute fixed by the committed rule, 2024-06-01 12:00:00 to 12:01:00 UTC, at the 600 decision steps: top 5 book levels as the strategies saw them, 442 prin",
+  "copied_from": [
+    "site/toxic-flow.json",
+    "site/replay_window.json"
+  ],
+  "sha256": {
+    "toxic-flow.json": "247b6b67ba850ea9e700141e2eff141465bda8f711810a03b02504be554fd412",
+    "replay_window.json": "3ac8a8a606ff884ac0dc42794916a59d4aa5b69dab46bdc17847c684f2dc2ec8"
+  }
+}
