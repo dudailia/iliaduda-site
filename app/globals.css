@@ -28,6 +28,10 @@
   --color-rule: #dedcd7;
   --color-indigo: #2f3a8c;
   --color-indigo-wash: #e4e6f2;
+  /* The two sides of a trade, on /toxic-flow only: a buyer's market order or our bid filled, and a seller's. Never
+     the only cue: a buy is also drawn filled or pointing up, a sell hollow or pointing down. */
+  --color-buy: #1b7550;
+  --color-sell: #b23f26;
 
   /* next/font/local publishes the loaded faces as --font-*-face. These must NOT
      be called --font-serif / --font-mono: naming them that made the theme token
@@ -83,6 +87,8 @@
     --color-rule: #2b2e34;
     --color-indigo: #a3adf5;
     --color-indigo-wash: #262b4c;
+    --color-buy: #6cc79a;
+    --color-sell: #f08c70;
   }
 }
 
@@ -993,6 +999,8 @@
     --color-rule: #cfcdc7;
     --color-indigo: #2f3a8c;
     --color-indigo-wash: #e4e6f2;
+    --color-buy: #1b7550;
+    --color-sell: #b23f26;
     color-scheme: light;
   }
 

@@ -1,7 +1,7 @@
 import { bp, ci, num, type TestBlock } from '@/lib/toxicflow/data'
 
 /** What the test run filled in, once it has: the sentence it reached and the numbers under it. */
-export function TestResult({ t }: { t: TestBlock }) {
+export function TestResult({ t, canary = true }: { t: TestBlock; canary?: boolean }) {
   const k = t.keys
   const n = (key: string) => (typeof k[key] === 'number' ? (k[key] as number) : null)
   const rows: [string, string][] = [
@@ -19,7 +19,7 @@ export function TestResult({ t }: { t: TestBlock }) {
   return (
     <>
       <p className="text-ink">{String(k.h1_statement)}</p>
-      {k.canary_statement ? <p>{String(k.canary_statement)}</p> : null}
+      {canary && k.canary_statement ? <p>{String(k.canary_statement)}</p> : null}
       <dl className="text-note mt-5 grid grid-cols-1 gap-y-2 border-t border-rule pt-4 sm:grid-cols-[13rem_minmax(0,1fr)]">
         {rows.map(([a, b]) => (
           <div key={a} className="sm:contents">

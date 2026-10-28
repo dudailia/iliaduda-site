@@ -66,8 +66,8 @@ export interface Bundle {
     readonly branching_ratio: number
     readonly memory_ms: number
     readonly n_events: number
-    readonly params: Readonly<Record<string, number>>
-    readonly se: Readonly<Record<string, number>>
+    readonly params: HawkesFit
+    readonly se: HawkesFit
     readonly source: string
   }
   readonly mde: {
@@ -149,6 +149,17 @@ export interface Replay {
       }
     >
   >
+}
+
+/** The fitted bivariate Hawkes model: alpha_kj is a type-j event's lift on the type-k intensity (b buy, s sell). */
+export interface HawkesFit {
+  readonly mu_b: number
+  readonly mu_s: number
+  readonly alpha_bb: number
+  readonly alpha_bs: number
+  readonly alpha_sb: number
+  readonly alpha_ss: number
+  readonly beta: number
 }
 
 export const bundle = bundleJson as unknown as Bundle

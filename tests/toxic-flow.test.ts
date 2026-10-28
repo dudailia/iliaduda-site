@@ -5,6 +5,10 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { Frozen, TagLink } from '../components/figures/toxicflow/Protocol'
+import { Conclusions } from '../components/figures/toxicflow/Conclusions'
+import { intensity } from '../components/figures/toxicflow/HawkesToy'
+import { reached } from '../lib/toxicflow/conclusions'
+import { book, height } from '../lib/toxicflow/hero'
 import { TestResult } from '../components/figures/toxicflow/TestResult'
 import { papers } from '../content/papers'
 import { REPO, bundle, ci, commitUrl, num, replay, source, testRun, type TestBlock } from '../lib/toxicflow/data'
@@ -169,5 +173,83 @@ describe('"pre-registered", only once the bundle records the tag', () => {
     expect(papers.findIndex((p) => p.slug === 'toxic-flow')).toBe(1)
     // The copy ban's exception elsewhere: this state's title and status line, and nothing else.
     expect([...ALLOWED_PREREG.forms]).toEqual([now.title, now.statusLine])
+  })
+})
+
+describe('the visual layer reads only the bundle', () => {
+  it('marks each fill out at 1 s by the study’s own rule: the mid at the last step at or before exchange time + 1 s', () => {
+    const d = replayData()
+    let checked = 0
+    for (const [name, s] of Object.entries(replay.strategies)) {
+      const lane = d.strategies.find((x) => x.name === name)!
+      for (const f of s.fills) {
+        const side = f.side === 'buy' ? 1 : -1
+        const at = f.exch_t_ms + 1000
+        const last = replay.book[replay.book.length - 1]!
+        const got = lane.fills.find((x) => x[0] === f.exch_t_ms && x[2] === side)![3]
+        if (at > last.t_ms + replay.step_ms) {
+          expect(got).toBeNull()
+          continue
+        }
+        const step = [...replay.book].reverse().find((b) => b.t_ms <= at)!
+        const mid = (step.bids[0]![0]! + step.asks[0]![0]!) / 2
+        expect(got).toBeCloseTo((1e4 * side * (mid - f.price)) / f.price, 9)
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThan(0)
+  })
+
+  it('opens the card whose template the run’s sentence fits, and none before the run', () => {
+    const rows = bundle.preregistered_conclusions.rows
+    expect(reached(rows, bundle.test.keys)).toEqual({ h1: null, canary: null })
+    // Each template, filled with numbers, reaches its own card and no other.
+    for (const r of rows) {
+      const said = r.statement.replace(/\bX\b/g, '0.0123').replace(/\bL\b/g, '−0.004').replace(/\bU\b/g, '0.028').replace(/\bMDE\b/g, '0.0231')
+      expect(reached(rows, { h1_statement: said }).h1, r.key).toBe(r.key)
+    }
+    expect(reached(rows, { h1_statement: 'A sentence no template has.' }).h1).toBeNull()
+  })
+
+  it('shows every card sealed before the run, and opens the reached one with the run’s numbers after it', () => {
+    const rows = bundle.preregistered_conclusions.rows
+    const before = renderToStaticMarkup(createElement(Conclusions, { rows, t: bundle.test, after: AFTER_RUN.drafted }))
+    expect(before.match(/data-state="sealed"/g)).toHaveLength(rows.length)
+    expect(before).toContain(AFTER_RUN.drafted)
+    const nd = rows.find((r) => r.key === 'no_detectable_difference')!
+    const said = nd.statement.replace(/\bMDE\b/g, '0.0231')
+    const keys = { ...bundle.test.keys, h1_statement: said, h1_mean_bp: -0.0042, h1_ci_low_bp: -0.012, h1_ci_high_bp: 0.0031, h1_days_positive: 7, h1_n_days: 16 }
+    const after = renderToStaticMarkup(createElement(Conclusions, { rows, t: { ...bundle.test, keys }, after: AFTER_RUN.drafted }))
+    expect(after).toContain('data-conclusion="no_detectable_difference" data-state="open"')
+    expect(after.match(/data-state="sealed"/g)).toHaveLength(rows.length - 1)
+    expect(after).toContain(said)
+    expect(after).toContain('7 of 16')
+    expect(after).not.toContain(AFTER_RUN.drafted)
+  })
+
+  it('lifts the toy’s intensities by the fitted α and decays them at the fitted β', () => {
+    const p = bundle.hawkes_fit.params
+    expect(intensity(p, [], 100)).toEqual([p.mu_b, p.mu_s])
+    // Strictly earlier events only: at the event's own instant nothing has changed.
+    expect(intensity(p, [[100, 1]], 100)).toEqual([p.mu_b, p.mu_s])
+    const [b, s] = intensity(p, [[100, 1]], 100 + 1e-9)
+    expect(b).toBeCloseTo(p.mu_b + p.alpha_bb, 6)
+    expect(s).toBeCloseTo(p.mu_s + p.alpha_sb, 6)
+    const half = (Math.LN2 / p.beta) * 1000
+    const [b2] = intensity(p, [[0, 1]], half)
+    expect(b2 - p.mu_b).toBeCloseTo(p.alpha_bb / 2, 6)
+    const [bs, ss] = intensity(p, [[0, -1]], 1e-9)
+    expect(bs).toBeCloseTo(p.mu_b + p.alpha_bs, 6)
+    expect(ss).toBeCloseTo(p.mu_s + p.alpha_ss, 6)
+  })
+
+  it('scales the title’s book by the minute’s own levels: nothing for an empty level, all of it for the largest', () => {
+    const d = replayData()
+    const b = book(d)
+    expect(height(0, b)).toBe(0)
+    expect(height(b.top, b)).toBeCloseTo(1, 12)
+    expect(height(b.lot, b)).toBeGreaterThan(0)
+    expect(height(b.lot, b)).toBeLessThan(height(b.top / 2, b))
+    for (let i = 0; i < d.t.length; i++) for (const [p] of [...d.bids[i]!, ...d.asks[i]!]) expect(Math.abs(p - b.mids[i]!)).toBeLessThanOrEqual(b.reach)
   })
 })

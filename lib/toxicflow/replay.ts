@@ -15,7 +15,35 @@ const replay = replayJson as unknown as Replay
 
 const ORDER = ['B1', 'B3', 'F'] as const
 
+/** The markout horizon Fig. 1 shows, in ms: the shortest of the study's three (1 s, 10 s, 60 s). */
+export const MARKOUT_MS = 1000
+
+/**
+ * A fill's markout, as PREREGISTRATION.md section 6 defines it: 10,000 × side × (mid(t + h) − p) / p, side +1 for a buy,
+ * t the fill's exchange time, and mid(t) the mid at the last decision step at or before t on the local clock. Null when
+ * t + h is past the minute's last step, whose mid this window does not hold.
+ */
+export function markout(r: Replay, exchMs: number, price: number, side: 1 | -1, h = MARKOUT_MS): number | null {
+  const at = exchMs + h
+  const last = r.book[r.book.length - 1]!
+  if (at > last.t_ms + r.step_ms) return null
+  let k = -1
+  for (let n = 0; n < r.book.length && r.book[n]!.t_ms <= at; n++) k = n
+  if (k < 0) return null
+  const s = r.book[k]!
+  const mid = (s.bids[0]![0]! + s.asks[0]![0]!) / 2
+  return (1e4 * side * (mid - price)) / price
+}
+
+let built: ReplayData | null = null
+
+/** The minute, built once a page: the title's backdrop and Fig. 1 both read it. */
 export function replayData(r: Replay = replay): ReplayData {
+  if (r === replay) return (built ??= build(r))
+  return build(r)
+}
+
+function build(r: Replay): ReplayData {
   // The tick is the narrowest spread the minute shows: the book is one tick wide whenever it is tight.
   const spreads = r.book.map((s) => s.asks[0]![0]! - s.bids[0]![0]!)
   const tick = Math.round(Math.min(...spreads) * 1e6) / 1e6
@@ -31,7 +59,12 @@ export function replayData(r: Replay = replay): ReplayData {
       bid: s.quotes.map((q) => (q.bid == null ? null : ticks(q.bid))),
       ask: s.quotes.map((q) => (q.ask == null ? null : ticks(q.ask))),
       q: s.quotes.map((q) => Math.round(q.position / size)),
-      fills: s.fills.map((f) => [f.exch_t_ms, ticks(f.price), f.side === 'buy' ? 1 : -1] as const).sort((a, b) => a[0] - b[0]),
+      fills: s.fills
+        .map((f) => {
+          const side = f.side === 'buy' ? 1 : -1
+          return [f.exch_t_ms, ticks(f.price), side, markout(r, f.exch_t_ms, f.price, side)] as const
+        })
+        .sort((a, b) => a[0] - b[0]),
       pulls: s.pulls.map((p) => [p.start_ms, p.end_ms, p.side === 'bid' ? 1 : -1] as const),
       dayBef: s.day_result.break_even_fee_bps,
       dayFills: s.day_result.fills,

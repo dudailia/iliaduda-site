@@ -10,8 +10,12 @@ export interface ReplayStrategy {
   readonly ask: readonly (number | null)[]
   /** Inventory at each step, in order sizes. */
   readonly q: readonly number[]
-  /** Simulated fills: exchange time (ms into the minute), price in ticks, +1 our bid filled (we bought), −1 our ask. */
-  readonly fills: readonly (readonly [number, number, number])[]
+  /**
+   * Simulated fills: exchange time (ms into the minute), price in ticks, +1 our bid filled (we bought), −1 our ask, and
+   * the 1 s markout in bp by the study's own rule (PREREGISTRATION.md, section 6), or null where its mid falls past the
+   * minute.
+   */
+  readonly fills: readonly (readonly [number, number, number, number | null])[]
   /** Steps where a side was pulled: start and end (ms), +1 the bid, −1 the ask. */
   readonly pulls: readonly (readonly [number, number, number])[]
   /** The strategy's whole day, as its committed result has it. */
