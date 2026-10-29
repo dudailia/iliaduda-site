@@ -133,9 +133,11 @@ export default function ToxicFlow() {
   const c4fast = comparison('C4_x10', 'B3')
   const c3 = val.c3_mean_bef_bp.risk_averse
   const c2Passes = (c2.mean_bp ?? -Infinity) > mde.c2_threshold_bp
-  // v1's C2 verdict, in the design history's own words: the site's data holds no number for it.
+  // v1's C2 verdict: the design history's words, and its numbers from v1's committed canary run.
   const v1Fail = bundle.design_history.find((h) => /^v1 fails canary C2/.test(h.event))!
-  const c2Run = c2.source.match(/results\/([0-9a-f]{12})\//)?.[1] ?? c2.source
+  const v1c2 = bundle.v1.c2_minus_b1
+  const run = (src: string) => src.match(/results\/([0-9a-f]{12})\//)?.[1] ?? src
+  const c2Run = run(c2.source)
   const c1Passes = holdsZero(c1r1.bootstrap_ci_bp)
 
   // Hypotheses on validation and training days.
@@ -380,14 +382,29 @@ export default function ToxicFlow() {
               {num(c3.zero, 4)}{' '}bp at zero, {c3.high > c3.zero ? 'better, which would flag a leak' : 'no better, as it should be'}.
             </p>
             <CanaryStory
-              v1={{ name: 'v1', what: v1Fail.event.replace(/^v1 fails canary C2 on the validation days: /, ''), commit: v1Fail.commit!, href: commitUrl(v1Fail.commit!) }}
-              v2={{ name: 'v2', what: `On the ${c2.n_days} validation days, C2 beat B1 by more than the bar it had to clear.`, commit: c2Run, href: at(c2.source) }}
-              mean={c2.mean_bp ?? 0}
-              lo={c2.bootstrap_ci_bp[0] ?? 0}
-              hi={c2.bootstrap_ci_bp[1] ?? 0}
+              v1={{
+                name: 'v1 (superseded)',
+                what: v1Fail.event.replace(/^v1 fails canary C2 on the validation days: /, ''),
+                commit: v1Fail.commit!,
+                href: commitUrl(v1Fail.commit!),
+                mean: v1c2.mean_bp ?? 0,
+                lo: v1c2.bootstrap_ci_bp[0] ?? 0,
+                hi: v1c2.bootstrap_ci_bp[1] ?? 0,
+                stats: `mean ${bp(v1c2.mean_bp)} bp ${ci(v1c2.bootstrap_ci_bp)} · above 0 on ${v1c2.days_positive} of ${v1c2.n_days} days · run ${run(v1c2.source)}`,
+              }}
+              v2={{
+                name: 'v2',
+                what: `On the ${c2.n_days} validation days, C2 beat B1 by more than the bar it had to clear.`,
+                commit: c2Run,
+                href: at(c2.source),
+                mean: c2.mean_bp ?? 0,
+                lo: c2.bootstrap_ci_bp[0] ?? 0,
+                hi: c2.bootstrap_ci_bp[1] ?? 0,
+                stats: `mean ${bp(c2.mean_bp)} bp ${ci(c2.bootstrap_ci_bp)} · above 0 on ${c2.days_positive} of ${c2.n_days} days`,
+              }}
               bar={mde.c2_threshold_bp}
+              barLabel={`the bar, ${num(mde.c2_threshold_bp, 4)} bp`}
               passes={c2Passes}
-              labels={{ mean: bp(c2.mean_bp), ci: ci(c2.bootstrap_ci_bp), bar: `the bar, ${num(mde.c2_threshold_bp, 4)} bp`, days: `above 0 on ${c2.days_positive} of ${c2.n_days} days` }}
             />
           </Section>
         </Reveal>

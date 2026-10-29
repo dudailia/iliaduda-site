@@ -109,6 +109,8 @@ export interface Bundle {
     readonly mid_vs_distance: readonly { readonly day: string; readonly median_bid_dist_ticks: number; readonly mid: number }[]
     readonly touch_b1_mean_fills: number
   }
+  /** The superseded v1 design's C2 − B1 on the validation days, from its committed canary run. */
+  readonly v1: { readonly label: string; readonly source: string; readonly c2_minus_b1: Comparison }
   readonly test: TestBlock
 }
 

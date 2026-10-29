@@ -1,14 +1,14 @@
 {
   "repo": "https://github.com/dudailia/toxic-flow",
-  "commit": "c8291e0454d2ad7abd207cea6c1259977bc896fe",
-  "committed_at": "2026-10-26T22:39:25-04:00",
-  "subject": "site/replay_window.json (make site-data): the minute fixed by the committed rule, 2024-06-01 12:00:00 to 12:01:00 UTC, at the 600 decision steps: top 5 book levels as the strategies saw them, 442 prin",
+  "commit": "66c639d83396cb58e8236beb76a715f8ac56ffdf",
+  "committed_at": "2026-10-28T18:53:35-04:00",
+  "subject": "make site-data: v1 block, labelled \"v1 design, superseded; failed canary C2\": v1's C2 against B1 on the validation days, primary cell (mean, bootstrap and t intervals, days above 0, per-day values) fr",
   "copied_from": [
     "site/toxic-flow.json",
     "site/replay_window.json"
   ],
   "sha256": {
-    "toxic-flow.json": "247b6b67ba850ea9e700141e2eff141465bda8f711810a03b02504be554fd412",
+    "toxic-flow.json": "788f27b366346a13a68a906c54163c772b792d6cafe82ff48f711cccb6a49cc0",
     "replay_window.json": "3ac8a8a606ff884ac0dc42794916a59d4aa5b69dab46bdc17847c684f2dc2ec8"
   },
   "prereg_tag": null

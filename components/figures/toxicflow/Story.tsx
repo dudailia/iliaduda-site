@@ -5,7 +5,7 @@ import { useReducedMotion } from '@/components/stage/env'
 
 /**
  * The page's scroll story, its three pieces: a block that arrives as it is reached, the design history drawing itself,
- * and C2's two verdicts. Each plays once a visit, when it is first seen, and never on its way out. Everything is in the
+ * and C2 in its two versions. Each plays once a visit, when it is first seen, and never on its way out. Everything is in the
  * HTML from the first byte: a block is held back only once the page's script has seen that it starts below the screen,
  * so a reader without script, a printer, or a block already on screen never waits for it. Reduced motion: all of it
  * arrives at once, finished.
@@ -119,89 +119,95 @@ export interface Verdict {
   readonly what: string
   readonly commit: string
   readonly href: string
+  /** C2 − B1 over the validation days, bp: its mean and bootstrap interval. */
+  readonly mean: number
+  readonly lo: number
+  readonly hi: number
+  /** The numbers as the page prints them. */
+  readonly stats: string
 }
 
 /**
- * C2, the oracle, in v1 and in v2. v1's verdict is the design history's own words (the site's data holds no number for
- * it, so none is drawn); v2's is drawn: its mean over the validation days as a bar from 0, its bootstrap interval, and
- * the bar it had to clear. On arrival, v1's line comes first, then v2's bar grows to its mean (900ms on the ease-out)
- * and its interval and verdict follow.
+ * C2, the oracle, in v1 and in v2, both from the bundle on one axis through 0: each version's mean over the validation
+ * days as a bar from 0 with its bootstrap interval across it, and, on v2's, the bar it had to clear. v1's bar is hollow,
+ * as its failure is in the design history: the mark says superseded, not a colour. On arrival, v1's line and bar come
+ * first (its bar grows leftward to its mean, 600ms on the ease-out), then v2's bar grows to its mean (900ms) and its
+ * interval and verdict follow.
  */
-export function CanaryStory({
-  v1,
-  v2,
-  mean,
-  lo,
-  hi,
-  bar,
-  labels,
-  passes,
-}: {
-  v1: Verdict
-  v2: Verdict
-  mean: number
-  lo: number
-  hi: number
-  bar: number
-  labels: { readonly mean: string; readonly ci: string; readonly bar: string; readonly days: string }
-  passes: boolean
-}) {
+export function CanaryStory({ v1, v2, bar, barLabel, passes }: { v1: Verdict; v2: Verdict; bar: number; barLabel: string; passes: boolean }) {
   const { ref, state } = useArrived(0.4)
   const held = state === 'held'
   const go = state === 'arrived'
-  const top = Math.max(hi, bar) * 1.08
-  const x = (v: number) => `${(Math.max(0, v) / top) * 100}%`
+  const min = Math.min(0, v1.lo, v2.lo) * 1.08
+  const max = Math.max(0, v1.hi, v2.hi, bar) * 1.08
+  const at = (v: number) => ((v - min) / (max - min)) * 100
+  const x = (v: number) => `${at(v)}%`
+  const span = (a: number, b: number): CSSProperties => ({ left: x(Math.min(a, b)), width: `${Math.abs(at(b) - at(a))}%` })
   const fade = (ms: number): CSSProperties => (held ? { opacity: 0 } : go ? { transition: `opacity 300ms var(--ease-out) ${ms}ms` } : {})
+  const grow = (v: Verdict, ms: number, dur: number, hollow: boolean) => (
+    <div aria-hidden="true" className="relative h-9">
+      <span className="absolute inset-x-0 top-1/2 h-px bg-rule" />
+      <span className="absolute -inset-y-1 w-px bg-ink" style={{ left: x(0) }} />
+      {v === v2 ? <span className="absolute -inset-y-1 border-l border-dashed border-ink" style={{ left: x(bar) }} /> : null}
+      <span
+        data-bar={v.name}
+        className={`absolute top-1/2 h-2.5 -translate-y-1/2 ${v.mean < 0 ? 'origin-right' : 'origin-left'} ${hollow ? 'border border-ink bg-paper' : 'bg-indigo'}`}
+        style={{
+          ...span(0, v.mean),
+          transform: held ? 'scaleX(0)' : 'scaleX(1)',
+          transition: go ? `transform ${dur}ms var(--ease-out) ${ms}ms` : undefined,
+        }}
+      />
+      <span className="absolute top-1/2 h-px -translate-y-1/2 bg-ink" style={{ ...span(v.lo, v.hi), ...fade(ms + dur - 100) }} />
+    </div>
+  )
   return (
     <div ref={ref} className="text-note mt-6 grid gap-y-5 border-t border-rule pt-4">
-      <div className="grid gap-x-4 sm:grid-cols-[6.5rem_minmax(0,1fr)]" style={fade(0)}>
-        <span className="text-meta font-mono text-graphite">{v1.name}</span>
-        <p>
-          <span className="text-meta mr-1.5 font-mono text-ink">failed:</span>
-          {v1.what}{' '}
-          <a className="text-meta font-mono" href={v1.href}>
-            {v1.commit}
-          </a>
-        </p>
+      <div className="grid gap-x-4 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
+        <span className="text-meta font-mono text-graphite" style={fade(0)}>
+          {v1.name}
+        </span>
+        <div>
+          <p style={fade(0)}>
+            <span className="text-meta mr-1.5 font-mono text-ink">failed:</span>
+            {v1.what}{' '}
+            <a className="text-meta font-mono" href={v1.href}>
+              {v1.commit}
+            </a>
+          </p>
+          <div className="mt-3">{grow(v1, 150, 600, true)}</div>
+          <p className="text-meta mt-2 font-mono tabular text-ink" style={fade(700)}>
+            {v1.stats}
+          </p>
+        </div>
       </div>
-      <div className="grid gap-x-4 sm:grid-cols-[6.5rem_minmax(0,1fr)]">
-        <span className="text-meta font-mono text-graphite" style={fade(500)}>
+      <div className="grid gap-x-4 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
+        <span className="text-meta font-mono text-graphite" style={fade(800)}>
           {v2.name}
         </span>
         <div>
-          <p style={fade(500)}>
+          <p style={fade(800)}>
             {v2.what}{' '}
             <a className="text-meta font-mono" href={v2.href}>
               {v2.commit}
             </a>
           </p>
           <div aria-hidden="true" className="text-meta relative mt-3 h-4 font-mono tabular text-graphite">
-            <span className="absolute pl-1.5 whitespace-nowrap" style={{ left: x(bar), ...fade(500) }}>
-              {labels.bar}
+            <span className={`absolute whitespace-nowrap ${at(bar) > 60 ? '-translate-x-full pr-1.5' : 'pl-1.5'}`} style={{ left: x(bar), ...fade(800) }}>
+              {barLabel}
             </span>
           </div>
-          <div aria-hidden="true" className="relative h-9">
-            <span className="absolute inset-x-0 top-1/2 h-px bg-rule" />
-            <span className="absolute -inset-y-1 left-0 w-px bg-ink" />
-            <span className="absolute -inset-y-1 border-l border-dashed border-ink" style={{ left: x(bar) }} />
-            <span
-              className="absolute top-1/2 left-0 h-2.5 -translate-y-1/2 origin-left bg-indigo"
-              style={{
-                width: x(mean),
-                transform: held ? 'scaleX(0)' : 'scaleX(1)',
-                transition: go ? 'transform 900ms var(--ease-out) 600ms' : undefined,
-              }}
-            />
-            <span className="absolute top-1/2 h-px -translate-y-1/2 bg-ink" style={{ left: x(lo), width: `calc(${x(hi)} - ${x(lo)})`, ...fade(1400) }} />
-          </div>
+          {grow(v2, 1000, 900, false)}
           <div className="text-meta relative h-4 font-mono tabular text-graphite" aria-hidden="true">
-            <span className="absolute">0</span>
+            <span className="absolute -translate-x-1/2" style={{ left: x(0) }}>
+              0
+            </span>
             <span className="absolute -translate-x-full whitespace-nowrap" style={{ left: '100%' }}>
               bp
             </span>
           </div>
-          <p className="text-meta mt-2 font-mono tabular text-ink" style={fade(1500)}>
-            <span className="text-indigo">{passes ? 'passes' : 'fails'}</span> · mean {labels.mean} bp {labels.ci} · {labels.days}
+          <p className="text-meta mt-2 font-mono tabular text-ink" style={fade(1900)}>
+            <span className="text-indigo">{passes ? 'passes' : 'fails'}</span> · {v2.stats}
           </p>
         </div>
       </div>

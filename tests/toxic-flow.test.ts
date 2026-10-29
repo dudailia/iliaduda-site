@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { Frozen, TagLink } from '../components/figures/toxicflow/Protocol'
 import { Conclusions } from '../components/figures/toxicflow/Conclusions'
+import { CanaryStory, type Verdict } from '../components/figures/toxicflow/Story'
 import { intensity } from '../components/figures/toxicflow/HawkesToy'
 import { reached } from '../lib/toxicflow/conclusions'
 import { book, height } from '../lib/toxicflow/hero'
@@ -225,6 +226,36 @@ describe('the visual layer reads only the bundle', () => {
     expect(after).toContain(said)
     expect(after).toContain('7 of 16')
     expect(after).not.toContain(AFTER_RUN.drafted)
+  })
+
+  it('draws C2 for v1 (superseded) and v2 on one axis, each bar from 0 to its mean in the bundle', () => {
+    const v = (name: string, c: (typeof bundle.validation.comparisons)[number]): Verdict => ({
+      name,
+      what: '',
+      commit: '',
+      href: '',
+      mean: c.mean_bp!,
+      lo: c.bootstrap_ci_bp[0]!,
+      hi: c.bootstrap_ci_bp[1]!,
+      stats: '',
+    })
+    const c1 = bundle.v1.c2_minus_b1
+    const c2 = bundle.validation.comparisons.find((c) => c.a === 'C2' && c.b === 'B1')!
+    // The same comparison on the same cell and days, so the two bars share an axis.
+    expect([c1.a, c1.b, c1.cell, Object.keys(c1.per_day_bp)]).toEqual([c2.a, c2.b, c2.cell, Object.keys(c2.per_day_bp)])
+    const bar = bundle.mde.c2_threshold_bp
+    const h = renderToStaticMarkup(createElement(CanaryStory, { v1: v('v1 (superseded)', c1), v2: v('v2', c2), bar, barLabel: '', passes: true }))
+    const min = Math.min(0, c1.bootstrap_ci_bp[0]!, c2.bootstrap_ci_bp[0]!) * 1.08
+    const max = Math.max(0, c1.bootstrap_ci_bp[1]!, c2.bootstrap_ci_bp[1]!, bar) * 1.08
+    const pos = (x: number) => ((x - min) / (max - min)) * 100
+    for (const [name, mean] of [['v1 (superseded)', c1.mean_bp!], ['v2', c2.mean_bp!]] as const) {
+      const m = h.match(new RegExp(`data-bar="${name.replace(/[()]/g, '\\$&')}"[^>]*style="left:([\\d.]+)%;width:([\\d.]+)%`))!
+      expect(m, name).not.toBeNull()
+      const [left, width] = [Number(m[1]), Number(m[2])]
+      expect(Math.min(left, left + width)).toBeCloseTo(Math.min(pos(0), pos(mean)), 6)
+      expect(left + width).toBeCloseTo(Math.max(pos(0), pos(mean)), 6)
+    }
+    expect(c1.mean_bp!).toBeLessThan(0)
   })
 
   it('lifts the toy’s intensities by the fitted α and decays them at the fitted β', () => {
