@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ALLOWED_PHONE, FORBIDDEN, allowPhone } from './forbidden'
+import { ALLOWED_PHONE, FORBIDDEN, allowPhone, allowPrereg, exempt } from './forbidden'
 import { CV_PHONE } from '../lib/site'
 
 /**
@@ -50,7 +50,8 @@ describe('retracted claims cannot be restored', () => {
       const hits: string[] = []
       for (const file of files) {
         const rel = relative(process.cwd(), file)
-        const body = allowPhone(stripComments(readFileSync(file, 'utf8')), rel)
+        if (exempt(pattern, rel)) continue
+        const body = allowPrereg(allowPhone(stripComments(readFileSync(file, 'utf8')), rel))
         body.split('\n').forEach((line, i) => {
           if (pattern.test(line)) {
             hits.push(`${relative(process.cwd(), file)}:${i + 1}  ${line.trim()}`)

@@ -15,6 +15,7 @@ import { membraneShape } from './minis/membrane'
 import { TH, TW, type Pts, type Shape } from './minis/shape'
 import smile from './volsurface/snapshot.json'
 import { essviSlice, sliceVol, ssviSlice } from './volsurface/ssvi'
+import { replayData } from './toxicflow/replay'
 
 /**
  * Miniatures of each paper's Fig. 1, drawn from the same data: for the
@@ -89,6 +90,33 @@ function volSurface(): Thumb {
   }
 }
 
+function toxicFlow(): Thumb {
+  // Fig. 1 of /toxic-flow: the minute's mid, held from step to step, sweep and all, as the claim; under it, the Hawkes
+  // intensities B3 reads, as context, on the same clock.
+  const d = replayData()
+  const x = (t: number) => (t / d.span) * TW
+  const mids = d.bids.map((b, n) => (b[0]![0] + d.asks[n]![0]![0]) / 2)
+  const my = (m: number) => TH * 0.04 + (1 - (m - d.lo) / Math.max(1, d.hi - d.lo)) * TH * 0.5
+  const lamMax = Math.max(...d.lamB, ...d.lamS)
+  const ly = (v: number) => TH * 0.98 - (v / lamMax) * TH * 0.36
+  // Few points, since every byte of a thumbnail ships twice: the mid only where it moves, the intensities as the peak
+  // of each of a hundred buckets of steps.
+  const held = (v: readonly number[], y: (v: number) => number) => {
+    const pts: [number, number][] = [[0, y(v[0]!)]]
+    v.forEach((val, n) => {
+      if (n && val !== v[n - 1]) pts.push([x(d.t[n]!), y(v[n - 1]!)], [x(d.t[n]!), y(val)])
+    })
+    pts.push([TW, y(v[v.length - 1]!)])
+    return line(pts)
+  }
+  const peaks = (v: readonly number[], y: (v: number) => number, n = 100) =>
+    line(Array.from({ length: n }, (_, b) => {
+      const part = v.slice(Math.floor((b * v.length) / n), Math.floor(((b + 1) * v.length) / n))
+      return [((b + 0.5) / n) * TW, y(Math.max(...part))] as const
+    }))
+  return { context: [peaks(d.lamB, ly), peaks(d.lamS, ly)], claim: [held(mids, my)] }
+}
+
 function cricket(): Thumb {
   const b = replay.balls
   const pts = b.map((x, i) => [(i / (b.length - 1)) * TW, (1 - x.p) * TH] as const)
@@ -155,6 +183,7 @@ function bcs(): Thumb {
 
 const BUILDERS: Record<string, () => Thumb> = {
   'vol-surface': volSurface,
+  'toxic-flow': toxicFlow,
   market,
   'iv-surface': ivSurface,
   membrane,

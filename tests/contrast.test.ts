@@ -85,6 +85,13 @@ for (const [theme, block] of [
       expect(ratio(token('ink'), paper)).toBeGreaterThanOrEqual(3)
     })
 
+    it('the two sides of a trade (buy, sell) clear AA on paper, as labels and marks on /toxic-flow', () => {
+      // Read as text in a fill's label as well as marks, so 4.5:1; told apart by shape too (filled or hollow, up or down),
+      // never by colour alone.
+      expect(ratio(token('buy'), paper)).toBeGreaterThanOrEqual(4.5)
+      expect(ratio(token('sell'), paper)).toBeGreaterThanOrEqual(4.5)
+    })
+
     it('a thumbnail’s context marks (graphite mixed into paper) are seen at 2:1, and stay quieter than its text', () => {
       const tone = mixHex(token('graphite'), paper, CONTEXT_MIX)
       expect(ratio(tone, paper)).toBeGreaterThanOrEqual(2)
@@ -113,11 +120,12 @@ describe('the colours drawn outside the stylesheet are its tokens', () => {
   })
 })
 
-describe('the palette is exactly the six documented values, in both themes', () => {
-  const SIX = new Set(['ink', 'paper', 'graphite', 'rule', 'indigo', 'indigo-wash'])
+describe('the palette is exactly the eight documented values, in both themes', () => {
+  // The six roles, and the two sides of a trade that /toxic-flow draws (DESIGN.md, Colors).
+  const SIX = new Set(['ink', 'paper', 'graphite', 'rule', 'indigo', 'indigo-wash', 'buy', 'sell'])
   const names = (block: string) => new Set([...block.matchAll(/--color-([a-z-]+):/g)].map((m) => m[1]))
 
-  it('declares no seventh colour token anywhere', () => {
+  it('declares no ninth colour token anywhere', () => {
     expect(names(css)).toEqual(SIX)
   })
 

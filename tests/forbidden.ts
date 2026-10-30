@@ -1,3 +1,6 @@
+import toxicFlow from '../content/data/toxic-flow/toxic-flow.json'
+import { prereg, type PreregTag } from '../lib/toxicflow/prereg'
+import source from '../content/data/toxic-flow/source.json'
 
 /**
  * Phrases that are unsupportable anywhere on this site, with the reason each
@@ -6,6 +9,9 @@
  * receives. They used to keep separate copies, and the rendered-output copy
  * had quietly fallen five patterns behind.
  */
+/** cricstate's retraction, kept apart so the one study that was frozen first (below) can use the word. */
+const PREREG = /pre-?registered|pre-?registration/i
+
 export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
   [/real money/i, 'not supportable — no project handles customer money'],
   [/real clients/i, 'no customer claims without a source'],
@@ -42,7 +48,7 @@ export const FORBIDDEN: readonly (readonly [RegExp, string])[] = [
 
   // cricstate. Part of the design was frozen before the test split was read
   // and part was not, so the stronger word is retracted everywhere.
-  [/pre-?registered|pre-?registration/i, 'retracted: the materiality bands were not frozen first'],
+  [PREREG, 'retracted: the materiality bands were not frozen first'],
   [/93\s?%/, 'retracted pairing with the identity result'],
 
   // Trading work is described at résumé level only. No performance, no
@@ -78,4 +84,38 @@ export const ALLOWED_PHONE = {
 export function allowPhone(text: string, where: string): string {
   const here = (ALLOWED_PHONE.routes as readonly string[]).includes(where) || (ALLOWED_PHONE.files as readonly string[]).includes(where)
   return here ? ALLOWED_PHONE.forms.reduce((t, f) => t.split(f).join(''), text) : text
+}
+
+
+/**
+ * The word cricstate lost, where it is true: the toxic-flow study is frozen by a git tag on its public repository before
+ * any test day is downloaded (its PREREGISTRATION.md and split lock, linked from the page). Its own files may hold both
+ * states' words. What the page renders depends on the copied bundle (lib/toxicflow/prereg.ts): once the tag is recorded,
+ * the page is exempt; until then only the noun, the document and its links, is allowed there, and the adjective
+ * "pre-registered" fails. Anywhere else the ban above still holds, but for the title and status line the page and its
+ * card show in the bundle's current state.
+ */
+export const ALLOWED_PREREG = {
+  routes: ['/toxic-flow'],
+  files: ['app/(pages)/toxic-flow/', 'components/figures/toxicflow/', 'lib/toxicflow/'],
+  // Elsewhere, only these two, word for word: the study's title (in the Contents, the footer and its share card) and
+  // its Contents status line, the owner's words, each as the bundle's state has it.
+  forms: [prereg(toxicFlow.title).title, prereg(toxicFlow.title).statusLine],
+} as const
+
+const TAG = (source as { prereg_tag: PreregTag | null }).prereg_tag
+
+/** Whether a pattern of the list is exempt where `where` is a route or a repo-relative file, with `tag` as the bundle
+ *  records it. */
+export function exempt(pattern: RegExp, where: string, tag: PreregTag | null = TAG): boolean {
+  if (pattern !== PREREG) return false
+  if (ALLOWED_PREREG.files.some((f) => where.startsWith(f))) return true
+  return tag != null && (ALLOWED_PREREG.routes as readonly string[]).includes(where)
+}
+
+/** The text a ban is checked against: the study's two allowed forms taken out, and on its page before the tag, the noun
+ *  (so that what is left still fails on the adjective). */
+export function allowPrereg(text: string, where = '', tag: PreregTag | null = TAG): string {
+  const t = ALLOWED_PREREG.forms.reduce((x, f) => x.split(f).join(''), text)
+  return tag == null && (ALLOWED_PREREG.routes as readonly string[]).includes(where) ? t.replace(/pre-?registrations?/gi, '') : t
 }

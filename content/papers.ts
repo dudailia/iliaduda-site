@@ -1,4 +1,6 @@
 import { fact, type FactKey } from './facts'
+import toxicFlow from './data/toxic-flow/toxic-flow.json'
+import { prereg } from '../lib/toxicflow/prereg'
 
 /**
  * The contents of the issue: every paper and every piece of other work, in the
@@ -47,6 +49,8 @@ export interface Paper {
   readonly cv?: string
   /** A short name for the CV's run-in heading. */
   readonly cvName?: string
+  /** A line under the byline for where the work stands, in the owner's words. */
+  readonly statusLine?: string
   /** Where the work runs live, when it is a tool someone can open: linked from the Contents and the CV beside the paper. */
   readonly live?: { readonly href: string; readonly label: string }
 }
@@ -67,6 +71,22 @@ export const papers: readonly Paper[] = [
     cvName: 'Live BTC/ETH implied-volatility surface',
     // The owner's line (2026-10-20); the CV sets the live address after the name, in brackets.
     cv: 'SSVI and extended SSVI fitted every five minutes to Deribit quotes, with static-arbitrage checks, daily reports and an open-source Python/Next.js stack.',
+  },
+  {
+    slug: 'toxic-flow',
+    href: '/toxic-flow',
+    // The study's own title (its site bundle), word for word once the bundle records the tag that freezes the protocol,
+    // and without its "pre-registered" sentence until then (lib/toxicflow/prereg.ts).
+    title: prereg(toxicFlow.title).title,
+    abstract:
+      'A market maker on Binance BTCUSDT that pulls the side a signal marks as toxic: does a fitted Hawkes model of market orders choose those moments better than a decay-weighted trade count? The design, the analysis and the sentence for every outcome were committed publicly before any test day was downloaded; every result is from simulation on historical data.',
+    dek: 'Does a fitted Hawkes model tell a market maker when to step back, better than a trade count? Fixed in advance, simulated on historical Binance BTCUSDT data.',
+    description:
+      'Does a fitted Hawkes model of order flow tell a market maker when to step back, better than a trade count? A test fixed in advance, run in simulation.',
+    byline: 'Independent work · October 2026 · Binance BTCUSDT, simulated fills',
+    // The owner's lines (2026-10-27): "Pre-registered" only once the bundle records the tag, "drafted" until then.
+    statusLine: prereg(toxicFlow.title).statusLine,
+    status: 'published',
   },
   {
     slug: 'market',

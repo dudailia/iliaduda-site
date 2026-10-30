@@ -1,0 +1,20 @@
+{
+  "repo": "https://github.com/dudailia/toxic-flow",
+  "commit": "d7d7ee0085d497bf3e7d84fdd857b4493e06b168",
+  "committed_at": "2026-10-30T06:50:23-04:00",
+  "subject": "M5 AC5.4: docs/audit_M5.md, the leakage audit of results/fb5cb1e00ce5 and results/5e57ec7d771f: no finding changes a conclusion; every summary.json number recomputes. paper/template.md: the H1 power l",
+  "copied_from": [
+    "site/toxic-flow.json",
+    "site/replay_window.json"
+  ],
+  "sha256": {
+    "toxic-flow.json": "788f27b366346a13a68a906c54163c772b792d6cafe82ff48f711cccb6a49cc0",
+    "replay_window.json": "3ac8a8a606ff884ac0dc42794916a59d4aa5b69dab46bdc17847c684f2dc2ec8"
+  },
+  "prereg_tag": {
+    "name": "prereg-v1",
+    "object": "422f3b4ffcc1d3665d58d209855d595bf50f3814",
+    "commit": "66c639d83396cb58e8236beb76a715f8ac56ffdf",
+    "tagged_at": "2026-10-28T22:38:54-04:00"
+  }
+}
