@@ -1,8 +1,8 @@
 {
   "repo": "https://github.com/dudailia/toxic-flow",
-  "commit": "37a008decf839adfc9fb3b6dc0be99b1af730387",
-  "committed_at": "2026-10-29T16:09:05-04:00",
-  "subject": "DEVIATIONS.md entry 4: the first confirmatory run (results/fb5cb1e00ce5) was cut off by a macOS update restart on 2026-10-29 before it finished; void, none of its files read; to be restarted from its ",
+  "commit": "d7d7ee0085d497bf3e7d84fdd857b4493e06b168",
+  "committed_at": "2026-10-30T06:50:23-04:00",
+  "subject": "M5 AC5.4: docs/audit_M5.md, the leakage audit of results/fb5cb1e00ce5 and results/5e57ec7d771f: no finding changes a conclusion; every summary.json number recomputes. paper/template.md: the H1 power l",
   "copied_from": [
     "site/toxic-flow.json",
     "site/replay_window.json"
