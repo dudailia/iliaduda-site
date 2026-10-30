@@ -1,8 +1,8 @@
 {
   "repo": "https://github.com/dudailia/toxic-flow",
-  "commit": "66c639d83396cb58e8236beb76a715f8ac56ffdf",
-  "committed_at": "2026-10-28T18:53:35-04:00",
-  "subject": "make site-data: v1 block, labelled \"v1 design, superseded; failed canary C2\": v1's C2 against B1 on the validation days, primary cell (mean, bootstrap and t intervals, days above 0, per-day values) fr",
+  "commit": "37a008decf839adfc9fb3b6dc0be99b1af730387",
+  "committed_at": "2026-10-29T16:09:05-04:00",
+  "subject": "DEVIATIONS.md entry 4: the first confirmatory run (results/fb5cb1e00ce5) was cut off by a macOS update restart on 2026-10-29 before it finished; void, none of its files read; to be restarted from its ",
   "copied_from": [
     "site/toxic-flow.json",
     "site/replay_window.json"
@@ -11,5 +11,10 @@
     "toxic-flow.json": "788f27b366346a13a68a906c54163c772b792d6cafe82ff48f711cccb6a49cc0",
     "replay_window.json": "3ac8a8a606ff884ac0dc42794916a59d4aa5b69dab46bdc17847c684f2dc2ec8"
   },
-  "prereg_tag": null
+  "prereg_tag": {
+    "name": "prereg-v1",
+    "object": "422f3b4ffcc1d3665d58d209855d595bf50f3814",
+    "commit": "66c639d83396cb58e8236beb76a715f8ac56ffdf",
+    "tagged_at": "2026-10-28T22:38:54-04:00"
+  }
 }
